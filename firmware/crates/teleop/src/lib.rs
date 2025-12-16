@@ -10,7 +10,7 @@ use thiserror::Error;
 use tokio::net::UdpSocket;
 use tokio::sync::{mpsc, watch};
 use tracing::{debug, error, info, warn};
-use types::{Command, Mode, PowerStatus, ToolCommand, Twist};
+use types::{Command, Mode, Pose, PowerStatus, ToolCommand, Twist};
 
 #[derive(Error, Debug)]
 pub enum TeleopError {
@@ -45,6 +45,7 @@ impl Default for Config {
 pub struct Telemetry {
     pub timestamp_ms: u64,
     pub mode: Mode,
+    pub pose: Pose,
     pub power: PowerStatus,
     pub velocity: Twist,
     pub motor_temps: [f32; 4],
@@ -187,8 +188,19 @@ impl Server {
 
         buf.push(0x10); // Telemetry message type
         buf.push(telemetry.mode as u8);
+
+        // Pose (x, y, theta) - 24 bytes
+        buf.extend_from_slice(&telemetry.pose.x.to_le_bytes());
+        buf.extend_from_slice(&telemetry.pose.y.to_le_bytes());
+        buf.extend_from_slice(&telemetry.pose.theta.to_le_bytes());
+
+        // Power
         buf.extend_from_slice(&telemetry.power.battery_voltage.to_le_bytes());
+
+        // Timestamp
         buf.extend_from_slice(&telemetry.timestamp_ms.to_le_bytes());
+
+        // Velocity
         buf.extend_from_slice(&telemetry.velocity.linear.to_le_bytes());
         buf.extend_from_slice(&telemetry.velocity.angular.to_le_bytes());
 

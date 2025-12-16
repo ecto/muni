@@ -14,7 +14,7 @@ use teleop::{Config as TeleopConfig, Server as TeleopServer, Telemetry};
 use tokio::sync::{mpsc, watch};
 use tools::{protocol, Registry as ToolRegistry, ToolOutput};
 use tracing::{error, info, warn};
-use types::{Command, Mode, PowerStatus, Twist};
+use types::{Command, Mode, Pose, PowerStatus, Twist};
 use ui::{Config as UiConfig, Dashboard};
 
 #[derive(Parser)]
@@ -72,6 +72,17 @@ impl CanInterface {
     fn tick(&self, dt: f64) {
         if let Self::Sim(sim) = self {
             sim.lock().unwrap().tick(dt);
+        }
+    }
+
+    /// Get current pose from simulation (returns default for real hardware).
+    fn pose(&self) -> Pose {
+        match self {
+            Self::Real(_) => Pose::default(), // TODO: get from odometry/GPS
+            Self::Sim(sim) => {
+                let (x, y, theta) = sim.lock().unwrap().position();
+                Pose { x, y, theta }
+            }
         }
     }
 }
@@ -133,6 +144,7 @@ async fn main() -> Result<()> {
     let initial_telemetry = Telemetry {
         timestamp_ms: 0,
         mode: Mode::Disabled,
+        pose: Pose::default(),
         power: PowerStatus::default(),
         velocity: Twist::default(),
         motor_temps: [0.0; 4],
@@ -313,12 +325,18 @@ async fn main() -> Result<()> {
             (None, None)
         };
 
+        // Get pose (drop the lock first to avoid holding it during telemetry send)
+        drop(state);
+        let pose = can_interface.pose();
+
+        let state = shared.lock().unwrap();
         let telemetry = Telemetry {
             timestamp_ms: std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()
                 .as_millis() as u64,
             mode: state.state_machine.mode(),
+            pose,
             power: PowerStatus {
                 battery_voltage: state.drivetrain.battery_voltage() as f64,
                 system_current: motor_currents.iter().sum::<f32>() as f64,

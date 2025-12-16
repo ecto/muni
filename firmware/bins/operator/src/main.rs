@@ -40,6 +40,8 @@ struct RoverConnection {
 #[derive(Resource, Default)]
 struct Telemetry {
     mode: Mode,
+    /// Rover pose from bvrd (actual position, not dead-reckoning)
+    pose: RoverPose,
     battery_voltage: f64,
     system_current: f64,
     velocity: Twist,
@@ -108,8 +110,8 @@ impl Default for CameraState {
     }
 }
 
-/// Simulated rover pose (from commands, for visualization)
-#[derive(Resource, Default)]
+/// Rover pose from telemetry
+#[derive(Resource, Default, Clone, Copy)]
 struct RoverPose {
     x: f32,
     y: f32,
@@ -420,10 +422,11 @@ fn receive_telemetry(
     // Non-blocking receive
     while let Ok((len, _addr)) = connection.socket.recv_from(&mut buf) {
         if len > 0 && buf[0] == 0x10 {
-            // Parse telemetry
+            // Parse telemetry - format matches teleop::serialize_telemetry
             telemetry.connected = true;
             telemetry.last_recv = Some(Instant::now());
 
+            // Mode (byte 1)
             if len >= 2 {
                 telemetry.mode = match buf[1] {
                     0 => Mode::Disabled,
@@ -436,9 +439,32 @@ fn receive_telemetry(
                 };
             }
 
-            if len >= 10 {
+            // Pose: x, y, theta (bytes 2-25, three f64s)
+            if len >= 26 {
+                let x = f64::from_le_bytes(buf[2..10].try_into().unwrap_or([0; 8]));
+                let y = f64::from_le_bytes(buf[10..18].try_into().unwrap_or([0; 8]));
+                let theta = f64::from_le_bytes(buf[18..26].try_into().unwrap_or([0; 8]));
+                telemetry.pose = RoverPose {
+                    x: x as f32,
+                    y: y as f32,
+                    theta: theta as f32,
+                };
+            }
+
+            // Battery voltage (bytes 26-33)
+            if len >= 34 {
                 telemetry.battery_voltage = f64::from_le_bytes(
-                    buf[2..10].try_into().unwrap_or([0; 8])
+                    buf[26..34].try_into().unwrap_or([0; 8])
+                );
+            }
+
+            // Velocity (bytes 42-57, after timestamp)
+            if len >= 58 {
+                telemetry.velocity.linear = f64::from_le_bytes(
+                    buf[42..50].try_into().unwrap_or([0; 8])
+                );
+                telemetry.velocity.angular = f64::from_le_bytes(
+                    buf[50..58].try_into().unwrap_or([0; 8])
                 );
             }
         }
@@ -453,19 +479,13 @@ fn receive_telemetry(
 }
 
 fn update_rover_pose(
-    input: Res<ControllerInput>,
+    telemetry: Res<Telemetry>,
     mut pose: ResMut<RoverPose>,
-    time: Res<Time>,
 ) {
-    let dt = time.delta_secs();
-
-    // Simple integration of commanded velocity (for visualization)
-    let linear = input.linear * 2.0 * dt;
-    let angular = input.angular * 1.5 * dt;
-
-    pose.theta += angular;
-    pose.x += linear * pose.theta.cos();
-    pose.y -= linear * pose.theta.sin(); // negative to match Bevy's Z convention
+    // Use actual telemetry pose from bvrd (no local dead-reckoning)
+    if telemetry.connected {
+        *pose = telemetry.pose;
+    }
 }
 
 fn update_rover_model(
@@ -473,9 +493,12 @@ fn update_rover_model(
     mut query: Query<&mut Transform, With<RoverModel>>,
 ) {
     for mut transform in &mut query {
+        // Map physics 2D coordinates to Bevy 3D:
+        // physics.x → Bevy X
+        // physics.y → Bevy -Z (2D Y-up maps to 3D Z-back)
         transform.translation.x = pose.x;
-        transform.translation.z = pose.y;
-        // Positive theta = turned left = counter-clockwise from above
+        transform.translation.z = -pose.y;
+        // Positive theta = counter-clockwise in 2D = counter-clockwise around Y in 3D
         transform.rotation = Quat::from_rotation_y(pose.theta);
     }
 }
@@ -540,11 +563,14 @@ fn update_camera(
     }
 
     for mut transform in &mut query {
-        let rover_pos = Vec3::new(pose.x, 0.15, pose.y);
+        // Map physics coords to Bevy: physics.y → -Z
+        let rover_pos = Vec3::new(pose.x, 0.15, -pose.y);
 
         match camera_state.mode {
             CameraMode::FirstPerson => {
                 // Camera at rover position, looking forward
+                // In physics: forward = (cos(theta), sin(theta))
+                // In Bevy: forward = (cos(theta), 0, -sin(theta))
                 let forward = Vec3::new(pose.theta.cos(), 0.0, -pose.theta.sin());
                 transform.translation = rover_pos + Vec3::Y * 0.3 + forward * 0.2;
                 let look_target = transform.translation + forward;
@@ -559,7 +585,7 @@ fn update_camera(
                 let target_pos = Vec3::new(
                     pose.x + horizontal_dist * total_yaw.cos(),
                     height + 0.3,
-                    pose.y - horizontal_dist * total_yaw.sin(),
+                    -pose.y - horizontal_dist * total_yaw.sin(),
                 );
 
                 // Smooth follow
@@ -574,7 +600,7 @@ fn update_camera(
                 let target_pos = Vec3::new(
                     pose.x + horizontal_dist * camera_state.yaw_offset.cos(),
                     height + 0.3,
-                    pose.y - horizontal_dist * camera_state.yaw_offset.sin(),
+                    -pose.y - horizontal_dist * camera_state.yaw_offset.sin(),
                 );
 
                 transform.translation = transform.translation.lerp(target_pos, 8.0 * dt);

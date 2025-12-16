@@ -67,6 +67,32 @@ pub struct PowerStatus {
     pub system_current: f64,
 }
 
+/// 2D pose in local frame (meters, radians).
+/// Origin is where the rover was powered on (or last reset).
+/// In production, this would be augmented with GPS coordinates.
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
+pub struct Pose {
+    /// X position in meters (positive = forward at theta=0)
+    pub x: f64,
+    /// Y position in meters (positive = left at theta=0)
+    pub y: f64,
+    /// Heading in radians (positive = counter-clockwise from X axis)
+    pub theta: f64,
+}
+
+/// GPS coordinates (WGS84).
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
+pub struct GpsCoord {
+    /// Latitude in degrees
+    pub lat: f64,
+    /// Longitude in degrees  
+    pub lon: f64,
+    /// Altitude in meters (above WGS84 ellipsoid)
+    pub alt: f64,
+    /// Horizontal accuracy in meters (0 = unknown)
+    pub accuracy: f32,
+}
+
 /// Command from operator/autonomy to rover.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Command {
