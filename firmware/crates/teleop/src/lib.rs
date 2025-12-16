@@ -87,7 +87,7 @@ impl Server {
     pub async fn run(self) -> Result<(), TeleopError> {
         let addr = format!("0.0.0.0:{}", self.config.listen_port);
         let socket = Arc::new(UdpSocket::bind(&addr).await?);
-        info!(addr, "Teleop server listening");
+        info!(addr, "Teleop server listening on UDP");
 
         let mut buf = [0u8; 1024];
         let mut operator_addr: Option<SocketAddr> = None;
@@ -118,7 +118,10 @@ impl Server {
                     if let Some(addr) = operator_addr {
                         let telemetry = self.telemetry_rx.borrow().clone();
                         if let Some(data) = Self::serialize_telemetry(&telemetry) {
-                            let _ = socket.send_to(&data, addr).await;
+                            match socket.send_to(&data, addr).await {
+                                Ok(n) => debug!(%addr, bytes = n, mode = ?telemetry.mode, "Sent telemetry"),
+                                Err(e) => error!(?e, "Failed to send telemetry"),
+                            }
                         }
 
                         // Check connection timeout

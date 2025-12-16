@@ -140,6 +140,9 @@ async fn main() -> Result<()> {
         info!("Sim mode: auto-enabled to Idle");
     }
 
+    // Get initial mode before moving state_machine
+    let initial_mode = state_machine.mode();
+
     let shared = Arc::new(Mutex::new(SharedState {
         state_machine,
         commanded_twist: Twist::default(),
@@ -149,13 +152,17 @@ async fn main() -> Result<()> {
 
     // Channels
     let (cmd_tx, mut cmd_rx) = mpsc::channel::<Command>(32);
+
     let initial_telemetry = Telemetry {
         timestamp_ms: 0,
-        mode: Mode::Disabled,
+        mode: initial_mode,
         pose: Pose::default(),
-        power: PowerStatus::default(),
+        power: PowerStatus {
+            battery_voltage: 48.0,  // Simulated full battery
+            system_current: 0.0,
+        },
         velocity: Twist::default(),
-        motor_temps: [0.0; 4],
+        motor_temps: [25.0; 4],  // Ambient temp
         motor_currents: [0.0; 4],
         active_tool: None,
         tool_status: None,
