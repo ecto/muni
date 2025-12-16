@@ -19,3 +19,4 @@ bevy_egui = "0.31"
 
 # Image decoding for video frames
 image = { version = "0.25", default-features = false, features = ["jpeg"] }
+

@@ -94,8 +94,10 @@ struct VideoDisplay {
     height: u32,
     /// Egui texture handle
     texture_handle: Option<egui::TextureHandle>,
-    /// Last frame sequence number
+    /// Last frame sequence number (from video thread)
     last_sequence: u32,
+    /// Sequence number of last texture update (for egui)
+    last_texture_sequence: u32,
     /// Frames per second (rolling average)
     fps: f32,
     last_frame_time: Option<Instant>,
@@ -310,6 +312,18 @@ fn lerp_angle(a: f32, b: f32, t: f32) -> f32 {
 #[derive(Component)]
 struct RoverModel;
 
+#[derive(Component)]
+struct VideoFrustum;
+
+/// Video texture for 3D frustum display
+#[derive(Resource)]
+struct VideoTexture {
+    /// Handle to the material using this texture (we update its texture reference)
+    material_handle: Handle<StandardMaterial>,
+    /// Last sequence number we uploaded
+    last_uploaded_seq: u32,
+}
+
 // ============================================================================
 // Startup Systems
 // ============================================================================
@@ -400,6 +414,40 @@ fn setup_scene(
                     .with_rotation(Quat::from_rotation_x(FRAC_PI_2)),
             ));
         }
+    });
+
+    // Create material for video (texture will be set dynamically)
+    let video_material = materials.add(StandardMaterial {
+        base_color: Color::srgb(0.1, 0.1, 0.15), // Dark placeholder color
+        unlit: true, // Don't apply lighting to video
+        alpha_mode: AlphaMode::Opaque,
+        double_sided: true,
+        cull_mode: None,
+        ..default()
+    });
+
+    // Frustum dimensions (based on camera FOV and distance)
+    let frustum_distance = 3.0; // Distance from rover to video plane
+    let frustum_width = 2.4;    // Width of video plane (roughly 16:9 aspect)
+    let frustum_height = 1.35;  // Height of video plane
+
+    // Create a proper quad mesh facing backward (-X direction when placed at +X)
+    // Using Rectangle which creates a mesh in XY plane, then we rotate it
+    let quad_mesh = Rectangle::new(frustum_width, frustum_height);
+
+    // Video frustum quad - positioned in front of rover
+    commands.spawn((
+        Mesh3d(meshes.add(quad_mesh)),
+        MeshMaterial3d(video_material.clone()),
+        Transform::from_xyz(frustum_distance, 0.4, 0.0)
+            .with_rotation(Quat::from_rotation_y(-FRAC_PI_2)), // Rotate to face back toward rover
+        VideoFrustum,
+    ));
+
+    // Store video texture handles as resource
+    commands.insert_resource(VideoTexture {
+        material_handle: video_material,
+        last_uploaded_seq: 0,
     });
 
     // Camera
@@ -675,8 +723,8 @@ fn receive_video(
         video_display.width = frame.width;
         video_display.height = frame.height;
         video_display.last_sequence = frame.sequence;
-        // Clear texture handle to force re-creation with new data
-        video_display.texture_handle = None;
+        // Don't clear texture_handle here - let UI update it when ready
+        // This prevents flickering when frames arrive faster than UI renders
 
         // Update FPS
         let now = Instant::now();
@@ -723,6 +771,112 @@ fn update_rover_model(
         // Positive theta = counter-clockwise in 2D = counter-clockwise around Y in 3D
         transform.rotation = Quat::from_rotation_y(pose.theta);
     }
+}
+
+fn update_video_frustum(
+    pose: Res<RoverPose>,
+    video_display: Res<VideoDisplay>,
+    video_texture: Option<ResMut<VideoTexture>>,
+    mut images: ResMut<Assets<Image>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    mut frustum_query: Query<&mut Transform, With<VideoFrustum>>,
+) {
+    let Some(mut video_texture) = video_texture else { return };
+
+    // Update frustum position to follow rover
+    let frustum_distance = 3.0;
+    let frustum_height_offset = 0.4;
+
+    for mut transform in &mut frustum_query {
+        // Position in front of rover
+        let forward = Vec3::new(pose.theta.cos(), 0.0, -pose.theta.sin());
+        let rover_pos = Vec3::new(pose.x, 0.0, -pose.y);
+
+        transform.translation = rover_pos + forward * frustum_distance + Vec3::Y * frustum_height_offset;
+        // Rotate to face the rover - the quad is in XY plane, rotated -90° around Y
+        // So we add that base rotation to the rover's heading
+        transform.rotation = Quat::from_rotation_y(pose.theta - FRAC_PI_2);
+    }
+
+    // Update texture if we have new video data
+    if video_display.width > 0
+        && !video_display.rgba_data.is_empty()
+        && video_display.last_sequence != video_texture.last_uploaded_seq
+    {
+        // Create new image from video data (no flip needed)
+        let size = bevy::render::render_resource::Extent3d {
+            width: video_display.width,
+            height: video_display.height,
+            depth_or_array_layers: 1,
+        };
+
+        let image = Image::new(
+            size,
+            bevy::render::render_resource::TextureDimension::D2,
+            video_display.rgba_data.clone(),
+            bevy::render::render_resource::TextureFormat::Rgba8UnormSrgb,
+            bevy::render::render_asset::RenderAssetUsages::MAIN_WORLD
+                | bevy::render::render_asset::RenderAssetUsages::RENDER_WORLD,
+        );
+
+        let image_handle = images.add(image);
+
+        // Update material to use new texture
+        if let Some(material) = materials.get_mut(&video_texture.material_handle) {
+            material.base_color_texture = Some(image_handle);
+            material.base_color = Color::WHITE; // Show texture, not tint
+        }
+
+        video_texture.last_uploaded_seq = video_display.last_sequence;
+    }
+}
+
+fn draw_frustum_gizmos(
+    pose: Res<RoverPose>,
+    mut gizmos: Gizmos,
+) {
+    // Frustum parameters (must match setup_scene)
+    let frustum_distance = 3.0;
+    let frustum_width = 2.4;
+    let frustum_height = 1.35;
+    let camera_height = 0.25; // Height of camera on rover
+    let frustum_center_height = 0.4;
+
+    // Rover position and orientation in 3D
+    let rover_pos = Vec3::new(pose.x, 0.0, -pose.y);
+    let forward = Vec3::new(pose.theta.cos(), 0.0, -pose.theta.sin());
+    let right = Vec3::new(-pose.theta.sin(), 0.0, -pose.theta.cos());
+
+    // Camera origin (on top of rover)
+    let camera_origin = rover_pos + Vec3::Y * camera_height;
+
+    // Frustum plane center
+    let plane_center = rover_pos + forward * frustum_distance + Vec3::Y * frustum_center_height;
+
+    // Frustum corners (in world space)
+    let half_w = frustum_width / 2.0;
+    let half_h = frustum_height / 2.0;
+
+    let top_left = plane_center + Vec3::Y * half_h - right * half_w;
+    let top_right = plane_center + Vec3::Y * half_h + right * half_w;
+    let bottom_left = plane_center - Vec3::Y * half_h - right * half_w;
+    let bottom_right = plane_center - Vec3::Y * half_h + right * half_w;
+
+    // Frustum edge color
+    let edge_color = Color::srgba(0.3, 0.6, 1.0, 0.6);
+    let corner_color = Color::srgba(0.3, 0.6, 1.0, 0.3);
+
+    // Draw lines from camera to corners
+    gizmos.line(camera_origin, top_left, corner_color);
+    gizmos.line(camera_origin, top_right, corner_color);
+    gizmos.line(camera_origin, bottom_left, corner_color);
+    gizmos.line(camera_origin, bottom_right, corner_color);
+
+    // Draw rectangle around video plane
+    gizmos.line(top_left, top_right, edge_color);
+    gizmos.line(top_right, bottom_right, edge_color);
+    gizmos.line(bottom_right, bottom_left, edge_color);
+    gizmos.line(bottom_left, top_left, edge_color);
 }
 
 fn update_camera(
@@ -1007,8 +1161,9 @@ fn ui_system(
                 let fps = video_display.fps;
                 let seq = video_display.last_sequence;
 
-                // Create texture if needed, or update existing one
-                let needs_update = video_display.texture_handle.is_none();
+                // Create/update texture when sequence changes
+                let needs_update = video_display.texture_handle.is_none()
+                    || video_display.last_sequence != video_display.last_texture_sequence;
 
                 if needs_update {
                     let image = egui::ColorImage::from_rgba_unmultiplied(
@@ -1017,6 +1172,7 @@ fn ui_system(
                     );
                     let texture = ui.ctx().load_texture("video_feed", image, egui::TextureOptions::LINEAR);
                     video_display.texture_handle = Some(texture);
+                    video_display.last_texture_sequence = video_display.last_sequence;
                 }
 
                 // Display video with aspect ratio preserved
@@ -1138,6 +1294,8 @@ fn main() -> anyhow::Result<()> {
             receive_video,
             update_rover_pose,
             update_rover_model,
+            update_video_frustum,
+            draw_frustum_gizmos,
             update_camera,
         ))
         .add_systems(Update, ui_system)
@@ -1145,3 +1303,4 @@ fn main() -> anyhow::Result<()> {
 
     Ok(())
 }
+
