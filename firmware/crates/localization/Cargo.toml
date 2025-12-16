@@ -1,0 +1,11 @@
+[package]
+name = "localization"
+description = "Wheel odometry and pose estimation for bvr"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+tracing = { workspace = true }
+types = { workspace = true }
+control = { workspace = true }
