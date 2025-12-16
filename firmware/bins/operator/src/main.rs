@@ -45,6 +45,15 @@ struct Telemetry {
     last_recv: Option<Instant>,
 }
 
+/// Input source type
+#[derive(Default, Clone, Copy, PartialEq, Eq)]
+enum InputSource {
+    #[default]
+    None,
+    Keyboard,
+    Gamepad,
+}
+
 /// Controller input state
 #[derive(Resource, Default)]
 struct ControllerInput {
@@ -55,7 +64,7 @@ struct ControllerInput {
     action_b: bool,
     estop: bool,
     enable: bool,
-    connected: bool,
+    source: InputSource,
 }
 
 /// Simulated rover pose (from commands, for visualization)
@@ -97,15 +106,15 @@ fn setup_scene(
         } else {
             Color::srgb(0.18, 0.21, 0.18)
         };
-        
+
         // X lines
         commands.spawn((
             Mesh3d(meshes.add(Cuboid::new(50.0, 0.005, 0.015))),
             MeshMaterial3d(materials.add(color)),
             Transform::from_xyz(0.0, 0.001, i as f32),
         ));
-        
-        // Z lines  
+
+        // Z lines
         commands.spawn((
             Mesh3d(meshes.add(Cuboid::new(0.015, 0.005, 50.0))),
             MeshMaterial3d(materials.add(color)),
@@ -135,7 +144,7 @@ fn setup_scene(
             })),
             Transform::from_xyz(0.28, 0.0, 0.0),
         ));
-        
+
         // Top panel
         parent.spawn((
             Mesh3d(meshes.add(Cuboid::new(0.4, 0.02, 0.4))),
@@ -146,7 +155,7 @@ fn setup_scene(
             })),
             Transform::from_xyz(0.0, 0.11, 0.0),
         ));
-        
+
         // Wheels
         let wheel_mesh = meshes.add(Cylinder::new(0.082, 0.06));
         let wheel_mat = materials.add(StandardMaterial {
@@ -154,7 +163,7 @@ fn setup_scene(
             perceptual_roughness: 0.9,
             ..default()
         });
-        
+
         for (x, z) in [(-0.28, 0.28), (0.28, 0.28), (-0.28, -0.28), (0.28, -0.28)] {
             parent.spawn((
                 Mesh3d(wheel_mesh.clone()),
@@ -193,60 +202,102 @@ fn setup_scene(
 // ============================================================================
 
 fn gamepad_connections(
-    mut input: ResMut<ControllerInput>,
     mut events: EventReader<GamepadConnectionEvent>,
 ) {
     for event in events.read() {
         match &event.connection {
             GamepadConnection::Connected { name, .. } => {
                 info!("Gamepad connected: {}", name);
-                input.connected = true;
             }
             GamepadConnection::Disconnected => {
                 info!("Gamepad disconnected");
-                input.connected = false;
             }
         }
     }
 }
 
-fn read_gamepad(
+fn read_input(
     mut input: ResMut<ControllerInput>,
     gamepads: Query<&Gamepad>,
+    keyboard: Res<ButtonInput<KeyCode>>,
 ) {
-    // Get first connected gamepad
-    let Some(gamepad) = gamepads.iter().next() else {
-        input.linear = 0.0;
-        input.angular = 0.0;
-        input.tool_axis = 0.0;
-        input.action_a = false;
-        input.action_b = false;
-        input.estop = false;
-        input.enable = false;
-        input.connected = false;
-        return;
-    };
-    
-    input.connected = true;
+    // Try gamepad first
+    if let Some(gamepad) = gamepads.iter().next() {
+        input.source = InputSource::Gamepad;
 
-    // Left stick for movement
-    let left_y = gamepad.get(GamepadAxis::LeftStickY).unwrap_or(0.0);
-    let left_x = gamepad.get(GamepadAxis::LeftStickX).unwrap_or(0.0);
-    
-    // Apply deadzone
-    input.linear = if left_y.abs() > 0.1 { -left_y } else { 0.0 };
-    input.angular = if left_x.abs() > 0.1 { -left_x } else { 0.0 };
-    
-    // Triggers for tool axis
-    let rt = gamepad.get(GamepadAxis::RightZ).unwrap_or(0.0);
-    let lt = gamepad.get(GamepadAxis::LeftZ).unwrap_or(0.0);
-    input.tool_axis = rt - lt;
-    
-    // Buttons
-    input.action_a = gamepad.pressed(GamepadButton::South);
-    input.action_b = gamepad.pressed(GamepadButton::East);
-    input.estop = gamepad.pressed(GamepadButton::Select);
-    input.enable = gamepad.pressed(GamepadButton::Start);
+        // Left stick for movement
+        let left_y = gamepad.get(GamepadAxis::LeftStickY).unwrap_or(0.0);
+        let left_x = gamepad.get(GamepadAxis::LeftStickX).unwrap_or(0.0);
+
+        // Apply deadzone
+        input.linear = if left_y.abs() > 0.1 { -left_y } else { 0.0 };
+        input.angular = if left_x.abs() > 0.1 { -left_x } else { 0.0 };
+
+        // Triggers for tool axis
+        let rt = gamepad.get(GamepadAxis::RightZ).unwrap_or(0.0);
+        let lt = gamepad.get(GamepadAxis::LeftZ).unwrap_or(0.0);
+        input.tool_axis = rt - lt;
+
+        // Buttons
+        input.action_a = gamepad.pressed(GamepadButton::South);
+        input.action_b = gamepad.pressed(GamepadButton::East);
+        input.estop = gamepad.pressed(GamepadButton::Select);
+        input.enable = gamepad.pressed(GamepadButton::Start);
+        return;
+    }
+
+    // Fall back to keyboard
+    // WASD or Arrow keys for movement
+    let mut linear = 0.0f32;
+    let mut angular = 0.0f32;
+
+    if keyboard.pressed(KeyCode::KeyW) || keyboard.pressed(KeyCode::ArrowUp) {
+        linear += 1.0;
+    }
+    if keyboard.pressed(KeyCode::KeyS) || keyboard.pressed(KeyCode::ArrowDown) {
+        linear -= 1.0;
+    }
+    if keyboard.pressed(KeyCode::KeyA) || keyboard.pressed(KeyCode::ArrowLeft) {
+        angular += 1.0;
+    }
+    if keyboard.pressed(KeyCode::KeyD) || keyboard.pressed(KeyCode::ArrowRight) {
+        angular -= 1.0;
+    }
+
+    // Q/E for tool axis
+    let mut tool = 0.0f32;
+    if keyboard.pressed(KeyCode::KeyE) {
+        tool += 1.0;
+    }
+    if keyboard.pressed(KeyCode::KeyQ) {
+        tool -= 1.0;
+    }
+
+    // Check if any movement keys are pressed to determine source
+    let any_key = linear != 0.0 || angular != 0.0 || tool != 0.0
+        || keyboard.pressed(KeyCode::Space)
+        || keyboard.pressed(KeyCode::ShiftLeft)
+        || keyboard.pressed(KeyCode::Escape)
+        || keyboard.pressed(KeyCode::Enter);
+
+    if any_key {
+        input.source = InputSource::Keyboard;
+    } else if input.source == InputSource::Gamepad {
+        // No gamepad connected anymore, no keys pressed
+        input.source = InputSource::None;
+    }
+
+    input.linear = linear;
+    input.angular = angular;
+    input.tool_axis = tool;
+
+    // Space = Action A, Shift = Action B
+    input.action_a = keyboard.pressed(KeyCode::Space);
+    input.action_b = keyboard.pressed(KeyCode::ShiftLeft) || keyboard.pressed(KeyCode::ShiftRight);
+
+    // Escape = E-Stop, Enter = Enable
+    input.estop = keyboard.pressed(KeyCode::Escape);
+    input.enable = keyboard.pressed(KeyCode::Enter);
 }
 
 fn send_commands(
@@ -275,7 +326,7 @@ fn send_commands(
     buf.push(0x01); // Twist command type
     buf.extend_from_slice(&linear.to_le_bytes());
     buf.extend_from_slice(&angular.to_le_bytes());
-    
+
     let _ = connection.socket.send_to(&buf, connection.rover_addr);
 }
 
@@ -284,14 +335,14 @@ fn receive_telemetry(
     mut telemetry: ResMut<Telemetry>,
 ) {
     let mut buf = [0u8; 256];
-    
+
     // Non-blocking receive
     while let Ok((len, _addr)) = connection.socket.recv_from(&mut buf) {
         if len > 0 && buf[0] == 0x10 {
             // Parse telemetry
             telemetry.connected = true;
             telemetry.last_recv = Some(Instant::now());
-            
+
             if len >= 2 {
                 telemetry.mode = match buf[1] {
                     0 => Mode::Disabled,
@@ -303,7 +354,7 @@ fn receive_telemetry(
                     _ => Mode::Disabled,
                 };
             }
-            
+
             if len >= 10 {
                 telemetry.battery_voltage = f64::from_le_bytes(
                     buf[2..10].try_into().unwrap_or([0; 8])
@@ -311,7 +362,7 @@ fn receive_telemetry(
             }
         }
     }
-    
+
     // Check for timeout
     if let Some(last) = telemetry.last_recv {
         if last.elapsed() > Duration::from_secs(2) {
@@ -326,11 +377,11 @@ fn update_rover_pose(
     time: Res<Time>,
 ) {
     let dt = time.delta_secs();
-    
+
     // Simple integration of commanded velocity (for visualization)
     let linear = input.linear * 2.0 * dt;
     let angular = input.angular * 1.5 * dt;
-    
+
     pose.theta += angular;
     pose.x += linear * pose.theta.cos();
     pose.y += linear * pose.theta.sin();
@@ -358,10 +409,10 @@ fn camera_follow(
             2.5,
             pose.y + 3.5 * (-pose.theta + std::f32::consts::FRAC_PI_4).sin(),
         );
-        
+
         // Smooth follow
         transform.translation = transform.translation.lerp(target_pos, 4.0 * time.delta_secs());
-        
+
         let look_target = Vec3::new(pose.x, 0.15, pose.y);
         transform.look_at(look_target, Vec3::Y);
     }
@@ -391,9 +442,9 @@ fn ui_system(
                 };
                 ui.colored_label(color, text);
             });
-            
+
             ui.separator();
-            
+
             // Mode
             let mode_info = match telemetry.mode {
                 Mode::Disabled => ("DISABLED", egui::Color32::GRAY),
@@ -403,14 +454,14 @@ fn ui_system(
                 Mode::EStop => ("E-STOP", egui::Color32::from_rgb(255, 80, 80)),
                 Mode::Fault => ("FAULT", egui::Color32::from_rgb(255, 180, 80)),
             };
-            
+
             ui.horizontal(|ui| {
                 ui.label("Mode:");
                 ui.colored_label(mode_info.1, egui::RichText::new(mode_info.0).strong());
             });
-            
+
             ui.separator();
-            
+
             // Battery
             ui.horizontal(|ui| {
                 ui.label("Battery:");
@@ -424,14 +475,14 @@ fn ui_system(
                 };
                 ui.colored_label(color, format!("{:.1}V", voltage));
             });
-            
+
             ui.horizontal(|ui| {
                 ui.label("Current:");
                 ui.label(format!("{:.1}A", telemetry.system_current));
             });
-            
+
             ui.separator();
-            
+
             // Velocity
             ui.label(egui::RichText::new("Velocity").strong());
             ui.horizontal(|ui| {
@@ -443,24 +494,24 @@ fn ui_system(
                 ui.label(format!("{:.2} rad/s", telemetry.velocity.angular));
             });
         });
-    
+
     // Controller panel
-    egui::Window::new("🎮 Controller")
+    egui::Window::new("🎮 Input")
         .default_pos([10.0, 280.0])
         .default_width(220.0)
         .show(contexts.ctx_mut(), |ui| {
-            // Connection
+            // Input source
             ui.horizontal(|ui| {
-                let (color, text) = if input.connected {
-                    (egui::Color32::from_rgb(80, 200, 120), "● Gamepad Connected")
-                } else {
-                    (egui::Color32::from_rgb(255, 180, 80), "○ No Gamepad")
+                let (color, text) = match input.source {
+                    InputSource::Gamepad => (egui::Color32::from_rgb(80, 200, 120), "● Gamepad"),
+                    InputSource::Keyboard => (egui::Color32::from_rgb(100, 165, 255), "● Keyboard"),
+                    InputSource::None => (egui::Color32::from_rgb(255, 180, 80), "○ No Input"),
                 };
                 ui.colored_label(color, text);
             });
-            
+
             ui.separator();
-            
+
             // Stick values with visual bars
             ui.horizontal(|ui| {
                 ui.label("Linear: ");
@@ -468,23 +519,23 @@ fn ui_system(
                 ui.add(egui::ProgressBar::new(bar_val).desired_width(80.0));
                 ui.label(format!("{:+.2}", input.linear));
             });
-            
+
             ui.horizontal(|ui| {
                 ui.label("Angular:");
                 let bar_val = (input.angular + 1.0) / 2.0;
                 ui.add(egui::ProgressBar::new(bar_val).desired_width(80.0));
                 ui.label(format!("{:+.2}", input.angular));
             });
-            
+
             ui.horizontal(|ui| {
                 ui.label("Tool:   ");
                 let bar_val = (input.tool_axis + 1.0) / 2.0;
                 ui.add(egui::ProgressBar::new(bar_val).desired_width(80.0));
                 ui.label(format!("{:+.2}", input.tool_axis));
             });
-            
+
             ui.separator();
-            
+
             // Buttons
             ui.horizontal(|ui| {
                 let btn = |pressed: bool, label: &str| {
@@ -494,14 +545,14 @@ fn ui_system(
                         egui::RichText::new(label).color(egui::Color32::GRAY)
                     }
                 };
-                
+
                 ui.label(btn(input.action_a, "[A]"));
                 ui.label(btn(input.action_b, "[B]"));
                 ui.label(btn(input.estop, "[STOP]"));
                 ui.label(btn(input.enable, "[EN]"));
             });
         });
-    
+
     // Position panel
     egui::Window::new("📍 Position")
         .default_pos([10.0, 480.0])
@@ -511,17 +562,27 @@ fn ui_system(
             ui.label(format!("Y: {:+.2} m", pose.y));
             ui.label(format!("θ: {:+.1}°", pose.theta.to_degrees()));
         });
-    
+
     // Help bar at bottom
     egui::TopBottomPanel::bottom("help")
         .frame(egui::Frame::default().fill(egui::Color32::from_rgba_unmultiplied(30, 30, 30, 220)))
         .show(contexts.ctx_mut(), |ui| {
             ui.horizontal(|ui| {
-                ui.spacing_mut().item_spacing.x = 20.0;
-                ui.label("🕹️ Left Stick: Drive");
-                ui.label("🎚️ Triggers: Tool");
-                ui.label("🅰️ A: Action");
-                ui.colored_label(egui::Color32::from_rgb(255, 100, 100), "⏹️ Select: E-STOP");
+                ui.spacing_mut().item_spacing.x = 15.0;
+                match input.source {
+                    InputSource::Gamepad => {
+                        ui.label("🕹️ Stick: Drive");
+                        ui.label("🎚️ Triggers: Tool");
+                        ui.label("🅰️ A: Action");
+                        ui.colored_label(egui::Color32::from_rgb(255, 100, 100), "⏹️ Select: E-STOP");
+                    }
+                    _ => {
+                        ui.label("⌨️ WASD/Arrows: Drive");
+                        ui.label("Q/E: Tool");
+                        ui.label("Space: Action");
+                        ui.colored_label(egui::Color32::from_rgb(255, 100, 100), "Esc: E-STOP");
+                    }
+                }
             });
         });
 }
@@ -532,28 +593,28 @@ fn ui_system(
 
 fn main() -> anyhow::Result<()> {
     let args = Args::parse();
-    
+
     // Setup UDP socket
     let local_addr: SocketAddr = format!("0.0.0.0:{}", args.local_port).parse()?;
     let socket = UdpSocket::bind(local_addr)?;
     socket.set_nonblocking(true)?;
-    
+
     let rover_addr: SocketAddr = args.rover.parse()?;
-    
+
     println!("╔═══════════════════════════════════════╗");
     println!("║       BVR Operator Station            ║");
     println!("╠═══════════════════════════════════════╣");
     println!("║  Rover:  {:22}   ║", rover_addr);
     println!("║  Local:  {:22}   ║", local_addr);
     println!("╠═══════════════════════════════════════╣");
-    println!("║  Controls:                            ║");
-    println!("║    Left Stick  - Drive                ║");
-    println!("║    Triggers    - Tool axis            ║");
-    println!("║    A Button    - Tool action          ║");
-    println!("║    Select      - E-STOP               ║");
+    println!("║  Gamepad:           Keyboard:         ║");
+    println!("║    Left Stick       WASD / Arrows     ║");
+    println!("║    Triggers         Q / E             ║");
+    println!("║    A Button         Space             ║");
+    println!("║    Select           Escape  (E-STOP)  ║");
     println!("╚═══════════════════════════════════════╝");
     println!();
-    
+
     App::new()
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(Window {
@@ -575,7 +636,7 @@ fn main() -> anyhow::Result<()> {
         .add_systems(Startup, setup_scene)
         .add_systems(Update, (
             gamepad_connections,
-            read_gamepad,
+            read_input,
             send_commands,
             receive_telemetry,
             update_rover_pose,
@@ -584,6 +645,6 @@ fn main() -> anyhow::Result<()> {
             ui_system,
         ))
         .run();
-    
+
     Ok(())
 }
