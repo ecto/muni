@@ -233,7 +233,7 @@
     <script>
         const modeNames = ['Disabled', 'Idle', 'Teleop', 'Autonomous', 'EStop', 'Fault'];
         const modeClasses = ['disabled', 'idle', 'teleop', 'autonomous', 'estop', 'fault'];
-        
+
         let connected = false;
         let lastUpdate = 0;
 
@@ -241,7 +241,7 @@
             try {
                 const response = await fetch('/api/telemetry');
                 if (!response.ok) throw new Error('Network error');
-                
+
                 const data = await response.json();
                 updateDashboard(data);
                 setConnected(true);
@@ -257,7 +257,7 @@
             connected = isConnected;
             const dot = document.getElementById('status-dot');
             const text = document.getElementById('connection-text');
-            
+
             if (isConnected) {
                 dot.className = 'status-dot connected';
                 text.textContent = 'Connected';
@@ -280,7 +280,7 @@
             const fill = document.getElementById('battery-fill');
             fill.style.width = percent + '%';
             fill.className = 'battery-fill' + (percent < 20 ? ' critical' : percent < 40 ? ' low' : '');
-            
+
             document.getElementById('voltage').textContent = voltage.toFixed(1) + ' V';
             document.getElementById('current').textContent = (data.power?.system_current || 0).toFixed(1) + ' A';
 

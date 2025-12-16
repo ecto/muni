@@ -27,13 +27,13 @@
 
 ## Main Components
 
-| Component | Spec | Notes |
-|-----------|------|-------|
-| Battery | 13S4P Li-ion, 48V 20Ah | With BMS |
-| Main Fuse | 100A ANL | At battery positive |
-| E-Stop | Normally closed contactor | Cuts 48V to VESCs |
-| DCDC | 48V→12V, 20A | Powers Jetson + accessories |
-| VESCs | 4× VESC 6 or similar | 60A continuous each |
+| Component | Spec                      | Notes                       |
+| --------- | ------------------------- | --------------------------- |
+| Battery   | 13S4P Li-ion, 48V 20Ah    | With BMS                    |
+| Main Fuse | 100A ANL                  | At battery positive         |
+| E-Stop    | Normally closed contactor | Cuts 48V to VESCs           |
+| DCDC      | 48V→12V, 20A              | Powers Jetson + accessories |
+| VESCs     | 4× VESC 6 or similar      | 60A continuous each         |
 
 ## Wiring
 
@@ -51,12 +51,12 @@ Jetson ─── VESC1 ─── VESC2 ─── VESC3 ─── VESC4 ───
 
 ### Power Connectors
 
-| Connector | Type | Use |
-|-----------|------|-----|
-| Battery | XT90 | Main power |
-| Motor | 5.5mm bullet | Phase wires |
-| 12V | XT30 | Accessories |
-| Signal | JST-XH | Sensors, buttons |
+| Connector | Type         | Use              |
+| --------- | ------------ | ---------------- |
+| Battery   | XT90         | Main power       |
+| Motor     | 5.5mm bullet | Phase wires      |
+| 12V       | XT30         | Accessories      |
+| Signal    | JST-XH       | Sensors, buttons |
 
 ## E-Stop Circuit
 
@@ -86,13 +86,13 @@ Jetson ─── VESC1 ─── VESC2 ─── VESC3 ─── VESC4 ───
 
 Standard connector for tools includes:
 
-| Pin | Signal |
-|-----|--------|
-| 1 | 12V |
-| 2 | GND |
-| 3 | CANH |
-| 4 | CANL |
-| 5 | Reserved |
-| 6 | Reserved |
+| Pin | Signal   |
+| --- | -------- |
+| 1   | 12V      |
+| 2   | GND      |
+| 3   | CANH     |
+| 4   | CANL     |
+| 5   | Reserved |
+| 6   | Reserved |
 
 Connector type: Deutsch DT06-6S (weatherproof)

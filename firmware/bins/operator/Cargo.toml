@@ -1,0 +1,17 @@
+[package]
+name = "operator"
+description = "Operator station for controlling bvr"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+types = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+clap = { workspace = true }
+
+# Bevy game engine (includes gamepad support)
+bevy = { version = "0.15", features = ["wayland"] }
+bevy_egui = "0.31"
