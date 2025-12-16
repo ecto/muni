@@ -4,8 +4,10 @@
 
 use bevy::prelude::*;
 use bevy::input::gamepad::{GamepadConnection, GamepadConnectionEvent};
+use bevy::input::mouse::MouseMotion;
 use bevy_egui::{egui, EguiContexts, EguiPlugin};
 use clap::Parser;
+use std::f32::consts::{FRAC_PI_2, PI};
 use std::net::{SocketAddr, UdpSocket};
 use std::time::{Duration, Instant};
 use types::{Mode, Twist};
@@ -54,17 +56,56 @@ enum InputSource {
     Gamepad,
 }
 
+/// Camera view mode
+#[derive(Default, Clone, Copy, PartialEq, Eq)]
+enum CameraMode {
+    #[default]
+    ThirdPerson,
+    FirstPerson,
+    FreeLook,
+}
+
 /// Controller input state
 #[derive(Resource, Default)]
 struct ControllerInput {
     linear: f32,
     angular: f32,
     tool_axis: f32,
+    // Camera control (right stick / mouse)
+    camera_yaw: f32,
+    camera_pitch: f32,
     action_a: bool,
     action_b: bool,
     estop: bool,
     enable: bool,
     source: InputSource,
+}
+
+/// Camera state for orbit/follow behavior
+#[derive(Resource)]
+struct CameraState {
+    /// Horizontal angle offset from behind rover (radians)
+    yaw_offset: f32,
+    /// Vertical angle (radians, 0 = horizontal, positive = looking down)
+    pitch: f32,
+    /// Distance from rover
+    distance: f32,
+    /// Camera mode
+    mode: CameraMode,
+    /// Time since last manual camera input (for auto-reset)
+    last_input: f32,
+}
+
+impl Default for CameraState {
+    fn default() -> Self {
+        Self {
+            yaw_offset: 0.0,
+            pitch: 0.4, // Slightly looking down
+            distance: 3.5,
+            mode: CameraMode::ThirdPerson,
+            last_input: 0.0,
+        }
+    }
 }
 
 /// Simulated rover pose (from commands, for visualization)
@@ -156,7 +197,7 @@ fn setup_scene(
             Transform::from_xyz(0.0, 0.11, 0.0),
         ));
 
-        // Wheels
+        // Wheels - rotate around X so axles point sideways (Z axis)
         let wheel_mesh = meshes.add(Cylinder::new(0.082, 0.06));
         let wheel_mat = materials.add(StandardMaterial {
             base_color: Color::srgb(0.05, 0.05, 0.05),
@@ -169,7 +210,7 @@ fn setup_scene(
                 Mesh3d(wheel_mesh.clone()),
                 MeshMaterial3d(wheel_mat.clone()),
                 Transform::from_xyz(x, -0.07, z)
-                    .with_rotation(Quat::from_rotation_z(std::f32::consts::FRAC_PI_2)),
+                    .with_rotation(Quat::from_rotation_x(FRAC_PI_2)),
             ));
         }
     });
@@ -220,7 +261,13 @@ fn read_input(
     mut input: ResMut<ControllerInput>,
     gamepads: Query<&Gamepad>,
     keyboard: Res<ButtonInput<KeyCode>>,
+    mouse_buttons: Res<ButtonInput<MouseButton>>,
+    mut mouse_motion: EventReader<MouseMotion>,
 ) {
+    // Reset camera input each frame
+    input.camera_yaw = 0.0;
+    input.camera_pitch = 0.0;
+
     // Try gamepad first
     if let Some(gamepad) = gamepads.iter().next() {
         input.source = InputSource::Gamepad;
@@ -229,9 +276,19 @@ fn read_input(
         let left_y = gamepad.get(GamepadAxis::LeftStickY).unwrap_or(0.0);
         let left_x = gamepad.get(GamepadAxis::LeftStickX).unwrap_or(0.0);
 
-        // Apply deadzone
+        // Apply deadzone - note: positive X = right = turn right = negative angular
         input.linear = if left_y.abs() > 0.1 { -left_y } else { 0.0 };
-        input.angular = if left_x.abs() > 0.1 { -left_x } else { 0.0 };
+        input.angular = if left_x.abs() > 0.1 { left_x } else { 0.0 };
+
+        // Right stick for camera
+        let right_x = gamepad.get(GamepadAxis::RightStickX).unwrap_or(0.0);
+        let right_y = gamepad.get(GamepadAxis::RightStickY).unwrap_or(0.0);
+        if right_x.abs() > 0.1 {
+            input.camera_yaw = right_x * 2.0;
+        }
+        if right_y.abs() > 0.1 {
+            input.camera_pitch = right_y * 1.5;
+        }
 
         // Triggers for tool axis
         let rt = gamepad.get(GamepadAxis::RightZ).unwrap_or(0.0);
@@ -246,7 +303,7 @@ fn read_input(
         return;
     }
 
-    // Fall back to keyboard
+    // Fall back to keyboard + mouse
     // WASD or Arrow keys for movement
     let mut linear = 0.0f32;
     let mut angular = 0.0f32;
@@ -257,11 +314,13 @@ fn read_input(
     if keyboard.pressed(KeyCode::KeyS) || keyboard.pressed(KeyCode::ArrowDown) {
         linear -= 1.0;
     }
+    // A = turn left = positive angular velocity
     if keyboard.pressed(KeyCode::KeyA) || keyboard.pressed(KeyCode::ArrowLeft) {
-        angular += 1.0;
-    }
-    if keyboard.pressed(KeyCode::KeyD) || keyboard.pressed(KeyCode::ArrowRight) {
         angular -= 1.0;
+    }
+    // D = turn right = negative angular velocity
+    if keyboard.pressed(KeyCode::KeyD) || keyboard.pressed(KeyCode::ArrowRight) {
+        angular += 1.0;
     }
 
     // Q/E for tool axis
@@ -271,6 +330,17 @@ fn read_input(
     }
     if keyboard.pressed(KeyCode::KeyQ) {
         tool -= 1.0;
+    }
+
+    // Mouse for camera (when right button held)
+    if mouse_buttons.pressed(MouseButton::Right) {
+        for ev in mouse_motion.read() {
+            input.camera_yaw += ev.delta.x * 0.1;
+            input.camera_pitch -= ev.delta.y * 0.1;
+        }
+    } else {
+        // Consume events even if not using them
+        mouse_motion.clear();
     }
 
     // Check if any movement keys are pressed to determine source
@@ -394,27 +464,108 @@ fn update_rover_model(
     for mut transform in &mut query {
         transform.translation.x = pose.x;
         transform.translation.z = pose.y;
-        transform.rotation = Quat::from_rotation_y(-pose.theta);
+        // Positive theta = turned left = counter-clockwise from above
+        transform.rotation = Quat::from_rotation_y(pose.theta);
     }
 }
 
-fn camera_follow(
+fn update_camera(
     pose: Res<RoverPose>,
+    input: Res<ControllerInput>,
+    mut camera_state: ResMut<CameraState>,
+    keyboard: Res<ButtonInput<KeyCode>>,
     mut query: Query<&mut Transform, With<Camera3d>>,
     time: Res<Time>,
 ) {
+    let dt = time.delta_secs();
+
+    // Toggle camera mode with C or right stick click
+    if keyboard.just_pressed(KeyCode::KeyC) {
+        camera_state.mode = match camera_state.mode {
+            CameraMode::ThirdPerson => CameraMode::FirstPerson,
+            CameraMode::FirstPerson => CameraMode::ThirdPerson,
+            CameraMode::FreeLook => CameraMode::ThirdPerson,
+        };
+    }
+
+    // Toggle free look with V
+    if keyboard.just_pressed(KeyCode::KeyV) {
+        camera_state.mode = match camera_state.mode {
+            CameraMode::FreeLook => CameraMode::ThirdPerson,
+            _ => CameraMode::FreeLook,
+        };
+    }
+
+    // Apply camera input
+    let has_camera_input = input.camera_yaw.abs() > 0.01 || input.camera_pitch.abs() > 0.01;
+    if has_camera_input {
+        camera_state.yaw_offset += input.camera_yaw * dt;
+        camera_state.pitch += input.camera_pitch * dt;
+        camera_state.pitch = camera_state.pitch.clamp(0.1, 1.4); // Limit vertical angle
+        camera_state.last_input = 0.0;
+    } else {
+        camera_state.last_input += dt;
+    }
+
+    // Scroll wheel for zoom (in third person)
+    // (Would need mouse wheel event reader - skip for now)
+
+    // Auto-reset camera behind rover when moving and no recent camera input
+    let is_moving = input.linear.abs() > 0.1 || input.angular.abs() > 0.1;
+    if is_moving && camera_state.last_input > 1.0 && camera_state.mode == CameraMode::ThirdPerson {
+        // Smoothly return to behind rover
+        camera_state.yaw_offset = camera_state.yaw_offset * (1.0 - 2.0 * dt);
+    }
+
+    // Wrap yaw offset
+    if camera_state.yaw_offset > PI {
+        camera_state.yaw_offset -= 2.0 * PI;
+    } else if camera_state.yaw_offset < -PI {
+        camera_state.yaw_offset += 2.0 * PI;
+    }
+
     for mut transform in &mut query {
-        let target_pos = Vec3::new(
-            pose.x + 3.5 * (-pose.theta + std::f32::consts::FRAC_PI_4).cos(),
-            2.5,
-            pose.y + 3.5 * (-pose.theta + std::f32::consts::FRAC_PI_4).sin(),
-        );
+        let rover_pos = Vec3::new(pose.x, 0.15, pose.y);
 
-        // Smooth follow
-        transform.translation = transform.translation.lerp(target_pos, 4.0 * time.delta_secs());
+        match camera_state.mode {
+            CameraMode::FirstPerson => {
+                // Camera at rover position, looking forward
+                let forward = Vec3::new(pose.theta.cos(), 0.0, -pose.theta.sin());
+                transform.translation = rover_pos + Vec3::Y * 0.3 + forward * 0.2;
+                let look_target = transform.translation + forward;
+                transform.look_at(look_target, Vec3::Y);
+            }
+            CameraMode::ThirdPerson => {
+                // Camera orbits behind rover
+                let total_yaw = pose.theta + camera_state.yaw_offset + PI; // +PI to be behind
+                let horizontal_dist = camera_state.distance * camera_state.pitch.cos();
+                let height = camera_state.distance * camera_state.pitch.sin();
 
-        let look_target = Vec3::new(pose.x, 0.15, pose.y);
-        transform.look_at(look_target, Vec3::Y);
+                let target_pos = Vec3::new(
+                    pose.x + horizontal_dist * total_yaw.cos(),
+                    height + 0.3,
+                    pose.y - horizontal_dist * total_yaw.sin(),
+                );
+
+                // Smooth follow
+                transform.translation = transform.translation.lerp(target_pos, 8.0 * dt);
+                transform.look_at(rover_pos, Vec3::Y);
+            }
+            CameraMode::FreeLook => {
+                // Free orbit around rover (doesn't follow rover rotation)
+                let horizontal_dist = camera_state.distance * camera_state.pitch.cos();
+                let height = camera_state.distance * camera_state.pitch.sin();
+
+                let target_pos = Vec3::new(
+                    pose.x + horizontal_dist * camera_state.yaw_offset.cos(),
+                    height + 0.3,
+                    pose.y - horizontal_dist * camera_state.yaw_offset.sin(),
+                );
+
+                transform.translation = transform.translation.lerp(target_pos, 8.0 * dt);
+                transform.look_at(rover_pos, Vec3::Y);
+            }
+        }
     }
 }
 
@@ -427,6 +578,7 @@ fn ui_system(
     telemetry: Res<Telemetry>,
     input: Res<ControllerInput>,
     pose: Res<RoverPose>,
+    camera_state: Res<CameraState>,
 ) {
     // Telemetry panel
     egui::Window::new("📡 Telemetry")
@@ -561,6 +713,19 @@ fn ui_system(
             ui.label(format!("X: {:+.2} m", pose.x));
             ui.label(format!("Y: {:+.2} m", pose.y));
             ui.label(format!("θ: {:+.1}°", pose.theta.to_degrees()));
+
+            ui.separator();
+
+            let cam_mode = match camera_state.mode {
+                CameraMode::ThirdPerson => "3rd Person",
+                CameraMode::FirstPerson => "1st Person",
+                CameraMode::FreeLook => "Free Look",
+            };
+            ui.horizontal(|ui| {
+                ui.label("Camera:");
+                ui.label(egui::RichText::new(cam_mode).strong());
+            });
+            ui.label(egui::RichText::new("C: toggle  V: free").small().weak());
         });
 
     // Help bar at bottom
@@ -568,18 +733,18 @@ fn ui_system(
         .frame(egui::Frame::default().fill(egui::Color32::from_rgba_unmultiplied(30, 30, 30, 220)))
         .show(contexts.ctx_mut(), |ui| {
             ui.horizontal(|ui| {
-                ui.spacing_mut().item_spacing.x = 15.0;
+                ui.spacing_mut().item_spacing.x = 12.0;
                 match input.source {
                     InputSource::Gamepad => {
-                        ui.label("🕹️ Stick: Drive");
+                        ui.label("🕹️ L-Stick: Drive");
+                        ui.label("R-Stick: Camera");
                         ui.label("🎚️ Triggers: Tool");
-                        ui.label("🅰️ A: Action");
-                        ui.colored_label(egui::Color32::from_rgb(255, 100, 100), "⏹️ Select: E-STOP");
+                        ui.colored_label(egui::Color32::from_rgb(255, 100, 100), "Select: E-STOP");
                     }
                     _ => {
-                        ui.label("⌨️ WASD/Arrows: Drive");
-                        ui.label("Q/E: Tool");
-                        ui.label("Space: Action");
+                        ui.label("⌨️ WASD: Drive");
+                        ui.label("🖱️ RMB+Drag: Camera");
+                        ui.label("C: View  V: Free");
                         ui.colored_label(egui::Color32::from_rgb(255, 100, 100), "Esc: E-STOP");
                     }
                 }
@@ -601,18 +766,21 @@ fn main() -> anyhow::Result<()> {
 
     let rover_addr: SocketAddr = args.rover.parse()?;
 
-    println!("╔═══════════════════════════════════════╗");
-    println!("║       BVR Operator Station            ║");
-    println!("╠═══════════════════════════════════════╣");
-    println!("║  Rover:  {:22}   ║", rover_addr);
-    println!("║  Local:  {:22}   ║", local_addr);
-    println!("╠═══════════════════════════════════════╣");
-    println!("║  Gamepad:           Keyboard:         ║");
-    println!("║    Left Stick       WASD / Arrows     ║");
-    println!("║    Triggers         Q / E             ║");
-    println!("║    A Button         Space             ║");
-    println!("║    Select           Escape  (E-STOP)  ║");
-    println!("╚═══════════════════════════════════════╝");
+    println!("╔═══════════════════════════════════════════╗");
+    println!("║         BVR Operator Station              ║");
+    println!("╠═══════════════════════════════════════════╣");
+    println!("║  Rover:  {:26}   ║", rover_addr);
+    println!("║  Local:  {:26}   ║", local_addr);
+    println!("╠═══════════════════════════════════════════╣");
+    println!("║  Gamepad:             Keyboard:           ║");
+    println!("║    Left Stick         WASD / Arrows       ║");
+    println!("║    Right Stick        Right-click + drag  ║");
+    println!("║    Triggers           Q / E               ║");
+    println!("║    A Button           Space               ║");
+    println!("║    Select             Escape    (E-STOP)  ║");
+    println!("║                       C = toggle 1st/3rd  ║");
+    println!("║                       V = free look       ║");
+    println!("╚═══════════════════════════════════════════╝");
     println!();
 
     App::new()
@@ -633,6 +801,7 @@ fn main() -> anyhow::Result<()> {
         .insert_resource(Telemetry::default())
         .insert_resource(ControllerInput::default())
         .insert_resource(RoverPose::default())
+        .insert_resource(CameraState::default())
         .add_systems(Startup, setup_scene)
         .add_systems(Update, (
             gamepad_connections,
@@ -641,7 +810,7 @@ fn main() -> anyhow::Result<()> {
             receive_telemetry,
             update_rover_pose,
             update_rover_model,
-            camera_follow,
+            update_camera,
             ui_system,
         ))
         .run();
