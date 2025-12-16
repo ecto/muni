@@ -455,7 +455,7 @@ fn update_rover_pose(
 
     pose.theta += angular;
     pose.x += linear * pose.theta.cos();
-    pose.y += linear * pose.theta.sin();
+    pose.y -= linear * pose.theta.sin(); // negative to match Bevy's Z convention
 }
 
 fn update_rover_model(
