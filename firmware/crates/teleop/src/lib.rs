@@ -9,7 +9,7 @@ use std::time::Duration;
 use thiserror::Error;
 use tokio::net::UdpSocket;
 use tokio::sync::{mpsc, watch};
-use tracing::{debug, error, info, warn};
+use tracing::{debug, error, info, trace, warn};
 use types::{Command, Mode, Pose, PowerStatus, ToolCommand, Twist};
 
 #[derive(Error, Debug)]
@@ -93,6 +93,9 @@ impl Server {
         let mut operator_addr: Option<SocketAddr> = None;
         let mut last_recv = std::time::Instant::now();
 
+        // Use interval instead of sleep - interval tracks time across iterations
+        let mut telemetry_interval = tokio::time::interval(self.config.heartbeat_interval);
+
         loop {
             tokio::select! {
                 // Receive commands
@@ -113,13 +116,13 @@ impl Server {
                     }
                 }
 
-                // Send telemetry
-                _ = tokio::time::sleep(self.config.heartbeat_interval) => {
+                // Send telemetry at regular intervals (not reset by recv)
+                _ = telemetry_interval.tick() => {
                     if let Some(addr) = operator_addr {
                         let telemetry = self.telemetry_rx.borrow().clone();
                         if let Some(data) = Self::serialize_telemetry(&telemetry) {
                             match socket.send_to(&data, addr).await {
-                                Ok(n) => debug!(%addr, bytes = n, mode = ?telemetry.mode, "Sent telemetry"),
+                                Ok(n) => trace!(%addr, bytes = n, mode = ?telemetry.mode, "Sent telemetry"),
                                 Err(e) => error!(?e, "Failed to send telemetry"),
                             }
                         }
