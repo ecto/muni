@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BVR Dashboard</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #1a1a2e;
+            color: #eee;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #333;
+        }
+        .header h1 {
+            font-size: 24px;
+            font-weight: 600;
+        }
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+        }
+        .status-dot.connected { background: #4ade80; }
+        .status-dot.disconnected { background: #f87171; animation: pulse 1s infinite; }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+        }
+        .card {
+            background: #16213e;
+            border-radius: 12px;
+            padding: 20px;
+        }
+        .card h2 {
+            font-size: 14px;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 15px;
+        }
+        .mode {
+            font-size: 32px;
+            font-weight: 700;
+        }
+        .mode.disabled { color: #666; }
+        .mode.idle { color: #60a5fa; }
+        .mode.teleop { color: #4ade80; }
+        .mode.autonomous { color: #a78bfa; }
+        .mode.estop { color: #f87171; }
+        .mode.fault { color: #fb923c; }
+        .battery-bar {
+            height: 24px;
+            background: #333;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        .battery-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4ade80, #22c55e);
+            transition: width 0.3s;
+        }
+        .battery-fill.low { background: linear-gradient(90deg, #fb923c, #f97316); }
+        .battery-fill.critical { background: linear-gradient(90deg, #f87171, #ef4444); }
+        .stat {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #333;
+        }
+        .stat:last-child { border-bottom: none; }
+        .stat-label { color: #888; }
+        .stat-value { font-weight: 600; font-family: monospace; }
+        .motor-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        .motor {
+            background: #1a1a2e;
+            padding: 12px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .motor-label {
+            font-size: 12px;
+            color: #888;
+            margin-bottom: 5px;
+        }
+        .motor-temp {
+            font-size: 20px;
+            font-weight: 600;
+        }
+        .motor-temp.hot { color: #fb923c; }
+        .motor-temp.critical { color: #f87171; }
+        .tool-status {
+            padding: 15px;
+            background: #1a1a2e;
+            border-radius: 8px;
+        }
+        .tool-name {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+        .tool-active {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .tool-active.on { background: #22c55e; color: #fff; }
+        .tool-active.off { background: #333; color: #888; }
+        .position-bar {
+            height: 8px;
+            background: #333;
+            border-radius: 4px;
+            margin-top: 10px;
+        }
+        .position-fill {
+            height: 100%;
+            background: #60a5fa;
+            border-radius: 4px;
+            transition: width 0.3s;
+        }
+        .error-banner {
+            background: #7f1d1d;
+            color: #fecaca;
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        .error-banner.visible { display: block; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>BVR Dashboard</h1>
+        <div id="connection">
+            <span class="status-dot disconnected" id="status-dot"></span>
+            <span id="connection-text">Connecting...</span>
+        </div>
+    </div>
+
+    <div class="error-banner" id="error-banner"></div>
+
+    <div class="grid">
+        <div class="card">
+            <h2>Mode</h2>
+            <div class="mode" id="mode">---</div>
+        </div>
+
+        <div class="card">
+            <h2>Battery</h2>
+            <div class="battery-bar">
+                <div class="battery-fill" id="battery-fill" style="width: 0%"></div>
+            </div>
+            <div class="stat">
+                <span class="stat-label">Voltage</span>
+                <span class="stat-value" id="voltage">--.- V</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">Current</span>
+                <span class="stat-value" id="current">--.- A</span>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Velocity</h2>
+            <div class="stat">
+                <span class="stat-label">Linear</span>
+                <span class="stat-value" id="linear">--.- m/s</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">Angular</span>
+                <span class="stat-value" id="angular">--.- rad/s</span>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Motor Temps</h2>
+            <div class="motor-grid">
+                <div class="motor">
+                    <div class="motor-label">FL</div>
+                    <div class="motor-temp" id="temp-fl">--°C</div>
+                </div>
+                <div class="motor">
+                    <div class="motor-label">FR</div>
+                    <div class="motor-temp" id="temp-fr">--°C</div>
+                </div>
+                <div class="motor">
+                    <div class="motor-label">RL</div>
+                    <div class="motor-temp" id="temp-rl">--°C</div>
+                </div>
+                <div class="motor">
+                    <div class="motor-label">RR</div>
+                    <div class="motor-temp" id="temp-rr">--°C</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Tool</h2>
+            <div class="tool-status" id="tool-status">
+                <div class="tool-name" id="tool-name">No tool attached</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const modeNames = ['Disabled', 'Idle', 'Teleop', 'Autonomous', 'EStop', 'Fault'];
+        const modeClasses = ['disabled', 'idle', 'teleop', 'autonomous', 'estop', 'fault'];
+        
+        let connected = false;
+        let lastUpdate = 0;
+
+        async function fetchTelemetry() {
+            try {
+                const response = await fetch('/api/telemetry');
+                if (!response.ok) throw new Error('Network error');
+                
+                const data = await response.json();
+                updateDashboard(data);
+                setConnected(true);
+                lastUpdate = Date.now();
+            } catch (e) {
+                if (Date.now() - lastUpdate > 3000) {
+                    setConnected(false);
+                }
+            }
+        }
+
+        function setConnected(isConnected) {
+            connected = isConnected;
+            const dot = document.getElementById('status-dot');
+            const text = document.getElementById('connection-text');
+            
+            if (isConnected) {
+                dot.className = 'status-dot connected';
+                text.textContent = 'Connected';
+            } else {
+                dot.className = 'status-dot disconnected';
+                text.textContent = 'Disconnected';
+            }
+        }
+
+        function updateDashboard(data) {
+            // Mode
+            const modeEl = document.getElementById('mode');
+            const modeIdx = typeof data.mode === 'string' ? modeNames.indexOf(data.mode) : data.mode;
+            modeEl.textContent = modeNames[modeIdx] || 'Unknown';
+            modeEl.className = 'mode ' + (modeClasses[modeIdx] || '');
+
+            // Battery
+            const voltage = data.power?.battery_voltage || 0;
+            const percent = Math.max(0, Math.min(100, ((voltage - 39) / (54.6 - 39)) * 100));
+            const fill = document.getElementById('battery-fill');
+            fill.style.width = percent + '%';
+            fill.className = 'battery-fill' + (percent < 20 ? ' critical' : percent < 40 ? ' low' : '');
+            
+            document.getElementById('voltage').textContent = voltage.toFixed(1) + ' V';
+            document.getElementById('current').textContent = (data.power?.system_current || 0).toFixed(1) + ' A';
+
+            // Velocity
+            document.getElementById('linear').textContent = (data.velocity?.linear || 0).toFixed(2) + ' m/s';
+            document.getElementById('angular').textContent = (data.velocity?.angular || 0).toFixed(2) + ' rad/s';
+
+            // Motor temps
+            const temps = data.motor_temps || [0, 0, 0, 0];
+            ['fl', 'fr', 'rl', 'rr'].forEach((pos, i) => {
+                const el = document.getElementById('temp-' + pos);
+                const temp = temps[i] || 0;
+                el.textContent = temp.toFixed(0) + '°C';
+                el.className = 'motor-temp' + (temp > 80 ? ' critical' : temp > 60 ? ' hot' : '');
+            });
+
+            // Tool
+            const toolEl = document.getElementById('tool-status');
+            if (data.tool_status) {
+                const ts = data.tool_status;
+                toolEl.innerHTML = `
+                    <div class="tool-name">${ts.name}</div>
+                    <span class="tool-active ${ts.active ? 'on' : 'off'}">${ts.active ? 'Active' : 'Standby'}</span>
+                    ${ts.position !== null ? `
+                        <div class="position-bar">
+                            <div class="position-fill" style="width: ${(ts.position * 100).toFixed(0)}%"></div>
+                        </div>
+                    ` : ''}
+                    ${ts.current !== null ? `<div class="stat"><span class="stat-label">Current</span><span class="stat-value">${ts.current.toFixed(1)} A</span></div>` : ''}
+                `;
+            } else if (data.active_tool) {
+                toolEl.innerHTML = `<div class="tool-name">${data.active_tool}</div>`;
+            } else {
+                toolEl.innerHTML = `<div class="tool-name">No tool attached</div>`;
+            }
+        }
+
+        // Poll every 200ms
+        setInterval(fetchTelemetry, 200);
+        fetchTelemetry();
+    </script>
+</body>
+</html>

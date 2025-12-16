@@ -1,0 +1,12 @@
+[package]
+name = "sim"
+description = "Hardware simulation for development and testing"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+types = { workspace = true }
+can = { workspace = true }
+tools = { workspace = true }
+tracing = { workspace = true }

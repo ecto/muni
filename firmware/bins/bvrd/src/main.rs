@@ -5,6 +5,7 @@ use can::vesc::Drivetrain;
 use can::Bus;
 use clap::Parser;
 use control::{ChassisParams, DiffDriveMixer, Limits, RateLimiter, Watchdog};
+use sim::SimBus;
 use state::{Event, StateMachine};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
@@ -14,6 +15,7 @@ use tokio::sync::{mpsc, watch};
 use tools::{protocol, Registry as ToolRegistry, ToolOutput};
 use tracing::{error, info, warn};
 use types::{Command, Mode, PowerStatus, Twist};
+use ui::{Config as UiConfig, Dashboard};
 
 #[derive(Parser)]
 #[command(name = "bvrd", about = "Base Vectoring Rover daemon")]
@@ -33,6 +35,45 @@ struct Args {
     /// Motor pole pairs
     #[arg(long, default_value = "15")]
     pole_pairs: u8,
+
+    /// Enable simulation mode (no real hardware)
+    #[arg(long)]
+    sim: bool,
+
+    /// Dashboard web UI port (0 to disable)
+    #[arg(long, default_value = "8080")]
+    ui_port: u16,
+}
+
+/// CAN interface abstraction for real or simulated hardware.
+enum CanInterface {
+    Real(Bus),
+    Sim(Arc<Mutex<SimBus>>),
+}
+
+impl CanInterface {
+    fn send(&self, frame: &can::Frame) -> Result<(), can::CanError> {
+        match self {
+            Self::Real(bus) => bus.send(frame),
+            Self::Sim(sim) => {
+                sim.lock().unwrap().process_tx(frame);
+                Ok(())
+            }
+        }
+    }
+
+    fn recv(&self) -> Result<Option<can::Frame>, can::CanError> {
+        match self {
+            Self::Real(bus) => bus.recv(),
+            Self::Sim(sim) => Ok(sim.lock().unwrap().recv()),
+        }
+    }
+
+    fn tick(&self, dt: f64) {
+        if let Self::Sim(sim) = self {
+            sim.lock().unwrap().tick(dt);
+        }
+    }
 }
 
 /// Shared state between threads.
@@ -54,14 +95,25 @@ async fn main() -> Result<()> {
         .init();
 
     let args = Args::parse();
-    info!(config = ?args.config, can = %args.can_interface, "Starting bvrd");
 
-    // Open CAN bus
-    let can_bus = Arc::new(Bus::open(&args.can_interface)?);
-    info!(interface = %args.can_interface, "CAN bus opened");
+    if args.sim {
+        info!("Starting bvrd in SIMULATION mode");
+    } else {
+        info!(config = ?args.config, can = %args.can_interface, "Starting bvrd");
+    }
+
+    // Initialize CAN interface
+    let vesc_ids: [u8; 4] = args.vesc_ids.try_into().expect("Need exactly 4 VESC IDs");
+    let can_interface = if args.sim {
+        info!("Using simulated CAN bus");
+        let sim_bus = SimBus::new(vesc_ids);
+        CanInterface::Sim(Arc::new(Mutex::new(sim_bus)))
+    } else {
+        info!(interface = %args.can_interface, "Opening CAN bus");
+        CanInterface::Real(Bus::open(&args.can_interface)?)
+    };
 
     // Initialize drivetrain
-    let vesc_ids: [u8; 4] = args.vesc_ids.try_into().expect("Need exactly 4 VESC IDs");
     let drivetrain = Drivetrain::new(vesc_ids, args.pole_pairs);
 
     // Chassis parameters (TODO: load from config)
@@ -92,13 +144,25 @@ async fn main() -> Result<()> {
 
     // Spawn teleop server
     let teleop_config = TeleopConfig::default();
-    let teleop = TeleopServer::new(teleop_config, cmd_tx, telemetry_rx);
+    let teleop = TeleopServer::new(teleop_config, cmd_tx, telemetry_rx.clone());
 
     tokio::spawn(async move {
         if let Err(e) = teleop.run().await {
             error!(?e, "Teleop server error");
         }
     });
+
+    // Spawn dashboard if enabled
+    if args.ui_port > 0 {
+        let ui_config = UiConfig { port: args.ui_port };
+        let dashboard = Dashboard::new(ui_config, telemetry_rx.clone());
+
+        tokio::spawn(async move {
+            if let Err(e) = dashboard.run().await {
+                error!(?e, "Dashboard server error");
+            }
+        });
+    }
 
     // Control loop setup
     let mixer = DiffDriveMixer::new(chassis);
@@ -112,6 +176,8 @@ async fn main() -> Result<()> {
     let mut tool_command = types::ToolCommand::default();
 
     info!("Entering control loop");
+    info!("Dashboard available at http://localhost:{}", args.ui_port);
+    info!("Send commands to UDP port 4840");
 
     loop {
         // Wait for next tick
@@ -119,10 +185,14 @@ async fn main() -> Result<()> {
         if elapsed < control_period {
             std::thread::sleep(control_period - elapsed);
         }
+        let dt = last_tick.elapsed().as_secs_f64();
         last_tick = Instant::now();
 
+        // Tick simulation if in sim mode
+        can_interface.tick(dt);
+
         // Read CAN frames
-        while let Ok(Some(frame)) = can_bus.recv() {
+        while let Ok(Some(frame)) = can_interface.recv() {
             let mut state = shared.lock().unwrap();
             state.drivetrain.process_frame(&frame);
             state.tool_registry.process_frame(&frame);
@@ -187,8 +257,11 @@ async fn main() -> Result<()> {
         let wheel_rpms = mixer.to_rpm(&wheel_vels);
 
         // Send to VESCs
-        if let Err(e) = state.drivetrain.set_rpm(&can_bus, wheel_rpms) {
-            error!(?e, "Failed to send RPM to drivetrain");
+        let vesc_cmds = state.drivetrain.build_rpm_commands(wheel_rpms);
+        for frame in vesc_cmds {
+            if let Err(e) = can_interface.send(&frame) {
+                error!(?e, "Failed to send RPM to drivetrain");
+            }
         }
 
         // Update active tool
@@ -197,17 +270,16 @@ async fn main() -> Result<()> {
 
             // Send tool command
             let slot = tool.info().slot;
-            match output {
-                ToolOutput::SetAxis(axis) => {
-                    let _ = protocol::send_command(&can_bus, slot, axis, 0.0);
-                }
-                ToolOutput::SetMotor(motor) => {
-                    let _ = protocol::send_command(&can_bus, slot, 0.0, motor);
-                }
+            let frame = match output {
+                ToolOutput::SetAxis(axis) => Some(protocol::build_command(slot, axis, 0.0)),
+                ToolOutput::SetMotor(motor) => Some(protocol::build_command(slot, 0.0, motor)),
                 ToolOutput::SetBoth { axis, motor } => {
-                    let _ = protocol::send_command(&can_bus, slot, axis, motor);
+                    Some(protocol::build_command(slot, axis, motor))
                 }
-                ToolOutput::None => {}
+                ToolOutput::None => None,
+            };
+            if let Some(f) = frame {
+                let _ = can_interface.send(&f);
             }
         }
 

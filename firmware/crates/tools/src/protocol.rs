@@ -28,14 +28,8 @@ pub mod can_id {
     }
 }
 
-/// Send a command to a tool.
-///
-/// Command payload:
-/// - [0]: Command type (0 = set axis/motor)
-/// - [1-2]: Axis value (i16, -32768 to 32767, scaled from -1.0 to 1.0)
-/// - [3-4]: Motor value (i16)
-/// - [5-7]: Reserved
-pub fn send_command(bus: &Bus, slot: u8, axis: f32, motor: f32) -> Result<(), CanError> {
+/// Build a command frame for a tool.
+pub fn build_command(slot: u8, axis: f32, motor: f32) -> Frame {
     let id = can_id::make(slot, can_id::MSG_COMMAND);
 
     let axis_i16 = (axis.clamp(-1.0, 1.0) * 32767.0) as i16;
@@ -46,7 +40,18 @@ pub fn send_command(bus: &Bus, slot: u8, axis: f32, motor: f32) -> Result<(), Ca
     data[1..3].copy_from_slice(&axis_i16.to_le_bytes());
     data[3..5].copy_from_slice(&motor_i16.to_le_bytes());
 
-    bus.send(&Frame::new_extended(id, &data))
+    Frame::new_extended(id, &data)
+}
+
+/// Send a command to a tool.
+///
+/// Command payload:
+/// - [0]: Command type (0 = set axis/motor)
+/// - [1-2]: Axis value (i16, -32768 to 32767, scaled from -1.0 to 1.0)
+/// - [3-4]: Motor value (i16)
+/// - [5-7]: Reserved
+pub fn send_command(bus: &Bus, slot: u8, axis: f32, motor: f32) -> Result<(), CanError> {
+    bus.send(&build_command(slot, axis, motor))
 }
 
 /// Discovery frame payload.

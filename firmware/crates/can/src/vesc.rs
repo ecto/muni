@@ -90,6 +90,13 @@ impl Vesc {
         ((cmd as u32) << 8) | (self.id as u32)
     }
 
+    /// Build an RPM command frame (without sending).
+    pub fn build_rpm_frame(&self, erpm: i32) -> crate::Frame {
+        let id = self.make_id(CommandId::SetRpm);
+        let data = erpm.to_be_bytes();
+        crate::Frame::new_extended(id, &data)
+    }
+
     /// Send RPM command (ERPM = mechanical RPM × pole pairs).
     pub fn set_rpm(&self, bus: &Bus, erpm: i32) -> Result<(), CanError> {
         let id = self.make_id(CommandId::SetRpm);
@@ -227,6 +234,17 @@ impl Drivetrain {
             self.front_right.state(),
             self.rear_left.state(),
             self.rear_right.state(),
+        ]
+    }
+
+    /// Build RPM command frames for all wheels (without sending).
+    pub fn build_rpm_commands(&self, rpm: [f64; 4]) -> Vec<crate::Frame> {
+        let pp = self.pole_pairs as f64;
+        vec![
+            self.front_left.build_rpm_frame((rpm[0] * pp) as i32),
+            self.front_right.build_rpm_frame((rpm[1] * pp) as i32),
+            self.rear_left.build_rpm_frame((rpm[2] * pp) as i32),
+            self.rear_right.build_rpm_frame((rpm[3] * pp) as i32),
         ]
     }
 }
