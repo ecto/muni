@@ -26,6 +26,7 @@ anyhow = "1"
 
 # Utilities
 bitflags = "2"
+nalgebra = { version = "0.33", features = ["serde-serialize"] }
 
 # CLI
 clap = { version = "4", features = ["derive"] }
@@ -43,3 +44,12 @@ teleop = { path = "crates/teleop" }
 tools = { path = "crates/tools" }
 sim = { path = "crates/sim" }
 ui = { path = "crates/ui" }
+camera = { path = "crates/camera" }
+
+# New internal crates (bvr-prefixed)
+bvr-types = { path = "crates/bvr-types" }
+bvr-can = { path = "crates/bvr-can" }
+bvr-control = { path = "crates/bvr-control" }
+bvr-hal = { path = "crates/bvr-hal" }
+bvr-state = { path = "crates/bvr-state" }
+bvr-teleop = { path = "crates/bvr-teleop" }

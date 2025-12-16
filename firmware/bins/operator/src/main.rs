@@ -7,9 +7,13 @@ use bevy::input::gamepad::{GamepadConnection, GamepadConnectionEvent};
 use bevy::input::mouse::MouseMotion;
 use bevy_egui::{egui, EguiContexts, EguiPlugin};
 use clap::Parser;
+use image::ImageReader;
 use std::f32::consts::{FRAC_PI_2, PI};
+use std::io::Cursor;
 use std::net::{SocketAddr, UdpSocket};
+use std::sync::{mpsc, Mutex};
 use std::time::{Duration, Instant};
+use teleop::video::FrameReassembler;
 use types::{Mode, Twist};
 
 #[derive(Parser)]
@@ -22,6 +26,14 @@ struct Args {
     /// Local port for receiving telemetry
     #[arg(short, long, default_value = "4841")]
     local_port: u16,
+
+    /// Video port on rover
+    #[arg(long, default_value = "4842")]
+    video_port: u16,
+
+    /// Local port for receiving video
+    #[arg(long, default_value = "4843")]
+    video_local_port: u16,
 }
 
 // ============================================================================
@@ -57,6 +69,100 @@ struct Telemetry {
     velocity: Twist,
     connected: bool,
     last_recv: Option<Instant>,
+}
+
+/// Decoded video frame from background thread
+struct DecodedFrame {
+    rgba_data: Vec<u8>,
+    width: u32,
+    height: u32,
+    sequence: u32,
+}
+
+/// Video receiver (receives decoded frames from background thread)
+#[derive(Resource)]
+struct VideoReceiver {
+    rx: Mutex<mpsc::Receiver<DecodedFrame>>,
+}
+
+/// Current video frame for display
+#[derive(Resource, Default)]
+struct VideoDisplay {
+    /// Decoded RGBA image data
+    rgba_data: Vec<u8>,
+    width: u32,
+    height: u32,
+    /// Egui texture handle
+    texture_handle: Option<egui::TextureHandle>,
+    /// Last frame sequence number
+    last_sequence: u32,
+    /// Frames per second (rolling average)
+    fps: f32,
+    last_frame_time: Option<Instant>,
+}
+
+/// Spawn background thread for video receiving and decoding.
+fn spawn_video_thread(
+    video_addr: SocketAddr,
+    local_port: u16,
+) -> std::io::Result<mpsc::Receiver<DecodedFrame>> {
+    let (tx, rx) = mpsc::channel();
+
+    let local_addr: SocketAddr = format!("0.0.0.0:{}", local_port).parse().unwrap();
+    let socket = UdpSocket::bind(local_addr)?;
+    socket.set_nonblocking(true)?;
+
+    std::thread::spawn(move || {
+        // Register with video server
+        let _ = socket.send_to(&[0x00], video_addr);
+
+        let mut reassembler = FrameReassembler::new(Duration::from_millis(200));
+        let mut buf = [0u8; 2048];
+
+        loop {
+            // Receive packets (non-blocking, then sleep to avoid busy loop)
+            let mut received_any = false;
+            while let Ok((len, _addr)) = socket.recv_from(&mut buf) {
+                received_any = true;
+                if let Some(frame) = reassembler.process(&buf[..len]) {
+                    // Decode JPEG to RGBA (this is the expensive part - done in background)
+                    if let Some(img) = ImageReader::new(Cursor::new(&frame.data))
+                        .with_guessed_format()
+                        .ok()
+                        .and_then(|r| r.decode().ok())
+                    {
+                        let rgba = img.to_rgba8();
+                        let decoded = DecodedFrame {
+                            rgba_data: rgba.to_vec(),
+                            width: frame.width,
+                            height: frame.height,
+                            sequence: frame.sequence,
+                        };
+                        if tx.send(decoded).is_err() {
+                            // Main thread dropped receiver, exit
+                            return;
+                        }
+                    }
+                }
+            }
+
+            // Re-register periodically in case server restarted
+            static mut COUNTER: u32 = 0;
+            unsafe {
+                COUNTER += 1;
+                if COUNTER % 100 == 0 {
+                    let _ = socket.send_to(&[0x00], video_addr);
+                }
+            }
+
+            // Sleep briefly if no data to avoid busy loop
+            if !received_any {
+                std::thread::sleep(Duration::from_millis(5));
+            }
+        }
+    });
+
+    Ok(rx)
 }
 
 /// Input source type
@@ -558,6 +664,33 @@ fn receive_telemetry(
     }
 }
 
+fn receive_video(
+    video_rx: Res<VideoReceiver>,
+    mut video_display: ResMut<VideoDisplay>,
+) {
+    // Pick up any decoded frames from the background thread (fast - no decoding here)
+    let rx = video_rx.rx.lock().unwrap();
+    while let Ok(frame) = rx.try_recv() {
+        video_display.rgba_data = frame.rgba_data;
+        video_display.width = frame.width;
+        video_display.height = frame.height;
+        video_display.last_sequence = frame.sequence;
+        // Clear texture handle to force re-creation with new data
+        video_display.texture_handle = None;
+
+        // Update FPS
+        let now = Instant::now();
+        if let Some(last) = video_display.last_frame_time {
+            let dt = last.elapsed().as_secs_f32();
+            if dt > 0.0 {
+                let instant_fps = 1.0 / dt;
+                video_display.fps = video_display.fps * 0.9 + instant_fps * 0.1;
+            }
+        }
+        video_display.last_frame_time = Some(now);
+    }
+}
+
 fn update_rover_pose(
     mut telemetry: ResMut<Telemetry>,
     mut pose: ResMut<RoverPose>,
@@ -709,6 +842,7 @@ fn ui_system(
     input: Res<ControllerInput>,
     pose: Res<RoverPose>,
     camera_state: Res<CameraState>,
+    mut video_display: ResMut<VideoDisplay>,
 ) {
     // Telemetry panel
     egui::Window::new("📡 Telemetry")
@@ -858,6 +992,59 @@ fn ui_system(
             ui.label(egui::RichText::new("C: toggle  V: free").small().weak());
         });
 
+    // Video feed window
+    egui::Window::new("📹 Camera")
+        .default_pos([220.0, 10.0])
+        .default_width(320.0)
+        .resizable(true)
+        .show(contexts.ctx_mut(), |ui| {
+            let has_video = video_display.width > 0 && !video_display.rgba_data.is_empty();
+
+            if has_video {
+                // Extract values we need before mutably borrowing texture_handle
+                let width = video_display.width;
+                let height = video_display.height;
+                let fps = video_display.fps;
+                let seq = video_display.last_sequence;
+
+                // Create texture if needed, or update existing one
+                let needs_update = video_display.texture_handle.is_none();
+
+                if needs_update {
+                    let image = egui::ColorImage::from_rgba_unmultiplied(
+                        [width as usize, height as usize],
+                        &video_display.rgba_data,
+                    );
+                    let texture = ui.ctx().load_texture("video_feed", image, egui::TextureOptions::LINEAR);
+                    video_display.texture_handle = Some(texture);
+                }
+
+                // Display video with aspect ratio preserved
+                if let Some(texture) = &video_display.texture_handle {
+                    let available_width = ui.available_width();
+                    let aspect = width as f32 / height as f32;
+                    let display_height = available_width / aspect;
+
+                    ui.image(egui::load::SizedTexture::new(
+                        texture.id(),
+                        egui::vec2(available_width, display_height),
+                    ));
+
+                    ui.separator();
+                    ui.horizontal(|ui| {
+                        ui.label(format!("{}x{} @ {:.1} fps", width, height, fps));
+                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                            ui.label(format!("#{}", seq));
+                        });
+                    });
+                }
+            } else {
+                ui.centered_and_justified(|ui| {
+                    ui.label(egui::RichText::new("No video feed").weak());
+                });
+            }
+        });
+
     // Help bar at bottom
     egui::TopBottomPanel::bottom("help")
         .frame(egui::Frame::default().fill(egui::Color32::from_rgba_unmultiplied(30, 30, 30, 220)))
@@ -889,17 +1076,25 @@ fn ui_system(
 fn main() -> anyhow::Result<()> {
     let args = Args::parse();
 
-    // Setup UDP socket
+    // Setup UDP socket for telemetry
     let local_addr: SocketAddr = format!("0.0.0.0:{}", args.local_port).parse()?;
     let socket = UdpSocket::bind(local_addr)?;
     socket.set_nonblocking(true)?;
 
     let rover_addr: SocketAddr = args.rover.parse()?;
 
+    // Parse rover host for video address
+    let rover_host = rover_addr.ip();
+    let video_addr: SocketAddr = format!("{}:{}", rover_host, args.video_port).parse()?;
+
+    // Spawn background thread for video receiving and decoding
+    let video_rx = spawn_video_thread(video_addr, args.video_local_port)?;
+
     println!("╔═══════════════════════════════════════════╗");
     println!("║         BVR Operator Station              ║");
     println!("╠═══════════════════════════════════════════╣");
     println!("║  Rover:  {:26}   ║", rover_addr);
+    println!("║  Video:  {:26}   ║", video_addr);
     println!("║  Local:  {:26}   ║", local_addr);
     println!("╠═══════════════════════════════════════════╣");
     println!("║  Gamepad:             Keyboard:           ║");
@@ -928,21 +1123,24 @@ fn main() -> anyhow::Result<()> {
             rover_addr,
             last_send: Instant::now(),
         })
+        .insert_resource(VideoReceiver { rx: Mutex::new(video_rx) })
         .insert_resource(Telemetry::default())
         .insert_resource(ControllerInput::default())
         .insert_resource(RoverPose::default())
         .insert_resource(CameraState::default())
+        .insert_resource(VideoDisplay::default())
         .add_systems(Startup, setup_scene)
         .add_systems(Update, (
             gamepad_connections,
             read_input,
             send_commands,
             receive_telemetry,
+            receive_video,
             update_rover_pose,
             update_rover_model,
             update_camera,
-            ui_system,
         ))
+        .add_systems(Update, ui_system)
         .run();
 
     Ok(())

@@ -2,6 +2,8 @@
 //!
 //! Handles command reception and telemetry transmission over unreliable links.
 
+pub mod video;
+
 use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
 use std::sync::Arc;

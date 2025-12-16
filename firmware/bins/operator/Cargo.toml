@@ -7,6 +7,7 @@ license.workspace = true
 
 [dependencies]
 types = { workspace = true }
+teleop = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 anyhow = { workspace = true }
@@ -15,3 +16,6 @@ clap = { workspace = true }
 # Bevy game engine (includes gamepad support)
 bevy = { version = "0.15", features = ["wayland"] }
 bevy_egui = "0.31"
+
+# Image decoding for video frames
+image = { version = "0.25", default-features = false, features = ["jpeg"] }

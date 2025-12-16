@@ -15,6 +15,7 @@ teleop = { workspace = true }
 tools = { workspace = true }
 sim = { workspace = true }
 ui = { workspace = true }
+camera = { workspace = true }
 
 tokio = { workspace = true }
 serde = { workspace = true }

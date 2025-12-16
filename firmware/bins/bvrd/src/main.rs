@@ -1,6 +1,7 @@
 //! bvrd — main daemon for the Base Vectoring Rover.
 
 use anyhow::Result;
+use camera::Config as CameraConfig;
 use can::vesc::Drivetrain;
 use can::Bus;
 use clap::Parser;
@@ -10,6 +11,7 @@ use state::{Event, StateMachine};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
+use teleop::video::{VideoConfig, VideoFrame, VideoServer};
 use teleop::{Config as TeleopConfig, Server as TeleopServer, Telemetry};
 use tokio::sync::{mpsc, watch};
 use tools::{protocol, Registry as ToolRegistry, ToolOutput};
@@ -43,6 +45,26 @@ struct Args {
     /// Dashboard web UI port (0 to disable)
     #[arg(long, default_value = "8080")]
     ui_port: u16,
+
+    /// Enable camera streaming
+    #[arg(long)]
+    camera: bool,
+
+    /// Camera device index (0 = default webcam)
+    #[arg(long, default_value = "0")]
+    camera_index: u32,
+
+    /// Camera capture width
+    #[arg(long, default_value = "640")]
+    camera_width: u32,
+
+    /// Camera capture height
+    #[arg(long, default_value = "480")]
+    camera_height: u32,
+
+    /// Camera FPS
+    #[arg(long, default_value = "15")]
+    camera_fps: u32,
 }
 
 /// CAN interface abstraction for real or simulated hardware.
@@ -189,6 +211,63 @@ async fn main() -> Result<()> {
                 error!(?e, "Dashboard server error");
             }
         });
+    }
+
+    // Spawn camera and video server if enabled
+    if args.camera {
+        let camera_config = CameraConfig {
+            index: args.camera_index,
+            width: args.camera_width,
+            height: args.camera_height,
+            fps: args.camera_fps,
+            jpeg_quality: 70,
+        };
+
+        match camera::spawn_capture_thread(camera_config) {
+            Ok((frame_rx, _camera_handle)) => {
+                info!(
+                    index = args.camera_index,
+                    "{}x{} @ {}fps",
+                    args.camera_width,
+                    args.camera_height,
+                    args.camera_fps
+                );
+                info!("Camera capture started");
+
+                // Create video frame channel
+                let (video_tx, video_rx) = watch::channel(None);
+
+                // Spawn task to bridge sync camera frames to async video server
+                std::thread::spawn(move || {
+                    while let Ok(frame) = frame_rx.recv() {
+                        let video_frame = VideoFrame {
+                            data: frame.data,
+                            width: frame.width,
+                            height: frame.height,
+                            sequence: frame.sequence,
+                            timestamp_ms: frame.timestamp_ms,
+                        };
+                        if video_tx.send(Some(video_frame)).is_err() {
+                            break;
+                        }
+                    }
+                });
+
+                // Spawn video server
+                let video_config = VideoConfig::default();
+                let video_server = VideoServer::new(video_config.clone(), video_rx);
+                info!(port = video_config.port, "Video server starting");
+
+                tokio::spawn(async move {
+                    if let Err(e) = video_server.run().await {
+                        error!(?e, "Video server error");
+                    }
+                });
+            }
+            Err(e) => {
+                warn!(?e, "Failed to start camera - continuing without video");
+            }
+        }
     }
 
     // Control loop setup
