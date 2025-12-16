@@ -36,12 +36,22 @@ struct RoverConnection {
     last_send: Instant,
 }
 
+/// Raw pose from telemetry (before interpolation)
+#[derive(Default, Clone, Copy)]
+struct TelemetryPose {
+    x: f32,
+    y: f32,
+    theta: f32,
+}
+
 /// Received telemetry from rover
 #[derive(Resource, Default)]
 struct Telemetry {
     mode: Mode,
-    /// Rover pose from bvrd (actual position, not dead-reckoning)
-    pose: RoverPose,
+    /// Raw rover pose from bvrd (actual position, not dead-reckoning)
+    raw_pose: TelemetryPose,
+    /// Flag set when new pose data arrives
+    pose_updated: bool,
     battery_voltage: f64,
     system_current: f64,
     velocity: Twist,
@@ -110,12 +120,81 @@ impl Default for CameraState {
     }
 }
 
-/// Rover pose from telemetry
-#[derive(Resource, Default, Clone, Copy)]
+/// Rover pose with interpolation for smooth rendering
+#[derive(Resource)]
 struct RoverPose {
+    // Current interpolated pose (rendered)
     x: f32,
     y: f32,
     theta: f32,
+    // Target pose from latest telemetry
+    target_x: f32,
+    target_y: f32,
+    target_theta: f32,
+    // Previous pose for interpolation
+    prev_x: f32,
+    prev_y: f32,
+    prev_theta: f32,
+    // Interpolation progress (0.0 to 1.0)
+    interp_t: f32,
+}
+
+impl Default for RoverPose {
+    fn default() -> Self {
+        Self {
+            x: 0.0, y: 0.0, theta: 0.0,
+            target_x: 0.0, target_y: 0.0, target_theta: 0.0,
+            prev_x: 0.0, prev_y: 0.0, prev_theta: 0.0,
+            interp_t: 1.0,
+        }
+    }
+}
+
+impl RoverPose {
+    /// Update target from new telemetry
+    fn set_target(&mut self, x: f32, y: f32, theta: f32) {
+        // Current becomes previous
+        self.prev_x = self.x;
+        self.prev_y = self.y;
+        self.prev_theta = self.theta;
+        // New target
+        self.target_x = x;
+        self.target_y = y;
+        self.target_theta = theta;
+        // Reset interpolation
+        self.interp_t = 0.0;
+    }
+
+    /// Interpolate toward target (call each frame)
+    fn interpolate(&mut self, dt: f32) {
+        // Interpolate over ~100ms (telemetry interval)
+        const INTERP_DURATION: f32 = 0.1;
+        self.interp_t = (self.interp_t + dt / INTERP_DURATION).min(1.0);
+
+        // Smooth step for nicer easing
+        let t = smooth_step(self.interp_t);
+
+        self.x = lerp(self.prev_x, self.target_x, t);
+        self.y = lerp(self.prev_y, self.target_y, t);
+        // Use angle lerp for theta to handle wraparound
+        self.theta = lerp_angle(self.prev_theta, self.target_theta, t);
+    }
+}
+
+fn lerp(a: f32, b: f32, t: f32) -> f32 {
+    a + (b - a) * t
+}
+
+fn smooth_step(t: f32) -> f32 {
+    t * t * (3.0 - 2.0 * t)
+}
+
+fn lerp_angle(a: f32, b: f32, t: f32) -> f32 {
+    // Find shortest path around the circle
+    let mut diff = b - a;
+    while diff > std::f32::consts::PI { diff -= std::f32::consts::TAU; }
+    while diff < -std::f32::consts::PI { diff += std::f32::consts::TAU; }
+    a + diff * t
 }
 
 // ============================================================================
@@ -444,11 +523,12 @@ fn receive_telemetry(
                 let x = f64::from_le_bytes(buf[2..10].try_into().unwrap_or([0; 8]));
                 let y = f64::from_le_bytes(buf[10..18].try_into().unwrap_or([0; 8]));
                 let theta = f64::from_le_bytes(buf[18..26].try_into().unwrap_or([0; 8]));
-                telemetry.pose = RoverPose {
+                telemetry.raw_pose = TelemetryPose {
                     x: x as f32,
                     y: y as f32,
                     theta: theta as f32,
                 };
+                telemetry.pose_updated = true;
             }
 
             // Battery voltage (bytes 26-33)
@@ -479,13 +559,22 @@ fn receive_telemetry(
 }
 
 fn update_rover_pose(
-    telemetry: Res<Telemetry>,
+    mut telemetry: ResMut<Telemetry>,
     mut pose: ResMut<RoverPose>,
+    time: Res<Time>,
 ) {
-    // Use actual telemetry pose from bvrd (no local dead-reckoning)
-    if telemetry.connected {
-        *pose = telemetry.pose;
+    // When new telemetry arrives, set it as the interpolation target
+    if telemetry.connected && telemetry.pose_updated {
+        pose.set_target(
+            telemetry.raw_pose.x,
+            telemetry.raw_pose.y,
+            telemetry.raw_pose.theta,
+        );
+        telemetry.pose_updated = false;
     }
+
+    // Smoothly interpolate toward target each frame
+    pose.interpolate(time.delta_secs());
 }
 
 fn update_rover_model(
