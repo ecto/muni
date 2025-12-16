@@ -1,0 +1,13 @@
+[package]
+name = "gps"
+description = "GPS/GNSS receiver interface for bvr"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+tokio = { workspace = true, features = ["io-util"] }
+tokio-serial = "5.4"
+tracing = { workspace = true }
+thiserror = { workspace = true }
+types = { workspace = true }
