@@ -1,0 +1,11 @@
+[package]
+name = "bvr-types"
+description = "Shared types and message definitions for bvr"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+serde = { workspace = true }
+nalgebra = { workspace = true }
+

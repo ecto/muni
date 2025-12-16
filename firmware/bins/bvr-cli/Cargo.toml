@@ -1,0 +1,15 @@
+[package]
+name = "bvr-cli"
+description = "CLI tool for bvr debugging and control"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+bvr-types = { workspace = true }
+bvr-teleop = { workspace = true }
+
+tokio = { workspace = true }
+clap = { workspace = true }
+anyhow = { workspace = true }
+
