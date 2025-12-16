@@ -276,9 +276,10 @@ fn read_input(
         let left_y = gamepad.get(GamepadAxis::LeftStickY).unwrap_or(0.0);
         let left_x = gamepad.get(GamepadAxis::LeftStickX).unwrap_or(0.0);
 
-        // Apply deadzone - note: positive X = right = turn right = negative angular
+        // Apply deadzone
+        // Stick up = forward, stick right = turn right (negative angular)
         input.linear = if left_y.abs() > 0.1 { -left_y } else { 0.0 };
-        input.angular = if left_x.abs() > 0.1 { left_x } else { 0.0 };
+        input.angular = if left_x.abs() > 0.1 { -left_x } else { 0.0 };
 
         // Right stick for camera
         let right_x = gamepad.get(GamepadAxis::RightStickX).unwrap_or(0.0);
@@ -314,13 +315,13 @@ fn read_input(
     if keyboard.pressed(KeyCode::KeyS) || keyboard.pressed(KeyCode::ArrowDown) {
         linear -= 1.0;
     }
-    // A = turn left = positive angular velocity
+    // A = turn left = positive angular velocity (counter-clockwise)
     if keyboard.pressed(KeyCode::KeyA) || keyboard.pressed(KeyCode::ArrowLeft) {
-        angular -= 1.0;
-    }
-    // D = turn right = negative angular velocity
-    if keyboard.pressed(KeyCode::KeyD) || keyboard.pressed(KeyCode::ArrowRight) {
         angular += 1.0;
+    }
+    // D = turn right = negative angular velocity (clockwise)
+    if keyboard.pressed(KeyCode::KeyD) || keyboard.pressed(KeyCode::ArrowRight) {
+        angular -= 1.0;
     }
 
     // Q/E for tool axis
