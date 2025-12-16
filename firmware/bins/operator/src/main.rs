@@ -277,8 +277,8 @@ fn read_input(
         let left_x = gamepad.get(GamepadAxis::LeftStickX).unwrap_or(0.0);
 
         // Apply deadzone
-        // Stick up = forward, stick right = turn right (negative angular)
-        input.linear = if left_y.abs() > 0.1 { -left_y } else { 0.0 };
+        // Stick up = forward (positive linear), stick right = turn right (negative angular)
+        input.linear = if left_y.abs() > 0.1 { left_y } else { 0.0 };
         input.angular = if left_x.abs() > 0.1 { -left_x } else { 0.0 };
 
         // Right stick for camera
