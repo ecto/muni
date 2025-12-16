@@ -291,9 +291,15 @@ fn read_input(
             input.camera_pitch = right_y * 1.5;
         }
 
-        // Triggers (LT/RT) for tool axis (analog)
-        let rt = gamepad.get(GamepadAxis::RightZ).unwrap_or(0.0);
-        let lt = gamepad.get(GamepadAxis::LeftZ).unwrap_or(0.0);
+        // Triggers (LT/RT) for tool axis
+        // Try analog axis first, fall back to button state
+        let rt_axis = gamepad.get(GamepadAxis::RightZ).unwrap_or(0.0);
+        let lt_axis = gamepad.get(GamepadAxis::LeftZ).unwrap_or(0.0);
+        let rt_btn = if gamepad.pressed(GamepadButton::RightTrigger2) { 1.0 } else { 0.0 };
+        let lt_btn = if gamepad.pressed(GamepadButton::LeftTrigger2) { 1.0 } else { 0.0 };
+        // Use whichever has a value
+        let rt = if rt_axis.abs() > 0.1 { rt_axis } else { rt_btn };
+        let lt = if lt_axis.abs() > 0.1 { lt_axis } else { lt_btn };
         input.tool_axis = rt - lt;
 
         // Buttons
@@ -515,8 +521,8 @@ fn update_camera(
     // Scroll wheel for zoom (in third person)
     // (Would need mouse wheel event reader - skip for now)
 
-    // Auto-reset camera behind rover after releasing camera controls
-    if camera_state.last_input > 0.5 && camera_state.mode == CameraMode::ThirdPerson {
+    // Auto-reset camera behind rover when no camera input
+    if !has_camera_input && camera_state.mode == CameraMode::ThirdPerson {
         // Smoothly return to behind rover
         let return_speed = if input.linear.abs() > 0.1 || input.angular.abs() > 0.1 {
             4.0 // Faster return when moving
