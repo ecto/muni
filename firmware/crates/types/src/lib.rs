@@ -85,7 +85,7 @@ pub struct Pose {
 pub struct GpsCoord {
     /// Latitude in degrees
     pub lat: f64,
-    /// Longitude in degrees  
+    /// Longitude in degrees
     pub lon: f64,
     /// Altitude in meters (above WGS84 ellipsoid)
     pub alt: f64,

@@ -132,8 +132,16 @@ async fn main() -> Result<()> {
     let limits = Limits::default();
 
     // Shared state
+    let mut state_machine = StateMachine::new();
+
+    // In sim mode, auto-enable to Idle (no safety concern)
+    if args.sim {
+        state_machine.transition(state::Event::Enable);
+        info!("Sim mode: auto-enabled to Idle");
+    }
+
     let shared = Arc::new(Mutex::new(SharedState {
-        state_machine: StateMachine::new(),
+        state_machine,
         commanded_twist: Twist::default(),
         drivetrain,
         tool_registry: ToolRegistry::new(),
@@ -219,8 +227,16 @@ async fn main() -> Result<()> {
                     watchdog.feed();
                     state.commanded_twist = twist;
 
-                    if state.state_machine.mode() == Mode::Idle {
-                        state.state_machine.transition(Event::TeleopCommand);
+                    // Auto-transition to teleop when receiving commands
+                    match state.state_machine.mode() {
+                        Mode::Disabled => {
+                            state.state_machine.transition(Event::Enable);
+                            state.state_machine.transition(Event::TeleopCommand);
+                        }
+                        Mode::Idle => {
+                            state.state_machine.transition(Event::TeleopCommand);
+                        }
+                        _ => {}
                     }
                 }
                 Command::EStop => {
