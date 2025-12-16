@@ -1,0 +1,14 @@
+[package]
+name = "can"
+description = "CAN bus abstraction and VESC protocol for bvr"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+types = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+socketcan = "3"

@@ -1,0 +1,13 @@
+[package]
+name = "tools"
+description = "Tool discovery and implementations for bvr"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+types = { workspace = true }
+can = { workspace = true }
+bitflags = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }

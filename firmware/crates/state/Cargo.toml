@@ -1,0 +1,10 @@
+[package]
+name = "state"
+description = "State machine and mode management for bvr"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+types = { workspace = true }
+tracing = { workspace = true }

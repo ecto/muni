@@ -1,0 +1,10 @@
+[package]
+name = "control"
+description = "Motor mixing and velocity control for bvr"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+types = { workspace = true }
+tracing = { workspace = true }

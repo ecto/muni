@@ -1,0 +1,57 @@
+# bvr runtime configuration
+
+[chassis]
+# Wheel diameter in meters
+wheel_diameter_m = 0.165
+# Distance between left and right wheels (track width)
+track_width_m = 0.55
+# Distance between front and rear axles
+wheelbase_m = 0.55
+# Maximum linear speed (m/s)
+max_speed_mps = 3.0
+# Maximum linear acceleration (m/s²)
+max_accel_mps2 = 2.0
+# Maximum angular velocity (rad/s)
+max_angular_vel_rps = 2.0
+
+[can]
+# SocketCAN interface name
+interface = "can0"
+# CAN bus bitrate
+bitrate = 500_000
+# ESC node IDs: [front-left, front-right, rear-left, rear-right]
+esc_ids = [1, 2, 3, 4]
+# Timeout for ESC heartbeats (ms)
+heartbeat_timeout_ms = 100
+
+[control]
+# Control loop frequency (Hz)
+loop_rate_hz = 100
+# Command timeout — if no command received, safe stop (ms)
+command_timeout_ms = 250
+# Velocity PID gains (per-wheel)
+[control.pid]
+kp = 1.0
+ki = 0.1
+kd = 0.01
+
+[teleop]
+# UDP port for command/telemetry
+port = 4840
+# Heartbeat interval to operator station (ms)
+heartbeat_interval_ms = 100
+# Connection timeout (ms)
+connection_timeout_ms = 1000
+
+[power]
+# Voltage thresholds (48V nominal)
+battery_full_v = 54.0
+battery_nominal_v = 48.0
+battery_low_v = 42.0
+battery_critical_v = 39.0
+
+[logging]
+# Log level: trace, debug, info, warn, error
+level = "info"
+# Log to file (in addition to stdout)
+file = "/var/log/bvr/bvrd.log"

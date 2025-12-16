@@ -1,0 +1,40 @@
+[workspace]
+resolver = "2"
+members = ["crates/*", "bins/*"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "Proprietary"
+repository = "https://github.com/muni-robotics/bvr"
+
+[workspace.dependencies]
+# Async runtime
+tokio = { version = "1", features = ["rt-multi-thread", "sync", "time", "macros", "net"] }
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+toml = "0.8"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Error handling
+thiserror = "2"
+anyhow = "1"
+
+# Utilities
+bitflags = "2"
+
+# CLI
+clap = { version = "4", features = ["derive"] }
+
+# Internal crates
+types = { path = "crates/types" }
+can = { path = "crates/can" }
+control = { path = "crates/control" }
+state = { path = "crates/state" }
+hal = { path = "crates/hal" }
+teleop = { path = "crates/teleop" }
+tools = { path = "crates/tools" }
