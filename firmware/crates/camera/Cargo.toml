@@ -5,13 +5,20 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 
+# System dependencies:
+# - GStreamer 1.x development libraries
+# Ubuntu/Debian: apt install libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev
+# Jetson: comes pre-installed with JetPack
+
 [dependencies]
 tokio = { workspace = true }
 tracing = { workspace = true }
 thiserror = { workspace = true }
 
-# Camera capture (cross-platform)
-nokhwa = { version = "0.10", features = ["input-native"] }
+# GStreamer for camera capture (USB via v4l2src, CSI via nvarguscamerasrc)
+gstreamer = "0.23"
+gstreamer-app = "0.23"
+gstreamer-video = "0.23"
 
 # Image encoding
 image = { version = "0.25", default-features = false, features = ["jpeg"] }
