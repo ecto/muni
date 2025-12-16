@@ -6,6 +6,8 @@ use can::vesc::Drivetrain;
 use can::Bus;
 use clap::Parser;
 use control::{ChassisParams, DiffDriveMixer, Limits, RateLimiter, Watchdog};
+use gps::{Config as GpsConfig, GpsReader, GpsState};
+use localization::{PoseEstimator, WheelOdometry};
 use sim::SimBus;
 use state::{Event, StateMachine};
 use std::path::PathBuf;
@@ -15,7 +17,7 @@ use teleop::video::{VideoConfig, VideoFrame, VideoServer};
 use teleop::{Config as TeleopConfig, Server as TeleopServer, Telemetry};
 use tokio::sync::{mpsc, watch};
 use tools::{protocol, Registry as ToolRegistry, ToolOutput};
-use tracing::{error, info, warn};
+use tracing::{debug, error, info, warn};
 use types::{Command, Mode, Pose, PowerStatus, Twist};
 use ui::{Config as UiConfig, Dashboard};
 
@@ -46,25 +48,25 @@ struct Args {
     #[arg(long, default_value = "8080")]
     ui_port: u16,
 
-    /// Enable camera streaming
+    /// Disable camera auto-detection
     #[arg(long)]
-    camera: bool,
+    no_camera: bool,
 
-    /// Camera device index (0 = default webcam)
-    #[arg(long, default_value = "0")]
-    camera_index: u32,
-
-    /// Camera capture width
-    #[arg(long, default_value = "640")]
-    camera_width: u32,
-
-    /// Camera capture height
-    #[arg(long, default_value = "480")]
-    camera_height: u32,
+    /// Camera capture resolution (e.g., "1280x720")
+    #[arg(long)]
+    camera_resolution: Option<String>,
 
     /// Camera FPS
-    #[arg(long, default_value = "15")]
+    #[arg(long, default_value = "30")]
     camera_fps: u32,
+
+    /// GPS serial port (e.g., "/dev/ttyUSB0", "/dev/ttyACM0")
+    #[arg(long)]
+    gps_port: Option<String>,
+
+    /// GPS baud rate
+    #[arg(long, default_value = "9600")]
+    gps_baud: u32,
 }
 
 /// CAN interface abstraction for real or simulated hardware.
@@ -213,59 +215,108 @@ async fn main() -> Result<()> {
         });
     }
 
-    // Spawn camera and video server if enabled
-    if args.camera {
-        let camera_config = CameraConfig {
-            index: args.camera_index,
-            width: args.camera_width,
-            height: args.camera_height,
-            fps: args.camera_fps,
-            jpeg_quality: 70,
+    // Auto-detect and start cameras (unless disabled)
+    if !args.no_camera {
+        // Parse resolution if provided
+        let (width, height) = if let Some(res) = &args.camera_resolution {
+            let parts: Vec<&str> = res.split('x').collect();
+            if parts.len() == 2 {
+                (
+                    parts[0].parse().unwrap_or(640),
+                    parts[1].parse().unwrap_or(480),
+                )
+            } else {
+                (640, 480)
+            }
+        } else {
+            (640, 480)
         };
 
-        match camera::spawn_capture_thread(camera_config) {
-            Ok((frame_rx, _camera_handle)) => {
-                info!(
-                    index = args.camera_index,
-                    "{}x{} @ {}fps",
-                    args.camera_width,
-                    args.camera_height,
-                    args.camera_fps
-                );
-                info!("Camera capture started");
+        let camera_config = CameraConfig {
+            width,
+            height,
+            fps: args.camera_fps,
+            jpeg_quality: 60,
+        };
 
-                // Create video frame channel
-                let (video_tx, video_rx) = watch::channel(None);
+        // Auto-detect cameras
+        let cameras = camera::detect_cameras();
+        if cameras.is_empty() {
+            info!("No cameras detected");
+        } else {
+            info!(count = cameras.len(), "Detected cameras");
+            for cam in &cameras {
+                info!(name = %cam.name, "  - {:?}", cam.camera_type);
+            }
 
-                // Spawn task to bridge sync camera frames to async video server
-                std::thread::spawn(move || {
-                    while let Ok(frame) = frame_rx.recv() {
-                        let video_frame = VideoFrame {
-                            data: frame.data,
-                            width: frame.width,
-                            height: frame.height,
-                            sequence: frame.sequence,
-                            timestamp_ms: frame.timestamp_ms,
-                        };
-                        if video_tx.send(Some(video_frame)).is_err() {
-                            break;
+            // Start capture on first available camera
+            match camera::spawn_capture(&cameras[0], camera_config) {
+                Ok((frame_rx, _camera_handle)) => {
+                    info!(
+                        camera = %cameras[0].name,
+                        "{}x{} @ {}fps",
+                        width,
+                        height,
+                        args.camera_fps
+                    );
+
+                    // Create video frame channel
+                    let (video_tx, video_rx) = watch::channel(None);
+
+                    // Spawn task to bridge sync camera frames to async video server
+                    std::thread::spawn(move || {
+                        while let Ok(frame) = frame_rx.recv() {
+                            let video_frame = VideoFrame {
+                                data: frame.data,
+                                width: frame.width,
+                                height: frame.height,
+                                sequence: frame.sequence,
+                                timestamp_ms: frame.timestamp_ms,
+                            };
+                            if video_tx.send(Some(video_frame)).is_err() {
+                                break;
+                            }
                         }
-                    }
-                });
+                    });
 
-                // Spawn video server
-                let video_config = VideoConfig::default();
-                let video_server = VideoServer::new(video_config.clone(), video_rx);
-                info!(port = video_config.port, "Video server starting");
+                    // Spawn video server
+                    let video_config = VideoConfig::default();
+                    let video_server = VideoServer::new(video_config.clone(), video_rx);
+                    info!(port = video_config.port, "Video server starting");
 
-                tokio::spawn(async move {
-                    if let Err(e) = video_server.run().await {
-                        error!(?e, "Video server error");
-                    }
-                });
+                    tokio::spawn(async move {
+                        if let Err(e) = video_server.run().await {
+                            error!(?e, "Video server error");
+                        }
+                    });
+                }
+                Err(e) => {
+                    warn!(?e, "Failed to start camera - continuing without video");
+                }
+            }
+        }
+    }
+
+    // Initialize localization
+    let mut odometry = WheelOdometry::new(chassis.clone(), args.pole_pairs);
+    let mut pose_estimator = PoseEstimator::new();
+
+    // GPS state channel (updated by GPS reader thread)
+    let (gps_tx, mut gps_rx) = watch::channel(GpsState::default());
+
+    // Start GPS reader if port specified
+    if let Some(ref port) = args.gps_port {
+        let gps_config = GpsConfig {
+            port: port.clone(),
+            baud_rate: args.gps_baud,
+        };
+        let gps_reader = GpsReader::new(gps_config);
+        match gps_reader.spawn(gps_tx) {
+            Ok(_handle) => {
+                info!(port = %port, baud = args.gps_baud, "GPS reader started");
             }
             Err(e) => {
-                warn!(?e, "Failed to start camera - continuing without video");
+                warn!(?e, "Failed to start GPS reader - continuing without GPS");
             }
         }
     }
@@ -284,6 +335,9 @@ async fn main() -> Result<()> {
     info!("Entering control loop");
     info!("Dashboard available at http://localhost:{}", args.ui_port);
     info!("Send commands to UDP port 4840");
+    if args.gps_port.is_some() {
+        info!("GPS enabled");
+    }
 
     loop {
         // Wait for next tick
@@ -412,6 +466,32 @@ async fn main() -> Result<()> {
             vesc_states[3].status.current,
         ];
 
+        // Update wheel odometry from VESC tachometers
+        let tach: [i32; 4] = [
+            vesc_states[0].status5.tachometer,
+            vesc_states[1].status5.tachometer,
+            vesc_states[2].status5.tachometer,
+            vesc_states[3].status5.tachometer,
+        ];
+        let (dx, dy, dtheta) = odometry.update(tach);
+
+        // Update pose estimator with odometry
+        pose_estimator.update_odometry(dx, dy, dtheta);
+
+        // Check for GPS updates
+        if gps_rx.has_changed().unwrap_or(false) {
+            let gps_state = gps_rx.borrow_and_update();
+            if let Some(ref coord) = gps_state.coord {
+                pose_estimator.update_gps(coord);
+                debug!(
+                    lat = coord.lat,
+                    lon = coord.lon,
+                    sats = gps_state.satellites,
+                    "GPS update"
+                );
+            }
+        }
+
         let (active_tool, tool_status) = if let Some(tool) = state.tool_registry.active() {
             let status = tool.status();
             (
@@ -427,9 +507,15 @@ async fn main() -> Result<()> {
             (None, None)
         };
 
-        // Get pose (drop the lock first to avoid holding it during telemetry send)
+        // Get pose from estimator (or sim ground truth in sim mode for comparison)
         drop(state);
-        let pose = can_interface.pose();
+        let pose = if args.sim {
+            // In sim mode, use simulation ground truth for accurate feedback
+            can_interface.pose()
+        } else {
+            // In real mode, use the pose estimator
+            pose_estimator.pose()
+        };
 
         let state = shared.lock().unwrap();
         let telemetry = Telemetry {

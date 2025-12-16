@@ -328,15 +328,11 @@ fn parse_coordinate(value: &str, direction: &str, is_latitude: bool) -> Option<f
     let value: f64 = value.parse().ok()?;
 
     // Split into degrees and minutes
-    let (degrees, minutes) = if is_latitude {
-        let deg = (value / 100.0).floor();
-        let min = value - (deg * 100.0);
-        (deg, min)
-    } else {
-        let deg = (value / 100.0).floor();
-        let min = value - (deg * 100.0);
-        (deg, min)
-    };
+    // NMEA format: ddmm.mmmm (lat) or dddmm.mmmm (lon)
+    // Both use the same formula: degrees = floor(value/100), minutes = remainder
+    let _ = is_latitude; // Latitude/longitude have same parsing logic
+    let degrees = (value / 100.0).floor();
+    let minutes = value - (degrees * 100.0);
 
     let mut decimal = degrees + (minutes / 60.0);
 

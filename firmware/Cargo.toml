@@ -45,6 +45,8 @@ tools = { path = "crates/tools" }
 sim = { path = "crates/sim" }
 ui = { path = "crates/ui" }
 camera = { path = "crates/camera" }
+gps = { path = "crates/gps" }
+localization = { path = "crates/localization" }
 
 # New internal crates (bvr-prefixed)
 bvr-types = { path = "crates/bvr-types" }
