@@ -539,3 +539,4 @@ async fn main() -> Result<()> {
         let _ = telemetry_tx.send(telemetry);
     }
 }
+

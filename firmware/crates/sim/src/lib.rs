@@ -129,3 +129,4 @@ impl SimCanAdapter {
         Ok(self.sim.lock().unwrap().recv())
     }
 }
+

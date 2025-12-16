@@ -409,3 +409,4 @@ mod tests {
         assert_eq!(result.fix_quality, 0);
     }
 }
+

@@ -55,3 +55,4 @@ battery_critical_v = 39.0
 level = "info"
 # Log to file (in addition to stdout)
 file = "/var/log/bvr/bvrd.log"
+

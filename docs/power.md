@@ -211,3 +211,4 @@ Operator station displays:
 - Estimated range/time remaining
 - Current draw
 - Low battery warnings
+

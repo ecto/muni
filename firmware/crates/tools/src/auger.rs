@@ -83,3 +83,4 @@ impl Tool for SnowAuger {
         }
     }
 }
+

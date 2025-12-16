@@ -293,3 +293,4 @@ mod tests {
         assert!(y.abs() < 1000.0); // Small east-west component
     }
 }
+

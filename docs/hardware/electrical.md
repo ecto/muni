@@ -96,3 +96,4 @@ Standard connector for tools includes:
 | 6   | Reserved |
 
 Connector type: Deutsch DT06-6S (weatherproof)
+

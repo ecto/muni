@@ -111,3 +111,4 @@ impl StatusPayload {
         self.current_ma as f32 / 1000.0
     }
 }
+

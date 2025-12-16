@@ -55,3 +55,4 @@ bvr-control = { path = "crates/bvr-control" }
 bvr-hal = { path = "crates/bvr-hal" }
 bvr-state = { path = "crates/bvr-state" }
 bvr-teleop = { path = "crates/bvr-teleop" }
+

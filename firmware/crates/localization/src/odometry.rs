@@ -188,3 +188,4 @@ mod tests {
         assert!(odom.total_distance() > 0.0);
     }
 }
+

@@ -169,3 +169,4 @@ mod tests {
         assert_eq!(sm.mode(), Mode::Teleop);
     }
 }
+

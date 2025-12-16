@@ -189,3 +189,4 @@ port = 4840
 2. **E-Stop**: Immediate stop, requires explicit release
 3. **Rate limiting**: Acceleration capped to prevent tip-over
 4. **Voltage monitoring**: Low battery → reduced power → shutdown
+

@@ -152,3 +152,4 @@ impl SimVesc {
         self.current_erpm as f64 / 15.0 // Assuming 15 pole pairs
     }
 }
+

@@ -96,3 +96,4 @@ pub trait Tool: Send + Sync {
     /// Get current status for telemetry.
     fn status(&self) -> ToolStatus;
 }
+

@@ -112,3 +112,4 @@ See individual tool assembly guides in respective repos.
 - [ ] Battery secure and protected
 - [ ] All connectors fully seated
 - [ ] Thermal management adequate
+
