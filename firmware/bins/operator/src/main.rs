@@ -291,14 +291,18 @@ fn read_input(
             input.camera_pitch = right_y * 1.5;
         }
 
-        // Triggers for tool axis
+        // Triggers (LT/RT) for tool axis (analog)
         let rt = gamepad.get(GamepadAxis::RightZ).unwrap_or(0.0);
         let lt = gamepad.get(GamepadAxis::LeftZ).unwrap_or(0.0);
         input.tool_axis = rt - lt;
 
         // Buttons
-        input.action_a = gamepad.pressed(GamepadButton::South);
-        input.action_b = gamepad.pressed(GamepadButton::East);
+        // A or RB = primary action
+        input.action_a = gamepad.pressed(GamepadButton::South)
+            || gamepad.pressed(GamepadButton::RightTrigger);
+        // B or LB = secondary action
+        input.action_b = gamepad.pressed(GamepadButton::East)
+            || gamepad.pressed(GamepadButton::LeftTrigger);
         input.estop = gamepad.pressed(GamepadButton::Select);
         input.enable = gamepad.pressed(GamepadButton::Start);
         return;
@@ -511,11 +515,15 @@ fn update_camera(
     // Scroll wheel for zoom (in third person)
     // (Would need mouse wheel event reader - skip for now)
 
-    // Auto-reset camera behind rover when moving and no recent camera input
-    let is_moving = input.linear.abs() > 0.1 || input.angular.abs() > 0.1;
-    if is_moving && camera_state.last_input > 1.0 && camera_state.mode == CameraMode::ThirdPerson {
+    // Auto-reset camera behind rover after releasing camera controls
+    if camera_state.last_input > 0.5 && camera_state.mode == CameraMode::ThirdPerson {
         // Smoothly return to behind rover
-        camera_state.yaw_offset = camera_state.yaw_offset * (1.0 - 2.0 * dt);
+        let return_speed = if input.linear.abs() > 0.1 || input.angular.abs() > 0.1 {
+            4.0 // Faster return when moving
+        } else {
+            2.0 // Slower return when stopped
+        };
+        camera_state.yaw_offset = camera_state.yaw_offset * (1.0 - return_speed * dt);
     }
 
     // Wrap yaw offset
