@@ -55,6 +55,41 @@ cargo build
 cargo build --release --target aarch64-unknown-linux-gnu
 ```
 
+## Deployment
+
+Deploy to the rover over Tailscale:
+
+```bash
+# Deploy binary only
+./deploy.sh jetson
+
+# Deploy and restart service
+./deploy.sh jetson --restart
+
+# Deploy with config file
+./deploy.sh jetson --config --restart
+
+# Also deploy CLI tool
+./deploy.sh jetson --cli --restart
+```
+
+### First-time Setup
+
+On the Jetson, install the systemd service:
+
+```bash
+scp config/bvrd.service jetson:/tmp/
+ssh jetson 'sudo mv /tmp/bvrd.service /etc/systemd/system/ && \
+            sudo systemctl daemon-reload && \
+            sudo systemctl enable bvrd'
+```
+
+Set up the Tailscale hostname (optional, for convenience):
+
+```bash
+ssh jetson 'sudo tailscale set --hostname=jetson'
+```
+
 ## Configuration
 
 Runtime config lives in `config/bvr.toml`. See the file for all options.
