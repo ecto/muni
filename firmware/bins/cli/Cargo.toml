@@ -1,5 +1,5 @@
 [package]
-name = "cli"
+name = "bvr"
 description = "CLI tool for bvr debugging and control"
 version.workspace = true
 edition.workspace = true
@@ -8,6 +8,7 @@ license.workspace = true
 [dependencies]
 types = { workspace = true }
 teleop = { workspace = true }
+can = { workspace = true }
 
 tokio = { workspace = true }
 clap = { workspace = true }

@@ -5,7 +5,6 @@
 pub mod vesc;
 
 use thiserror::Error;
-use tracing::warn;
 
 #[derive(Error, Debug)]
 pub enum CanError {
@@ -57,7 +56,10 @@ impl Frame {
 #[cfg(target_os = "linux")]
 mod platform {
     use super::*;
-    use socketcan::{CanFrame, CanSocket, EmbeddedFrame, ExtendedId, Socket, StandardId};
+    use socketcan::{
+        CanFrame, CanSocket, EmbeddedFrame, ExtendedId, Frame as SocketcanFrame, Socket,
+        StandardId,
+    };
     use std::time::Duration;
 
     /// CAN bus interface.

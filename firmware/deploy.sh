@@ -119,11 +119,11 @@ echo -e "${BLUE}▸ Building for ${TARGET}...${NC}"
 $BUILD_CMD build --release --target "$TARGET" --bin "$BINARY"
 
 if [[ "$DEPLOY_CLI" == true ]]; then
-    $BUILD_CMD build --release --target "$TARGET" --bin cli
+    $BUILD_CMD build --release --target "$TARGET" --bin bvr
 fi
 
 BINARY_PATH="target/${TARGET}/release/${BINARY}"
-CLI_PATH="target/${TARGET}/release/cli"
+CLI_PATH="target/${TARGET}/release/bvr"
 
 if [[ ! -f "$BINARY_PATH" ]]; then
     echo -e "${RED}Build failed: $BINARY_PATH not found${NC}"
@@ -155,9 +155,9 @@ echo -e "${GREEN}✓ Uploaded${NC}"
 
 # Upload CLI if requested
 if [[ "$DEPLOY_CLI" == true ]] && [[ -f "$CLI_PATH" ]]; then
-    echo -e "${BLUE}▸ Uploading cli...${NC}"
-    scp -q "$CLI_PATH" "${REMOTE}:/tmp/cli.new"
-    echo -e "${GREEN}✓ Uploaded cli${NC}"
+    echo -e "${BLUE}▸ Uploading bvr...${NC}"
+    scp -q "$CLI_PATH" "${REMOTE}:/tmp/bvr.new"
+    echo -e "${GREEN}✓ Uploaded bvr${NC}"
 fi
 
 # Upload config if requested
@@ -183,9 +183,9 @@ sudo mv /tmp/${BINARY}.new ${REMOTE_PATH}/${BINARY}
 sudo chmod +x ${REMOTE_PATH}/${BINARY}
 
 # CLI if present
-if [[ -f /tmp/cli.new ]]; then
-    sudo mv /tmp/cli.new ${REMOTE_PATH}/cli
-    sudo chmod +x ${REMOTE_PATH}/cli
+if [[ -f /tmp/bvr.new ]]; then
+    sudo mv /tmp/bvr.new ${REMOTE_PATH}/bvr
+    sudo chmod +x ${REMOTE_PATH}/bvr
 fi
 
 # Config if present
