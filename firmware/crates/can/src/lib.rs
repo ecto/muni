@@ -128,7 +128,7 @@ mod platform {
 #[cfg(not(target_os = "linux"))]
 mod platform {
     use super::*;
-    use tracing::debug;
+    use tracing::{debug, warn};
 
     /// Mock CAN bus for development on non-Linux platforms.
     pub struct Bus {

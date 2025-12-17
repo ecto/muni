@@ -40,10 +40,10 @@ Onboard software for the Base Vectoring Rover, targeting Jetson Orin NX.
 
 ## Binaries
 
-| Binary | Purpose            |
-| ------ | ------------------ |
-| `bvrd` | Main daemon        |
-| `cli`  | Debug/control tool |
+| Binary | Purpose           |
+| ------ | ----------------- |
+| `bvrd` | Main daemon       |
+| `bvr`  | Debug/control CLI |
 
 ## Building
 
@@ -69,7 +69,7 @@ Deploy to the rover over Tailscale:
 # Deploy with config file
 ./deploy.sh jetson --config --restart
 
-# Also deploy CLI tool
+# Also deploy bvr CLI tool
 ./deploy.sh jetson --cli --restart
 ```
 
@@ -107,14 +107,20 @@ Runtime config lives in `config/bvr.toml`. See the file for all options.
 ## CLI Usage
 
 ```bash
+# Scan CAN bus for VESCs
+bvr scan
+
+# Scan with custom interface/duration
+bvr scan --interface can0 --duration 3
+
 # Send velocity command
-cli drive --linear 0.5 --angular 0.0
+bvr drive --linear 0.5 --angular 0.0
 
 # Emergency stop
-cli estop
+bvr estop
 
 # Monitor telemetry (TODO)
-cli monitor
+bvr monitor
 ```
 
 ## Development
@@ -153,4 +159,3 @@ cargo test
 - [Teleop System](../docs/teleop.md)
 - [Tool System](../docs/tools.md)
 - [Power System](../docs/power.md)
-
