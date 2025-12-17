@@ -1,0 +1,29 @@
+[Unit]
+Description=BVR Daemon - Base Vectoring Rover control
+After=network.target can.target
+Wants=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/bvrd --config /etc/bvr/bvr.toml
+Restart=on-failure
+RestartSec=3
+User=root
+
+# Watchdog: if bvrd doesn't ping within 10s, systemd restarts it
+WatchdogSec=10
+
+# Environment
+Environment=RUST_LOG=info
+Environment=RUST_BACKTRACE=1
+
+# Resource limits
+LimitNOFILE=65536
+
+# Security (relaxed for hardware access)
+ProtectSystem=false
+ProtectHome=true
+NoNewPrivileges=false
+
+[Install]
+WantedBy=multi-user.target
