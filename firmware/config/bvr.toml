@@ -20,7 +20,7 @@ interface = "can0"
 # CAN bus bitrate
 bitrate = 500_000
 # ESC node IDs: [front-left, front-right, rear-left, rear-right]
-esc_ids = [1, 2, 3, 4]
+esc_ids = [0, 1, 2, 3]
 # Timeout for ESC heartbeats (ms)
 heartbeat_timeout_ms = 100
 

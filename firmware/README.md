@@ -60,35 +60,70 @@ cargo build --release --target aarch64-unknown-linux-gnu
 Deploy to the rover over Tailscale:
 
 ```bash
-# Deploy binary only
-./deploy.sh jetson
+# Deploy bvrd only
+./deploy.sh frog-0
+
+# Deploy bvrd + bvr CLI
+./deploy.sh frog-0 --cli
 
 # Deploy and restart service
-./deploy.sh jetson --restart
+./deploy.sh frog-0 --cli --restart
 
 # Deploy with config file
-./deploy.sh jetson --config --restart
-
-# Also deploy bvr CLI tool
-./deploy.sh jetson --cli --restart
+./deploy.sh frog-0 --config --restart
 ```
 
-### First-time Setup
+### First-time Rover Setup
 
-On the Jetson, install the systemd service:
+**1. SSH Key Setup (on your Mac):**
 
 ```bash
-scp config/bvrd.service jetson:/tmp/
-ssh jetson 'sudo mv /tmp/bvrd.service /etc/systemd/system/ && \
+# Copy SSH key to rover
+ssh-copy-id cam@frog-0
+
+# Add key to agent (stores passphrase in Keychain)
+eval "$(ssh-agent -s)"
+ssh-add --apple-use-keychain ~/.ssh/id_ed25519
+```
+
+**2. Passwordless sudo (on the rover):**
+
+```bash
+sudo visudo
+# Add at end: cam ALL=(ALL) NOPASSWD: ALL
+```
+
+**3. Install systemd service (on the rover):**
+
+```bash
+scp config/bvrd.service frog-0:/tmp/
+ssh frog-0 'sudo mv /tmp/bvrd.service /etc/systemd/system/ && \
             sudo systemctl daemon-reload && \
             sudo systemctl enable bvrd'
 ```
 
-Set up the Tailscale hostname (optional, for convenience):
+**4. Set Tailscale hostname (optional):**
 
 ```bash
-ssh jetson 'sudo tailscale set --hostname=jetson'
+ssh frog-0 'sudo tailscale set --hostname=frog-0'
 ```
+
+### Cross-Compilation
+
+The deploy script uses `cross` for ARM64 cross-compilation with GStreamer support:
+
+```bash
+# Install cross (one-time)
+cargo install cross --git https://github.com/cross-rs/cross
+
+# Ensure Docker is running
+open -a Docker
+
+# Build manually (deploy.sh does this automatically)
+cross build --release --target aarch64-unknown-linux-gnu --bin bvrd
+```
+
+The `Cross.toml` configures the build container with GStreamer ARM64 libraries.
 
 ## Configuration
 
@@ -100,8 +135,8 @@ Runtime config lives in `config/bvr.toml`. See the file for all options.
 # On the Jetson
 ./target/release/bvrd --config /etc/bvr/bvr.toml --can-interface can0
 
-# With custom VESC IDs
-./target/release/bvrd --vesc-ids 1 2 3 4 --pole-pairs 15
+# With custom VESC IDs (default is 0 1 2 3 for FL FR RL RR)
+./target/release/bvrd --vesc-ids 0 1 2 3
 ```
 
 ## CLI Usage
