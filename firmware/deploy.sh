@@ -3,10 +3,10 @@
 # Deploy bvrd to a rover via Tailscale
 #
 # Usage:
-#   ./deploy.sh <hostname>          # Deploy to rover
-#   ./deploy.sh jetson              # Using Tailscale magic DNS
-#   ./deploy.sh jetson --restart    # Deploy and restart service
-#   ./deploy.sh jetson --config     # Also sync config file
+#   ./deploy.sh <hostname>              # Deploy bvrd binary only
+#   ./deploy.sh frog-0 --cli            # Deploy bvrd + CLI
+#   ./deploy.sh frog-0 --all            # Full deploy (binaries, config, services)
+#   ./deploy.sh frog-0 --services       # Install/update systemd services
 #
 set -euo pipefail
 
@@ -25,6 +25,7 @@ REMOTE_PATH="/usr/local/bin"
 CONFIG_PATH="/etc/bvr"
 RESTART=false
 SYNC_CONFIG=false
+INSTALL_SERVICES=false
 
 usage() {
     echo "Usage: $0 <hostname> [options]"
@@ -32,14 +33,16 @@ usage() {
     echo "Options:"
     echo "  --restart     Restart bvrd service after deploy"
     echo "  --config      Also sync config/bvr.toml"
+    echo "  --services    Install/update systemd services (can.service, bvrd.service)"
     echo "  --user USER   SSH user (default: cam, or \$REMOTE_USER)"
-    echo "  --cli         Also deploy the cli tool"
+    echo "  --cli         Also deploy the bvr CLI tool"
+    echo "  --all         Deploy everything (--cli --config --services --restart)"
     echo "  --help        Show this help"
     echo ""
     echo "Examples:"
-    echo "  $0 jetson                    # Deploy to 'jetson' via Tailscale"
-    echo "  $0 jetson --restart          # Deploy and restart service"
-    echo "  $0 100.82.116.26 --config    # Deploy with config"
+    echo "  $0 frog-0                    # Deploy bvrd only"
+    echo "  $0 frog-0 --cli --restart    # Deploy bvrd + CLI, restart service"
+    echo "  $0 frog-0 --all              # Full deploy with services"
     exit 1
 }
 
@@ -59,6 +62,17 @@ while [[ $# -gt 0 ]]; do
             ;;
         --cli)
             DEPLOY_CLI=true
+            shift
+            ;;
+        --services)
+            INSTALL_SERVICES=true
+            shift
+            ;;
+        --all)
+            DEPLOY_CLI=true
+            SYNC_CONFIG=true
+            INSTALL_SERVICES=true
+            RESTART=true
             shift
             ;;
         --user)
@@ -98,10 +112,12 @@ cd "$SCRIPT_DIR"
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo -e "${BLUE}  BVR Deploy${NC}"
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo -e "  Target:  ${GREEN}${HOSTNAME}${NC}"
-echo -e "  User:    ${REMOTE_USER}"
-echo -e "  Restart: ${RESTART}"
-echo -e "  Config:  ${SYNC_CONFIG}"
+echo -e "  Target:   ${GREEN}${HOSTNAME}${NC}"
+echo -e "  User:     ${REMOTE_USER}"
+echo -e "  CLI:      ${DEPLOY_CLI}"
+echo -e "  Config:   ${SYNC_CONFIG}"
+echo -e "  Services: ${INSTALL_SERVICES}"
+echo -e "  Restart:  ${RESTART}"
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo ""
 
@@ -167,6 +183,13 @@ if [[ "$SYNC_CONFIG" == true ]]; then
     echo -e "${GREEN}✓ Uploaded config${NC}"
 fi
 
+# Upload service files if requested
+if [[ "$INSTALL_SERVICES" == true ]]; then
+    echo -e "${BLUE}▸ Uploading service files...${NC}"
+    scp -q "config/can.service" "config/bvrd.service" "${REMOTE}:/tmp/"
+    echo -e "${GREEN}✓ Uploaded services${NC}"
+fi
+
 # Install on remote
 echo -e "${BLUE}▸ Installing...${NC}"
 ssh "$REMOTE" bash -s <<EOF
@@ -194,11 +217,24 @@ if [[ -f /tmp/bvr.toml.new ]]; then
     sudo mv /tmp/bvr.toml.new ${CONFIG_PATH}/bvr.toml
 fi
 
+# Install services if present
+if [[ -f /tmp/can.service ]] && [[ -f /tmp/bvrd.service ]]; then
+    echo "  Installing systemd services..."
+    sudo mv /tmp/can.service /tmp/bvrd.service /etc/systemd/system/
+    sudo systemctl daemon-reload
+    sudo systemctl enable can.service bvrd.service
+    echo "  Services enabled"
+fi
+
 # Restart service if requested
 if [[ "$RESTART" == true ]]; then
     if systemctl list-unit-files | grep -q bvrd; then
+        # Ensure CAN interface is up
+        if systemctl list-unit-files | grep -q can.service; then
+            sudo systemctl start can.service
+        fi
         echo "  Starting bvrd..."
-        sudo systemctl start bvrd
+        sudo systemctl restart bvrd
         sleep 1
         if systemctl is-active --quiet bvrd; then
             echo "  Service running"
@@ -223,3 +259,4 @@ echo ""
 echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo -e "${GREEN}  ✓ Deploy complete${NC}"
 echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+

@@ -1,0 +1,22 @@
+[Unit]
+Description=CAN Bus Interface Setup
+Before=bvrd.service
+After=systemd-modules-load.service
+DefaultDependencies=no
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+# Load CAN modules, wait for device, configure interface
+ExecStartPre=/sbin/modprobe can
+ExecStartPre=/sbin/modprobe can_raw
+ExecStartPre=/sbin/modprobe mttcan
+ExecStartPre=/bin/sleep 1
+ExecStart=/bin/sh -c '/sbin/ip link set can0 down 2>/dev/null; /sbin/ip link set can0 type can bitrate 500000 && /sbin/ip link set can0 up'
+ExecStop=/sbin/ip link set can0 down
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target
+
