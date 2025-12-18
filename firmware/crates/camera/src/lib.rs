@@ -313,10 +313,13 @@ fn build_pipeline_string(camera: &DetectedCamera, config: &Config) -> String {
     match &camera.camera_type {
         CameraType::Csi { sensor_id } => {
             // Jetson CSI camera pipeline
+            // nvvidconv outputs BGRx (not RGB), so we need videoconvert to get RGB
             format!(
                 "nvarguscamerasrc sensor-id={} ! \
                  video/x-raw(memory:NVMM),width={},height={},framerate={}/1 ! \
                  nvvidconv ! \
+                 video/x-raw,format=BGRx ! \
+                 videoconvert ! \
                  video/x-raw,format=RGB ! \
                  appsink name=sink emit-signals=true max-buffers=1 drop=true sync=false",
                 sensor_id, config.width, config.height, config.fps
@@ -353,9 +356,12 @@ fn build_fallback_pipeline_string(camera: &DetectedCamera, config: &Config) -> S
     match &camera.camera_type {
         CameraType::Csi { sensor_id } => {
             // CSI camera with more flexible caps
+            // nvvidconv outputs BGRx (not RGB), so we need videoconvert to get RGB
             format!(
                 "nvarguscamerasrc sensor-id={} ! \
                  nvvidconv ! \
+                 video/x-raw,format=BGRx ! \
+                 videoconvert ! \
                  video/x-raw,format=RGB ! \
                  videoscale ! \
                  video/x-raw,width={},height={} ! \
