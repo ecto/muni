@@ -28,12 +28,12 @@ struct Args {
     #[arg(short, long, default_value = "config/bvr.toml")]
     config: PathBuf,
 
-    /// CAN interface (e.g., can0)
-    #[arg(long, default_value = "can0")]
-    can_interface: String,
+    /// CAN interface (e.g., can0). Overrides config file.
+    #[arg(long)]
+    can_interface: Option<String>,
 
     /// VESC IDs [FL, FR, RL, RR]
-    #[arg(long, default_values_t = vec![1, 2, 3, 4])]
+    #[arg(long, default_values_t = vec![0, 1, 2, 3])]
     vesc_ids: Vec<u8>,
 
     /// Motor pole pairs
@@ -131,10 +131,14 @@ async fn main() -> Result<()> {
 
     let args = Args::parse();
 
+    // CAN interface: CLI arg > default "can0"
+    // TODO: load from config file
+    let can_iface = args.can_interface.as_deref().unwrap_or("can0");
+
     if args.sim {
         info!("Starting bvrd in SIMULATION mode");
     } else {
-        info!(config = ?args.config, can = %args.can_interface, "Starting bvrd");
+        info!(config = ?args.config, can = %can_iface, "Starting bvrd");
     }
 
     // Initialize CAN interface
@@ -144,8 +148,8 @@ async fn main() -> Result<()> {
         let sim_bus = SimBus::new(vesc_ids);
         CanInterface::Sim(Arc::new(Mutex::new(sim_bus)))
     } else {
-        info!(interface = %args.can_interface, "Opening CAN bus");
-        CanInterface::Real(Bus::open(&args.can_interface)?)
+        info!(interface = %can_iface, "Opening CAN bus");
+        CanInterface::Real(Bus::open(can_iface)?)
     };
 
     // Initialize drivetrain
@@ -324,10 +328,15 @@ async fn main() -> Result<()> {
     // Control loop setup
     let mixer = DiffDriveMixer::new(chassis);
     let mut rate_limiter = RateLimiter::new(limits);
-    let mut watchdog = Watchdog::new(Duration::from_millis(250));
+    let mut watchdog = Watchdog::new(Duration::from_millis(500)); // Allow for network jitter over Tailscale
 
     let control_period = Duration::from_millis(10); // 100 Hz
     let mut last_tick = Instant::now();
+
+    // Smoothing filter for commanded twist (reduces jitter from network/input noise)
+    // Alpha = 0.15 gives ~7 cycle time constant (~70ms smoothing at 100Hz)
+    let smoothing_alpha = 0.15;
+    let mut smoothed_twist = Twist::default();
 
     // Current tool command (from teleop)
     let mut tool_command = types::ToolCommand::default();
@@ -365,6 +374,9 @@ async fn main() -> Result<()> {
             match cmd {
                 Command::Twist(twist) => {
                     watchdog.feed();
+                    if twist.angular.abs() > 0.1 {
+                        info!(linear = twist.linear, angular = twist.angular, "Twist command with angular");
+                    }
                     state.commanded_twist = twist;
 
                     // Auto-transition to teleop when receiving commands
@@ -382,6 +394,7 @@ async fn main() -> Result<()> {
                 Command::EStop => {
                     warn!("E-Stop command received");
                     state.state_machine.transition(Event::EStop);
+                    smoothed_twist = Twist::default();
                     rate_limiter.reset();
                 }
                 Command::SetMode(mode) => {
@@ -411,18 +424,40 @@ async fn main() -> Result<()> {
             warn!("Command watchdog timeout");
             state.state_machine.transition(Event::CommandTimeout);
             state.commanded_twist = Twist::default();
+            smoothed_twist = Twist::default();
             rate_limiter.reset();
         }
 
         // Compute motor outputs
-        let twist = if state.state_machine.is_driving() {
-            rate_limiter.limit(state.commanded_twist)
+        let target_twist = if state.state_machine.is_driving() {
+            state.commanded_twist
         } else {
             Twist::default()
         };
 
+        // Apply exponential smoothing to reduce jitter from network/input noise
+        smoothed_twist.linear += smoothing_alpha * (target_twist.linear - smoothed_twist.linear);
+        smoothed_twist.angular += smoothing_alpha * (target_twist.angular - smoothed_twist.angular);
+
+        // Rate limit the smoothed twist
+        let mut twist = rate_limiter.limit(smoothed_twist);
+
+        // Boost angular for skid steering (requires more torque than forward motion)
+        twist.angular *= 2.5;
+
         let wheel_vels = mixer.mix(twist);
         let wheel_rpms = mixer.to_rpm(&wheel_vels);
+
+        // Log wheel commands when turning (left != right)
+        if (wheel_rpms[0] - wheel_rpms[1]).abs() > 1.0 {
+            info!(
+                fl = wheel_rpms[0] as i32,
+                fr = wheel_rpms[1] as i32,
+                rl = wheel_rpms[2] as i32,
+                rr = wheel_rpms[3] as i32,
+                "Wheel RPMs (turning)"
+            );
+        }
 
         // Send to VESCs
         let vesc_cmds = state.drivetrain.build_rpm_commands(wheel_rpms);

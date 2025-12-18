@@ -81,7 +81,8 @@ impl DiffDriveMixer {
 pub struct Limits {
     pub max_linear: f64,    // m/s
     pub max_angular: f64,   // rad/s
-    pub max_accel: f64,     // m/s²
+    pub max_accel: f64,     // m/s² (acceleration)
+    pub max_decel: f64,     // m/s² (deceleration - can be higher for quicker stops)
     pub max_wheel_rpm: f64, // RPM
 }
 
@@ -91,6 +92,7 @@ impl Default for Limits {
             max_linear: 3.0,
             max_angular: 2.0,
             max_accel: 2.0,
+            max_decel: 6.0,  // 3x faster deceleration for responsive stopping
             max_wheel_rpm: 300.0,
         }
     }
@@ -122,13 +124,23 @@ impl RateLimiter {
             .angular
             .clamp(-self.limits.max_angular, self.limits.max_angular);
 
-        // Apply acceleration limit
+        // Apply acceleration/deceleration limit
         let now = Instant::now();
         if let Some(last) = self.last_time {
             let dt = now.duration_since(last).as_secs_f64();
-            let max_delta = self.limits.max_accel * dt;
 
             let delta = twist.linear - self.last_twist.linear;
+
+            // Use higher decel limit when slowing down (toward zero or reversing)
+            let is_decelerating = delta.signum() != self.last_twist.linear.signum()
+                || twist.linear.abs() < self.last_twist.linear.abs();
+            let max_rate = if is_decelerating {
+                self.limits.max_decel
+            } else {
+                self.limits.max_accel
+            };
+            let max_delta = max_rate * dt;
+
             if delta.abs() > max_delta {
                 twist.linear = self.last_twist.linear + delta.signum() * max_delta;
             }
