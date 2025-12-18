@@ -129,11 +129,13 @@ impl Server {
                             }
                         }
 
-                        // Check connection timeout
+                        // Check connection timeout - only warn once per disconnect
                         if last_recv.elapsed() > self.config.connection_timeout {
-                            warn!("Operator connection timeout");
-                            // Send a heartbeat command to signal the main loop
-                            let _ = self.command_tx.send(Command::Heartbeat).await;
+                            // Don't spam the control loop - just log once and clear operator
+                            if operator_addr.is_some() {
+                                warn!("Operator connection timeout");
+                                operator_addr = None;
+                            }
                         }
                     }
                 }

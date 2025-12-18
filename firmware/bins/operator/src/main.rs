@@ -10,7 +10,7 @@ use clap::Parser;
 use image::ImageReader;
 use std::f32::consts::{FRAC_PI_2, PI};
 use std::io::Cursor;
-use std::net::{SocketAddr, UdpSocket};
+use std::net::{SocketAddr, ToSocketAddrs, UdpSocket};
 use std::sync::{mpsc, Mutex};
 use std::time::{Duration, Instant};
 use teleop::video::FrameReassembler;
@@ -1237,7 +1237,11 @@ fn main() -> anyhow::Result<()> {
     let socket = UdpSocket::bind(local_addr)?;
     socket.set_nonblocking(true)?;
 
-    let rover_addr: SocketAddr = args.rover.parse()?;
+    let rover_addr: SocketAddr = args
+        .rover
+        .to_socket_addrs()?
+        .next()
+        .ok_or_else(|| anyhow::anyhow!("Could not resolve rover address: {}", args.rover))?;
 
     // Parse rover host for video address
     let rover_host = rover_addr.ip();
