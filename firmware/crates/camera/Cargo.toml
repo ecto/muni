@@ -23,3 +23,4 @@ gstreamer-video = "0.23"
 # Image encoding
 image = { version = "0.25", default-features = false, features = ["jpeg"] }
 
+

@@ -164,3 +164,4 @@ Sent by tool at 20Hz.
 Each VESC and tool connects CANH to CANH, CANL to CANL.
 120Ω termination resistors at each physical end of the bus.
 
+
