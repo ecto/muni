@@ -96,6 +96,85 @@ impl SafetyZone {
 
 **Total: ~225ms** — well under requirements for 1 m/s operation.
 
+## LiDAR Data Pipeline
+
+The Mid-360 streams point cloud and IMU data to the Jetson for processing.
+
+### Data Flow
+
+```
+Mid-360
+   │
+   ├── UDP 56000 ───► Point Cloud Parser ───► Safety Check ───► E-Stop
+   │                         │
+   │                         └──────────────► Recording ───► .pcd files
+   │
+   └── UDP 56001 ───► IMU Parser ───► Pose Estimator ───► Telemetry
+                            │
+                            └──────────────► Recording ───► .rrd
+```
+
+### lidar Crate (To Be Implemented)
+
+```rust
+// crates/lidar/src/lib.rs
+
+pub struct Mid360 {
+    socket: UdpSocket,
+    config: Config,
+}
+
+impl Mid360 {
+    /// Connect to Mid-360 at given IP
+    pub fn connect(ip: &str) -> Result<Self, LidarError>;
+
+    /// Get next point cloud frame (blocking)
+    pub fn recv_points(&mut self) -> Result<PointCloud, LidarError>;
+
+    /// Get next IMU sample (blocking)
+    pub fn recv_imu(&mut self) -> Result<ImuSample, LidarError>;
+}
+
+pub struct PointCloud {
+    pub points: Vec<Point3>,
+    pub timestamp_ns: u64,
+}
+
+pub struct Point3 {
+    pub x: f32,
+    pub y: f32,
+    pub z: f32,
+    pub intensity: u8,
+    pub return_count: u8,
+}
+```
+
+### Integration with bvrd
+
+```rust
+// In bvrd main loop
+
+// Spawn LiDAR processing thread
+let lidar = Mid360::connect("192.168.1.10")?;
+let (points_tx, points_rx) = channel();
+
+std::thread::spawn(move || {
+    loop {
+        if let Ok(cloud) = lidar.recv_points() {
+            let _ = points_tx.send(cloud);
+        }
+    }
+});
+
+// In control loop
+while let Ok(cloud) = points_rx.try_recv() {
+    let status = safety_zone.check(&cloud.points);
+    if status == SafetyStatus::Stop {
+        state.trigger_estop();
+    }
+}
+```
+
 ## Layer 2: Situational Awareness
 
 **Goal**: Operator sees everything, can identify what's around the rover.
@@ -156,6 +235,92 @@ The 360° feed is rendered as an environment map (skybox) in Three.js:
 
 The rover model and UI are rendered on top, creating an immersive telepresence
 experience.
+
+### Operator UI Enhancements
+
+The 360° video provides situational awareness but lacks depth perception. These
+enhancements help operators judge distances:
+
+#### Top-Down Minimap
+
+Display LiDAR points as a bird's eye view, colored by distance:
+
+```
+┌─────────────────────────────┐
+│         Top-Down View       │
+│                             │
+│    ·  ·  ·  ·  ·  ·  ·     │  Green: > 3m
+│  ·                    ·     │  Yellow: 1.5-3m
+│ ·   ┌─────────┐      ·     │  Red: < 1.5m (danger)
+│ ·   │  ROVER  │      ·     │
+│ ·   │    ▲    │      ·     │
+│ ·   └─────────┘      ·     │
+│  ·                    ·     │
+│    ·  ·  ·  ·  ·  ·  ·     │
+│                             │
+│     ○ 1.5m safety zone      │
+└─────────────────────────────┘
+```
+
+#### Distance Overlays
+
+Overlay nearest obstacle distance on 360° view sectors:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                       360° Video Feed                        │
+│                                                              │
+│   [2.3m]              [CLEAR]              [0.8m] ⚠️        │
+│     ↓                   ↓                    ↓              │
+│  ┌──────┐           ┌──────┐            ┌──────┐           │
+│  │ wall │           │ open │            │person│           │
+│  └──────┘           └──────┘            └──────┘           │
+└─────────────────────────────────────────────────────────────┘
+```
+
+#### Implementation (React Three Fiber)
+
+```tsx
+// components/scene/Minimap.tsx
+function Minimap({ points }: { points: Point3[] }) {
+  return (
+    <div className="absolute bottom-20 right-4 w-48 h-48 bg-black/50 rounded-lg">
+      <Canvas orthographic camera={{ zoom: 20 }}>
+        {/* Safety zone ring */}
+        <mesh rotation={[-Math.PI / 2, 0, 0]}>
+          <ringGeometry args={[1.4, 1.5, 32]} />
+          <meshBasicMaterial color="red" transparent opacity={0.3} />
+        </mesh>
+
+        {/* LiDAR points */}
+        <Points positions={points} colors={distanceColors} />
+
+        {/* Rover indicator */}
+        <mesh>
+          <coneGeometry args={[0.2, 0.4, 3]} />
+          <meshBasicMaterial color="white" />
+        </mesh>
+      </Canvas>
+    </div>
+  );
+}
+```
+
+#### VR/XR Mode
+
+The operator app supports WebXR for immersive telepresence:
+
+- **Vision Pro / Quest**: Enter VR mode for full 360° immersion
+- **Head tracking**: Look around naturally in the 360° feed
+- **Depth cues**: LiDAR overlay provides spatial understanding
+
+```tsx
+// Already implemented in Scene.tsx
+<XR store={xrStore}>
+  <EquirectangularSky />  {/* 360° video as environment */}
+  <RoverModel />
+</XR>
+```
 
 ## Layer 3: Mapping & Gaussian Splatting
 

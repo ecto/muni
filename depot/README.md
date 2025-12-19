@@ -254,6 +254,89 @@ docker compose logs -f sftp
 | 8086 | TCP      | InfluxDB | HTTP API + Web UI     |
 | 8089 | UDP      | InfluxDB | Line protocol metrics |
 
+## RTK Base Station (bvr1)
+
+For centimeter-accurate georeferenced mapping, the depot can host an RTK GPS
+base station that broadcasts corrections to rovers.
+
+### Hardware
+
+| Component | Model | Notes |
+| --- | --- | --- |
+| GPS Module | SparkFun ZED-F9P | USB to depot server |
+| Antenna | Tallysman TW4721 | Roof-mounted, clear sky |
+| Cable | LMR-400, 25ft | Low-loss for roof run |
+
+Total: ~$360 (module + antenna + cable)
+
+### Architecture
+
+```
+Roof
+  │
+  ▼ GNSS Antenna
+  │
+  │ SMA/LMR-400
+  ▼
+┌─────────────┐
+│ ZED-F9P     │──USB──▶ Depot Server
+│ (Base Mode) │
+└─────────────┘
+       │
+       ▼ RTCM3 corrections
+┌─────────────┐
+│ NTRIP       │◀──TCP:2101── Rovers
+│ Caster      │
+└─────────────┘
+```
+
+### Docker Setup
+
+Add to `docker-compose.yml`:
+
+```yaml
+ntrip-caster:
+  image: ghcr.io/rtcm/rtkbase:latest
+  container_name: ntrip
+  restart: unless-stopped
+  ports:
+    - "2101:2101"
+  devices:
+    - /dev/ttyUSB0:/dev/ttyUSB0
+  volumes:
+    - ntrip-config:/config
+```
+
+### Rover Configuration
+
+On each rover, configure NTRIP client in `bvr.toml`:
+
+```toml
+[gps]
+ntrip_enabled = true
+ntrip_server = "depot.local"
+ntrip_port = 2101
+ntrip_mountpoint = "ROVER"
+```
+
+### Survey Procedure
+
+The base station must be surveyed to determine its precise location:
+
+1. **Configure for survey-in mode** (24 hours recommended)
+2. **Wait for position to converge** (10cm accuracy target)
+3. **Save fixed coordinates** to config
+
+See [docs/hardware/rtk.md](../docs/hardware/rtk.md) for detailed setup instructions.
+
+### Network Ports
+
+Add to the ports table:
+
+| Port | Protocol | Service | Purpose |
+| --- | --- | --- | --- |
+| 2101 | TCP | NTRIP | RTK corrections broadcast |
+
 ## Security Considerations
 
 - SFTP uses key-based authentication only (no passwords)

@@ -310,3 +310,41 @@ Pipeline options:
 
 For bvr0, we'll experiment with the Insta360 + Mid-360 combination to learn
 what actually matters before specifying the bvr1 sensor stack.
+
+## Calibration
+
+### LiDAR-Camera Extrinsic
+
+The transform from LiDAR frame to camera frame must be known for sensor fusion.
+
+#### Initial Estimate (Manual Measurement)
+
+```json
+{
+  "lidar_to_camera": {
+    "translation": [0.0, 0.0, 0.10],
+    "rotation": [0, 0, 0, 1]
+  }
+}
+```
+
+With sensors stacked vertically and aligned, translation is approximately
+[0, 0, spacing] where spacing is the distance between sensor origins (~100mm).
+
+#### Automatic Refinement
+
+Use one of these tools on recorded data:
+
+| Tool | Method | Accuracy |
+| --- | --- | --- |
+| [direct_visual_lidar_calibration](https://github.com/koide3/direct_visual_lidar_calibration) | Edge alignment | ±1cm |
+| [lidar_camera_calibration](https://github.com/ankitdhall/lidar_camera_calibration) | Checkerboard | ±2mm |
+
+For the Insta360's dual fisheye lenses, calibrate each lens separately.
+
+### Validation
+
+Project LiDAR points onto camera image. Well-calibrated sensors show:
+- Point cloud edges align with image edges
+- No systematic offset in any direction
+- Consistent alignment across the frame
