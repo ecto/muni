@@ -37,4 +37,8 @@ temp/
 *.sldasm~
 *_backup*.step
 
+# Node.js
+node_modules/
+dist/
+*.tsbuildinfo
 
