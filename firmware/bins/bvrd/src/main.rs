@@ -16,6 +16,7 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use teleop::video::{VideoConfig, VideoFrame, VideoServer};
+use teleop::ws::{WsConfig, WsServer};
 use teleop::{Config as TeleopConfig, Server as TeleopServer, Telemetry};
 use tokio::sync::{mpsc, watch};
 use tools::{protocol, Registry as ToolRegistry, ToolOutput};
@@ -51,6 +52,10 @@ struct Args {
     /// Dashboard web UI port (0 to disable)
     #[arg(long, default_value = "8080")]
     ui_port: u16,
+
+    /// WebSocket teleop port for browser-based operators
+    #[arg(long, default_value = "4850")]
+    ws_port: u16,
 
     /// Disable camera auto-detection
     #[arg(long)]
@@ -281,15 +286,32 @@ async fn main() -> Result<()> {
     };
     let (telemetry_tx, telemetry_rx) = watch::channel(initial_telemetry);
 
-    // Spawn teleop server
+    // Spawn teleop server (UDP)
     let teleop_config = TeleopConfig::default();
-    let teleop = TeleopServer::new(teleop_config, cmd_tx, telemetry_rx.clone());
+    let teleop = TeleopServer::new(teleop_config, cmd_tx.clone(), telemetry_rx.clone());
 
     tokio::spawn(async move {
         if let Err(e) = teleop.run().await {
             error!(?e, "Teleop server error");
         }
     });
+
+    // Spawn WebSocket teleop server (for browser-based operators)
+    if args.ws_port > 0 {
+        let ws_config = WsConfig {
+            port: args.ws_port,
+            ..Default::default()
+        };
+        let ws_server = WsServer::new(ws_config, cmd_tx.clone(), telemetry_rx.clone());
+
+        tokio::spawn(async move {
+            if let Err(e) = ws_server.run().await {
+                error!(?e, "WebSocket teleop server error");
+            }
+        });
+
+        info!(port = args.ws_port, "WebSocket teleop server started");
+    }
 
     // Spawn dashboard if enabled
     if args.ui_port > 0 {
@@ -431,6 +453,9 @@ async fn main() -> Result<()> {
     info!("Entering control loop");
     info!("Dashboard available at http://localhost:{}", args.ui_port);
     info!("Send commands to UDP port 4840");
+    if args.ws_port > 0 {
+        info!("WebSocket teleop at ws://localhost:{}", args.ws_port);
+    }
     if args.gps_port.is_some() {
         info!("GPS enabled");
     }
@@ -714,7 +739,20 @@ fn init_logging(
     level: &str,
 ) -> Result<tracing_appender::non_blocking::WorkerGuard> {
     // Create log directory if it doesn't exist
-    std::fs::create_dir_all(log_dir)?;
+    if let Err(e) = std::fs::create_dir_all(log_dir) {
+        eprintln!("Error: Cannot create log directory '{}': {}", log_dir.display(), e);
+        eprintln!();
+        eprintln!("The default log directory requires root permissions.");
+        eprintln!("Try running with local directories:");
+        eprintln!();
+        eprintln!("  cargo run --bin bvrd -- --sim --log-dir ./logs --recording-dir ./sessions");
+        eprintln!();
+        eprintln!("Or disable recording for quick testing:");
+        eprintln!();
+        eprintln!("  cargo run --bin bvrd -- --sim --no-recording --log-dir /tmp");
+        eprintln!();
+        return Err(e.into());
+    }
 
     // Rolling file appender: daily rotation
     let file_appender = RollingFileAppender::new(Rotation::DAILY, log_dir, "bvrd.log");
@@ -743,3 +781,4 @@ fn init_logging(
 
     Ok(guard)
 }
+
