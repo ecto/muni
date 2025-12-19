@@ -96,3 +96,4 @@ enabled = true
 endpoint = "depot.local:8089"
 # Push rate in Hz (1 = once per second, recommended)
 interval_hz = 1
+

@@ -260,3 +260,4 @@ mod tests {
         assert_eq!(config.interval_hz, 1);
     }
 }
+

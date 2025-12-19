@@ -77,3 +77,4 @@ if [ -d "$LOG_DIR" ]; then
 fi
 
 echo "$(date -Iseconds) BVR sync complete"
+

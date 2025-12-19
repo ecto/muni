@@ -56,3 +56,4 @@ DELETED=$((BEFORE_COUNT - AFTER_COUNT))
 DISK_USAGE=$(du -sh "$SESSIONS_PATH" 2>/dev/null | cut -f1)
 
 echo "$(date -Iseconds) Cleanup complete: deleted $DELETED files, $AFTER_COUNT remaining, using $DISK_USAGE"
+

@@ -48,4 +48,3 @@ See [depot/README.md](depot/README.md) for fleet monitoring setup.
 
 Proprietary — Muni Municipal Robotics
 
-

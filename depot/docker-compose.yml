@@ -76,3 +76,4 @@ volumes:
       o: bind
       device: ${SESSIONS_PATH:-/data/bvr-sessions}
   sftp-keys:
+

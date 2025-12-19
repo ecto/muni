@@ -383,3 +383,4 @@ ls -la /var/log/bvr/sessions/
 - Compressed log shipping
 - Edge analytics (anomaly detection on rover)
 - Multi-camera support
+

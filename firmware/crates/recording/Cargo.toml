@@ -16,3 +16,4 @@ serde = { workspace = true }
 default = []
 # Enable native viewer spawning (desktop only, not for headless Jetson)
 native_viewer = ["rerun/native_viewer"]
+

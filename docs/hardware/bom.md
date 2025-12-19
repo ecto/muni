@@ -7,9 +7,10 @@
 | Chassis     | $150        |
 | Drivetrain  | $800        |
 | Electronics | $900        |
+| Perception  | $1,800      |
 | Power       | $400        |
 | Wiring/Misc | $100        |
-| **Total**   | **~$2,350** |
+| **Total**   | **~$4,150** |
 
 ## Detailed BOM
 
@@ -45,6 +46,17 @@
 | 7" HDMI display           | 1   | $50  | $50      | Amazon |
 | GPS module (optional)     | 1   | $30  | $30      | Amazon |
 | **Subtotal**              |     |      | **$890** |        |
+
+### Perception
+
+| Part                      | Qty | Unit   | Total      | Link        |
+| ------------------------- | --- | ------ | ---------- | ----------- |
+| Livox Mid-360 LiDAR       | 1   | $1,500 | $1,500     | Livox / DJI |
+| Insta360 X4               | 1   | $300   | $300       | Amazon      |
+| Sensor mount pole (1" AL) | 1   | $20    | $20        | Amazon      |
+| **Subtotal**              |     |        | **$1,820** |             |
+
+See [sensors.md](sensors.md) for detailed specifications and integration.
 
 ### Power System
 
@@ -91,5 +103,5 @@
 - **Flipsky**: VESC clones, good value
 - **AliExpress**: Hoverboard motors (2-3 week shipping)
 - **Seeed Studio**: Jetson carrier boards
-
-
+- **Livox/DJI**: Mid-360 LiDAR (direct order, ~1 week)
+- **Amazon**: Insta360, mounting hardware (Prime shipping)

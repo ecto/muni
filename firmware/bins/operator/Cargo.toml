@@ -21,3 +21,4 @@ bevy_egui = "0.31"
 image = { version = "0.25", default-features = false, features = ["jpeg"] }
 
 
+

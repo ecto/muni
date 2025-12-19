@@ -472,3 +472,4 @@ mod tests {
         assert!(recorder.log_pose(&Pose::default()).is_ok());
     }
 }
+

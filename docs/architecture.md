@@ -159,6 +159,7 @@ bvrd process
    - Rover → Cloud relay → LTE → Operator app
 
 3. **Tool Control**
+
    - Xbox RT/LT + A button → Tool command
    - `tools` registry routes to active tool
    - Tool outputs CAN command
@@ -210,3 +211,4 @@ BVR uses a multi-layer approach:
 Sessions and logs are automatically synced to Depot (base station) for analysis.
 
 See [docs/logging.md](logging.md) for rover-side details and [depot/README.md](../depot/README.md) for base station setup.
+

@@ -45,3 +45,4 @@ key_file = /etc/bvr/id_ed25519
 # host = 100.x.y.z  # Tailscale IP of base station
 # user = bvr
 # key_file = /etc/bvr/id_ed25519
+

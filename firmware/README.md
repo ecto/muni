@@ -28,19 +28,19 @@ Onboard software for the Base Vectoring Rover, targeting Jetson Orin NX.
 
 ## Crates
 
-| Crate       | Purpose                               |
-| ----------- | ------------------------------------- |
-| `types`     | Shared types, message definitions     |
-| `can`       | CAN bus abstraction, VESC protocol    |
-| `control`   | Motor mixing, velocity control        |
-| `state`     | State machine, mode management        |
-| `hal`       | GPIO, ADC, power monitoring           |
-| `teleop`    | LTE comms, command/telemetry          |
-| `tools`     | Tool discovery + implementations      |
-| `recording` | Telemetry recording (Rerun .rrd)      |
-| `metrics`   | Real-time metrics push to Depot       |
-| `gps`       | GPS receiver integration              |
-| `camera`    | Camera capture and streaming          |
+| Crate       | Purpose                            |
+| ----------- | ---------------------------------- |
+| `types`     | Shared types, message definitions  |
+| `can`       | CAN bus abstraction, VESC protocol |
+| `control`   | Motor mixing, velocity control     |
+| `state`     | State machine, mode management     |
+| `hal`       | GPIO, ADC, power monitoring        |
+| `teleop`    | LTE comms, command/telemetry       |
+| `tools`     | Tool discovery + implementations   |
+| `recording` | Telemetry recording (Rerun .rrd)   |
+| `metrics`   | Real-time metrics push to Depot    |
+| `gps`       | GPS receiver integration           |
+| `camera`    | Camera capture and streaming       |
 
 ## Binaries
 

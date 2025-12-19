@@ -257,3 +257,4 @@ docker compose logs -f sftp
 - Grafana and InfluxDB use password auth (set strong passwords in .env)
 - Consider placing behind a reverse proxy with TLS for production
 - Use a VPN (WireGuard/Tailscale) for rovers connecting over public internet
+

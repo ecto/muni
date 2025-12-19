@@ -110,3 +110,4 @@ echo "  1. Add rover SSH public keys to sftp/authorized_keys/"
 echo "  2. Configure rovers to sync to this depot"
 echo "  3. Access Grafana to view fleet dashboards"
 echo
+
