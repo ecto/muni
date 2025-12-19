@@ -31,10 +31,53 @@ BVR's perception system for safety, teleoperation, and mapping.
 
 ### Mounting
 
-- Top-center of rover chassis
-- Clear 360° horizontal sightline
-- Elevated ~300mm above chassis for ground clearance
-- Ethernet to Jetson, power from 12V rail
+**Orientation**: Dome pointing UP (not rotated).
+
+**Position**: Top-center of rover chassis, stacked with Insta360 above.
+
+#### Height Tradeoffs
+
+The -7° vertical FOV limit creates a ground blind spot. At height `h`:
+
+- **Blind spot radius** = h × tan(7°) ≈ h × 0.12
+- **Closest visible ground** = h / tan(7°) ≈ h × 8.1
+
+| Height | Blind Radius | Closest Ground | Chassis in Insta360 Frame |
+| --- | --- | --- | --- |
+| 12" (305mm) | 1.5" (38mm) | 2.5m | 45° |
+| 18" (457mm) | 2.2" (56mm) | 3.7m | 34° |
+| 24" (610mm) | 3.0" (76mm) | 4.9m | 27° |
+
+**Recommendation**: 18-24" total sensor height balances ground coverage and
+camera view. Final decision deferred to prototyping.
+
+#### Stacking Order
+
+```
+                    ┌─────────┐
+                    │Insta360 │  ← Top (lighter, needs 360° view)
+                    │   X4    │
+                    └────┬────┘
+                         │      ~100mm spacing
+                    ┌────┴────┐
+                    │ Mid-360 │  ← Below camera
+                    │         │
+                    └────┬────┘
+                         │
+                    ┌────┴────┐
+                    │  Pole   │  Variable height (12-24")
+                    │ (1" AL) │
+                    └────┬────┘
+                         │
+    ═══════════════════════════════════════
+                    Rover Chassis
+```
+
+#### Connection
+
+- **bvr0**: Direct Ethernet cable from Mid-360 to Jetson
+- **bvr1**: Via network switch (adds debug port for laptop)
+- Power from 12V rail (Mid-360 accepts 9-27V)
 
 ### Safety Integration
 
@@ -60,11 +103,89 @@ Latency budget:
 
 At 1 m/s, this means 22cm of travel before stop — safe with 1.5m detection radius.
 
+### IMU Access
+
+The Mid-360 includes a **built-in 200Hz IMU** (accelerometer + gyroscope) that
+streams alongside point cloud data over Ethernet.
+
+#### Data Ports
+
+| Port | Protocol | Data |
+| --- | --- | --- |
+| UDP 56000 | Livox Protocol | Point cloud (200k pts/sec) |
+| UDP 56001 | Livox Protocol | IMU samples (200 Hz) |
+| TCP 56100 | Livox Protocol | Control, configuration |
+
+#### IMU Data Structure
+
+```rust
+pub struct ImuSample {
+    pub timestamp_ns: u64,
+    pub accel: [f32; 3],  // m/s², body frame
+    pub gyro: [f32; 3],   // rad/s, body frame
+}
+```
+
+#### Integration Options
+
+| Method | Complexity | Notes |
+| --- | --- | --- |
+| **Direct UDP parsing** | Medium | No dependencies, full control |
+| **Livox SDK 2.0 (C++ FFI)** | Medium | Official SDK, callbacks |
+| **ROS 2 driver bridge** | Low | Easy but adds ROS dependency |
+
+For bvr, we recommend direct UDP parsing to avoid external dependencies.
+
 ### PPS Sync
 
-The Mid-360 provides a PPS (pulse per second) output for hardware synchronization
-with cameras. For bvr1, this enables precise LiDAR-camera calibration for
-high-quality Gaussian splatting.
+The Mid-360 provides a **PPS (pulse per second) output** for hardware synchronization
+with cameras.
+
+#### Sync Connector Pinout (8-pin)
+
+| Pin | Function |
+| --- | --- |
+| 1 | GND |
+| 2 | PPS Out (3.3V pulse) |
+| 3 | GPRMC TX |
+| 4 | GPRMC RX |
+| 5 | GPS PPS In |
+| 6-8 | Reserved |
+
+#### bvr0 (Software Sync)
+
+- Timestamp both sensors with system clock
+- Accept 10-50ms uncertainty
+- Interpolate LiDAR poses to camera timestamps during offline processing
+
+#### bvr1 (Hardware Sync)
+
+- Connect PPS Out to camera external trigger input
+- Requires camera with hardware trigger (FLIR Blackfly, industrial cameras)
+- The Insta360 X4 does **not** support hardware triggering
+
+### Snow Handling
+
+The Mid-360 uses 905nm wavelength which is relatively robust to precipitation.
+
+| Condition | Effect | Mitigation |
+| --- | --- | --- |
+| Light snow | Occasional noise points | Filter by return intensity |
+| Moderate snow | More noise, reduced range | Statistical outlier removal |
+| Heavy/blizzard | Significant degradation | Don't map in these conditions |
+| Snow on ground | No issue | LiDAR measures snow surface |
+| Snow on lens | Blocked scanning | Lens hood, compressed air |
+
+```rust
+// Filter weak returns (likely snow/rain)
+fn filter_precipitation(points: &[Point3]) -> Vec<Point3> {
+    points.iter()
+        .filter(|p| p.intensity > 25)      // Snow has weak returns
+        .filter(|p| p.return_count == 1)   // Single returns only
+        .cloned()
+        .collect()
+}
+```
 
 ## Insta360 X4
 

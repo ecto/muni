@@ -39,12 +39,12 @@ This starts all services with default development credentials.
 
 ### Access
 
-| Service  | URL                   | Default Credentials   |
-| -------- | --------------------- | --------------------- |
-| Operator | http://localhost:8080 | None (public)         |
-| Grafana  | http://localhost:3000 | admin / bvrpassword   |
-| InfluxDB | http://localhost:8086 | admin / bvrpassword   |
-| SFTP     | localhost:2222        | bvr / SSH key auth    |
+| Service  | URL                   | Default Credentials |
+| -------- | --------------------- | ------------------- |
+| Operator | http://localhost:8080 | None (public)       |
+| Grafana  | http://localhost:3000 | admin / bvrpassword |
+| InfluxDB | http://localhost:8086 | admin / bvrpassword |
+| SFTP     | localhost:2222        | bvr / SSH key auth  |
 
 ### Production Setup
 
