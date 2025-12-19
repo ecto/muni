@@ -19,6 +19,10 @@ toml = "0.8"
 # Logging
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tracing-appender = "0.2"
+
+# Recording
+rerun = "0.22"
 
 # Error handling
 thiserror = "2"
@@ -47,5 +51,6 @@ ui = { path = "crates/ui" }
 camera = { path = "crates/camera" }
 gps = { path = "crates/gps" }
 localization = { path = "crates/localization" }
+recording = { path = "crates/recording" }
 
 

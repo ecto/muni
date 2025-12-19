@@ -1,0 +1,19 @@
+[Unit]
+Description=BVR Session Sync
+Documentation=https://github.com/muni-robotics/bvr
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+ExecStart=/opt/bvr/bin/bvr-sync.sh
+# Don't fail if sync fails (network may be down)
+SuccessExitStatus=0 1
+
+# Environment
+Environment=BVR_CONFIG=/etc/bvr/bvr.toml
+Environment=RCLONE_CONFIG=/etc/bvr/rclone.conf
+
+[Install]
+WantedBy=multi-user.target

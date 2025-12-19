@@ -18,12 +18,14 @@ ui = { workspace = true }
 camera = { workspace = true }
 gps = { workspace = true }
 localization = { workspace = true }
+recording = { workspace = true }
 
 tokio = { workspace = true }
 serde = { workspace = true }
 toml = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
+tracing-appender = { workspace = true }
 anyhow = { workspace = true }
 clap = { workspace = true }
 

@@ -8,16 +8,19 @@ use clap::Parser;
 use control::{ChassisParams, DiffDriveMixer, Limits, RateLimiter, Watchdog};
 use gps::{Config as GpsConfig, GpsReader, GpsState};
 use localization::{PoseEstimator, WheelOdometry};
+use recording::{Config as RecordingConfig, Recorder};
 use sim::SimBus;
 use state::{Event, StateMachine};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
-use std::time::{Duration, Instant};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use teleop::video::{VideoConfig, VideoFrame, VideoServer};
 use teleop::{Config as TeleopConfig, Server as TeleopServer, Telemetry};
 use tokio::sync::{mpsc, watch};
 use tools::{protocol, Registry as ToolRegistry, ToolOutput};
 use tracing::{debug, error, info, warn};
+use tracing_appender::rolling::{RollingFileAppender, Rotation};
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 use types::{Command, Mode, Pose, PowerStatus, Twist};
 use ui::{Config as UiConfig, Dashboard};
 
@@ -67,6 +70,26 @@ struct Args {
     /// GPS baud rate
     #[arg(long, default_value = "9600")]
     gps_baud: u32,
+
+    /// Rover ID for logging and recording
+    #[arg(long, default_value = "bvr-01")]
+    rover_id: String,
+
+    /// Disable telemetry recording
+    #[arg(long)]
+    no_recording: bool,
+
+    /// Recording session directory
+    #[arg(long, default_value = "/var/log/bvr/sessions")]
+    recording_dir: PathBuf,
+
+    /// Log directory for text logs
+    #[arg(long, default_value = "/var/log/bvr")]
+    log_dir: PathBuf,
+
+    /// Log level (trace, debug, info, warn, error)
+    #[arg(long, default_value = "info")]
+    log_level: String,
 }
 
 /// CAN interface abstraction for real or simulated hardware.
@@ -121,15 +144,11 @@ struct SharedState {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    // Initialize logging
-    tracing_subscriber::fmt()
-        .with_env_filter(
-            tracing_subscriber::EnvFilter::from_default_env()
-                .add_directive("bvrd=info".parse().unwrap()),
-        )
-        .init();
-
     let args = Args::parse();
+
+    // Initialize logging with rolling file appender
+    // The _guard must be held for the lifetime of the program to ensure logs are flushed
+    let _log_guard = init_logging(&args.log_dir, &args.log_level)?;
 
     // CAN interface: CLI arg > default "can0"
     // TODO: load from config file
@@ -140,6 +159,32 @@ async fn main() -> Result<()> {
     } else {
         info!(config = ?args.config, can = %can_iface, "Starting bvrd");
     }
+
+    // Initialize telemetry recorder
+    let recorder = if args.no_recording {
+        info!("Telemetry recording disabled");
+        Recorder::disabled()
+    } else {
+        let recording_config = RecordingConfig {
+            session_dir: args.recording_dir.clone(),
+            rover_id: args.rover_id.clone(),
+            max_storage_bytes: 10 * 1024 * 1024 * 1024, // 10 GB
+            include_camera: false,
+            enabled: true,
+        };
+        match Recorder::new(&recording_config) {
+            Ok(r) => {
+                if let Some(path) = r.session_path() {
+                    info!(path = %path.display(), "Recording session started");
+                }
+                r
+            }
+            Err(e) => {
+                warn!(?e, "Failed to start recorder, continuing without recording");
+                Recorder::disabled()
+            }
+        }
+    };
 
     // Initialize CAN interface
     let vesc_ids: [u8; 4] = args.vesc_ids.try_into().expect("Need exactly 4 VESC IDs");
@@ -340,6 +385,9 @@ async fn main() -> Result<()> {
 
     // Current tool command (from teleop)
     let mut tool_command = types::ToolCommand::default();
+
+    // Track mode for change detection (for recording annotations)
+    let mut last_mode = initial_mode;
 
     info!("Entering control loop");
     info!("Dashboard available at http://localhost:{}", args.ui_port);
@@ -571,8 +619,71 @@ async fn main() -> Result<()> {
             tool_status,
         };
 
-        let _ = telemetry_tx.send(telemetry);
+        let _ = telemetry_tx.send(telemetry.clone());
+
+        // Record telemetry to Rerun session
+        let time_secs = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_secs_f64();
+        recorder.set_time(time_secs);
+
+        // Log all telemetry data
+        let _ = recorder.log_pose(&pose);
+        let _ = recorder.log_velocity(&state.commanded_twist, &twist);
+        let _ = recorder.log_motors(&motor_currents, &motor_temps);
+        let _ = recorder.log_power(telemetry.power.battery_voltage, telemetry.power.system_current);
+        let _ = recorder.log_odometry(dx, dy, dtheta);
+
+        // Log mode changes
+        let current_mode = telemetry.mode;
+        if current_mode != last_mode {
+            let _ = recorder.log_mode(current_mode);
+            last_mode = current_mode;
+        }
+
+        // Log tool state if active
+        if let Some(ref status) = telemetry.tool_status {
+            let _ = recorder.log_tool(&status.name, status.position, status.current);
+        }
     }
 }
 
+/// Initialize logging with stdout and rolling file output.
+///
+/// Returns a guard that must be held for the lifetime of the program to ensure
+/// logs are properly flushed on shutdown.
+fn init_logging(
+    log_dir: &std::path::Path,
+    level: &str,
+) -> Result<tracing_appender::non_blocking::WorkerGuard> {
+    // Create log directory if it doesn't exist
+    std::fs::create_dir_all(log_dir)?;
 
+    // Rolling file appender: daily rotation
+    let file_appender = RollingFileAppender::new(Rotation::DAILY, log_dir, "bvrd.log");
+    let (non_blocking_file, guard) = tracing_appender::non_blocking(file_appender);
+
+    // Build filter from level string, with fallback
+    let filter = EnvFilter::try_from_default_env()
+        .unwrap_or_else(|_| EnvFilter::new(format!("bvrd={},recording=info", level)));
+
+    // Stdout layer: human-readable, colored
+    let stdout_layer = tracing_subscriber::fmt::layer()
+        .with_target(true)
+        .with_thread_ids(false);
+
+    // File layer: no ANSI codes, includes timestamps
+    let file_layer = tracing_subscriber::fmt::layer()
+        .with_writer(non_blocking_file)
+        .with_ansi(false)
+        .with_target(true);
+
+    tracing_subscriber::registry()
+        .with(filter)
+        .with(stdout_layer)
+        .with(file_layer)
+        .init();
+
+    Ok(guard)
+}

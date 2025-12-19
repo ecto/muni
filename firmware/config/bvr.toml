@@ -53,7 +53,39 @@ battery_critical_v = 39.0
 [logging]
 # Log level: trace, debug, info, warn, error
 level = "info"
-# Log to file (in addition to stdout)
-file = "/var/log/bvr/bvrd.log"
+# Log directory for rolling file logs
+dir = "/var/log/bvr"
+# Rotation: "daily", "hourly", or "never"
+rotation = "daily"
+# Number of days to retain logs
+retain_days = 7
+
+[recording]
+# Enable telemetry recording to Rerun .rrd files
+enabled = true
+# Directory for session recordings
+session_dir = "/var/log/bvr/sessions"
+# Maximum storage before rotating old sessions (bytes)
+max_storage_bytes = 10_737_418_240  # 10 GB
+# Include camera frames in recording (increases storage)
+include_camera = false
+
+[identity]
+# Unique rover identifier (used in logs, recordings, sync)
+rover_id = "bvr-01"
+
+[sync]
+# Enable automatic sync to base station
+enabled = true
+# Base station destination (rclone remote:path format)
+# Examples:
+#   - "base:bvr-sessions"     (configured rclone remote)
+#   - "sftp:user@host:/data"  (SFTP)
+#   - "s3:bucket/sessions"    (S3-compatible)
+destination = "base:bvr-sessions"
+# Sync interval in seconds (0 = sync only on session end)
+interval_secs = 900  # 15 minutes
+# Minimum file age before syncing (avoids syncing active files)
+min_age_secs = 60
 
 

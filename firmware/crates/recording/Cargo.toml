@@ -1,0 +1,18 @@
+[package]
+name = "recording"
+description = "Telemetry recording and session management for bvr using Rerun"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+rerun = "0.22"
+types = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+serde = { workspace = true }
+
+[features]
+default = []
+# Enable native viewer spawning (desktop only, not for headless Jetson)
+native_viewer = ["rerun/native_viewer"]

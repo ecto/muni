@@ -1,0 +1,47 @@
+# BVR rclone configuration template
+#
+# Copy this to /etc/bvr/rclone.conf and configure for your base station.
+# See https://rclone.org/docs/ for full documentation.
+#
+# Run 'rclone config' for interactive setup, or edit this file directly.
+
+# Option 1: SFTP to base station (recommended for local network)
+[base]
+type = sftp
+host = base-station.local
+user = bvr
+key_file = /etc/bvr/id_ed25519
+# Or use password:
+# pass = YOUR_PASSWORD_HERE
+
+# Option 2: S3-compatible object storage (MinIO, AWS S3, etc.)
+# [base]
+# type = s3
+# provider = Minio
+# endpoint = http://base-station.local:9000
+# access_key_id = YOUR_ACCESS_KEY
+# secret_access_key = YOUR_SECRET_KEY
+# region = us-east-1
+
+# Option 3: WebDAV (Nextcloud, etc.)
+# [base]
+# type = webdav
+# url = https://nextcloud.example.com/remote.php/dav/files/bvr/
+# vendor = nextcloud
+# user = bvr
+# pass = YOUR_PASSWORD_HERE
+
+# Option 4: Google Drive (for remote/cloud deployments)
+# [base]
+# type = drive
+# client_id = YOUR_CLIENT_ID
+# client_secret = YOUR_CLIENT_SECRET
+# scope = drive
+# token = {"access_token":"...","token_type":"Bearer","refresh_token":"...","expiry":"..."}
+
+# Option 5: Tailscale + SFTP (for rovers with LTE)
+# [base]
+# type = sftp
+# host = 100.x.y.z  # Tailscale IP of base station
+# user = bvr
+# key_file = /etc/bvr/id_ed25519

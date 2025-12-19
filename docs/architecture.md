@@ -190,4 +190,13 @@ port = 4840
 3. **Rate limiting**: Acceleration capped to prevent tip-over
 4. **Voltage monitoring**: Low battery → reduced power → shutdown
 
+## Logging and Telemetry
 
+BVR uses a dual-layer approach:
+
+1. **Event Logging** (`tracing`): Text logs to stdout and rolling files
+2. **Telemetry Recording** (`rerun`): Time-series data for playback
+
+Sessions are automatically synced to a base station for analysis.
+
+See [docs/logging.md](logging.md) for full documentation.

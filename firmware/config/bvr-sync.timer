@@ -1,0 +1,16 @@
+[Unit]
+Description=BVR Session Sync Timer
+Documentation=https://github.com/muni-robotics/bvr
+
+[Timer]
+# Start 5 minutes after boot (allow network to stabilize)
+OnBootSec=5min
+# Run every 15 minutes
+OnUnitActiveSec=15min
+# Add randomized delay to prevent fleet sync storms
+RandomizedDelaySec=60
+# Persist timer across reboots
+Persistent=true
+
+[Install]
+WantedBy=timers.target
