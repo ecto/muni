@@ -105,46 +105,46 @@ These components are not required for bvr0 but enable enhanced capabilities.
 
 For centimeter-accurate georeferenced mapping.
 
-| Part | Qty | Unit | Total | Link |
-| --- | --- | --- | --- | --- |
-| SparkFun GPS-RTK2 (ZED-F9P) | 1 | $220 | $220 | [Amazon](https://www.amazon.com/SparkFun-GPS-RTK2-Board-ZED-F9P-Qwiic/dp/B07NBPNWNZ) |
-| GNSS Multi-Band Antenna | 1 | $75 | $75 | SparkFun |
-| SMA cable (1m) | 1 | $10 | $10 | Amazon |
-| **Subtotal** | | | **$305** | |
+| Part                        | Qty | Unit | Total    | Link                                                                                 |
+| --------------------------- | --- | ---- | -------- | ------------------------------------------------------------------------------------ |
+| SparkFun GPS-RTK2 (ZED-F9P) | 1   | $220 | $220     | [Amazon](https://www.amazon.com/SparkFun-GPS-RTK2-Board-ZED-F9P-Qwiic/dp/B07NBPNWNZ) |
+| GNSS Multi-Band Antenna     | 1   | $75  | $75      | SparkFun                                                                             |
+| SMA cable (1m)              | 1   | $10  | $10      | Amazon                                                                               |
+| **Subtotal**                |     |      | **$305** |                                                                                      |
 
 ### Network Switch (Per Rover)
 
 For debug access and future sensor expansion.
 
-| Part | Qty | Unit | Total | Link |
-| --- | --- | --- | --- | --- |
-| Netgear GS305 (5-port gigabit) | 1 | $20 | $20 | Amazon |
-| Ethernet cables (0.5m) | 3 | $3 | $9 | Amazon |
-| **Subtotal** | | | **$29** | |
+| Part                           | Qty | Unit | Total   | Link   |
+| ------------------------------ | --- | ---- | ------- | ------ |
+| Netgear GS305 (5-port gigabit) | 1   | $20  | $20     | Amazon |
+| Ethernet cables (0.5m)         | 3   | $3   | $9      | Amazon |
+| **Subtotal**                   |     |      | **$29** |        |
 
 ### Hardware-Synced Camera (Per Rover)
 
 For high-quality Gaussian splatting (replaces Insta360).
 
-| Part | Qty | Unit | Total | Link |
-| --- | --- | --- | --- | --- |
-| FLIR Blackfly S (global shutter) | 2 | $500 | $1,000 | B&H |
-| Wide-angle lens (CS mount) | 2 | $50 | $100 | Amazon |
-| Sync cable (Mid-360 PPS) | 1 | $20 | $20 | Custom |
-| **Subtotal** | | | **$1,120** | |
+| Part                             | Qty | Unit | Total      | Link   |
+| -------------------------------- | --- | ---- | ---------- | ------ |
+| FLIR Blackfly S (global shutter) | 2   | $500 | $1,000     | B&H    |
+| Wide-angle lens (CS mount)       | 2   | $50  | $100       | Amazon |
+| Sync cable (Mid-360 PPS)         | 1   | $20  | $20        | Custom |
+| **Subtotal**                     |     |      | **$1,120** |        |
 
 ## Depot: RTK Base Station
 
 For broadcasting RTK corrections to the fleet.
 
-| Part | Qty | Unit | Total | Link |
-| --- | --- | --- | --- | --- |
-| SparkFun GPS-RTK2 (ZED-F9P) | 1 | $220 | $220 | Amazon |
-| Tallysman TW4721 antenna | 1 | $100 | $100 | Tallysman |
-| LMR-400 cable (25ft) | 1 | $40 | $40 | Amazon |
-| Antenna roof mount | 1 | $20 | $20 | Amazon |
-| USB extension (if needed) | 1 | $10 | $10 | Amazon |
-| **Subtotal** | | | **$390** | |
+| Part                        | Qty | Unit | Total    | Link      |
+| --------------------------- | --- | ---- | -------- | --------- |
+| SparkFun GPS-RTK2 (ZED-F9P) | 1   | $220 | $220     | Amazon    |
+| Tallysman TW4721 antenna    | 1   | $100 | $100     | Tallysman |
+| LMR-400 cable (25ft)        | 1   | $40  | $40      | Amazon    |
+| Antenna roof mount          | 1   | $20  | $20      | Amazon    |
+| USB extension (if needed)   | 1   | $10  | $10      | Amazon    |
+| **Subtotal**                |     |      | **$390** |           |
 
 Alternatively, use an NTRIP network subscription (~$50/month) instead of
 running your own base station.

@@ -38,13 +38,13 @@ RTK (Real-Time Kinematic) GPS uses corrections from a base station to achieve
 
 ## When You Need RTK
 
-| Use Case | Standard GPS | RTK GPS |
-| --- | --- | --- |
-| Fleet tracking | ✅ Sufficient | Overkill |
-| Rough geolocation | ✅ Sufficient | Overkill |
-| Georeferenced mapping | ⚠️ ~3m error | ✅ ~2cm error |
+| Use Case                 | Standard GPS    | RTK GPS       |
+| ------------------------ | --------------- | ------------- |
+| Fleet tracking           | ✅ Sufficient   | Overkill      |
+| Rough geolocation        | ✅ Sufficient   | Overkill      |
+| Georeferenced mapping    | ⚠️ ~3m error    | ✅ ~2cm error |
 | Multi-session map fusion | ❌ Drift issues | ✅ Consistent |
-| Autonomous navigation | ⚠️ Lane-level | ✅ Centimeter |
+| Autonomous navigation    | ⚠️ Lane-level   | ✅ Centimeter |
 
 **For bvr0**: Standard GPS is fine for prototyping.
 **For bvr1**: RTK enables street-view quality georeferenced mapping.
@@ -53,20 +53,20 @@ RTK (Real-Time Kinematic) GPS uses corrections from a base station to achieve
 
 ### Rover Receiver
 
-| Component | Model | Price | Source |
-| --- | --- | --- | --- |
-| GPS Module | [SparkFun GPS-RTK2 (ZED-F9P)](https://www.amazon.com/SparkFun-GPS-RTK2-Board-ZED-F9P-Qwiic/dp/B07NBPNWNZ) | ~$220 | Amazon |
-| Antenna | SparkFun GNSS Multi-Band | ~$75 | SparkFun |
-| SMA Cable | RG174, 1m | ~$10 | Amazon |
+| Component  | Model                                                                                                     | Price | Source   |
+| ---------- | --------------------------------------------------------------------------------------------------------- | ----- | -------- |
+| GPS Module | [SparkFun GPS-RTK2 (ZED-F9P)](https://www.amazon.com/SparkFun-GPS-RTK2-Board-ZED-F9P-Qwiic/dp/B07NBPNWNZ) | ~$220 | Amazon   |
+| Antenna    | SparkFun GNSS Multi-Band                                                                                  | ~$75  | SparkFun |
+| SMA Cable  | RG174, 1m                                                                                                 | ~$10  | Amazon   |
 
 ### Base Station (Depot)
 
-| Component | Model | Price | Notes |
-| --- | --- | --- | --- |
-| GPS Module | SparkFun GPS-RTK2 (ZED-F9P) | ~$220 | Same as rover |
-| Antenna | Tallysman TW4721 (survey-grade) | ~$100 | Better multipath rejection |
-| SMA Cable | LMR-400, 25ft | ~$40 | Low-loss for roof run |
-| Raspberry Pi | Pi 4 (2GB+) | ~$50 | Runs NTRIP caster |
+| Component    | Model                           | Price | Notes                      |
+| ------------ | ------------------------------- | ----- | -------------------------- |
+| GPS Module   | SparkFun GPS-RTK2 (ZED-F9P)     | ~$220 | Same as rover              |
+| Antenna      | Tallysman TW4721 (survey-grade) | ~$100 | Better multipath rejection |
+| SMA Cable    | LMR-400, 25ft                   | ~$40  | Low-loss for roof run      |
+| Raspberry Pi | Pi 4 (2GB+)                     | ~$50  | Runs NTRIP caster          |
 
 **Total base station: ~$410**
 
@@ -146,12 +146,12 @@ impl NtripClient {
 
 The base station must know its exact position. Options:
 
-| Method | Accuracy | Time |
-| --- | --- | --- |
-| Self-survey (1hr) | ±1m | 1 hour |
-| Self-survey (24hr) | ±10cm | 24 hours |
-| PPP service | ±2cm | Submit 24hr log, wait 1 week |
-| Professional survey | ±1cm | Hire surveyor |
+| Method              | Accuracy | Time                         |
+| ------------------- | -------- | ---------------------------- |
+| Self-survey (1hr)   | ±1m      | 1 hour                       |
+| Self-survey (24hr)  | ±10cm    | 24 hours                     |
+| PPP service         | ±2cm     | Submit 24hr log, wait 1 week |
+| Professional survey | ±1cm     | Hire surveyor                |
 
 For most applications, 24-hour self-survey is sufficient:
 
@@ -177,7 +177,7 @@ services:
     ports:
       - "2101:2101"
     devices:
-      - /dev/ttyUSB0:/dev/ttyUSB0  # ZED-F9P
+      - /dev/ttyUSB0:/dev/ttyUSB0 # ZED-F9P
     volumes:
       - ./ntrip/config:/config
 ```
@@ -218,11 +218,11 @@ volumes:
 
 Instead of running your own base station, use a commercial NTRIP network:
 
-| Provider | Coverage | Price |
-| --- | --- | --- |
-| [PointOne Nav](https://pointonenav.com/) | USA/EU | ~$50/mo |
-| [Skylark](https://www.swiftnav.com/skylark) | Global | ~$50/mo |
-| State DOT CORS | Varies | Free (some states) |
+| Provider                                    | Coverage | Price              |
+| ------------------------------------------- | -------- | ------------------ |
+| [PointOne Nav](https://pointonenav.com/)    | USA/EU   | ~$50/mo            |
+| [Skylark](https://www.swiftnav.com/skylark) | Global   | ~$50/mo            |
+| State DOT CORS                              | Varies   | Free (some states) |
 
 For a fleet operating in multiple regions, a network subscription may be
 more practical than deploying base stations.
@@ -260,14 +260,15 @@ more practical than deploying base stations.
 
 ## Accuracy Expectations
 
-| Condition | Horizontal | Vertical |
-| --- | --- | --- |
-| RTK fixed (ideal) | ±1cm | ±2cm |
-| RTK float | ±20cm | ±40cm |
-| DGPS (no RTK) | ±50cm | ±1m |
-| Standard GPS | ±2-5m | ±5-10m |
+| Condition         | Horizontal | Vertical |
+| ----------------- | ---------- | -------- |
+| RTK fixed (ideal) | ±1cm       | ±2cm     |
+| RTK float         | ±20cm      | ±40cm    |
+| DGPS (no RTK)     | ±50cm      | ±1m      |
+| Standard GPS      | ±2-5m      | ±5-10m   |
 
 RTK requires:
+
 - Clear sky view (>5 satellites)
 - Corrections from base station
 - Base station within ~20km (for single-base RTK)

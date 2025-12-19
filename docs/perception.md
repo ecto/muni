@@ -317,7 +317,7 @@ The operator app supports WebXR for immersive telepresence:
 ```tsx
 // Already implemented in Scene.tsx
 <XR store={xrStore}>
-  <EquirectangularSky />  {/* 360° video as environment */}
+  <EquirectangularSky /> {/* 360° video as environment */}
   <RoverModel />
 </XR>
 ```

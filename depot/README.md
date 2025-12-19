@@ -261,11 +261,11 @@ base station that broadcasts corrections to rovers.
 
 ### Hardware
 
-| Component | Model | Notes |
-| --- | --- | --- |
-| GPS Module | SparkFun ZED-F9P | USB to depot server |
-| Antenna | Tallysman TW4721 | Roof-mounted, clear sky |
-| Cable | LMR-400, 25ft | Low-loss for roof run |
+| Component  | Model            | Notes                   |
+| ---------- | ---------------- | ----------------------- |
+| GPS Module | SparkFun ZED-F9P | USB to depot server     |
+| Antenna    | Tallysman TW4721 | Roof-mounted, clear sky |
+| Cable      | LMR-400, 25ft    | Low-loss for roof run   |
 
 Total: ~$360 (module + antenna + cable)
 
@@ -333,9 +333,9 @@ See [docs/hardware/rtk.md](../docs/hardware/rtk.md) for detailed setup instructi
 
 Add to the ports table:
 
-| Port | Protocol | Service | Purpose |
-| --- | --- | --- | --- |
-| 2101 | TCP | NTRIP | RTK corrections broadcast |
+| Port | Protocol | Service | Purpose                   |
+| ---- | -------- | ------- | ------------------------- |
+| 2101 | TCP      | NTRIP   | RTK corrections broadcast |
 
 ## Security Considerations
 

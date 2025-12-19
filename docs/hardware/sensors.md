@@ -42,11 +42,11 @@ The -7° vertical FOV limit creates a ground blind spot. At height `h`:
 - **Blind spot radius** = h × tan(7°) ≈ h × 0.12
 - **Closest visible ground** = h / tan(7°) ≈ h × 8.1
 
-| Height | Blind Radius | Closest Ground | Chassis in Insta360 Frame |
-| --- | --- | --- | --- |
-| 12" (305mm) | 1.5" (38mm) | 2.5m | 45° |
-| 18" (457mm) | 2.2" (56mm) | 3.7m | 34° |
-| 24" (610mm) | 3.0" (76mm) | 4.9m | 27° |
+| Height      | Blind Radius | Closest Ground | Chassis in Insta360 Frame |
+| ----------- | ------------ | -------------- | ------------------------- |
+| 12" (305mm) | 1.5" (38mm)  | 2.5m           | 45°                       |
+| 18" (457mm) | 2.2" (56mm)  | 3.7m           | 34°                       |
+| 24" (610mm) | 3.0" (76mm)  | 4.9m           | 27°                       |
 
 **Recommendation**: 18-24" total sensor height balances ground coverage and
 camera view. Final decision deferred to prototyping.
@@ -110,11 +110,11 @@ streams alongside point cloud data over Ethernet.
 
 #### Data Ports
 
-| Port | Protocol | Data |
-| --- | --- | --- |
+| Port      | Protocol       | Data                       |
+| --------- | -------------- | -------------------------- |
 | UDP 56000 | Livox Protocol | Point cloud (200k pts/sec) |
-| UDP 56001 | Livox Protocol | IMU samples (200 Hz) |
-| TCP 56100 | Livox Protocol | Control, configuration |
+| UDP 56001 | Livox Protocol | IMU samples (200 Hz)       |
+| TCP 56100 | Livox Protocol | Control, configuration     |
 
 #### IMU Data Structure
 
@@ -128,11 +128,11 @@ pub struct ImuSample {
 
 #### Integration Options
 
-| Method | Complexity | Notes |
-| --- | --- | --- |
-| **Direct UDP parsing** | Medium | No dependencies, full control |
-| **Livox SDK 2.0 (C++ FFI)** | Medium | Official SDK, callbacks |
-| **ROS 2 driver bridge** | Low | Easy but adds ROS dependency |
+| Method                      | Complexity | Notes                         |
+| --------------------------- | ---------- | ----------------------------- |
+| **Direct UDP parsing**      | Medium     | No dependencies, full control |
+| **Livox SDK 2.0 (C++ FFI)** | Medium     | Official SDK, callbacks       |
+| **ROS 2 driver bridge**     | Low        | Easy but adds ROS dependency  |
 
 For bvr, we recommend direct UDP parsing to avoid external dependencies.
 
@@ -143,14 +143,14 @@ with cameras.
 
 #### Sync Connector Pinout (8-pin)
 
-| Pin | Function |
-| --- | --- |
-| 1 | GND |
-| 2 | PPS Out (3.3V pulse) |
-| 3 | GPRMC TX |
-| 4 | GPRMC RX |
-| 5 | GPS PPS In |
-| 6-8 | Reserved |
+| Pin | Function             |
+| --- | -------------------- |
+| 1   | GND                  |
+| 2   | PPS Out (3.3V pulse) |
+| 3   | GPRMC TX             |
+| 4   | GPRMC RX             |
+| 5   | GPS PPS In           |
+| 6-8 | Reserved             |
 
 #### bvr0 (Software Sync)
 
@@ -168,13 +168,13 @@ with cameras.
 
 The Mid-360 uses 905nm wavelength which is relatively robust to precipitation.
 
-| Condition | Effect | Mitigation |
-| --- | --- | --- |
-| Light snow | Occasional noise points | Filter by return intensity |
-| Moderate snow | More noise, reduced range | Statistical outlier removal |
-| Heavy/blizzard | Significant degradation | Don't map in these conditions |
-| Snow on ground | No issue | LiDAR measures snow surface |
-| Snow on lens | Blocked scanning | Lens hood, compressed air |
+| Condition      | Effect                    | Mitigation                    |
+| -------------- | ------------------------- | ----------------------------- |
+| Light snow     | Occasional noise points   | Filter by return intensity    |
+| Moderate snow  | More noise, reduced range | Statistical outlier removal   |
+| Heavy/blizzard | Significant degradation   | Don't map in these conditions |
+| Snow on ground | No issue                  | LiDAR measures snow surface   |
+| Snow on lens   | Blocked scanning          | Lens hood, compressed air     |
 
 ```rust
 // Filter weak returns (likely snow/rain)
@@ -322,7 +322,7 @@ The transform from LiDAR frame to camera frame must be known for sensor fusion.
 ```json
 {
   "lidar_to_camera": {
-    "translation": [0.0, 0.0, 0.10],
+    "translation": [0.0, 0.0, 0.1],
     "rotation": [0, 0, 0, 1]
   }
 }
@@ -335,16 +335,17 @@ With sensors stacked vertically and aligned, translation is approximately
 
 Use one of these tools on recorded data:
 
-| Tool | Method | Accuracy |
-| --- | --- | --- |
-| [direct_visual_lidar_calibration](https://github.com/koide3/direct_visual_lidar_calibration) | Edge alignment | ±1cm |
-| [lidar_camera_calibration](https://github.com/ankitdhall/lidar_camera_calibration) | Checkerboard | ±2mm |
+| Tool                                                                                         | Method         | Accuracy |
+| -------------------------------------------------------------------------------------------- | -------------- | -------- |
+| [direct_visual_lidar_calibration](https://github.com/koide3/direct_visual_lidar_calibration) | Edge alignment | ±1cm     |
+| [lidar_camera_calibration](https://github.com/ankitdhall/lidar_camera_calibration)           | Checkerboard   | ±2mm     |
 
 For the Insta360's dual fisheye lenses, calibrate each lens separately.
 
 ### Validation
 
 Project LiDAR points onto camera image. Well-calibrated sensors show:
+
 - Point cloud edges align with image edges
 - No systematic offset in any direction
 - Consistent alignment across the frame

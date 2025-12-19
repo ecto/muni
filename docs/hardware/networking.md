@@ -49,12 +49,14 @@ Mid-360 ◄────── Ethernet ──────► Jetson Orin NX
 ### Configuration
 
 **Jetson Ethernet (eth0)**:
+
 ```
 IP: 192.168.1.1
 Netmask: 255.255.255.0
 ```
 
 **Livox Mid-360** (factory default):
+
 ```
 IP: 192.168.1.10
 Netmask: 255.255.255.0
@@ -85,10 +87,10 @@ Debug Port ─────┘      (GS305)
 
 ### Recommended Hardware
 
-| Component | Model | Price | Notes |
-| --- | --- | --- | --- |
-| Switch | Netgear GS305 | ~$20 | 5-port gigabit, unmanaged |
-| Alternative | TP-Link TL-SG105 | ~$15 | 5-port gigabit |
+| Component   | Model            | Price | Notes                     |
+| ----------- | ---------------- | ----- | ------------------------- |
+| Switch      | Netgear GS305    | ~$20  | 5-port gigabit, unmanaged |
+| Alternative | TP-Link TL-SG105 | ~$15  | 5-port gigabit            |
 
 Power consumption: ~2W
 
@@ -102,11 +104,11 @@ Power consumption: ~2W
 
 For fleet operations, each rover gets a unique ID reflected in its IP.
 
-| Device | IP Pattern | Example (Rover 1) |
-| --- | --- | --- |
-| Jetson | 192.168.1.1 | 192.168.1.1 |
-| Mid-360 | 192.168.1.10 | 192.168.1.10 |
-| Future sensor | 192.168.1.20+ | 192.168.1.20 |
+| Device        | IP Pattern    | Example (Rover 1) |
+| ------------- | ------------- | ----------------- |
+| Jetson        | 192.168.1.1   | 192.168.1.1       |
+| Mid-360       | 192.168.1.10  | 192.168.1.10      |
+| Future sensor | 192.168.1.20+ | 192.168.1.20      |
 
 Note: The Mid-360 IP is configurable via Livox Viewer or SDK. For fleet
 deployment, consider giving each unit a unique IP or use the default and
@@ -139,6 +141,7 @@ sudo tailscale up --authkey=YOUR_KEY
 ```
 
 Benefits:
+
 - NAT traversal (no port forwarding needed)
 - Encrypted tunnel
 - Stable IPs across cellular connections
@@ -160,13 +163,13 @@ sudo ufw allow 8080/tcp   # Dashboard
 
 ## Depot Network Services
 
-| Service | Port | Protocol | Purpose |
-| --- | --- | --- | --- |
-| InfluxDB | 8086 | HTTP | Metrics storage |
-| InfluxDB UDP | 8089 | UDP | Metrics ingestion |
-| Grafana | 3000 | HTTP | Dashboards |
-| SFTP | 2222 | SSH | Session file sync |
-| NTRIP | 2101 | TCP | RTK corrections (bvr1) |
+| Service      | Port | Protocol | Purpose                |
+| ------------ | ---- | -------- | ---------------------- |
+| InfluxDB     | 8086 | HTTP     | Metrics storage        |
+| InfluxDB UDP | 8089 | UDP      | Metrics ingestion      |
+| Grafana      | 3000 | HTTP     | Dashboards             |
+| SFTP         | 2222 | SSH      | Session file sync      |
+| NTRIP        | 2101 | TCP      | RTK corrections (bvr1) |
 
 ## Troubleshooting
 
