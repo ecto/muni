@@ -43,3 +43,6 @@ dist/
 *.tsbuildinfo
 
 bvr/firmware/sessions/
+
+# Confidential
+business_plan.md
