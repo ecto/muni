@@ -3,6 +3,7 @@
 //! Handles command reception and telemetry transmission over unreliable links.
 
 pub mod video;
+pub mod video_ws;
 pub mod ws;
 
 use serde::{Deserialize, Serialize};

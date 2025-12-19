@@ -6,7 +6,6 @@
 use crate::video::VideoFrame;
 use crate::TeleopError;
 use futures_util::{SinkExt, StreamExt};
-use std::sync::Arc;
 use std::time::Duration;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::watch;

@@ -16,6 +16,7 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use teleop::video::{VideoConfig, VideoFrame, VideoServer};
+use teleop::video_ws::{WsVideoConfig, WsVideoServer};
 use teleop::ws::{WsConfig, WsServer};
 use teleop::{Config as TeleopConfig, Server as TeleopServer, Telemetry};
 use tokio::sync::{mpsc, watch};
@@ -56,6 +57,10 @@ struct Args {
     /// WebSocket teleop port for browser-based operators
     #[arg(long, default_value = "4850")]
     ws_port: u16,
+
+    /// WebSocket video streaming port for browser-based operators
+    #[arg(long, default_value = "4851")]
+    ws_video_port: u16,
 
     /// Disable camera auto-detection
     #[arg(long)]
@@ -389,16 +394,33 @@ async fn main() -> Result<()> {
                         }
                     });
 
-                    // Spawn video server
+                    // Spawn UDP video server (for native operator)
                     let video_config = VideoConfig::default();
-                    let video_server = VideoServer::new(video_config.clone(), video_rx);
-                    info!(port = video_config.port, "Video server starting");
+                    let video_rx_udp = video_rx.clone();
+                    let video_server = VideoServer::new(video_config.clone(), video_rx_udp);
+                    info!(port = video_config.port, "UDP video server starting");
 
                     tokio::spawn(async move {
                         if let Err(e) = video_server.run().await {
-                            error!(?e, "Video server error");
+                            error!(?e, "UDP video server error");
                         }
                     });
+
+                    // Spawn WebSocket video server (for browser-based operator)
+                    if args.ws_video_port > 0 {
+                        let ws_video_config = WsVideoConfig {
+                            port: args.ws_video_port,
+                            ..Default::default()
+                        };
+                        let ws_video_server = WsVideoServer::new(ws_video_config, video_rx);
+                        info!(port = args.ws_video_port, "WebSocket video server starting");
+
+                        tokio::spawn(async move {
+                            if let Err(e) = ws_video_server.run().await {
+                                error!(?e, "WebSocket video server error");
+                            }
+                        });
+                    }
                 }
                 Err(e) => {
                     warn!(?e, "Failed to start camera - continuing without video");
@@ -455,6 +477,9 @@ async fn main() -> Result<()> {
     info!("Send commands to UDP port 4840");
     if args.ws_port > 0 {
         info!("WebSocket teleop at ws://localhost:{}", args.ws_port);
+    }
+    if args.ws_video_port > 0 {
+        info!("WebSocket video at ws://localhost:{}", args.ws_video_port);
     }
     if args.gps_port.is_some() {
         info!("GPS enabled");

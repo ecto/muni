@@ -99,7 +99,6 @@ export function decodeTelemetry(data: ArrayBuffer): DecodedTelemetry | null {
 
   // Minimum size check
   if (data.byteLength < 90) {
-    console.warn("Telemetry packet too short:", data.byteLength);
     return null;
   }
 

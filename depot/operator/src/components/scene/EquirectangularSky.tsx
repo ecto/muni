@@ -65,8 +65,8 @@ export function EquirectangularSky() {
           materialRef.current!.needsUpdate = true;
         },
         undefined,
-        (error) => {
-          console.warn("Failed to load video frame texture:", error);
+        () => {
+          // Failed to load video frame texture - silently ignore
         }
       );
     } else {
