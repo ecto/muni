@@ -9,6 +9,7 @@
 ```
 bvr/
 ├── firmware/       # Rust — onboard software (Jetson Orin NX)
+├── depot/          # Base station — fleet monitoring infrastructure
 ├── cad/            # Mechanical design (STEP, native files)
 ├── electrical/     # Schematics, PCB designs, BOM
 ├── manufacturing/  # Assembly procedures, test fixtures
@@ -25,6 +26,15 @@ cargo build --release
 ```
 
 See [firmware/README.md](firmware/README.md) for details.
+
+### Base Station (Depot)
+
+```bash
+cd depot
+./scripts/setup.sh
+```
+
+See [depot/README.md](depot/README.md) for fleet monitoring setup.
 
 ## Hardware
 

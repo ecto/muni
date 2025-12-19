@@ -70,15 +70,19 @@
 
 ## Software Crates
 
-| Crate     | Purpose                                                     |
-| --------- | ----------------------------------------------------------- |
-| `types`   | Shared types (Twist, Mode, etc.)                            |
-| `can`     | CAN bus + VESC protocol                                     |
-| `control` | Differential drive mixer, rate limiter, watchdog            |
-| `state`   | State machine (Disabled → Idle → Teleop/Autonomous → EStop) |
-| `hal`     | GPIO, ADC, power monitoring                                 |
-| `teleop`  | LTE communications, command/telemetry                       |
-| `tools`   | Tool discovery and implementations                          |
+| Crate       | Purpose                                                     |
+| ----------- | ----------------------------------------------------------- |
+| `types`     | Shared types (Twist, Mode, etc.)                            |
+| `can`       | CAN bus + VESC protocol                                     |
+| `control`   | Differential drive mixer, rate limiter, watchdog            |
+| `state`     | State machine (Disabled → Idle → Teleop/Autonomous → EStop) |
+| `hal`       | GPIO, ADC, power monitoring                                 |
+| `teleop`    | LTE communications, command/telemetry                       |
+| `tools`     | Tool discovery and implementations                          |
+| `recording` | Session recording to Rerun .rrd files                       |
+| `metrics`   | Real-time metrics push to Depot (InfluxDB UDP)              |
+| `gps`       | GPS receiver (NMEA parsing)                                 |
+| `camera`    | Camera capture and video streaming                          |
 
 ## Binaries
 
@@ -160,6 +164,11 @@ bvrd process
    - Tool outputs CAN command
    - Tool MCU executes
 
+4. **Rover → Depot (Base Station)**
+   - Real-time: `metrics` crate → UDP → InfluxDB (1Hz)
+   - Sessions: `recording` crate → .rrd files → rclone → SFTP (every 15 min)
+   - Dashboards: Grafana queries InfluxDB for fleet status
+
 ## Configuration
 
 Runtime configuration is in `config/bvr.toml`:
@@ -192,11 +201,12 @@ port = 4840
 
 ## Logging and Telemetry
 
-BVR uses a dual-layer approach:
+BVR uses a multi-layer approach:
 
 1. **Event Logging** (`tracing`): Text logs to stdout and rolling files
-2. **Telemetry Recording** (`rerun`): Time-series data for playback
+2. **Telemetry Recording** (`recording`): Time-series data to Rerun .rrd files
+3. **Real-time Metrics** (`metrics`): Live telemetry push to Depot via InfluxDB UDP
 
-Sessions are automatically synced to a base station for analysis.
+Sessions and logs are automatically synced to Depot (base station) for analysis.
 
-See [docs/logging.md](logging.md) for full documentation.
+See [docs/logging.md](logging.md) for rover-side details and [depot/README.md](../depot/README.md) for base station setup.
