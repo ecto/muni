@@ -35,6 +35,10 @@ interface OperatorState {
   cameraMode: CameraMode;
   setCameraMode: (mode: CameraMode) => void;
 
+  // Toast notifications
+  toast: string | null;
+  showToast: (message: string, duration?: number) => void;
+
   // Video
   videoConnected: boolean;
   videoFps: number;
@@ -96,6 +100,13 @@ export const useOperatorStore = create<OperatorState>((set) => ({
   // Camera
   cameraMode: CameraMode.ThirdPerson,
   setCameraMode: (mode) => set({ cameraMode: mode }),
+
+  // Toast
+  toast: null,
+  showToast: (message, duration = 1500) => {
+    set({ toast: message });
+    setTimeout(() => set({ toast: null }), duration);
+  },
 
   // Video
   videoConnected: false,

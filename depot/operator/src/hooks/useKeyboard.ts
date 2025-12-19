@@ -39,19 +39,26 @@ export function useKeyboard() {
           CameraMode.FirstPerson,
           CameraMode.FreeLook,
         ];
+        const modeLabels = ["3rd Person", "1st Person", "Free Look"];
         const currentIndex = modes.indexOf(cameraMode);
         const nextIndex = (currentIndex + 1) % modes.length;
         setCameraMode(modes[nextIndex]);
+        useOperatorStore.getState().showToast(`Camera: ${modeLabels[nextIndex]}`);
         return;
       }
 
       if (KEYS.cameraFree.includes(e.code)) {
         e.preventDefault();
-        setCameraMode(
+        const newMode =
           cameraMode === CameraMode.FreeLook
             ? CameraMode.ThirdPerson
-            : CameraMode.FreeLook
-        );
+            : CameraMode.FreeLook;
+        setCameraMode(newMode);
+        useOperatorStore
+          .getState()
+          .showToast(
+            `Camera: ${newMode === CameraMode.FreeLook ? "Free Look" : "3rd Person"}`
+          );
         return;
       }
 

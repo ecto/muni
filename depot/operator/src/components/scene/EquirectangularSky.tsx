@@ -120,14 +120,14 @@ export function VideoStatusBadge() {
 
   if (!videoConnected) {
     return (
-      <div className="absolute top-4 right-4 bg-destructive/80 text-destructive-foreground px-2 py-1 rounded text-xs font-mono">
+      <div className="bg-destructive/80 text-destructive-foreground px-2 py-1 rounded text-xs font-mono">
         VIDEO OFFLINE
       </div>
     );
   }
 
   return (
-    <div className="absolute top-4 right-4 bg-muted/80 text-muted-foreground px-2 py-1 rounded text-xs font-mono">
+    <div className="bg-muted/80 text-muted-foreground px-2 py-1 rounded text-xs font-mono">
       360° {videoFps} FPS
     </div>
   );

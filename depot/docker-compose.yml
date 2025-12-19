@@ -1,4 +1,19 @@
 services:
+  # Web-based operator interface for teleop
+  operator:
+    build:
+      context: ./operator
+      dockerfile: Dockerfile
+    container_name: depot-operator
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+
   # InfluxDB for real-time metrics from rovers
   influxdb:
     image: influxdb:2.7

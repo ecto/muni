@@ -2,6 +2,7 @@
 
 Depot is the base station infrastructure for the BVR rover fleet. It provides:
 
+- **Web operator** for browser-based teleop with 360° video
 - **Real-time metrics** via InfluxDB (battery, motors, GPS, mode)
 - **Fleet dashboards** via Grafana (fleet overview + per-rover detail)
 - **Session storage** via SFTP (rovers upload .rrd recordings)
@@ -14,8 +15,9 @@ Rovers                          Depot
 ┌─────────┐                     ┌─────────────────────────────┐
 │  bvr-01 │──UDP metrics──────▶│  InfluxDB (:8086, :8089)    │
 │  bvr-02 │──rclone SFTP──────▶│  SFTP (:2222)               │
-│  bvr-0N │                     │  Grafana (:3000)            │
-└─────────┘                     └─────────────────────────────┘
+│  bvr-0N │◀─WebSocket─────────│  Operator (:8080)           │
+└─────────┘                     │  Grafana (:3000)            │
+                                └─────────────────────────────┘
 ```
 
 ## Quick Start
@@ -45,6 +47,7 @@ After setup, access the services:
 
 | Service  | URL                   | Credentials         |
 | -------- | --------------------- | ------------------- |
+| Operator | http://localhost:8080 | None (public)       |
 | Grafana  | http://localhost:3000 | admin / (from .env) |
 | InfluxDB | http://localhost:8086 | admin / (from .env) |
 | SFTP     | localhost:2222        | bvr / SSH key auth  |
@@ -248,6 +251,7 @@ docker compose logs -f sftp
 | ---- | -------- | -------- | --------------------- |
 | 2222 | TCP      | SFTP     | Session file uploads  |
 | 3000 | TCP      | Grafana  | Web dashboards        |
+| 8080 | TCP      | Operator | Web teleop interface  |
 | 8086 | TCP      | InfluxDB | HTTP API + Web UI     |
 | 8089 | UDP      | InfluxDB | Line protocol metrics |
 
