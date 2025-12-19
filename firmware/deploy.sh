@@ -26,6 +26,7 @@ CONFIG_PATH="/etc/bvr"
 RESTART=false
 SYNC_CONFIG=false
 INSTALL_SERVICES=false
+INSTALL_SYNC=false
 
 usage() {
     echo "Usage: $0 <hostname> [options]"
@@ -33,7 +34,8 @@ usage() {
     echo "Options:"
     echo "  --restart     Restart bvrd service after deploy"
     echo "  --config      Also sync config/bvr.toml"
-    echo "  --services    Install/update systemd services (can.service, bvrd.service)"
+    echo "  --services    Install/update systemd services (can, bvrd, kiosk)"
+    echo "  --sync        Install sync timer (bvr-sync.service, bvr-sync.timer)"
     echo "  --user USER   SSH user (default: cam, or \$REMOTE_USER)"
     echo "  --cli         Also deploy the bvr CLI tool"
     echo "  --all         Deploy everything (--cli --config --services --restart)"
@@ -68,10 +70,15 @@ while [[ $# -gt 0 ]]; do
             INSTALL_SERVICES=true
             shift
             ;;
+        --sync)
+            INSTALL_SYNC=true
+            shift
+            ;;
         --all)
             DEPLOY_CLI=true
             SYNC_CONFIG=true
             INSTALL_SERVICES=true
+            INSTALL_SYNC=true
             RESTART=true
             shift
             ;;
@@ -117,6 +124,7 @@ echo -e "  User:     ${REMOTE_USER}"
 echo -e "  CLI:      ${DEPLOY_CLI}"
 echo -e "  Config:   ${SYNC_CONFIG}"
 echo -e "  Services: ${INSTALL_SERVICES}"
+echo -e "  Sync:     ${INSTALL_SYNC}"
 echo -e "  Restart:  ${RESTART}"
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo ""
@@ -186,8 +194,15 @@ fi
 # Upload service files if requested
 if [[ "$INSTALL_SERVICES" == true ]]; then
     echo -e "${BLUE}▸ Uploading service files...${NC}"
-    scp -q "config/can.service" "config/bvrd.service" "${REMOTE}:/tmp/"
+    scp -q "config/can.service" "config/bvrd.service" "config/kiosk.service" "${REMOTE}:/tmp/"
     echo -e "${GREEN}✓ Uploaded services${NC}"
+fi
+
+# Upload sync infrastructure if requested
+if [[ "$INSTALL_SYNC" == true ]]; then
+    echo -e "${BLUE}▸ Uploading sync infrastructure...${NC}"
+    scp -q "config/bvr-sync.service" "config/bvr-sync.timer" "config/bvr-sync.sh" "${REMOTE}:/tmp/"
+    echo -e "${GREEN}✓ Uploaded sync files${NC}"
 fi
 
 # Install on remote
@@ -224,6 +239,28 @@ if [[ -f /tmp/can.service ]] && [[ -f /tmp/bvrd.service ]]; then
     sudo systemctl daemon-reload
     sudo systemctl enable can.service bvrd.service
     echo "  Services enabled"
+fi
+
+# Install kiosk service if present (only enable, don't start - requires desktop)
+if [[ -f /tmp/kiosk.service ]]; then
+    echo "  Installing kiosk service..."
+    sudo mv /tmp/kiosk.service /etc/systemd/system/
+    sudo systemctl daemon-reload
+    sudo systemctl enable kiosk.service
+    echo "  Kiosk service enabled (will start on next boot with desktop)"
+fi
+
+# Install sync infrastructure if present
+if [[ -f /tmp/bvr-sync.service ]] && [[ -f /tmp/bvr-sync.timer ]]; then
+    echo "  Installing sync infrastructure..."
+    sudo mv /tmp/bvr-sync.service /tmp/bvr-sync.timer /etc/systemd/system/
+    sudo mkdir -p /opt/bvr/bin
+    sudo mv /tmp/bvr-sync.sh /opt/bvr/bin/bvr-sync.sh
+    sudo chmod +x /opt/bvr/bin/bvr-sync.sh
+    sudo systemctl daemon-reload
+    sudo systemctl enable bvr-sync.timer
+    sudo systemctl start bvr-sync.timer
+    echo "  Sync timer enabled and started"
 fi
 
 # Restart service if requested
