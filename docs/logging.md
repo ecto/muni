@@ -258,91 +258,45 @@ bvr-sessions/
 └── ...
 ```
 
-## Base Station Setup
+## Depot (Base Station)
 
-### Prerequisites
+The base station infrastructure is called **Depot**. It provides:
 
-- Docker and Docker Compose
-- 100+ GB storage for session files
-- Network accessible from rovers (Tailscale recommended)
+- Real-time metrics via InfluxDB
+- Fleet dashboards via Grafana
+- Session storage via SFTP
+- 30-day automatic retention
+
+See [`depot/README.md`](../depot/README.md) for full setup and operation guide.
 
 ### Quick Start
 
 ```bash
-# Create docker-compose.yml (see below)
-docker compose up -d
+cd depot
+./scripts/setup.sh
 ```
 
-### Docker Compose
+### Services
 
-```yaml
-version: "3.8"
+| Service  | Port | Purpose                         |
+| -------- | ---- | ------------------------------- |
+| Grafana  | 3000 | Fleet dashboards                |
+| InfluxDB | 8086 | Metrics API + UI                |
+| InfluxDB | 8089 | UDP line protocol (from rovers) |
+| SFTP     | 2222 | Session file uploads            |
 
-services:
-  # Time-series database for metrics
-  influxdb:
-    image: influxdb:2.7
-    ports:
-      - "8086:8086"
-    volumes:
-      - influxdb-data:/var/lib/influxdb2
-    environment:
-      - DOCKER_INFLUXDB_INIT_MODE=setup
-      - DOCKER_INFLUXDB_INIT_USERNAME=admin
-      - DOCKER_INFLUXDB_INIT_PASSWORD=changeme
-      - DOCKER_INFLUXDB_INIT_ORG=muni
-      - DOCKER_INFLUXDB_INIT_BUCKET=bvr
+### Rover Configuration
 
-  # Dashboards
-  grafana:
-    image: grafana/grafana:10.2.0
-    ports:
-      - "3000:3000"
-    volumes:
-      - grafana-data:/var/lib/grafana
-    environment:
-      - GF_SECURITY_ADMIN_PASSWORD=changeme
-    depends_on:
-      - influxdb
+Enable metrics push in `bvr.toml`:
 
-  # S3-compatible object storage for sessions
-  minio:
-    image: minio/minio:latest
-    ports:
-      - "9000:9000"
-      - "9001:9001"
-    volumes:
-      - minio-data:/data
-    environment:
-      - MINIO_ROOT_USER=admin
-      - MINIO_ROOT_PASSWORD=changeme
-    command: server /data --console-address ":9001"
-
-volumes:
-  influxdb-data:
-  grafana-data:
-  minio-data:
+```toml
+[metrics]
+enabled = true
+endpoint = "depot.local:8089"
+interval_hz = 1
 ```
 
-### Grafana Dashboard Setup
-
-1. Open http://localhost:3000 (admin/changeme)
-2. Add InfluxDB data source:
-   - URL: http://influxdb:8086
-   - Organization: muni
-   - Token: (from InfluxDB setup)
-   - Default bucket: bvr
-3. Import or create dashboards for:
-   - Fleet overview (map, status indicators)
-   - Per-rover detail (battery, motors, velocity)
-   - Alerts (offline rovers, faults)
-
-### MinIO Setup for Session Storage
-
-1. Open http://localhost:9001 (admin/changeme)
-2. Create bucket: `bvr-sessions`
-3. Create access key for rclone
-4. Configure rovers with S3 rclone remote
+Configure rclone for session sync (see Layer 3 above)
 
 ## Deployment
 

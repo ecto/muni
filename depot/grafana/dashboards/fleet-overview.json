@@ -1,0 +1,196 @@
+{
+  "uid": "bvr-fleet-overview",
+  "title": "Fleet Overview",
+  "tags": ["bvr", "fleet"],
+  "timezone": "browser",
+  "refresh": "5s",
+  "schemaVersion": 39,
+  "panels": [
+    {
+      "id": 1,
+      "title": "Rover Status",
+      "type": "table",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "datasource": { "type": "influxdb", "uid": "influxdb" },
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "green", "value": 0 }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "battery" },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": { "mode": "gradient", "type": "gauge" }
+              },
+              { "id": "unit", "value": "volt" },
+              { "id": "min", "value": 39 },
+              { "id": "max", "value": 54 }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Last Seen" },
+            "properties": [
+              { "id": "unit", "value": "dateTimeFromNow" }
+            ]
+          }
+        ]
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "query": "from(bucket: \"bvr\")\n  |> range(start: -5m)\n  |> filter(fn: (r) => r._measurement == \"rover_status\")\n  |> last()\n  |> pivot(rowKey: [\"rover\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> keep(columns: [\"rover\", \"battery\", \"mode\", \"_time\"])\n  |> rename(columns: {_time: \"Last Seen\"})"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Fleet Battery Levels",
+      "type": "bargauge",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "datasource": { "type": "influxdb", "uid": "influxdb" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "volt",
+          "min": 39,
+          "max": 54,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "orange", "value": 42 },
+              { "color": "yellow", "value": 45 },
+              { "color": "green", "value": 48 }
+            ]
+          }
+        }
+      },
+      "options": {
+        "displayMode": "gradient",
+        "orientation": "horizontal",
+        "showUnfilled": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "query": "from(bucket: \"bvr\")\n  |> range(start: -5m)\n  |> filter(fn: (r) => r._measurement == \"rover_status\" and r._field == \"battery\")\n  |> last()\n  |> group(columns: [\"rover\"])"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Motor Temperatures (Max per Rover)",
+      "type": "bargauge",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "datasource": { "type": "influxdb", "uid": "influxdb" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "celsius",
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 60 },
+              { "color": "orange", "value": 75 },
+              { "color": "red", "value": 85 }
+            ]
+          }
+        }
+      },
+      "options": {
+        "displayMode": "gradient",
+        "orientation": "horizontal",
+        "showUnfilled": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "query": "from(bucket: \"bvr\")\n  |> range(start: -5m)\n  |> filter(fn: (r) => r._measurement == \"motors\" and r._field == \"temp\")\n  |> last()\n  |> group(columns: [\"rover\"])\n  |> max()"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Rover Positions (GPS)",
+      "type": "geomap",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "datasource": { "type": "influxdb", "uid": "influxdb" },
+      "options": {
+        "view": {
+          "id": "fit",
+          "lat": 0,
+          "lon": 0,
+          "zoom": 15
+        },
+        "basemap": {
+          "type": "osm-standard"
+        },
+        "layers": [
+          {
+            "type": "markers",
+            "config": {
+              "showLegend": true,
+              "style": {
+                "size": { "fixed": 10 },
+                "symbol": { "fixed": "circle" }
+              }
+            }
+          }
+        ]
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "query": "from(bucket: \"bvr\")\n  |> range(start: -5m)\n  |> filter(fn: (r) => r._measurement == \"gps\")\n  |> last()\n  |> pivot(rowKey: [\"rover\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> keep(columns: [\"rover\", \"latitude\", \"longitude\"])"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Alerts",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 24, "x": 0, "y": 16 },
+      "datasource": { "type": "influxdb", "uid": "influxdb" },
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 1 }
+            ]
+          }
+        }
+      },
+      "options": {
+        "graphMode": "none",
+        "colorMode": "background",
+        "justifyMode": "center",
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "refId": "offline",
+          "query": "from(bucket: \"bvr\")\n  |> range(start: -5m)\n  |> filter(fn: (r) => r._measurement == \"rover_status\")\n  |> last()\n  |> filter(fn: (r) => r._time < now() - 2m)\n  |> count()\n  |> set(key: \"_field\", value: \"Offline Rovers\")"
+        },
+        {
+          "refId": "lowbattery",
+          "query": "from(bucket: \"bvr\")\n  |> range(start: -5m)\n  |> filter(fn: (r) => r._measurement == \"rover_status\" and r._field == \"battery\")\n  |> last()\n  |> filter(fn: (r) => r._value < 42)\n  |> count()\n  |> set(key: \"_field\", value: \"Low Battery\")"
+        },
+        {
+          "refId": "hightemp",
+          "query": "from(bucket: \"bvr\")\n  |> range(start: -5m)\n  |> filter(fn: (r) => r._measurement == \"motors\" and r._field == \"temp\")\n  |> last()\n  |> filter(fn: (r) => r._value > 75)\n  |> count()\n  |> set(key: \"_field\", value: \"High Motor Temp\")"
+        }
+      ]
+    }
+  ]
+}

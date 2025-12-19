@@ -1,0 +1,78 @@
+services:
+  # InfluxDB for real-time metrics from rovers
+  influxdb:
+    image: influxdb:2.7
+    container_name: depot-influxdb
+    restart: unless-stopped
+    ports:
+      - "8086:8086" # HTTP API + UI
+      - "8089:8089/udp" # UDP line protocol input
+    volumes:
+      - influxdb-data:/var/lib/influxdb2
+      - influxdb-config:/etc/influxdb2
+    environment:
+      - DOCKER_INFLUXDB_INIT_MODE=setup
+      - DOCKER_INFLUXDB_INIT_USERNAME=${INFLUXDB_ADMIN_USER:-admin}
+      - DOCKER_INFLUXDB_INIT_PASSWORD=${INFLUXDB_ADMIN_PASSWORD:?Set INFLUXDB_ADMIN_PASSWORD}
+      - DOCKER_INFLUXDB_INIT_ORG=${INFLUXDB_ORG:-muni}
+      - DOCKER_INFLUXDB_INIT_BUCKET=${INFLUXDB_BUCKET:-bvr}
+      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=${INFLUXDB_ADMIN_TOKEN:?Set INFLUXDB_ADMIN_TOKEN}
+    healthcheck:
+      test: ["CMD", "influx", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Grafana for fleet dashboards
+  grafana:
+    image: grafana/grafana:11.4.0
+    container_name: depot-grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:?Set GRAFANA_ADMIN_PASSWORD}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_AUTH_ANONYMOUS_ENABLED=false
+      # InfluxDB connection for provisioning
+      - INFLUXDB_URL=http://influxdb:8086
+      - INFLUXDB_ORG=${INFLUXDB_ORG:-muni}
+      - INFLUXDB_TOKEN=${INFLUXDB_ADMIN_TOKEN}
+    depends_on:
+      influxdb:
+        condition: service_healthy
+
+  # SFTP server for session file uploads from rovers
+  sftp:
+    image: atmoz/sftp:alpine
+    container_name: depot-sftp
+    restart: unless-stopped
+    ports:
+      - "2222:22"
+    volumes:
+      # Session storage (rovers upload here)
+      - sessions-data:/home/bvr/sessions
+      # SSH host keys (generated on first run, persisted)
+      - sftp-keys:/etc/ssh/keys
+      # Authorized keys for rover authentication
+      - ./sftp/authorized_keys:/home/bvr/.ssh/keys:ro
+    # Format: user:password:uid:gid:directories
+    # Using empty password forces key-based auth only
+    command: "bvr::1000:1000:sessions"
+
+volumes:
+  influxdb-data:
+  influxdb-config:
+  grafana-data:
+  sessions-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${SESSIONS_PATH:-/data/bvr-sessions}
+  sftp-keys:

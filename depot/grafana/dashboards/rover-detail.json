@@ -1,0 +1,226 @@
+{
+  "uid": "bvr-rover-detail",
+  "title": "Rover Detail",
+  "tags": ["bvr", "rover"],
+  "timezone": "browser",
+  "refresh": "5s",
+  "schemaVersion": 39,
+  "templating": {
+    "list": [
+      {
+        "name": "rover",
+        "type": "query",
+        "datasource": { "type": "influxdb", "uid": "influxdb" },
+        "query": "import \"influxdata/influxdb/schema\"\nschema.tagValues(bucket: \"bvr\", tag: \"rover\")",
+        "refresh": 2,
+        "current": { "text": "bvr-01", "value": "bvr-01" }
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Current Status",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+      "datasource": { "type": "influxdb", "uid": "influxdb" },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "type": "value", "options": { "Disabled": { "text": "Disabled", "color": "dark-gray" } } },
+            { "type": "value", "options": { "Idle": { "text": "Idle", "color": "blue" } } },
+            { "type": "value", "options": { "Teleop": { "text": "Teleop", "color": "green" } } },
+            { "type": "value", "options": { "Autonomous": { "text": "Auto", "color": "purple" } } },
+            { "type": "value", "options": { "EStop": { "text": "E-Stop", "color": "red" } } }
+          ]
+        }
+      },
+      "options": { "colorMode": "background", "graphMode": "none" },
+      "targets": [
+        {
+          "refId": "A",
+          "query": "from(bucket: \"bvr\")\n  |> range(start: -5m)\n  |> filter(fn: (r) => r._measurement == \"rover_status\" and r.rover == \"${rover}\" and r._field == \"mode\")\n  |> last()"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Battery Voltage",
+      "type": "gauge",
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+      "datasource": { "type": "influxdb", "uid": "influxdb" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "volt",
+          "min": 39,
+          "max": 54,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "orange", "value": 42 },
+              { "color": "yellow", "value": 45 },
+              { "color": "green", "value": 48 }
+            ]
+          }
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "query": "from(bucket: \"bvr\")\n  |> range(start: -5m)\n  |> filter(fn: (r) => r._measurement == \"rover_status\" and r.rover == \"${rover}\" and r._field == \"battery\")\n  |> last()"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "System Current",
+      "type": "gauge",
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
+      "datasource": { "type": "influxdb", "uid": "influxdb" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "amp",
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 50 },
+              { "color": "red", "value": 80 }
+            ]
+          }
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "query": "from(bucket: \"bvr\")\n  |> range(start: -5m)\n  |> filter(fn: (r) => r._measurement == \"rover_status\" and r.rover == \"${rover}\" and r._field == \"current\")\n  |> last()"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Last Seen",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
+      "datasource": { "type": "influxdb", "uid": "influxdb" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "dateTimeFromNow"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "query": "from(bucket: \"bvr\")\n  |> range(start: -1h)\n  |> filter(fn: (r) => r._measurement == \"rover_status\" and r.rover == \"${rover}\")\n  |> last()\n  |> keep(columns: [\"_time\"])"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Battery Voltage Over Time",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "datasource": { "type": "influxdb", "uid": "influxdb" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "volt",
+          "min": 39,
+          "max": 54,
+          "custom": { "fillOpacity": 10 }
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "query": "from(bucket: \"bvr\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"rover_status\" and r.rover == \"${rover}\" and r._field == \"battery\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Motor Temperatures",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+      "datasource": { "type": "influxdb", "uid": "influxdb" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "celsius",
+          "min": 0,
+          "max": 100,
+          "custom": { "fillOpacity": 10 }
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "query": "from(bucket: \"bvr\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"motors\" and r.rover == \"${rover}\" and r._field == \"temp\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "title": "Velocity (Commanded vs Actual)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+      "datasource": { "type": "influxdb", "uid": "influxdb" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "velocityms",
+          "custom": { "fillOpacity": 10 }
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "query": "from(bucket: \"bvr\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"velocity\" and r.rover == \"${rover}\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "title": "Motor Currents",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+      "datasource": { "type": "influxdb", "uid": "influxdb" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "amp",
+          "custom": { "fillOpacity": 10 }
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "query": "from(bucket: \"bvr\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"motors\" and r.rover == \"${rover}\" and r._field == \"current\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "title": "Mode Timeline",
+      "type": "state-timeline",
+      "gridPos": { "h": 4, "w": 24, "x": 0, "y": 20 },
+      "datasource": { "type": "influxdb", "uid": "influxdb" },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "type": "value", "options": { "Disabled": { "text": "Disabled", "color": "dark-gray" } } },
+            { "type": "value", "options": { "Idle": { "text": "Idle", "color": "blue" } } },
+            { "type": "value", "options": { "Teleop": { "text": "Teleop", "color": "green" } } },
+            { "type": "value", "options": { "Autonomous": { "text": "Auto", "color": "purple" } } },
+            { "type": "value", "options": { "EStop": { "text": "E-Stop", "color": "red" } } }
+          ]
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "query": "from(bucket: \"bvr\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"rover_status\" and r.rover == \"${rover}\" and r._field == \"mode\")"
+        }
+      ]
+    }
+  ]
+}
