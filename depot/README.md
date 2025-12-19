@@ -28,29 +28,28 @@ Rovers                          Depot
 - 100+ GB storage for session files
 - Network accessible from rovers
 
-### Setup
+### Quick Start
 
 ```bash
 cd depot
-./scripts/setup.sh
+docker compose up -d
 ```
 
-This will:
-
-1. Create `.env` with secure random credentials
-2. Create the sessions directory
-3. Start the Docker Compose stack
+This starts all services with default development credentials.
 
 ### Access
 
-After setup, access the services:
+| Service  | URL                   | Default Credentials   |
+| -------- | --------------------- | --------------------- |
+| Operator | http://localhost:8080 | None (public)         |
+| Grafana  | http://localhost:3000 | admin / bvrpassword   |
+| InfluxDB | http://localhost:8086 | admin / bvrpassword   |
+| SFTP     | localhost:2222        | bvr / SSH key auth    |
 
-| Service  | URL                   | Credentials         |
-| -------- | --------------------- | ------------------- |
-| Operator | http://localhost:8080 | None (public)       |
-| Grafana  | http://localhost:3000 | admin / (from .env) |
-| InfluxDB | http://localhost:8086 | admin / (from .env) |
-| SFTP     | localhost:2222        | bvr / SSH key auth  |
+### Production Setup
+
+For production, use `./scripts/setup.sh` to generate secure credentials,
+or create a `.env` file with custom values (see Configuration below).
 
 ## Configuration
 
@@ -261,4 +260,3 @@ docker compose logs -f sftp
 - Grafana and InfluxDB use password auth (set strong passwords in .env)
 - Consider placing behind a reverse proxy with TLS for production
 - Use a VPN (WireGuard/Tailscale) for rovers connecting over public internet
-

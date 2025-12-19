@@ -9,7 +9,15 @@ services:
     ports:
       - "8080:80"
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/"]
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost/",
+        ]
       interval: 30s
       timeout: 3s
       retries: 3
@@ -28,10 +36,10 @@ services:
     environment:
       - DOCKER_INFLUXDB_INIT_MODE=setup
       - DOCKER_INFLUXDB_INIT_USERNAME=${INFLUXDB_ADMIN_USER:-admin}
-      - DOCKER_INFLUXDB_INIT_PASSWORD=${INFLUXDB_ADMIN_PASSWORD:?Set INFLUXDB_ADMIN_PASSWORD}
+      - DOCKER_INFLUXDB_INIT_PASSWORD=${INFLUXDB_ADMIN_PASSWORD:-bvrpassword}
       - DOCKER_INFLUXDB_INIT_ORG=${INFLUXDB_ORG:-muni}
       - DOCKER_INFLUXDB_INIT_BUCKET=${INFLUXDB_BUCKET:-bvr}
-      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=${INFLUXDB_ADMIN_TOKEN:?Set INFLUXDB_ADMIN_TOKEN}
+      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=${INFLUXDB_ADMIN_TOKEN:-bvr-dev-token}
     healthcheck:
       test: ["CMD", "influx", "ping"]
       interval: 30s
@@ -51,13 +59,13 @@ services:
       - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
     environment:
       - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
-      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:?Set GRAFANA_ADMIN_PASSWORD}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-bvrpassword}
       - GF_USERS_ALLOW_SIGN_UP=false
       - GF_AUTH_ANONYMOUS_ENABLED=false
       # InfluxDB connection for provisioning
       - INFLUXDB_URL=http://influxdb:8086
       - INFLUXDB_ORG=${INFLUXDB_ORG:-muni}
-      - INFLUXDB_TOKEN=${INFLUXDB_ADMIN_TOKEN}
+      - INFLUXDB_TOKEN=${INFLUXDB_ADMIN_TOKEN:-bvr-dev-token}
     depends_on:
       influxdb:
         condition: service_healthy
@@ -85,10 +93,4 @@ volumes:
   influxdb-config:
   grafana-data:
   sessions-data:
-    driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: ${SESSIONS_PATH:-/data/bvr-sessions}
   sftp-keys:
-

@@ -43,7 +43,9 @@ export function useKeyboard() {
         const currentIndex = modes.indexOf(cameraMode);
         const nextIndex = (currentIndex + 1) % modes.length;
         setCameraMode(modes[nextIndex]);
-        useOperatorStore.getState().showToast(`Camera: ${modeLabels[nextIndex]}`);
+        useOperatorStore
+          .getState()
+          .showToast(`Camera: ${modeLabels[nextIndex]}`);
         return;
       }
 
@@ -57,7 +59,9 @@ export function useKeyboard() {
         useOperatorStore
           .getState()
           .showToast(
-            `Camera: ${newMode === CameraMode.FreeLook ? "Free Look" : "3rd Person"}`
+            `Camera: ${
+              newMode === CameraMode.FreeLook ? "Free Look" : "3rd Person"
+            }`
           );
         return;
       }
