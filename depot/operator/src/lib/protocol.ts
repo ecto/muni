@@ -241,6 +241,8 @@ export function decodeVideoFrame(data: ArrayBuffer): DecodedVideoFrame | null {
  * Convert JPEG data to a blob URL for use in textures.
  */
 export function videoFrameToBlobUrl(frame: DecodedVideoFrame): string {
-  const blob = new Blob([frame.jpegData], { type: "image/jpeg" });
+  // Create a new Uint8Array to ensure we have a proper ArrayBuffer (not SharedArrayBuffer)
+  const data = new Uint8Array(frame.jpegData);
+  const blob = new Blob([data], { type: "image/jpeg" });
   return URL.createObjectURL(blob);
 }

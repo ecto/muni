@@ -29,6 +29,20 @@ export function useRoverConnection() {
   );
   const lastSendTimeRef = useRef<number>(0);
 
+  // Use ref for connect function to avoid circular dependency
+  const connectRef = useRef<() => void>(() => {});
+
+  const clearIntervals = useCallback(() => {
+    if (commandIntervalRef.current) {
+      clearInterval(commandIntervalRef.current);
+      commandIntervalRef.current = null;
+    }
+    if (heartbeatIntervalRef.current) {
+      clearInterval(heartbeatIntervalRef.current);
+      heartbeatIntervalRef.current = null;
+    }
+  }, []);
+
   const connect = useCallback(() => {
     // Clean up existing connection
     if (wsRef.current) {
@@ -105,40 +119,38 @@ export function useRoverConnection() {
         }
       };
 
-      ws.onclose = (_event) => {
+      ws.onclose = () => {
         setConnected(false);
-        cleanup();
+        clearIntervals();
 
         // Reconnect after delay
-        reconnectTimeoutRef.current = setTimeout(connect, RECONNECT_DELAY_MS);
+        reconnectTimeoutRef.current = setTimeout(() => {
+          connectRef.current();
+        }, RECONNECT_DELAY_MS);
       };
 
-      ws.onerror = (_error) => {
+      ws.onerror = () => {
         setConnected(false);
       };
 
       wsRef.current = ws;
-    } catch (_error) {
+    } catch {
       setConnected(false);
 
       // Retry connection
-      reconnectTimeoutRef.current = setTimeout(connect, RECONNECT_DELAY_MS);
+      reconnectTimeoutRef.current = setTimeout(() => {
+        connectRef.current();
+      }, RECONNECT_DELAY_MS);
     }
-  }, [roverAddress, setConnected, setLatency, updateTelemetry]);
+  }, [roverAddress, setConnected, setLatency, updateTelemetry, clearIntervals]);
 
-  const cleanup = useCallback(() => {
-    if (commandIntervalRef.current) {
-      clearInterval(commandIntervalRef.current);
-      commandIntervalRef.current = null;
-    }
-    if (heartbeatIntervalRef.current) {
-      clearInterval(heartbeatIntervalRef.current);
-      heartbeatIntervalRef.current = null;
-    }
-  }, []);
+  // Keep connectRef in sync
+  useEffect(() => {
+    connectRef.current = connect;
+  }, [connect]);
 
   const disconnect = useCallback(() => {
-    cleanup();
+    clearIntervals();
 
     if (reconnectTimeoutRef.current) {
       clearTimeout(reconnectTimeoutRef.current);
@@ -151,7 +163,7 @@ export function useRoverConnection() {
     }
 
     setConnected(false);
-  }, [cleanup, setConnected]);
+  }, [clearIntervals, setConnected]);
 
   // Connect on mount, disconnect on unmount
   useEffect(() => {

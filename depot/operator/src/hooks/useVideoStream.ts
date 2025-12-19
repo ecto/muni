@@ -24,8 +24,11 @@ export function useVideoStream() {
     null
   );
   const frameCountRef = useRef(0);
-  const lastFpsUpdateRef = useRef(performance.now());
+  const lastFpsUpdateRef = useRef(0);
   const lastBlobUrlRef = useRef<string | null>(null);
+
+  // Use ref for connect function to avoid circular dependency
+  const connectRef = useRef<() => void>(() => {});
 
   // Derive video URL from rover address (same host, different port or path)
   const videoUrl = roverAddress.replace(":4850", ":4851");
@@ -37,14 +40,11 @@ export function useVideoStream() {
       wsRef.current = null;
     }
 
-    console.log("Connecting to video stream:", videoUrl);
-
     try {
       const ws = new WebSocket(videoUrl);
       ws.binaryType = "arraybuffer";
 
       ws.onopen = () => {
-        console.log("Video stream connected");
         setVideoConnected(true);
         frameCountRef.current = 0;
         lastFpsUpdateRef.current = performance.now();
@@ -90,29 +90,35 @@ export function useVideoStream() {
         }
       };
 
-      ws.onclose = (event) => {
-        console.log("Video stream disconnected:", event.code, event.reason);
+      ws.onclose = () => {
         setVideoConnected(false);
         setVideoFps(0);
 
         // Reconnect after delay
-        reconnectTimeoutRef.current = setTimeout(connect, RECONNECT_DELAY_MS);
+        reconnectTimeoutRef.current = setTimeout(() => {
+          connectRef.current();
+        }, RECONNECT_DELAY_MS);
       };
 
-      ws.onerror = (error) => {
-        console.error("Video stream error:", error);
+      ws.onerror = () => {
         setVideoConnected(false);
       };
 
       wsRef.current = ws;
-    } catch (error) {
-      console.error("Failed to connect to video stream:", error);
+    } catch {
       setVideoConnected(false);
 
       // Retry connection
-      reconnectTimeoutRef.current = setTimeout(connect, RECONNECT_DELAY_MS);
+      reconnectTimeoutRef.current = setTimeout(() => {
+        connectRef.current();
+      }, RECONNECT_DELAY_MS);
     }
   }, [videoUrl, setVideoConnected, setVideoFps, setVideoFrame]);
+
+  // Keep connectRef in sync
+  useEffect(() => {
+    connectRef.current = connect;
+  }, [connect]);
 
   const disconnect = useCallback(() => {
     if (reconnectTimeoutRef.current) {

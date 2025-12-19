@@ -87,11 +87,11 @@ export function useGamepad() {
     frameRef.current = requestAnimationFrame(poll);
 
     // Handle gamepad connection events
-    const onConnect = (_e: GamepadEvent) => {
+    const onConnect = () => {
       // Gamepad connected
     };
 
-    const onDisconnect = (_e: GamepadEvent) => {
+    const onDisconnect = () => {
       if (inputSource === InputSource.Gamepad) {
         setInputSource(InputSource.None);
       }
