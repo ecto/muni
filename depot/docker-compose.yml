@@ -36,10 +36,10 @@ services:
     environment:
       - DOCKER_INFLUXDB_INIT_MODE=setup
       - DOCKER_INFLUXDB_INIT_USERNAME=${INFLUXDB_ADMIN_USER:-admin}
-      - DOCKER_INFLUXDB_INIT_PASSWORD=${INFLUXDB_ADMIN_PASSWORD:-bvrpassword}
+      - DOCKER_INFLUXDB_INIT_PASSWORD=${INFLUXDB_ADMIN_PASSWORD:-munipassword}
       - DOCKER_INFLUXDB_INIT_ORG=${INFLUXDB_ORG:-muni}
-      - DOCKER_INFLUXDB_INIT_BUCKET=${INFLUXDB_BUCKET:-bvr}
-      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=${INFLUXDB_ADMIN_TOKEN:-bvr-dev-token}
+      - DOCKER_INFLUXDB_INIT_BUCKET=${INFLUXDB_BUCKET:-muni}
+      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=${INFLUXDB_ADMIN_TOKEN:-muni-dev-token}
     healthcheck:
       test: ["CMD", "influx", "ping"]
       interval: 30s
@@ -59,13 +59,13 @@ services:
       - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
     environment:
       - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
-      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-bvrpassword}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-munipassword}
       - GF_USERS_ALLOW_SIGN_UP=false
       - GF_AUTH_ANONYMOUS_ENABLED=false
       # InfluxDB connection for provisioning
       - INFLUXDB_URL=http://influxdb:8086
       - INFLUXDB_ORG=${INFLUXDB_ORG:-muni}
-      - INFLUXDB_TOKEN=${INFLUXDB_ADMIN_TOKEN:-bvr-dev-token}
+      - INFLUXDB_TOKEN=${INFLUXDB_ADMIN_TOKEN:-muni-dev-token}
     depends_on:
       influxdb:
         condition: service_healthy

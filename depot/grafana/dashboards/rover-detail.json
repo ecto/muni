@@ -1,7 +1,7 @@
 {
-  "uid": "bvr-rover-detail",
+  "uid": "muni-rover-detail",
   "title": "Rover Detail",
-  "tags": ["bvr", "rover"],
+  "tags": ["muni", "rover"],
   "timezone": "browser",
   "refresh": "5s",
   "schemaVersion": 39,
@@ -11,7 +11,7 @@
         "name": "rover",
         "type": "query",
         "datasource": { "type": "influxdb", "uid": "influxdb" },
-        "query": "import \"influxdata/influxdb/schema\"\nschema.tagValues(bucket: \"bvr\", tag: \"rover\")",
+        "query": "import \"influxdata/influxdb/schema\"\nschema.tagValues(bucket: \"muni\", tag: \"rover\")",
         "refresh": 2,
         "current": { "text": "bvr-01", "value": "bvr-01" }
       }
@@ -39,7 +39,7 @@
       "targets": [
         {
           "refId": "A",
-          "query": "from(bucket: \"bvr\")\n  |> range(start: -5m)\n  |> filter(fn: (r) => r._measurement == \"rover_status\" and r.rover == \"${rover}\" and r._field == \"mode\")\n  |> last()"
+          "query": "from(bucket: \"muni\")\n  |> range(start: -5m)\n  |> filter(fn: (r) => r._measurement == \"rover_status\" and r.rover == \"${rover}\" and r._field == \"mode\")\n  |> last()"
         }
       ]
     },
@@ -68,7 +68,7 @@
       "targets": [
         {
           "refId": "A",
-          "query": "from(bucket: \"bvr\")\n  |> range(start: -5m)\n  |> filter(fn: (r) => r._measurement == \"rover_status\" and r.rover == \"${rover}\" and r._field == \"battery\")\n  |> last()"
+          "query": "from(bucket: \"muni\")\n  |> range(start: -5m)\n  |> filter(fn: (r) => r._measurement == \"rover_status\" and r.rover == \"${rover}\" and r._field == \"battery\")\n  |> last()"
         }
       ]
     },
@@ -96,7 +96,7 @@
       "targets": [
         {
           "refId": "A",
-          "query": "from(bucket: \"bvr\")\n  |> range(start: -5m)\n  |> filter(fn: (r) => r._measurement == \"rover_status\" and r.rover == \"${rover}\" and r._field == \"current\")\n  |> last()"
+          "query": "from(bucket: \"muni\")\n  |> range(start: -5m)\n  |> filter(fn: (r) => r._measurement == \"rover_status\" and r.rover == \"${rover}\" and r._field == \"current\")\n  |> last()"
         }
       ]
     },
@@ -114,7 +114,7 @@
       "targets": [
         {
           "refId": "A",
-          "query": "from(bucket: \"bvr\")\n  |> range(start: -1h)\n  |> filter(fn: (r) => r._measurement == \"rover_status\" and r.rover == \"${rover}\")\n  |> last()\n  |> keep(columns: [\"_time\"])"
+          "query": "from(bucket: \"muni\")\n  |> range(start: -1h)\n  |> filter(fn: (r) => r._measurement == \"rover_status\" and r.rover == \"${rover}\")\n  |> last()\n  |> keep(columns: [\"_time\"])"
         }
       ]
     },
@@ -135,7 +135,7 @@
       "targets": [
         {
           "refId": "A",
-          "query": "from(bucket: \"bvr\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"rover_status\" and r.rover == \"${rover}\" and r._field == \"battery\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)"
+          "query": "from(bucket: \"muni\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"rover_status\" and r.rover == \"${rover}\" and r._field == \"battery\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)"
         }
       ]
     },
@@ -156,7 +156,7 @@
       "targets": [
         {
           "refId": "A",
-          "query": "from(bucket: \"bvr\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"motors\" and r.rover == \"${rover}\" and r._field == \"temp\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)"
+          "query": "from(bucket: \"muni\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"motors\" and r.rover == \"${rover}\" and r._field == \"temp\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)"
         }
       ]
     },
@@ -175,7 +175,7 @@
       "targets": [
         {
           "refId": "A",
-          "query": "from(bucket: \"bvr\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"velocity\" and r.rover == \"${rover}\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)"
+          "query": "from(bucket: \"muni\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"velocity\" and r.rover == \"${rover}\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)"
         }
       ]
     },
@@ -194,7 +194,7 @@
       "targets": [
         {
           "refId": "A",
-          "query": "from(bucket: \"bvr\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"motors\" and r.rover == \"${rover}\" and r._field == \"current\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)"
+          "query": "from(bucket: \"muni\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"motors\" and r.rover == \"${rover}\" and r._field == \"current\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)"
         }
       ]
     },
@@ -218,7 +218,7 @@
       "targets": [
         {
           "refId": "A",
-          "query": "from(bucket: \"bvr\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"rover_status\" and r.rover == \"${rover}\" and r._field == \"mode\")"
+          "query": "from(bucket: \"muni\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"rover_status\" and r.rover == \"${rover}\" and r._field == \"mode\")"
         }
       ]
     }

@@ -1,50 +1,49 @@
-# bvr
+# Muni
 
-**Base Vectoring Rover** — Muni's foundational mobile platform.
-
-24×24" footprint, 4 hoverboard hub motors, 2020 aluminum chassis, 48V/12V power rails.
+Municipal robotics platform.
 
 ## Repository Structure
 
 ```
-bvr/
-├── firmware/       # Rust — onboard software (Jetson Orin NX)
-├── depot/          # Base station — fleet monitoring infrastructure
-├── cad/            # Mechanical design (STEP, native files)
-├── electrical/     # Schematics, PCB designs, BOM
-├── manufacturing/  # Assembly procedures, test fixtures
-└── docs/           # Product documentation
+muni/
+├── depot/          # Base station — fleet monitoring, teleop, metrics
+├── bvr/            # Base Vectoring Rover (first morphology)
+│   ├── firmware/   # Rust — onboard software (Jetson Orin NX)
+│   ├── cad/        # Mechanical design (STEP, native files)
+│   ├── electrical/ # Schematics, PCB designs, BOM
+│   ├── manufacturing/  # Assembly procedures, test fixtures
+│   └── docs/       # BVR-specific documentation
+└── docs/           # Platform-level documentation
 ```
+
+## Morphologies
+
+| Name | Description | Status |
+|------|-------------|--------|
+| [BVR](bvr/) | 4-wheel skid-steer rover, 24×24" footprint | Active |
 
 ## Getting Started
 
-### Firmware
-
-```bash
-cd firmware
-cargo build --release
-```
-
-See [firmware/README.md](firmware/README.md) for details.
-
 ### Base Station (Depot)
+
+The depot provides fleet monitoring and teleop for all morphologies:
 
 ```bash
 cd depot
-./scripts/setup.sh
+docker compose up -d
 ```
 
-See [depot/README.md](depot/README.md) for fleet monitoring setup.
+See [depot/README.md](depot/README.md) for details.
 
-## Hardware
+### BVR Firmware
 
-- **Compute:** Jetson Orin NX
-- **Motors:** 4× hoverboard hub motors
-- **Control:** 4× ESCs over CAN bus
-- **Power:** 48V main rail, 12V accessory rail
-- **Chassis:** 2020 aluminum extrusion, 24×24"
+```bash
+cd bvr/firmware
+cargo build --release
+```
+
+See [bvr/firmware/README.md](bvr/firmware/README.md) for details.
 
 ## License
 
 Proprietary — Muni Municipal Robotics
-

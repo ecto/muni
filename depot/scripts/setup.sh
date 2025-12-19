@@ -67,7 +67,7 @@ fi
 source .env
 
 # Create sessions directory
-SESSIONS_PATH="${SESSIONS_PATH:-/data/bvr-sessions}"
+SESSIONS_PATH="${SESSIONS_PATH:-/data/muni-sessions}"
 echo "Creating sessions directory: ${SESSIONS_PATH}"
 sudo mkdir -p "$SESSIONS_PATH"
 sudo chown 1000:1000 "$SESSIONS_PATH"

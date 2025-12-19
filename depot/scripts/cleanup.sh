@@ -23,7 +23,7 @@ if [ -f "$ENV_FILE" ]; then
 fi
 
 # Configuration
-SESSIONS_PATH="${SESSIONS_PATH:-/data/bvr-sessions}"
+SESSIONS_PATH="${SESSIONS_PATH:-/data/muni-sessions}"
 RETENTION_DAYS="${RETENTION_DAYS:-30}"
 
 echo "$(date -Iseconds) Starting cleanup (retention: ${RETENTION_DAYS} days)"

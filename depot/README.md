@@ -1,6 +1,6 @@
 # Depot
 
-Depot is the base station infrastructure for the BVR rover fleet. It provides:
+Depot is the base station infrastructure for the Muni robot fleet. It provides:
 
 - **Web operator** for browser-based teleop with 360° video
 - **Real-time metrics** via InfluxDB (battery, motors, GPS, mode)
@@ -13,9 +13,9 @@ Depot is the base station infrastructure for the BVR rover fleet. It provides:
 ```
 Rovers                          Depot
 ┌─────────┐                     ┌─────────────────────────────┐
-│  bvr-01 │──UDP metrics──────▶│  InfluxDB (:8086, :8089)    │
-│  bvr-02 │──rclone SFTP──────▶│  SFTP (:2222)               │
-│  bvr-0N │◀─WebSocket─────────│  Operator (:8080)           │
+│ rover-01│──UDP metrics──────▶│  InfluxDB (:8086, :8089)    │
+│ rover-02│──rclone SFTP──────▶│  SFTP (:2222)               │
+│ rover-0N│◀─WebSocket─────────│  Operator (:8080)           │
 └─────────┘                     │  Grafana (:3000)            │
                                 └─────────────────────────────┘
 ```
@@ -39,12 +39,12 @@ This starts all services with default development credentials.
 
 ### Access
 
-| Service  | URL                   | Default Credentials |
-| -------- | --------------------- | ------------------- |
-| Operator | http://localhost:8080 | None (public)       |
-| Grafana  | http://localhost:3000 | admin / bvrpassword |
-| InfluxDB | http://localhost:8086 | admin / bvrpassword |
-| SFTP     | localhost:2222        | bvr / SSH key auth  |
+| Service  | URL                   | Default Credentials  |
+| -------- | --------------------- | -------------------- |
+| Operator | http://localhost:8080 | None (public)        |
+| Grafana  | http://localhost:3000 | admin / munipassword |
+| InfluxDB | http://localhost:8086 | admin / munipassword |
+| SFTP     | localhost:2222        | muni / SSH key auth  |
 
 ### Production Setup
 
@@ -62,7 +62,7 @@ Copy `.env.example` to `.env` and customize:
 INFLUXDB_ADMIN_USER=admin
 INFLUXDB_ADMIN_PASSWORD=<secure-password>
 INFLUXDB_ORG=muni
-INFLUXDB_BUCKET=bvr
+INFLUXDB_BUCKET=muni
 INFLUXDB_ADMIN_TOKEN=<secure-token>
 
 # Grafana
@@ -70,7 +70,7 @@ GRAFANA_ADMIN_USER=admin
 GRAFANA_ADMIN_PASSWORD=<secure-password>
 
 # Storage
-SESSIONS_PATH=/data/bvr-sessions
+SESSIONS_PATH=/data/muni-sessions
 RETENTION_DAYS=30
 ```
 
@@ -90,9 +90,13 @@ On the rover side, configure rclone with the corresponding private key.
 
 ## Rover Configuration
 
-### Metrics Push
+Configuration varies by morphology. See the morphology-specific docs:
 
-In the rover's `bvr.toml`:
+- **BVR**: See [bvr/docs/](../bvr/docs/) for BVR-specific configuration
+
+### Metrics Push (General)
+
+Rovers push metrics via UDP to InfluxDB. Example config:
 
 ```toml
 [metrics]
@@ -101,31 +105,17 @@ endpoint = "depot.local:8089"  # or IP address
 interval_hz = 1
 ```
 
-Or via CLI:
+### Session Sync (General)
 
-```bash
-bvrd --metrics-endpoint depot.local:8089
-```
-
-### Session Sync
-
-Configure rclone on each rover (`/etc/bvr/rclone.conf`):
+Configure rclone on each rover for session upload:
 
 ```ini
 [base]
 type = sftp
 host = depot.local
 port = 2222
-user = bvr
-key_file = /etc/bvr/id_ed25519
-```
-
-And in `bvr.toml`:
-
-```toml
-[sync]
-enabled = true
-destination = "base:sessions"
+user = muni
+key_file = /etc/muni/id_ed25519
 ```
 
 ## Dashboards
@@ -225,7 +215,7 @@ docker compose logs -f sftp
 
 3. Test connection from rover:
    ```bash
-   sftp -P 2222 -i /etc/bvr/id_ed25519 bvr@depot.local
+   sftp -P 2222 -i /path/to/key muni@depot.local
    ```
 
 ### High disk usage
@@ -233,7 +223,7 @@ docker compose logs -f sftp
 1. Check session storage:
 
    ```bash
-   du -sh /data/bvr-sessions/*
+   du -sh /data/muni-sessions/*
    ```
 
 2. Run cleanup manually:
@@ -254,7 +244,7 @@ docker compose logs -f sftp
 | 8086 | TCP      | InfluxDB | HTTP API + Web UI     |
 | 8089 | UDP      | InfluxDB | Line protocol metrics |
 
-## RTK Base Station (bvr1)
+## RTK Base Station
 
 For centimeter-accurate georeferenced mapping, the depot can host an RTK GPS
 base station that broadcasts corrections to rovers.
@@ -309,7 +299,7 @@ ntrip-caster:
 
 ### Rover Configuration
 
-On each rover, configure NTRIP client in `bvr.toml`:
+On each rover, configure NTRIP client. Example for BVR (`bvr.toml`):
 
 ```toml
 [gps]
@@ -327,7 +317,7 @@ The base station must be surveyed to determine its precise location:
 2. **Wait for position to converge** (10cm accuracy target)
 3. **Save fixed coordinates** to config
 
-See [docs/hardware/rtk.md](../docs/hardware/rtk.md) for detailed setup instructions.
+See morphology-specific docs for detailed RTK setup instructions.
 
 ### Network Ports
 

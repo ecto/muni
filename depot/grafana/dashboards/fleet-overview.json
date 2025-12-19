@@ -1,7 +1,7 @@
 {
-  "uid": "bvr-fleet-overview",
+  "uid": "muni-fleet-overview",
   "title": "Fleet Overview",
-  "tags": ["bvr", "fleet"],
+  "tags": ["muni", "fleet"],
   "timezone": "browser",
   "refresh": "5s",
   "schemaVersion": 39,
@@ -46,7 +46,7 @@
       "targets": [
         {
           "refId": "A",
-          "query": "from(bucket: \"bvr\")\n  |> range(start: -5m)\n  |> filter(fn: (r) => r._measurement == \"rover_status\")\n  |> last()\n  |> pivot(rowKey: [\"rover\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> keep(columns: [\"rover\", \"battery\", \"mode\", \"_time\"])\n  |> rename(columns: {_time: \"Last Seen\"})"
+          "query": "from(bucket: \"muni\")\n  |> range(start: -5m)\n  |> filter(fn: (r) => r._measurement == \"rover_status\")\n  |> last()\n  |> pivot(rowKey: [\"rover\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> keep(columns: [\"rover\", \"battery\", \"mode\", \"_time\"])\n  |> rename(columns: {_time: \"Last Seen\"})"
         }
       ]
     },
@@ -80,7 +80,7 @@
       "targets": [
         {
           "refId": "A",
-          "query": "from(bucket: \"bvr\")\n  |> range(start: -5m)\n  |> filter(fn: (r) => r._measurement == \"rover_status\" and r._field == \"battery\")\n  |> last()\n  |> group(columns: [\"rover\"])"
+          "query": "from(bucket: \"muni\")\n  |> range(start: -5m)\n  |> filter(fn: (r) => r._measurement == \"rover_status\" and r._field == \"battery\")\n  |> last()\n  |> group(columns: [\"rover\"])"
         }
       ]
     },
@@ -114,7 +114,7 @@
       "targets": [
         {
           "refId": "A",
-          "query": "from(bucket: \"bvr\")\n  |> range(start: -5m)\n  |> filter(fn: (r) => r._measurement == \"motors\" and r._field == \"temp\")\n  |> last()\n  |> group(columns: [\"rover\"])\n  |> max()"
+          "query": "from(bucket: \"muni\")\n  |> range(start: -5m)\n  |> filter(fn: (r) => r._measurement == \"motors\" and r._field == \"temp\")\n  |> last()\n  |> group(columns: [\"rover\"])\n  |> max()"
         }
       ]
     },
@@ -150,7 +150,7 @@
       "targets": [
         {
           "refId": "A",
-          "query": "from(bucket: \"bvr\")\n  |> range(start: -5m)\n  |> filter(fn: (r) => r._measurement == \"gps\")\n  |> last()\n  |> pivot(rowKey: [\"rover\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> keep(columns: [\"rover\", \"latitude\", \"longitude\"])"
+          "query": "from(bucket: \"muni\")\n  |> range(start: -5m)\n  |> filter(fn: (r) => r._measurement == \"gps\")\n  |> last()\n  |> pivot(rowKey: [\"rover\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> keep(columns: [\"rover\", \"latitude\", \"longitude\"])"
         }
       ]
     },
@@ -180,15 +180,15 @@
       "targets": [
         {
           "refId": "offline",
-          "query": "from(bucket: \"bvr\")\n  |> range(start: -5m)\n  |> filter(fn: (r) => r._measurement == \"rover_status\")\n  |> last()\n  |> filter(fn: (r) => r._time < now() - 2m)\n  |> count()\n  |> set(key: \"_field\", value: \"Offline Rovers\")"
+          "query": "from(bucket: \"muni\")\n  |> range(start: -5m)\n  |> filter(fn: (r) => r._measurement == \"rover_status\")\n  |> last()\n  |> filter(fn: (r) => r._time < now() - 2m)\n  |> count()\n  |> set(key: \"_field\", value: \"Offline Rovers\")"
         },
         {
           "refId": "lowbattery",
-          "query": "from(bucket: \"bvr\")\n  |> range(start: -5m)\n  |> filter(fn: (r) => r._measurement == \"rover_status\" and r._field == \"battery\")\n  |> last()\n  |> filter(fn: (r) => r._value < 42)\n  |> count()\n  |> set(key: \"_field\", value: \"Low Battery\")"
+          "query": "from(bucket: \"muni\")\n  |> range(start: -5m)\n  |> filter(fn: (r) => r._measurement == \"rover_status\" and r._field == \"battery\")\n  |> last()\n  |> filter(fn: (r) => r._value < 42)\n  |> count()\n  |> set(key: \"_field\", value: \"Low Battery\")"
         },
         {
           "refId": "hightemp",
-          "query": "from(bucket: \"bvr\")\n  |> range(start: -5m)\n  |> filter(fn: (r) => r._measurement == \"motors\" and r._field == \"temp\")\n  |> last()\n  |> filter(fn: (r) => r._value > 75)\n  |> count()\n  |> set(key: \"_field\", value: \"High Motor Temp\")"
+          "query": "from(bucket: \"muni\")\n  |> range(start: -5m)\n  |> filter(fn: (r) => r._measurement == \"motors\" and r._field == \"temp\")\n  |> last()\n  |> filter(fn: (r) => r._value > 75)\n  |> count()\n  |> set(key: \"_field\", value: \"High Motor Temp\")"
         }
       ]
     }
