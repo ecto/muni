@@ -38,6 +38,10 @@ clap = { version = "4", features = ["derive"] }
 # JSON
 serde_json = "1"
 
+# WebSocket
+tokio-tungstenite = "0.26"
+futures-util = "0.3"
+
 # Internal crates
 types = { path = "crates/types" }
 can = { path = "crates/can" }
@@ -53,5 +57,6 @@ gps = { path = "crates/gps" }
 localization = { path = "crates/localization" }
 recording = { path = "crates/recording" }
 metrics = { path = "crates/metrics" }
+
 
 

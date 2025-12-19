@@ -3,6 +3,7 @@
 //! Handles command reception and telemetry transmission over unreliable links.
 
 pub mod video;
+pub mod ws;
 
 use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
@@ -247,5 +248,6 @@ pub async fn send_estop(addr: &str) -> Result<(), TeleopError> {
     socket.send_to(&[0x02], addr).await?;
     Ok(())
 }
+
 
 
