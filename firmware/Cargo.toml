@@ -52,5 +52,6 @@ camera = { path = "crates/camera" }
 gps = { path = "crates/gps" }
 localization = { path = "crates/localization" }
 recording = { path = "crates/recording" }
+metrics = { path = "crates/metrics" }
 
 

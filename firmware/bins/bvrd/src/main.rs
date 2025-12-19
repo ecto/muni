@@ -8,6 +8,7 @@ use clap::Parser;
 use control::{ChassisParams, DiffDriveMixer, Limits, RateLimiter, Watchdog};
 use gps::{Config as GpsConfig, GpsReader, GpsState};
 use localization::{PoseEstimator, WheelOdometry};
+use metrics::{Config as MetricsConfig, MetricsPusher, MetricsSnapshot};
 use recording::{Config as RecordingConfig, Recorder};
 use sim::SimBus;
 use state::{Event, StateMachine};
@@ -90,6 +91,18 @@ struct Args {
     /// Log level (trace, debug, info, warn, error)
     #[arg(long, default_value = "info")]
     log_level: String,
+
+    /// Disable metrics push to Depot
+    #[arg(long)]
+    no_metrics: bool,
+
+    /// Depot metrics endpoint (e.g., "depot.local:8089")
+    #[arg(long, default_value = "depot.local:8089")]
+    metrics_endpoint: String,
+
+    /// Metrics push rate in Hz
+    #[arg(long, default_value = "1")]
+    metrics_hz: u32,
 }
 
 /// CAN interface abstraction for real or simulated hardware.
@@ -185,6 +198,32 @@ async fn main() -> Result<()> {
             }
         }
     };
+
+    // Initialize metrics pusher for Depot
+    let (metrics_tx, metrics_rx) = watch::channel(MetricsSnapshot::default());
+    if !args.no_metrics {
+        let metrics_config = MetricsConfig {
+            enabled: true,
+            endpoint: args.metrics_endpoint.clone(),
+            interval_hz: args.metrics_hz,
+            rover_id: args.rover_id.clone(),
+        };
+        match MetricsPusher::new(&metrics_config) {
+            Ok(pusher) => {
+                info!(
+                    endpoint = %metrics_config.endpoint,
+                    hz = metrics_config.interval_hz,
+                    "Metrics push enabled"
+                );
+                tokio::spawn(pusher.run(metrics_rx));
+            }
+            Err(e) => {
+                warn!(?e, "Failed to start metrics pusher - continuing without metrics");
+            }
+        }
+    } else {
+        info!("Metrics push disabled");
+    }
 
     // Initialize CAN interface
     let vesc_ids: [u8; 4] = args.vesc_ids.try_into().expect("Need exactly 4 VESC IDs");
@@ -620,6 +659,23 @@ async fn main() -> Result<()> {
         };
 
         let _ = telemetry_tx.send(telemetry.clone());
+
+        // Update metrics snapshot for Depot push
+        let gps_state = gps_rx.borrow();
+        let metrics_snapshot = MetricsSnapshot {
+            mode: telemetry.mode,
+            battery_voltage: telemetry.power.battery_voltage,
+            system_current: telemetry.power.system_current,
+            motor_temps: telemetry.motor_temps,
+            motor_currents: telemetry.motor_currents,
+            velocity_linear: telemetry.velocity.linear,
+            velocity_angular: telemetry.velocity.angular,
+            gps_latitude: gps_state.coord.as_ref().map(|c| c.lat).unwrap_or(0.0),
+            gps_longitude: gps_state.coord.as_ref().map(|c| c.lon).unwrap_or(0.0),
+            gps_accuracy: gps_state.coord.as_ref().map(|c| c.accuracy).unwrap_or(0.0),
+        };
+        drop(gps_state);
+        let _ = metrics_tx.send(metrics_snapshot);
 
         // Record telemetry to Rerun session
         let time_secs = SystemTime::now()

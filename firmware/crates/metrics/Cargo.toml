@@ -1,0 +1,14 @@
+[package]
+name = "metrics"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Real-time metrics push to InfluxDB for BVR rovers"
+
+[dependencies]
+tokio = { workspace = true, features = ["net", "time", "sync"] }
+tracing = { workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }
+
+types = { workspace = true }

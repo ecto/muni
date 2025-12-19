@@ -19,6 +19,7 @@ camera = { workspace = true }
 gps = { workspace = true }
 localization = { workspace = true }
 recording = { workspace = true }
+metrics = { workspace = true }
 
 tokio = { workspace = true }
 serde = { workspace = true }

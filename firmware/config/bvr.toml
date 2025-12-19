@@ -88,4 +88,11 @@ interval_secs = 900  # 15 minutes
 # Minimum file age before syncing (avoids syncing active files)
 min_age_secs = 60
 
-
+[metrics]
+# Enable real-time metrics push to Depot
+enabled = true
+# Depot endpoint (IP:port or hostname:port)
+# InfluxDB listens on UDP port 8089 for line protocol
+endpoint = "depot.local:8089"
+# Push rate in Hz (1 = once per second, recommended)
+interval_hz = 1
