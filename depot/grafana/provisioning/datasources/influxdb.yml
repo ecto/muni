@@ -14,4 +14,3 @@ datasources:
       token: ${INFLUXDB_TOKEN}
     isDefault: true
     editable: false
-

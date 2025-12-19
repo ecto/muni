@@ -18,8 +18,8 @@ muni/
 
 ## Morphologies
 
-| Name | Description | Status |
-|------|-------------|--------|
+| Name        | Description                                | Status |
+| ----------- | ------------------------------------------ | ------ |
 | [BVR](bvr/) | 4-wheel skid-steer rover, 24×24" footprint | Active |
 
 ## Getting Started
