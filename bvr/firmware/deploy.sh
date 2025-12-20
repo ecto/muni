@@ -23,7 +23,7 @@ BINARY="bvrd"
 REMOTE_USER="${REMOTE_USER:-cam}"
 REMOTE_PATH="/usr/local/bin"
 CONFIG_PATH="/etc/bvr"
-RESTART=false
+RESTART=true           # Restart service by default
 SYNC_CONFIG=false
 INSTALL_SERVICES=false
 INSTALL_SYNC=false
@@ -32,19 +32,22 @@ usage() {
     echo "Usage: $0 <hostname> [options]"
     echo ""
     echo "Options:"
-    echo "  --restart     Restart bvrd service after deploy"
+    echo "  --no-restart  Don't restart bvrd service after deploy"
     echo "  --config      Also sync config/bvr.toml"
     echo "  --services    Install/update systemd services (can, bvrd, kiosk)"
     echo "  --sync        Install sync timer (bvr-sync.service, bvr-sync.timer)"
     echo "  --user USER   SSH user (default: cam, or \$REMOTE_USER)"
     echo "  --cli         Also deploy the bvr CLI tool"
-    echo "  --all         Deploy everything (--cli --config --services --restart)"
+    echo "  --all         Deploy everything (--cli --config --services --sync)"
     echo "  --help        Show this help"
     echo ""
+    echo "By default, deploys bvrd and restarts the service."
+    echo ""
     echo "Examples:"
-    echo "  $0 frog-0                    # Deploy bvrd only"
-    echo "  $0 frog-0 --cli --restart    # Deploy bvrd + CLI, restart service"
+    echo "  $0 frog-0                    # Deploy bvrd and restart"
+    echo "  $0 frog-0 --cli              # Deploy bvrd + CLI"
     echo "  $0 frog-0 --all              # Full deploy with services"
+    echo "  $0 frog-0 --no-restart       # Deploy without restarting"
     exit 1
 }
 
@@ -56,6 +59,10 @@ while [[ $# -gt 0 ]]; do
     case $1 in
         --restart)
             RESTART=true
+            shift
+            ;;
+        --no-restart)
+            RESTART=false
             shift
             ;;
         --config)
