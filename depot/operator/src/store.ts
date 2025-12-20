@@ -82,6 +82,7 @@ const defaultInput: GamepadInput = {
   actionB: false,
   estop: false,
   enable: false,
+  boost: false,
   cameraYaw: 0,
   cameraPitch: 0,
 };

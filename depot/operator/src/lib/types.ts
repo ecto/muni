@@ -53,6 +53,7 @@ export interface GamepadInput {
   actionB: boolean;
   estop: boolean;
   enable: boolean;
+  boost: boolean; // L3 or Shift for full power mode
   cameraYaw: number;
   cameraPitch: number;
 }
