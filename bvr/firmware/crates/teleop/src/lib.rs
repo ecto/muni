@@ -155,11 +155,12 @@ impl Server {
         // [0] = message type
         // [1..] = payload
         match data[0] {
-            // Twist command
+            // Twist command (with optional boost byte)
             0x01 if data.len() >= 17 => {
                 let linear = f64::from_le_bytes(data[1..9].try_into().ok()?);
                 let angular = f64::from_le_bytes(data[9..17].try_into().ok()?);
-                Some(Command::Twist(Twist { linear, angular }))
+                let boost = data.get(17).map(|&b| b != 0).unwrap_or(false);
+                Some(Command::Twist(Twist { linear, angular, boost }))
             }
             // E-Stop
             0x02 => Some(Command::EStop),

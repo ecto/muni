@@ -9,6 +9,9 @@ pub struct Twist {
     pub linear: f64,
     /// Angular velocity in rad/s (positive = counter-clockwise)
     pub angular: f64,
+    /// Boost mode (shift/L3) - removes speed limiter for full power
+    #[serde(default)]
+    pub boost: bool,
 }
 
 /// Individual wheel velocity command (rad/s).
