@@ -8,7 +8,7 @@ use clap::Parser;
 use control::{ChassisParams, DiffDriveMixer, Limits, RateLimiter, Watchdog};
 use gps::{Config as GpsConfig, GpsReader, GpsState};
 use localization::{PoseEstimator, WheelOdometry};
-use metrics::{Config as MetricsConfig, MetricsPusher, MetricsSnapshot};
+use metrics::{Config as MetricsConfig, DiscoveryClient, DiscoveryConfig, MetricsPusher, MetricsSnapshot};
 use recording::{Config as RecordingConfig, Recorder};
 use sim::SimBus;
 use state::{Event, StateMachine};
@@ -42,8 +42,8 @@ struct Args {
     #[arg(long, default_values_t = vec![0, 1, 2, 3])]
     vesc_ids: Vec<u8>,
 
-    /// Motor pole pairs
-    #[arg(long, default_value = "15")]
+    /// Motor pole pairs (32 poles = 16 pole pairs)
+    #[arg(long, default_value = "16")]
     pole_pairs: u8,
 
     /// Enable simulation mode (no real hardware)
@@ -106,13 +106,21 @@ struct Args {
     #[arg(long)]
     no_metrics: bool,
 
-    /// Depot metrics endpoint (e.g., "depot.local:8089")
-    #[arg(long, default_value = "depot.local:8089")]
+    /// Depot metrics endpoint (e.g., "depot:8089")
+    #[arg(long, default_value = "depot:8089")]
     metrics_endpoint: String,
 
     /// Metrics push rate in Hz
     #[arg(long, default_value = "1")]
     metrics_hz: u32,
+
+    /// Disable discovery service registration
+    #[arg(long)]
+    no_discovery: bool,
+
+    /// Depot discovery endpoint (e.g., "depot:4860")
+    #[arg(long, default_value = "depot:4860")]
+    discovery_endpoint: String,
 }
 
 /// CAN interface abstraction for real or simulated hardware.
@@ -225,7 +233,7 @@ async fn main() -> Result<()> {
                     hz = metrics_config.interval_hz,
                     "Metrics push enabled"
                 );
-                tokio::spawn(pusher.run(metrics_rx));
+                tokio::spawn(pusher.run(metrics_rx.clone()));
             }
             Err(e) => {
                 warn!(?e, "Failed to start metrics pusher - continuing without metrics");
@@ -233,6 +241,33 @@ async fn main() -> Result<()> {
         }
     } else {
         info!("Metrics push disabled");
+    }
+
+    // Initialize discovery client for Depot
+    if !args.no_discovery {
+        let discovery_config = DiscoveryConfig {
+            enabled: true,
+            endpoint: args.discovery_endpoint.clone(),
+            heartbeat_secs: 2,
+            rover_id: args.rover_id.clone(),
+            rover_name: args.rover_id.replace("bvr-", "Beaver-"),
+            ws_port: args.ws_port,
+            ws_video_port: args.ws_video_port,
+        };
+
+        let discovery_client = DiscoveryClient::new(discovery_config);
+        let discovery_rx = metrics_rx.clone();
+
+        tokio::spawn(async move {
+            discovery_client.run(discovery_rx).await;
+        });
+
+        info!(
+            endpoint = %args.discovery_endpoint,
+            "Discovery client started"
+        );
+    } else {
+        info!("Discovery registration disabled");
     }
 
     // Initialize CAN interface
@@ -250,7 +285,8 @@ async fn main() -> Result<()> {
     let drivetrain = Drivetrain::new(vesc_ids, args.pole_pairs);
 
     // Chassis parameters (TODO: load from config)
-    let chassis = ChassisParams::new(0.165, 0.55, 0.55);
+    // Wheel diameter: 160mm, track width: 550mm, wheelbase: 550mm
+    let chassis = ChassisParams::new(0.160, 0.55, 0.55);
     let limits = Limits::default();
 
     // Shared state
@@ -462,8 +498,8 @@ async fn main() -> Result<()> {
     let mut last_tick = Instant::now();
 
     // Smoothing filter for commanded twist (reduces jitter from network/input noise)
-    // Alpha = 0.15 gives ~7 cycle time constant (~70ms smoothing at 100Hz)
-    let smoothing_alpha = 0.15;
+    // Alpha = 0.5 gives ~2 cycle time constant (~20ms smoothing at 100Hz)
+    let smoothing_alpha = 0.5;
     let mut smoothed_twist = Twist::default();
 
     // Current tool command (from teleop)
@@ -534,6 +570,10 @@ async fn main() -> Result<()> {
                     smoothed_twist = Twist::default();
                     rate_limiter.reset();
                 }
+                Command::EStopRelease => {
+                    info!("E-Stop release command received");
+                    state.state_machine.transition(Event::EStopRelease);
+                }
                 Command::SetMode(mode) => {
                     let event = match mode {
                         Mode::Disabled => Event::Disable,
@@ -583,24 +623,35 @@ async fn main() -> Result<()> {
         twist.angular *= 2.5;
 
         let wheel_vels = mixer.mix(twist);
-        let wheel_rpms = mixer.to_rpm(&wheel_vels);
+
+        // Convert wheel velocities (rad/s) to duty cycle (-1.0 to 1.0)
+        // Using duty cycle control for smoother low-speed operation with hall sensors
+        // Max wheel velocity at 5 m/s with 0.08m radius = 62.5 rad/s
+        const MAX_WHEEL_VEL: f64 = 62.5;
+        const MAX_DUTY: f64 = 0.85; // Leave 15% headroom
+        let wheel_duties: [f64; 4] = [
+            (wheel_vels.front_left / MAX_WHEEL_VEL * MAX_DUTY).clamp(-MAX_DUTY, MAX_DUTY),
+            (wheel_vels.front_right / MAX_WHEEL_VEL * MAX_DUTY).clamp(-MAX_DUTY, MAX_DUTY),
+            (wheel_vels.rear_left / MAX_WHEEL_VEL * MAX_DUTY).clamp(-MAX_DUTY, MAX_DUTY),
+            (wheel_vels.rear_right / MAX_WHEEL_VEL * MAX_DUTY).clamp(-MAX_DUTY, MAX_DUTY),
+        ];
 
         // Log wheel commands when turning (left != right)
-        if (wheel_rpms[0] - wheel_rpms[1]).abs() > 1.0 {
+        if (wheel_duties[0] - wheel_duties[1]).abs() > 0.01 {
             info!(
-                fl = wheel_rpms[0] as i32,
-                fr = wheel_rpms[1] as i32,
-                rl = wheel_rpms[2] as i32,
-                rr = wheel_rpms[3] as i32,
-                "Wheel RPMs (turning)"
+                fl = format!("{:.2}", wheel_duties[0]),
+                fr = format!("{:.2}", wheel_duties[1]),
+                rl = format!("{:.2}", wheel_duties[2]),
+                rr = format!("{:.2}", wheel_duties[3]),
+                "Wheel duties (turning)"
             );
         }
 
-        // Send to VESCs
-        let vesc_cmds = state.drivetrain.build_rpm_commands(wheel_rpms);
+        // Send to VESCs using duty cycle control (smoother than RPM at low speeds)
+        let vesc_cmds = state.drivetrain.build_duty_commands(wheel_duties);
         for frame in vesc_cmds {
             if let Err(e) = can_interface.send(&frame) {
-                error!(?e, "Failed to send RPM to drivetrain");
+                error!(?e, "Failed to send duty to drivetrain");
             }
         }
 
