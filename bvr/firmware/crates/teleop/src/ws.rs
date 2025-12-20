@@ -154,6 +154,8 @@ fn parse_command(data: &[u8]) -> Option<Command> {
         0x02 => Some(Command::EStop),
         // Heartbeat
         0x03 => Some(Command::Heartbeat),
+        // E-Stop Release
+        0x06 => Some(Command::EStopRelease),
         // Set mode
         0x04 if data.len() >= 2 => {
             let mode = match data[1] {

@@ -3,6 +3,7 @@ import { useOperatorStore } from "@/store";
 import {
   encodeTwist,
   encodeEStop,
+  encodeEStopRelease,
   encodeHeartbeat,
   encodeTool,
   decodeTelemetry,
@@ -165,14 +166,16 @@ export function useRoverConnection() {
     setConnected(false);
   }, [clearIntervals, setConnected]);
 
-  // Connect on mount, disconnect on unmount
+  // Connect when component mounts (TeleopScreen), disconnect on unmount
   useEffect(() => {
     connect();
 
     return () => {
       disconnect();
     };
-  }, [connect, disconnect]);
+    // Note: we intentionally only run this on mount/unmount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Expose methods for manual control
   return {
@@ -181,6 +184,11 @@ export function useRoverConnection() {
     sendEStop: useCallback(() => {
       if (wsRef.current?.readyState === WebSocket.OPEN) {
         wsRef.current.send(encodeEStop());
+      }
+    }, []),
+    sendEStopRelease: useCallback(() => {
+      if (wsRef.current?.readyState === WebSocket.OPEN) {
+        wsRef.current.send(encodeEStopRelease());
       }
     }, []),
   };

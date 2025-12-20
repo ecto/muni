@@ -102,6 +102,8 @@ pub enum Command {
     SetMode(Mode),
     /// Emergency stop
     EStop,
+    /// Release emergency stop (return to Idle)
+    EStopRelease,
     /// Heartbeat (keep-alive)
     Heartbeat,
     /// Tool command

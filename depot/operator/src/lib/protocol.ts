@@ -7,6 +7,7 @@
  * - 0x03 Heartbeat: [type:u8]
  * - 0x04 SetMode: [type:u8] [mode:u8]
  * - 0x05 Tool: [type:u8] [axis:f32 LE] [motor:f32 LE] [action_a:u8] [action_b:u8]
+ * - 0x06 E-Stop Release: [type:u8]
  *
  * Telemetry (Rover → Operator):
  * - 0x10 Telemetry: [type:u8] [mode:u8] [pose:24B] [voltage:f64] [timestamp:u64] [velocity:16B] [temps:16B] [currents:16B]
@@ -26,6 +27,7 @@ export const MSG_ESTOP = 0x02;
 export const MSG_HEARTBEAT = 0x03;
 export const MSG_SET_MODE = 0x04;
 export const MSG_TOOL = 0x05;
+export const MSG_ESTOP_RELEASE = 0x06;
 export const MSG_TELEMETRY = 0x10;
 export const MSG_VIDEO_FRAME = 0x20;
 
@@ -46,6 +48,13 @@ export function encodeEStop(): ArrayBuffer {
   const buf = new ArrayBuffer(1);
   const view = new DataView(buf);
   view.setUint8(0, MSG_ESTOP);
+  return buf;
+}
+
+export function encodeEStopRelease(): ArrayBuffer {
+  const buf = new ArrayBuffer(1);
+  const view = new DataView(buf);
+  view.setUint8(0, MSG_ESTOP_RELEASE);
   return buf;
 }
 
