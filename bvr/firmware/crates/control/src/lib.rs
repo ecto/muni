@@ -89,11 +89,11 @@ pub struct Limits {
 impl Default for Limits {
     fn default() -> Self {
         Self {
-            max_linear: 3.0,
-            max_angular: 2.0,
-            max_accel: 2.0,
-            max_decel: 6.0,  // 3x faster deceleration for responsive stopping
-            max_wheel_rpm: 300.0,
+            max_linear: 5.0,
+            max_angular: 2.5,
+            max_accel: 3.0,
+            max_decel: 8.0,  // Faster decel for responsive stopping at higher speeds
+            max_wheel_rpm: 650.0, // ~5.5 m/s with 160mm wheels (headroom)
         }
     }
 }
@@ -198,7 +198,7 @@ mod tests {
 
     #[test]
     fn test_diff_drive_forward() {
-        let params = ChassisParams::new(0.165, 0.55, 0.55);
+        let params = ChassisParams::new(0.160, 0.55, 0.55);
         let mixer = DiffDriveMixer::new(params);
 
         let twist = Twist {
@@ -214,7 +214,7 @@ mod tests {
 
     #[test]
     fn test_diff_drive_rotate() {
-        let params = ChassisParams::new(0.165, 0.55, 0.55);
+        let params = ChassisParams::new(0.160, 0.55, 0.55);
         let mixer = DiffDriveMixer::new(params);
 
         let twist = Twist {

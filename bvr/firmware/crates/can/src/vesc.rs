@@ -97,6 +97,22 @@ impl Vesc {
         crate::Frame::new_extended(id, &data)
     }
 
+    /// Build a duty cycle command frame (without sending).
+    pub fn build_duty_frame(&self, duty: f32) -> crate::Frame {
+        let id = self.make_id(CommandId::SetDuty);
+        let duty_scaled = (duty.clamp(-1.0, 1.0) * 100_000.0) as i32;
+        let data = duty_scaled.to_be_bytes();
+        crate::Frame::new_extended(id, &data)
+    }
+
+    /// Build a current command frame (without sending).
+    pub fn build_current_frame(&self, current: f32) -> crate::Frame {
+        let id = self.make_id(CommandId::SetCurrent);
+        let current_ma = (current * 1000.0) as i32;
+        let data = current_ma.to_be_bytes();
+        crate::Frame::new_extended(id, &data)
+    }
+
     /// Send RPM command (ERPM = mechanical RPM × pole pairs).
     pub fn set_rpm(&self, bus: &Bus, erpm: i32) -> Result<(), CanError> {
         let id = self.make_id(CommandId::SetRpm);
@@ -245,6 +261,30 @@ impl Drivetrain {
             self.front_right.build_rpm_frame((rpm[1] * pp) as i32),
             self.rear_left.build_rpm_frame((rpm[2] * pp) as i32),
             self.rear_right.build_rpm_frame((rpm[3] * pp) as i32),
+        ]
+    }
+
+    /// Build duty cycle command frames for all wheels (without sending).
+    ///
+    /// Duty values are -1.0 to 1.0 (full reverse to full forward).
+    pub fn build_duty_commands(&self, duty: [f64; 4]) -> Vec<crate::Frame> {
+        vec![
+            self.front_left.build_duty_frame(duty[0] as f32),
+            self.front_right.build_duty_frame(duty[1] as f32),
+            self.rear_left.build_duty_frame(duty[2] as f32),
+            self.rear_right.build_duty_frame(duty[3] as f32),
+        ]
+    }
+
+    /// Build current (torque) command frames for all wheels (without sending).
+    ///
+    /// Current values are in amps (positive = forward torque).
+    pub fn build_current_commands(&self, current: [f64; 4]) -> Vec<crate::Frame> {
+        vec![
+            self.front_left.build_current_frame(current[0] as f32),
+            self.front_right.build_current_frame(current[1] as f32),
+            self.rear_left.build_current_frame(current[2] as f32),
+            self.rear_right.build_current_frame(current[3] as f32),
         ]
     }
 }
