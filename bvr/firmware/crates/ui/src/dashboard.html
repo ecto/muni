@@ -221,16 +221,16 @@
     </style>
 </head>
 <body>
-    <!-- Blocking overlay when not connected to operator -->
+    <!-- Blocking overlay for error states -->
     <div class="overlay visible" id="overlay">
         <svg class="overlay-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
             <path d="M8.288 15.038a5.25 5.25 0 017.424 0M5.106 11.856c3.807-3.808 9.98-3.808 13.788 0M1.924 8.674c5.565-5.565 14.587-5.565 20.152 0M12.53 18.22l-.53.53-.53-.53a.75.75 0 011.06 0z"/>
         </svg>
-        <div class="overlay-title" id="overlay-title">Waiting for Operator</div>
-        <div class="overlay-subtitle" id="overlay-subtitle">Connect from the depot to begin teleop session</div>
+        <div class="overlay-title" id="overlay-title">Connecting</div>
+        <div class="overlay-subtitle" id="overlay-subtitle">Waiting for rover daemon</div>
         <div class="overlay-status">
             <div class="overlay-dot pulse" id="overlay-dot"></div>
-            <span class="overlay-label" id="overlay-label">Standing by</span>
+            <span class="overlay-label" id="overlay-label">Connecting...</span>
         </div>
     </div>
 
@@ -354,9 +354,7 @@
             const dot = document.getElementById('overlay-dot');
             const label = document.getElementById('overlay-label');
 
-            // Show overlay if not connected to bvrd OR not in teleop mode
-            const inTeleop = currentMode === 'Teleop';
-
+            // Only show blocking overlay for error states - telemetry is always useful
             if (!connected) {
                 overlay.classList.add('visible');
                 title.textContent = 'Disconnected';
@@ -375,12 +373,6 @@
                 subtitle.textContent = 'System fault. Check logs for details.';
                 dot.className = 'overlay-dot error';
                 label.textContent = 'Fault';
-            } else if (!inTeleop) {
-                overlay.classList.add('visible');
-                title.textContent = 'Waiting for Operator';
-                subtitle.textContent = 'Connect from the depot to begin teleop session';
-                dot.className = 'overlay-dot pulse';
-                label.textContent = currentMode === 'Disabled' ? 'Disabled' : 'Standing by';
             } else {
                 overlay.classList.remove('visible');
             }

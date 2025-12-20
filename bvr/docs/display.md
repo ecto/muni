@@ -2,6 +2,8 @@
 
 The BVR can optionally connect a 7" HDMI display to the Jetson for local status monitoring. This displays the web dashboard in kiosk mode, providing at-a-glance telemetry without requiring remote access.
 
+> **Note:** The display is always internal-facing, intended for operational and debugging purposes during service. It is not visible from outside the shell. For external status indication, see [Status LEDs](#status-leds) below.
+
 ## What's Displayed
 
 The dashboard shows real-time rover status:
@@ -31,6 +33,7 @@ Mount the display where it's visible during field service but protected from imp
 - Ubuntu Desktop installed (not Server)
 - `bvrd.service` enabled and running
 - User account for auto-login (e.g., `cam`)
+- Firefox installed (comes with Ubuntu Desktop)
 
 ### 1. Configure Auto-Login
 
@@ -40,43 +43,39 @@ Edit GDM configuration:
 sudo nano /etc/gdm3/custom.conf
 ```
 
-Add under `[daemon]`:
+Set the `[daemon]` section to:
 
 ```ini
+[daemon]
+WaylandEnable=false
 AutomaticLoginEnable=true
 AutomaticLogin=cam
 ```
 
-### 2. Install Kiosk Service
+### 2. Create Autostart Entry
 
-Copy the service file:
+We use a desktop autostart file instead of a systemd service. Systemd services
+can't easily access the X display session due to authentication requirements.
 
 ```bash
-sudo cp /etc/bvr/kiosk.service /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable kiosk
+# Create autostart directory
+mkdir -p ~/.config/autostart
+
+# Create autostart entry (includes screen blanking prevention)
+cat > ~/.config/autostart/bvr-kiosk.desktop << 'EOF'
+[Desktop Entry]
+Type=Application
+Name=BVR Dashboard Kiosk
+Exec=bash -c 'xset s off && xset -dpms && xset s noblank && sleep 10 && firefox --kiosk http://localhost:8080'
+X-GNOME-Autostart-enabled=true
+EOF
 ```
 
-The service file (`firmware/config/kiosk.service`):
+The `xset` commands disable:
 
-```ini
-[Unit]
-Description=BVR Dashboard Kiosk
-After=bvrd.service graphical.target
-Wants=bvrd.service
-
-[Service]
-Type=simple
-User=cam
-Environment=DISPLAY=:0
-ExecStartPre=/bin/sleep 5
-ExecStart=/usr/bin/firefox --kiosk http://localhost:8080
-Restart=on-failure
-RestartSec=5
-
-[Install]
-WantedBy=graphical.target
-```
+- `s off` — screen saver
+- `-dpms` — display power management (prevents standby/suspend/off)
+- `s noblank` — screen blanking
 
 ### 3. Disable Screen Blanking
 
@@ -99,9 +98,9 @@ sudo reboot
 
 After reboot, the display should:
 
-1. Auto-login to desktop
-2. Wait for `bvrd` to start
-3. Launch Firefox in fullscreen kiosk mode showing the dashboard
+1. GDM auto-logs in as `cam`
+2. GNOME desktop starts
+3. After 10 seconds, Firefox launches in kiosk mode showing the dashboard
 
 ## Troubleshooting
 
@@ -109,7 +108,32 @@ After reboot, the display should:
 
 - Check HDMI connection and adapter
 - Verify display is powered (USB or 12V depending on model)
-- Check `journalctl -u kiosk` for errors
+- Check if GDM is running: `systemctl status gdm`
+
+### Still showing login screen
+
+Auto-login is not configured. Verify `/etc/gdm3/custom.conf` has:
+
+```ini
+[daemon]
+AutomaticLoginEnable=true
+AutomaticLogin=cam
+```
+
+### Firefox doesn't start
+
+Check if the autostart file exists:
+
+```bash
+cat ~/.config/autostart/bvr-kiosk.desktop
+```
+
+Check GNOME autostart is working:
+
+```bash
+# View running processes after login
+ps aux | grep firefox
+```
 
 ### Dashboard shows "Disconnected"
 
@@ -137,26 +161,65 @@ Section "Monitor"
 EndSection
 ```
 
-## Optional: Wayland
+## Why Not a Systemd Service?
 
-If using Wayland instead of X11, modify the kiosk service:
+A systemd service (`kiosk.service`) seems cleaner but doesn't work reliably because:
 
-```ini
-Environment=MOZ_ENABLE_WAYLAND=1
-ExecStart=/usr/bin/firefox --kiosk http://localhost:8080
-```
+1. System services run before the user's graphical session starts
+2. They can't access the X display without the user's `XAUTHORITY` token
+3. The `XAUTHORITY` path varies and may not exist at service start time
 
-## Deploy Script Integration
+The autostart desktop file runs within the user's GNOME session, so it
+automatically has display access.
 
-The kiosk service is installed automatically when using:
+## Remote Setup via SSH
 
-```bash
-./deploy.sh frog-0 --all
-```
-
-Or manually:
+To configure the kiosk on a new rover via SSH:
 
 ```bash
-./deploy.sh frog-0 --services
+ssh cam@<rover-hostname>
+
+# 1. Configure auto-login
+sudo sed -i '/^\[daemon\]/a AutomaticLoginEnable=true\nAutomaticLogin=cam' /etc/gdm3/custom.conf
+
+# 2. Create autostart entry (includes screen blanking prevention)
+mkdir -p ~/.config/autostart
+cat > ~/.config/autostart/bvr-kiosk.desktop << 'EOF'
+[Desktop Entry]
+Type=Application
+Name=BVR Dashboard Kiosk
+Exec=bash -c 'xset s off && xset -dpms && xset s noblank && sleep 10 && firefox --kiosk http://localhost:8080'
+X-GNOME-Autostart-enabled=true
+EOF
+
+# 3. Reboot
+sudo reboot
 ```
 
+---
+
+## Status LEDs
+
+For external status indication, a 12V addressable LED strip is mounted around the base of the rover shell. This provides at-a-glance status visible from any angle without requiring a window or external display.
+
+### Hardware
+
+| Part                  | Source | Notes                          |
+| --------------------- | ------ | ------------------------------ |
+| 12V addressable strip | Amazon | WS2811 or similar, IP65+ rated |
+| Level shifter         | —      | 3.3V GPIO → 5V/12V data signal |
+| Power                 | —      | Tapped from 12V rail           |
+
+### Status Patterns
+
+| State       | Pattern                        |
+| ----------- | ------------------------------ |
+| Boot        | Chase animation (white)        |
+| Idle        | Slow pulse (green)             |
+| Teleop      | Solid (blue)                   |
+| Autonomous  | Solid (purple)                 |
+| E-Stop      | Fast blink (red)               |
+| Fault       | Alternating blink (red/yellow) |
+| Low Battery | Slow blink (orange)            |
+
+The LED strip is controlled directly by `bvrd` via GPIO, independent of the optional internal display.
