@@ -80,17 +80,15 @@ services:
     volumes:
       # Session storage (rovers upload here)
       - sessions-data:/home/bvr/sessions
-      # SSH host keys (generated on first run, persisted)
-      - sftp-keys:/etc/ssh/keys
-      # Authorized keys for rover authentication
-      - ./sftp/authorized_keys:/home/bvr/.ssh/keys:ro
+      # SSH host keys (pre-generated, required for sshd)
+      - ./sftp/ssh_host_keys/ssh_host_ed25519_key:/etc/ssh/ssh_host_ed25519_key:ro
+      - ./sftp/ssh_host_keys/ssh_host_rsa_key:/etc/ssh/ssh_host_rsa_key:ro
     # Format: user:password:uid:gid:directories
-    # Using empty password forces key-based auth only
-    command: "bvr::1000:1000:sessions"
+    # For production: use key-based auth by mounting authorized_keys
+    command: "bvr:${SFTP_PASSWORD:-dev}:1000:1000:sessions"
 
 volumes:
   influxdb-data:
   influxdb-config:
   grafana-data:
   sessions-data:
-  sftp-keys:
