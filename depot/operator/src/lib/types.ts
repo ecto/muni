@@ -72,3 +72,24 @@ export const CameraMode = {
 } as const;
 
 export type CameraMode = (typeof CameraMode)[keyof typeof CameraMode];
+
+// View state
+export const View = {
+  Home: "home",
+  Teleop: "teleop",
+} as const;
+
+export type View = (typeof View)[keyof typeof View];
+
+// Rover info for fleet management
+export interface RoverInfo {
+  id: string;
+  name: string;
+  address: string;
+  videoAddress: string;
+  online: boolean;
+  batteryVoltage: number;
+  lastPose: Pose;
+  mode: Mode;
+  lastSeen: number; // timestamp
+}

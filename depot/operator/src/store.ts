@@ -4,16 +4,31 @@ import {
   type Telemetry,
   type GamepadInput,
   type Pose,
+  type RoverInfo,
   InputSource,
   CameraMode,
+  View,
 } from "@/lib/types";
 
 interface OperatorState {
+  // View state
+  currentView: View;
+  setView: (view: View) => void;
+
+  // Fleet management
+  rovers: RoverInfo[];
+  selectedRoverId: string | null;
+  setRovers: (rovers: RoverInfo[]) => void;
+  updateRover: (id: string, updates: Partial<RoverInfo>) => void;
+  selectRover: (id: string | null) => void;
+
   // Connection
   roverAddress: string;
+  videoAddress: string;
   connected: boolean;
   latencyMs: number;
   setRoverAddress: (address: string) => void;
+  setVideoAddress: (address: string) => void;
   setConnected: (connected: boolean) => void;
   setLatency: (ms: number) => void;
 
@@ -71,12 +86,44 @@ const defaultInput: GamepadInput = {
   cameraPitch: 0,
 };
 
+// Rovers are populated dynamically from the discovery service
+// This array will be updated when rovers register/heartbeat
+const defaultRovers: RoverInfo[] = [];
+
 export const useOperatorStore = create<OperatorState>((set) => ({
+  // View state
+  currentView: View.Home,
+  setView: (view) => set({ currentView: view }),
+
+  // Fleet management
+  rovers: defaultRovers,
+  selectedRoverId: null,
+  setRovers: (rovers) => set({ rovers }),
+  updateRover: (id, updates) =>
+    set((state) => ({
+      rovers: state.rovers.map((r) => (r.id === id ? { ...r, ...updates } : r)),
+    })),
+  selectRover: (id) => {
+    set((state) => {
+      const rover = state.rovers.find((r) => r.id === id);
+      if (rover) {
+        return {
+          selectedRoverId: id,
+          roverAddress: rover.address,
+          videoAddress: rover.videoAddress,
+        };
+      }
+      return { selectedRoverId: id };
+    });
+  },
+
   // Connection
   roverAddress: "ws://localhost:4850",
+  videoAddress: "ws://localhost:4851",
   connected: false,
   latencyMs: 0,
   setRoverAddress: (address) => set({ roverAddress: address }),
+  setVideoAddress: (address) => set({ videoAddress: address }),
   setConnected: (connected) => set({ connected }),
   setLatency: (ms) => set({ latencyMs: ms }),
 

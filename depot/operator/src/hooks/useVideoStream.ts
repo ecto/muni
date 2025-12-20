@@ -16,7 +16,7 @@ const RECONNECT_DELAY_MS = 2000;
  * equirectangular images from the Insta360 X4.
  */
 export function useVideoStream() {
-  const { roverAddress, setVideoConnected, setVideoFps, setVideoFrame } =
+  const { videoAddress, setVideoConnected, setVideoFps, setVideoFrame } =
     useOperatorStore();
 
   const wsRef = useRef<WebSocket | null>(null);
@@ -30,8 +30,8 @@ export function useVideoStream() {
   // Use ref for connect function to avoid circular dependency
   const connectRef = useRef<() => void>(() => {});
 
-  // Derive video URL from rover address (same host, different port or path)
-  const videoUrl = roverAddress.replace(":4850", ":4851");
+  // Use video address from store
+  const videoUrl = videoAddress;
 
   const connect = useCallback(() => {
     // Clean up existing connection
@@ -141,14 +141,16 @@ export function useVideoStream() {
     setVideoFrame(null, 0);
   }, [setVideoConnected, setVideoFrame]);
 
-  // Connect on mount, disconnect on unmount
+  // Connect when component mounts (TeleopScreen), disconnect on unmount
   useEffect(() => {
     connect();
 
     return () => {
       disconnect();
     };
-  }, [connect, disconnect]);
+    // Note: we intentionally only run this on mount/unmount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return {
     connect,
