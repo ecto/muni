@@ -7,6 +7,9 @@
 //! UDP is fire-and-forget: if Depot is unreachable, metrics are silently dropped.
 //! This ensures network issues don't affect rover operation.
 
+mod discovery;
+
+pub use discovery::{DiscoveryClient, DiscoveryConfig};
 use serde::{Deserialize, Serialize};
 use std::net::{SocketAddr, UdpSocket};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
@@ -39,7 +42,7 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             enabled: false,
-            endpoint: "depot.local:8089".to_string(),
+            endpoint: "depot:8089".to_string(),
             interval_hz: 1,
             rover_id: "bvr-01".to_string(),
         }

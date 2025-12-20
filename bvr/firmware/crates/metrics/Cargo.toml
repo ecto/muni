@@ -10,6 +10,7 @@ tokio = { workspace = true, features = ["net", "time", "sync"] }
 tracing = { workspace = true }
 serde = { workspace = true }
 thiserror = { workspace = true }
+reqwest = { workspace = true }
 
 types = { workspace = true }
 
