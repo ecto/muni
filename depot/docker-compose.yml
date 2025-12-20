@@ -1,4 +1,22 @@
 services:
+  # Rover discovery service - rovers register here, operators query here
+  discovery:
+    build:
+      context: ./discovery
+      dockerfile: Dockerfile
+    container_name: depot-discovery
+    restart: unless-stopped
+    ports:
+      - "4860:4860"
+    environment:
+      - PORT=4860
+      - RUST_LOG=discovery=info
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O-", "http://localhost:4860/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
   # Web-based operator interface for teleop
   operator:
     build:

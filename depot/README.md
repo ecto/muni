@@ -13,9 +13,10 @@ Depot is the base station infrastructure for the Muni robot fleet. It provides:
 ```
 Rovers                          Depot
 ┌─────────┐                     ┌─────────────────────────────┐
-│ rover-01│──UDP metrics──────▶│  InfluxDB (:8086, :8089)    │
-│ rover-02│──rclone SFTP──────▶│  SFTP (:2222)               │
-│ rover-0N│◀─WebSocket─────────│  Operator (:8080)           │
+│ rover-01│──HTTP register────▶│  Discovery (:4860)          │
+│ rover-02│──UDP metrics──────▶│  InfluxDB (:8086, :8089)    │
+│ rover-0N│──rclone SFTP──────▶│  SFTP (:2222)               │
+│         │◀─WebSocket─────────│  Operator (:8080)           │
 └─────────┘                     │  Grafana (:3000)            │
                                 └─────────────────────────────┘
 ```
@@ -39,12 +40,49 @@ This starts all services with default development credentials.
 
 ### Access
 
-| Service  | URL                   | Default Credentials  |
-| -------- | --------------------- | -------------------- |
-| Operator | http://localhost:8080 | None (public)        |
-| Grafana  | http://localhost:3000 | admin / munipassword |
-| InfluxDB | http://localhost:8086 | admin / munipassword |
-| SFTP     | localhost:2222        | muni / SSH key auth  |
+| Service   | URL                   | Default Credentials  |
+| --------- | --------------------- | -------------------- |
+| Operator  | http://localhost:8080 | None (public)        |
+| Grafana   | http://localhost:3000 | admin / munipassword |
+| InfluxDB  | http://localhost:8086 | admin / munipassword |
+| SFTP      | localhost:2222        | muni / SSH key auth  |
+| Discovery | http://localhost:4860 | None (internal)      |
+
+## Development
+
+For developing the operator web app with hot-reload (no container rebuilds):
+
+```bash
+# Terminal 1: Start backend services (discovery, influxdb, grafana)
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+
+# Terminal 2: Run operator with hot-reload
+cd operator
+npm install
+npm run dev
+```
+
+The operator dev server runs on http://localhost:5173 with:
+
+- Hot module replacement (instant updates)
+- Auto-refresh on file changes
+- Source maps for debugging
+
+### Simulating Rovers
+
+You can register mock rovers for testing:
+
+```bash
+# Register a rover
+curl -X POST http://localhost:4860/register \
+  -H "Content-Type: application/json" \
+  -d '{"id":"bvr-01","name":"Beaver-01","address":"ws://localhost:4850"}'
+
+# Send heartbeat (keeps rover online)
+curl -X POST http://localhost:4860/heartbeat/bvr-01 \
+  -H "Content-Type: application/json" \
+  -d '{"battery_voltage":48.5,"mode":1,"pose":{"x":10,"y":5,"theta":0.5}}'
+```
 
 ### Production Setup
 

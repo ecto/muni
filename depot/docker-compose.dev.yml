@@ -1,0 +1,18 @@
+# Development overrides - enables hot-reload for operator app
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+#
+# Or use the npm scripts in operator/:
+#   cd operator && npm run dev
+#
+# This file:
+# - Disables the production operator container
+# - You run `npm run dev` locally for hot-reload
+# - Discovery service still runs in Docker
+
+services:
+  # Disable operator in dev mode - run locally with npm run dev
+  operator:
+    profiles:
+      - production
