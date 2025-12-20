@@ -154,9 +154,86 @@
             display: none;
         }
         .error-banner.visible { display: block; }
+
+        /* Blocking overlay when not in teleop */
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.85);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+        .overlay.visible {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .overlay-icon {
+            width: 120px;
+            height: 120px;
+            margin-bottom: 30px;
+            opacity: 0.6;
+        }
+        .overlay-title {
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 12px;
+            color: #fff;
+        }
+        .overlay-subtitle {
+            font-size: 18px;
+            color: #888;
+            text-align: center;
+            max-width: 400px;
+        }
+        .overlay-status {
+            margin-top: 30px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .overlay-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #666;
+        }
+        .overlay-dot.pulse {
+            background: #60a5fa;
+            animation: pulse 1.5s infinite;
+        }
+        .overlay-dot.error {
+            background: #f87171;
+            animation: pulse 1s infinite;
+        }
+        .overlay-label {
+            font-size: 14px;
+            color: #666;
+        }
     </style>
 </head>
 <body>
+    <!-- Blocking overlay when not connected to operator -->
+    <div class="overlay visible" id="overlay">
+        <svg class="overlay-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M8.288 15.038a5.25 5.25 0 017.424 0M5.106 11.856c3.807-3.808 9.98-3.808 13.788 0M1.924 8.674c5.565-5.565 14.587-5.565 20.152 0M12.53 18.22l-.53.53-.53-.53a.75.75 0 011.06 0z"/>
+        </svg>
+        <div class="overlay-title" id="overlay-title">Waiting for Operator</div>
+        <div class="overlay-subtitle" id="overlay-subtitle">Connect from the depot to begin teleop session</div>
+        <div class="overlay-status">
+            <div class="overlay-dot pulse" id="overlay-dot"></div>
+            <span class="overlay-label" id="overlay-label">Standing by</span>
+        </div>
+    </div>
+
     <div class="header">
         <h1>BVR Dashboard</h1>
         <div id="connection">
@@ -236,6 +313,7 @@
 
         let connected = false;
         let lastUpdate = 0;
+        let currentMode = 'Idle';
 
         async function fetchTelemetry() {
             try {
@@ -265,14 +343,59 @@
                 dot.className = 'status-dot disconnected';
                 text.textContent = 'Disconnected';
             }
+
+            updateOverlay();
+        }
+
+        function updateOverlay() {
+            const overlay = document.getElementById('overlay');
+            const title = document.getElementById('overlay-title');
+            const subtitle = document.getElementById('overlay-subtitle');
+            const dot = document.getElementById('overlay-dot');
+            const label = document.getElementById('overlay-label');
+
+            // Show overlay if not connected to bvrd OR not in teleop mode
+            const inTeleop = currentMode === 'Teleop';
+
+            if (!connected) {
+                overlay.classList.add('visible');
+                title.textContent = 'Disconnected';
+                subtitle.textContent = 'Unable to reach rover daemon';
+                dot.className = 'overlay-dot error';
+                label.textContent = 'Connection lost';
+            } else if (currentMode === 'EStop') {
+                overlay.classList.add('visible');
+                title.textContent = 'Emergency Stop';
+                subtitle.textContent = 'E-Stop is active. Clear before resuming operation.';
+                dot.className = 'overlay-dot error';
+                label.textContent = 'E-Stop active';
+            } else if (currentMode === 'Fault') {
+                overlay.classList.add('visible');
+                title.textContent = 'Fault Detected';
+                subtitle.textContent = 'System fault. Check logs for details.';
+                dot.className = 'overlay-dot error';
+                label.textContent = 'Fault';
+            } else if (!inTeleop) {
+                overlay.classList.add('visible');
+                title.textContent = 'Waiting for Operator';
+                subtitle.textContent = 'Connect from the depot to begin teleop session';
+                dot.className = 'overlay-dot pulse';
+                label.textContent = currentMode === 'Disabled' ? 'Disabled' : 'Standing by';
+            } else {
+                overlay.classList.remove('visible');
+            }
         }
 
         function updateDashboard(data) {
             // Mode
             const modeEl = document.getElementById('mode');
             const modeIdx = typeof data.mode === 'string' ? modeNames.indexOf(data.mode) : data.mode;
-            modeEl.textContent = modeNames[modeIdx] || 'Unknown';
+            currentMode = modeNames[modeIdx] || 'Unknown';
+            modeEl.textContent = currentMode;
             modeEl.className = 'mode ' + (modeClasses[modeIdx] || '');
+
+            // Update overlay based on new mode
+            updateOverlay();
 
             // Battery
             const voltage = data.power?.battery_voltage || 0;
