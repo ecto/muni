@@ -606,10 +606,10 @@ async fn main() -> Result<()> {
         }
 
         // Compute motor outputs
-        let target_twist = if state.state_machine.is_driving() {
-            state.commanded_twist
+        let (target_twist, boost_active) = if state.state_machine.is_driving() {
+            (state.commanded_twist, state.commanded_twist.boost)
         } else {
-            Twist::default()
+            (Twist::default(), false)
         };
 
         // Apply exponential smoothing to reduce jitter from network/input noise
@@ -628,12 +628,14 @@ async fn main() -> Result<()> {
         // Using duty cycle control for smoother low-speed operation with hall sensors
         // Max wheel velocity at 5 m/s with 0.08m radius = 62.5 rad/s
         const MAX_WHEEL_VEL: f64 = 62.5;
-        const MAX_DUTY: f64 = 0.85; // Leave 15% headroom
+        const NORMAL_DUTY: f64 = 0.5;  // Normal mode: ~50% power (~3 m/s)
+        const BOOST_DUTY: f64 = 0.95;  // Boost mode: full blast
+        let max_duty = if boost_active { BOOST_DUTY } else { NORMAL_DUTY };
         let wheel_duties: [f64; 4] = [
-            (wheel_vels.front_left / MAX_WHEEL_VEL * MAX_DUTY).clamp(-MAX_DUTY, MAX_DUTY),
-            (wheel_vels.front_right / MAX_WHEEL_VEL * MAX_DUTY).clamp(-MAX_DUTY, MAX_DUTY),
-            (wheel_vels.rear_left / MAX_WHEEL_VEL * MAX_DUTY).clamp(-MAX_DUTY, MAX_DUTY),
-            (wheel_vels.rear_right / MAX_WHEEL_VEL * MAX_DUTY).clamp(-MAX_DUTY, MAX_DUTY),
+            (wheel_vels.front_left / MAX_WHEEL_VEL * max_duty).clamp(-max_duty, max_duty),
+            (wheel_vels.front_right / MAX_WHEEL_VEL * max_duty).clamp(-max_duty, max_duty),
+            (wheel_vels.rear_left / MAX_WHEEL_VEL * max_duty).clamp(-max_duty, max_duty),
+            (wheel_vels.rear_right / MAX_WHEEL_VEL * max_duty).clamp(-max_duty, max_duty),
         ];
 
         // Log wheel commands when turning (left != right)
