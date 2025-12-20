@@ -35,7 +35,11 @@ export const MSG_VIDEO_FRAME = 0x20;
 // Command Encoding (Operator → Rover)
 // ============================================================================
 
-export function encodeTwist(linear: number, angular: number, boost: boolean = false): ArrayBuffer {
+export function encodeTwist(
+  linear: number,
+  angular: number,
+  boost: boolean = false
+): ArrayBuffer {
   const buf = new ArrayBuffer(18);
   const view = new DataView(buf);
   view.setUint8(0, MSG_TWIST);

@@ -10,9 +10,10 @@ const KEYS: Record<string, readonly string[]> = {
   toolUp: ["KeyE"],
   toolDown: ["KeyQ"],
   actionA: ["Space"],
-  actionB: ["ShiftLeft", "ShiftRight"],
+  actionB: ["KeyF"],
   estop: ["Escape"],
   enable: ["Enter"],
+  boost: ["ShiftLeft", "ShiftRight"], // Hold Shift for full speed
   cameraToggle: ["KeyC"],
   cameraFree: ["KeyV"],
 };
@@ -101,6 +102,7 @@ export function useKeyboard() {
     const actionB = KEYS.actionB.some((k) => pressed.has(k));
     const estop = KEYS.estop.some((k) => pressed.has(k));
     const enable = KEYS.enable.some((k) => pressed.has(k));
+    const boost = KEYS.boost.some((k) => pressed.has(k));
 
     setInput({
       linear,
@@ -110,6 +112,7 @@ export function useKeyboard() {
       actionB,
       estop,
       enable,
+      boost,
       cameraYaw: 0, // Mouse handled separately
       cameraPitch: 0,
     });

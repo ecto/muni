@@ -62,6 +62,8 @@ export function useGamepad() {
           const estop = gp.buttons[8]?.pressed || false;
           // Start/Menu = Enable
           const enable = gp.buttons[9]?.pressed || false;
+          // L3 (Left stick click) = Boost mode
+          const boost = gp.buttons[10]?.pressed || false;
 
           setInput({
             linear,
@@ -71,6 +73,7 @@ export function useGamepad() {
             actionB,
             estop,
             enable,
+            boost,
             cameraYaw,
             cameraPitch,
           });

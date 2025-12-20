@@ -71,9 +71,11 @@ export function useRoverConnection() {
             }
 
             // Send twist command
-            const linear = input.linear * 2.0; // Max 2 m/s
+            // Normal mode: conservative speed. Boost mode: full power!
+            const speedMult = input.boost ? 5.0 : 2.0;
+            const linear = input.linear * speedMult;
             const angular = input.angular * 1.5; // Max 1.5 rad/s
-            ws.send(encodeTwist(linear, angular));
+            ws.send(encodeTwist(linear, angular, input.boost));
 
             // Send tool command if any tool input
             if (
