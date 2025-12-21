@@ -51,18 +51,45 @@ Remote operation of BVR over LTE.
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-| Input        | Action                               |
-| ------------ | ------------------------------------ |
-| Left Stick Y | Linear velocity (forward/back)       |
-| Left Stick X | Angular velocity (turn)              |
-| RT           | Tool axis positive (e.g., lift up)   |
-| LT           | Tool axis negative (e.g., lift down) |
-| A            | Tool action 1 (e.g., toggle auger)   |
-| B            | Tool action 2                        |
-| LB           | Previous tool                        |
-| RB           | Next tool                            |
-| View (☰☰)    | **E-Stop** (immediate stop)          |
-| Menu (≡)     | Enable/arm system                    |
+| Input          | Action                               |
+| -------------- | ------------------------------------ |
+| Left Stick Y   | Linear velocity (forward/back)       |
+| Left Stick X   | Angular velocity (turn)              |
+| **L3 (click)** | **Boost mode** (hold for full speed) |
+| RT             | Tool axis positive (e.g., lift up)   |
+| LT             | Tool axis negative (e.g., lift down) |
+| A              | Tool action 1 (e.g., toggle auger)   |
+| B              | Tool action 2                        |
+| LB             | Previous tool                        |
+| RB             | Next tool                            |
+| View (☰☰)      | **E-Stop** (immediate stop)          |
+| Menu (≡)       | Enable/arm system                    |
+
+### Keyboard Controls (Web Operator)
+
+| Key       | Action                               |
+| --------- | ------------------------------------ |
+| W / ↑     | Forward                              |
+| S / ↓     | Backward                             |
+| A / ←     | Turn left                            |
+| D / →     | Turn right                           |
+| **Shift** | **Boost mode** (hold for full speed) |
+| E         | Tool axis up                         |
+| Q         | Tool axis down                       |
+| Space     | Tool action A                        |
+| F         | Tool action B                        |
+| Escape    | E-Stop                               |
+| Enter     | Enable                               |
+| C         | Cycle camera mode                    |
+
+### Boost Mode
+
+Hold **L3** (gamepad) or **Shift** (keyboard) to enable boost mode:
+
+| Mode   | Max Duty | Approx. Speed |
+| ------ | -------- | ------------- |
+| Normal | 50%      | ~3 m/s        |
+| Boost  | 95%      | ~6 m/s        |
 
 ### Input Processing
 
@@ -78,13 +105,14 @@ Dead zones applied to sticks (typically 0.1).
 
 ### Command Messages (Operator → Rover)
 
-| Type      | ID   | Payload                                 |
-| --------- | ---- | --------------------------------------- |
-| Twist     | 0x01 | linear (f64 LE) + angular (f64 LE)      |
-| E-Stop    | 0x02 | (none)                                  |
-| Heartbeat | 0x03 | (none)                                  |
-| Set Mode  | 0x04 | mode (u8)                               |
-| Tool      | 0x05 | axis (f32) + motor (f32) + actions (u8) |
+| Type           | ID   | Payload                                         |
+| -------------- | ---- | ----------------------------------------------- |
+| Twist          | 0x01 | linear (f64 LE) + angular (f64 LE) + boost (u8) |
+| E-Stop         | 0x02 | (none)                                          |
+| Heartbeat      | 0x03 | (none)                                          |
+| Set Mode       | 0x04 | mode (u8)                                       |
+| Tool           | 0x05 | axis (f32) + motor (f32) + actions (u8)         |
+| E-Stop Release | 0x06 | (none)                                          |
 
 ### Telemetry Messages (Rover → Operator)
 
@@ -130,6 +158,17 @@ gst-launch-1.0 \
 | **Total**        | **100-250 ms**  |
 
 ## Safety Considerations
+
+### Tab Visibility (Web Operator)
+
+When the browser tab loses focus (Alt+Tab, switch tabs, minimize):
+
+1. **Immediate zero velocity** sent to rover
+2. Commands continue at zero while hidden
+3. Rover stays in Teleop mode (no watchdog timeout)
+4. Control resumes when tab regains focus
+
+This prevents accidental movement when the operator looks away.
 
 ### Latency Handling
 
@@ -177,6 +216,3 @@ For NAT traversal, a cloud relay forwards packets between operator and rover.
 3. Operator connects with session ID
 4. Relay forwards packets bidirectionally
 5. Disconnection → notify other party
-
-
-
