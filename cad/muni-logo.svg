@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-60 -60 880 400" fill="none">
+  <!-- muni logo - uniform stroke width -->
+
+  <g stroke="black" stroke-width="40" stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <!-- 'm' left stem -->
+    <path d="M 20 240 L 20 100 C 20 50, 80 50, 100 50 C 140 50, 160 70, 160 100"/>
+
+    <!-- 'm' middle stem -->
+    <path d="M 160 240 L 160 100"/>
+
+    <!-- 'm' second arch connects down into 'u' curve -->
+    <path d="M 160 100 C 160 50, 220 50, 240 50 C 280 50, 300 70, 300 100
+             L 300 240 C 300 270, 330 280, 370 280 C 410 280, 440 270, 440 240 L 440 100"/>
+
+    <!-- 'n' arch and stem, curves at bottom into 'i' -->
+    <path d="M 440 100 C 440 50, 500 50, 520 50 C 560 50, 600 70, 600 100
+             L 600 240 C 600 270, 630 280, 670 280 C 710 280, 740 270, 740 240 L 740 100"/>
+  </g>
+
+  <!-- Dot on 'i' -->
+  <circle cx="740" cy="30" r="28" fill="black"/>
+</svg>
