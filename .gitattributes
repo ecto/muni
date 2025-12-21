@@ -28,6 +28,7 @@
 # Exclude web assets from LFS (GitHub Pages doesn't support LFS)
 web/**/*.pdf -filter -diff -merge binary
 web/*.pdf -filter -diff -merge binary
+web/*.png -filter -diff -merge binary
 *.jpg filter=lfs diff=lfs merge=lfs -text
 *.jpeg filter=lfs diff=lfs merge=lfs -text
 # Gerbers and manufacturing outputs
