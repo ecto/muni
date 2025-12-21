@@ -212,12 +212,15 @@ impl DiscoveryClient {
                     Ok(())
                 } else {
                     debug!(status = %resp.status(), "Heartbeat failed");
-                    Ok(()) // Don't error on heartbeat failures
+                    Err(DiscoveryError::RequestError(format!(
+                        "Status {}",
+                        resp.status()
+                    )))
                 }
             }
             Err(e) => {
                 debug!(error = %e, "Heartbeat failed");
-                Ok(()) // Don't error on heartbeat failures
+                Err(DiscoveryError::RequestError(e.to_string()))
             }
         }
     }
@@ -260,10 +263,19 @@ impl DiscoveryClient {
             "Starting discovery heartbeat loop"
         );
 
-        let mut consecutive_failures = 0;
+        let mut consecutive_failures: u32 = 0;
 
         loop {
             ticker.tick().await;
+
+            // If never registered, keep trying on each tick
+            if !registered {
+                if self.register().await.is_ok() {
+                    registered = true;
+                    consecutive_failures = 0;
+                }
+                continue;
+            }
 
             let snapshot = rx.borrow().clone();
 
@@ -273,8 +285,9 @@ impl DiscoveryClient {
                 // Re-register after several failures
                 if consecutive_failures >= 3 {
                     warn!("Multiple heartbeat failures, attempting re-registration");
-                    if self.register().await.is_ok() {
-                        consecutive_failures = 0;
+                    match self.register().await {
+                        Ok(()) => consecutive_failures = 0,
+                        Err(_) => registered = false, // Will retry registration on next tick
                     }
                 }
             } else {
