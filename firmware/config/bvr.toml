@@ -1,0 +1,113 @@
+# bvr runtime configuration
+
+[chassis]
+# Wheel diameter in meters
+wheel_diameter_m = 0.160
+# Distance between left and right wheels (track width)
+track_width_m = 0.55
+# Distance between front and rear axles
+wheelbase_m = 0.55
+# Maximum linear speed (m/s)
+max_speed_mps = 3.0
+# Maximum linear acceleration (m/s²) — high for responsive teleop
+max_accel_mps2 = 50.0
+# Maximum angular velocity (rad/s)
+max_angular_vel_rps = 2.0
+
+[can]
+# SocketCAN interface name
+interface = "can0"
+# CAN bus bitrate
+bitrate = 500_000
+# ESC node IDs: [front-left, front-right, rear-left, rear-right]
+esc_ids = [0, 1, 2, 3]
+# Timeout for ESC heartbeats (ms)
+heartbeat_timeout_ms = 100
+
+[control]
+# Control loop frequency (Hz)
+loop_rate_hz = 100
+# Command timeout — if no command received, safe stop (ms)
+command_timeout_ms = 250
+# Velocity PID gains (per-wheel)
+[control.pid]
+kp = 1.0
+ki = 0.1
+kd = 0.01
+
+[teleop]
+# UDP port for command/telemetry
+port = 4840
+# Heartbeat interval to operator station (ms)
+heartbeat_interval_ms = 100
+# Connection timeout (ms)
+connection_timeout_ms = 1000
+
+[power]
+# Voltage thresholds (48V nominal)
+battery_full_v = 54.0
+battery_nominal_v = 48.0
+battery_low_v = 42.0
+battery_critical_v = 39.0
+
+[logging]
+# Log level: trace, debug, info, warn, error
+level = "info"
+# Log directory for rolling file logs
+dir = "/var/log/bvr"
+# Rotation: "daily", "hourly", or "never"
+rotation = "daily"
+# Number of days to retain logs
+retain_days = 7
+
+[recording]
+# Enable telemetry recording to Rerun .rrd files
+enabled = true
+# Directory for session recordings
+session_dir = "/var/log/bvr/sessions"
+# Maximum storage before rotating old sessions (bytes)
+max_storage_bytes = 10_737_418_240  # 10 GB
+# Include camera frames in recording (increases storage)
+include_camera = false
+
+[identity]
+# Unique rover identifier (used in logs, recordings, sync)
+rover_id = "frog-0"
+
+[sync]
+# Enable automatic sync to base station
+enabled = true
+# Base station destination (rclone remote:path format)
+# Examples:
+#   - "base:bvr-sessions"     (configured rclone remote)
+#   - "sftp:user@host:/data"  (SFTP)
+#   - "s3:bucket/sessions"    (S3-compatible)
+destination = "base:bvr-sessions"
+# Sync interval in seconds (0 = sync only on session end)
+interval_secs = 900  # 15 minutes
+# Minimum file age before syncing (avoids syncing active files)
+min_age_secs = 60
+
+[metrics]
+# Enable real-time metrics push to Depot
+enabled = true
+# Depot endpoint (IP:port or hostname:port)
+# InfluxDB listens on UDP port 8089 for line protocol
+endpoint = "192.168.1.129:8089"
+# Push rate in Hz (1 = once per second, recommended)
+interval_hz = 1
+
+[discovery]
+# Enable rover discovery registration
+enabled = true
+# Discovery service endpoint
+endpoint = "192.168.1.129:4860"
+# Rover identity
+rover_id = "frog-0"
+rover_name = "Frog-0"
+# WebSocket ports for operators to connect
+ws_port = 4850
+ws_video_port = 4851
+# Heartbeat interval in seconds
+heartbeat_secs = 2
+

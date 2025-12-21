@@ -1,0 +1,33 @@
+[Unit]
+Description=BVR Daemon - Base Vectoring Rover control
+After=network.target can.service
+Wants=network.target
+Requires=can.service
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/bvrd --config /etc/bvr/bvr.toml
+Restart=on-failure
+RestartSec=3
+User=root
+
+# Watchdog disabled - bvrd doesn't implement sd_notify yet
+# WatchdogSec=10
+
+# Environment
+Environment=RUST_LOG=info
+Environment=RUST_BACKTRACE=1
+
+# Resource limits
+LimitNOFILE=65536
+
+# Security (relaxed for hardware access)
+ProtectSystem=false
+ProtectHome=true
+NoNewPrivileges=false
+
+[Install]
+WantedBy=multi-user.target
+
+
+

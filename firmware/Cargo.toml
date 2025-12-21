@@ -1,0 +1,65 @@
+[workspace]
+resolver = "2"
+members = ["crates/*", "bins/*"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "Proprietary"
+repository = "https://github.com/muni-robotics/bvr"
+
+[workspace.dependencies]
+# Async runtime
+tokio = { version = "1", features = ["rt-multi-thread", "sync", "time", "macros", "net", "io-util"] }
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+toml = "0.8"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tracing-appender = "0.2"
+
+# Recording
+rerun = "0.22"
+
+# Error handling
+thiserror = "2"
+anyhow = "1"
+
+# Utilities
+bitflags = "2"
+nalgebra = { version = "0.33", features = ["serde-serialize"] }
+
+# CLI
+clap = { version = "4", features = ["derive"] }
+
+# JSON
+serde_json = "1"
+
+# WebSocket
+tokio-tungstenite = "0.26"
+futures-util = "0.3"
+
+# HTTP client
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+
+# Internal crates
+types = { path = "crates/types" }
+can = { path = "crates/can" }
+control = { path = "crates/control" }
+state = { path = "crates/state" }
+hal = { path = "crates/hal" }
+teleop = { path = "crates/teleop" }
+tools = { path = "crates/tools" }
+sim = { path = "crates/sim" }
+ui = { path = "crates/ui" }
+camera = { path = "crates/camera" }
+gps = { path = "crates/gps" }
+localization = { path = "crates/localization" }
+recording = { path = "crates/recording" }
+metrics = { path = "crates/metrics" }
+
+
+
