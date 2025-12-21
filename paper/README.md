@@ -1,14 +1,14 @@
 # Muni Whitepaper
 
-IEEE-style technical paper for municipal robotics procurement.
+Technical whitepaper for municipal robotics procurement.
 
 ## Files
 
-- `main.typ` — Typst source using [charged-ieee](https://typst.app/universe/package/charged-ieee) template
+- `main.typ` — Typst source (custom single-column layout)
 - `refs.bib` — BibTeX bibliography
 - `main.pdf` — Compiled output
 
-## Diagrams
+## Visualizations
 
 Uses [CeTZ](https://typst.app/universe/package/cetz) for technical diagrams:
 
@@ -16,14 +16,20 @@ Uses [CeTZ](https://typst.app/universe/package/cetz) for technical diagrams:
 - **Figure 2** — Rover state machine (safety states)
 - **Figure 3** — Operator scaling visualization (1:1 vs 1:10)
 
+Uses [Lilaq](https://typst.app/universe/package/lilaq) for data visualization:
+
+- **TCO bar chart** — 5-year cost comparison
+- **Lakewood TCO chart** — Case study cost comparison
+
+Includes mathematical formulas for:
+
+- Cost per mile calculation
+- Seasonal cost modeling
+- Operator economics (ratio math)
+- Payback period
+- Fleet reliability (N+2 redundancy)
+
 ## Building
-
-### Online (Typst App)
-
-1. Go to [typst.app](https://typst.app)
-2. Create new project from template: `charged-ieee`
-3. Replace content with `main.typ`
-4. Upload `refs.bib`
 
 ### Local (CLI)
 
@@ -39,20 +45,40 @@ typst compile main.typ
 typst watch main.typ
 ```
 
-## Template
+## Layout
 
-Uses [charged-ieee](https://typst.app/universe/package/charged-ieee) — IEEE two-column format for engineering papers.
+Custom single-column layout with:
+
+- Title page with rover image
+- Table of contents
+- Running headers with revision tracking
+- Versioned footer (Rev 1.0)
+- IEEE-style bibliography
 
 ## Structure
 
 1. **Introduction** — Audience and scope
 2. **Problem Definition** — Public works as control system, Lakewood reference case
-3. **Safety and Liability** — Failure modes, pedestrian interaction, regulatory status
-4. **Deployment and Integration** — Pilot sizing, integration, training
-5. **Economics** — Baseline costs, capital costs, TCO comparison, sensitivity analysis
-6. **Governance** — Data ownership, vendor risk, exit strategy
-7. **Conclusion**
-8. **Appendix A** — Lakewood, Ohio case study with real numbers
+3. **Why Existing Solutions Fail** — Taxonomy of failures, contractors, consumer robotics
+4. **Design Principles** — Service reliability, incremental deployment, spatial redundancy
+5. **System Architecture** — SCADA model, local-first, no cloud dependency
+6. **Autonomy** — What is automated, what is not
+7. **Safety and Liability** — Failure modes, pedestrian interaction, regulatory status
+8. **Deployment and Integration** — Pilot sizing, integration, training
+9. **Economics** — Baseline costs, capital costs, TCO comparison, sensitivity analysis
+10. **Governance** — Data ownership, vendor risk, exit strategy
+11. **Roadmap** — Software vs hardware improvements, physics constraints, regulation
+12. **Path to Full Autonomy** — Technical requirements, liability shift, regulatory path, timeline honesty
+13. **Conclusion** — With pilot program CTA
+14. **Appendix A** — Lakewood, Ohio case study
+15. **Appendix B** — Environmental and operational specifications
+
+## Images
+
+- `images/rover.jpg` — Title page rover render
+- `images/sidewalk-snow.jpg` — Problem illustration (uncleared sidewalk)
+- `images/pedestrian-road.jpg` — Problem illustration (pedestrian on road)
+- `images/slip-fall.jpg` — Liability illustration (slip-and-fall)
 
 ## Target Audience
 
@@ -63,4 +89,4 @@ Uses [charged-ieee](https://typst.app/universe/package/charged-ieee) — IEEE tw
 
 ## Status
 
-Draft 2 — December 2024
+Rev 1.0 — December 2024
