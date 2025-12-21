@@ -1,17 +1,19 @@
 [Unit]
 Description=BVR Dashboard Kiosk
-After=bvrd.service graphical.target
+After=bvrd.service graphical-session.target
 Wants=bvrd.service
+PartOf=graphical-session.target
 
 [Service]
 Type=simple
 User=cam
 Environment=DISPLAY=:0
-ExecStartPre=/bin/sleep 5
+Environment=XAUTHORITY=/run/user/1000/gdm/Xauthority
+ExecStartPre=/bin/sleep 10
 ExecStart=/usr/bin/firefox --kiosk http://localhost:8080
 Restart=on-failure
-RestartSec=5
+RestartSec=10
 
 [Install]
-WantedBy=graphical.target
+WantedBy=graphical-session.target
 
