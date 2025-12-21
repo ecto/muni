@@ -10,9 +10,12 @@ import {
   telemetryFromDecoded,
 } from "@/lib/protocol";
 
-const COMMAND_INTERVAL_MS = 20; // 50Hz
+const COMMAND_INTERVAL_MS = 10; // 100Hz - higher rate for lower latency and packet loss redundancy
 const HEARTBEAT_INTERVAL_MS = 100;
 const RECONNECT_DELAY_MS = 2000;
+
+// Track page visibility for safety - stop commands when tab is hidden
+let isPageVisible = typeof document !== "undefined" ? !document.hidden : true;
 
 export function useRoverConnection() {
   const { roverAddress, setConnected, setLatency, updateTelemetry } =
@@ -58,9 +61,20 @@ export function useRoverConnection() {
       ws.onopen = () => {
         setConnected(true);
 
+        // Send immediate zero command to establish session quickly
+        ws.send(encodeTwist(0, 0, false));
+        ws.send(encodeHeartbeat());
+
         // Start sending commands at 50Hz
         commandIntervalRef.current = setInterval(() => {
           if (ws.readyState === WebSocket.OPEN) {
+            // Safety: if page is not visible, send zero velocity and skip
+            // This prevents stale commands when browser throttles the tab
+            if (!isPageVisible) {
+              ws.send(encodeTwist(0, 0, false));
+              return;
+            }
+
             const state = useOperatorStore.getState();
             const { input } = state;
 
@@ -172,7 +186,21 @@ export function useRoverConnection() {
   useEffect(() => {
     connect();
 
+    // Safety: track page visibility to stop commands when tab is hidden
+    const handleVisibilityChange = () => {
+      isPageVisible = !document.hidden;
+      if (!isPageVisible) {
+        // Immediately send stop command when losing focus
+        if (wsRef.current?.readyState === WebSocket.OPEN) {
+          wsRef.current.send(encodeTwist(0, 0, false));
+        }
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
     return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
       disconnect();
     };
     // Note: we intentionally only run this on mount/unmount

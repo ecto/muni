@@ -76,6 +76,9 @@ async fn handle_video_connection(
     mut frame_rx: watch::Receiver<Option<VideoFrame>>,
     min_interval: Duration,
 ) -> Result<(), TeleopError> {
+    // Disable Nagle's algorithm for lower latency
+    let _ = stream.set_nodelay(true);
+
     let ws_stream = accept_async(stream)
         .await
         .map_err(|e| TeleopError::Network(std::io::Error::new(std::io::ErrorKind::Other, e)))?;

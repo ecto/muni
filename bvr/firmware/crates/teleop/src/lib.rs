@@ -38,7 +38,7 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             listen_port: 4840,
-            heartbeat_interval: Duration::from_millis(100),
+            heartbeat_interval: Duration::from_millis(20), // 50Hz telemetry
             connection_timeout: Duration::from_secs(1),
         }
     }

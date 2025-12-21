@@ -24,7 +24,7 @@ impl Default for WsConfig {
     fn default() -> Self {
         Self {
             port: 4850,
-            heartbeat_interval: Duration::from_millis(100),
+            heartbeat_interval: Duration::from_millis(20), // 50Hz telemetry
         }
     }
 }
@@ -89,6 +89,9 @@ async fn handle_connection(
     telemetry_rx: watch::Receiver<Telemetry>,
     heartbeat_interval: Duration,
 ) -> Result<(), TeleopError> {
+    // Disable Nagle's algorithm for lower latency
+    let _ = stream.set_nodelay(true);
+
     let ws_stream = accept_async(stream)
         .await
         .map_err(|e| TeleopError::Network(std::io::Error::new(std::io::ErrorKind::Other, e)))?;

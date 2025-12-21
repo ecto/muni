@@ -91,8 +91,8 @@ impl Default for Limits {
         Self {
             max_linear: 5.0,
             max_angular: 2.5,
-            max_accel: 3.0,
-            max_decel: 8.0,  // Faster decel for responsive stopping at higher speeds
+            max_accel: 50.0, // Effectively unlimited — teleop is direct control
+            max_decel: 15.0, // Quick stop for safety when releasing stick
             max_wheel_rpm: 650.0, // ~5.5 m/s with 160mm wheels (headroom)
         }
     }

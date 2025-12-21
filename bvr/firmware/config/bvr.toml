@@ -9,8 +9,8 @@ track_width_m = 0.55
 wheelbase_m = 0.55
 # Maximum linear speed (m/s)
 max_speed_mps = 3.0
-# Maximum linear acceleration (m/s²)
-max_accel_mps2 = 2.0
+# Maximum linear acceleration (m/s²) — high for responsive teleop
+max_accel_mps2 = 50.0
 # Maximum angular velocity (rad/s)
 max_angular_vel_rps = 2.0
 
@@ -72,7 +72,7 @@ include_camera = false
 
 [identity]
 # Unique rover identifier (used in logs, recordings, sync)
-rover_id = "bvr-01"
+rover_id = "frog-0"
 
 [sync]
 # Enable automatic sync to base station
@@ -93,7 +93,21 @@ min_age_secs = 60
 enabled = true
 # Depot endpoint (IP:port or hostname:port)
 # InfluxDB listens on UDP port 8089 for line protocol
-endpoint = "depot.local:8089"
+endpoint = "192.168.1.129:8089"
 # Push rate in Hz (1 = once per second, recommended)
 interval_hz = 1
+
+[discovery]
+# Enable rover discovery registration
+enabled = true
+# Discovery service endpoint
+endpoint = "192.168.1.129:4860"
+# Rover identity (defaults to identity.rover_id if not set)
+rover_id = "frog-0"
+rover_name = "Frog-0"
+# WebSocket ports for operators to connect
+ws_port = 4850
+ws_video_port = 4851
+# Heartbeat interval in seconds
+heartbeat_secs = 2
 

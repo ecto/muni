@@ -10,6 +10,7 @@ use gps::{Config as GpsConfig, GpsReader, GpsState};
 use localization::{PoseEstimator, WheelOdometry};
 use metrics::{Config as MetricsConfig, DiscoveryClient, DiscoveryConfig, MetricsPusher, MetricsSnapshot};
 use recording::{Config as RecordingConfig, Recorder};
+use serde::Deserialize;
 use sim::SimBus;
 use state::{Event, StateMachine};
 use std::path::PathBuf;
@@ -26,6 +27,86 @@ use tracing_appender::rolling::{RollingFileAppender, Rotation};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 use types::{Command, Mode, Pose, PowerStatus, Twist};
 use ui::{Config as UiConfig, Dashboard};
+
+/// Configuration file structure (bvr.toml).
+#[derive(Debug, Deserialize, Default)]
+#[serde(default)]
+struct FileConfig {
+    identity: IdentityConfig,
+    metrics: MetricsFileConfig,
+    discovery: DiscoveryFileConfig,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(default)]
+struct IdentityConfig {
+    rover_id: String,
+}
+
+impl Default for IdentityConfig {
+    fn default() -> Self {
+        Self {
+            rover_id: "bvr-01".to_string(),
+        }
+    }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(default)]
+struct MetricsFileConfig {
+    enabled: bool,
+    endpoint: String,
+    interval_hz: u32,
+}
+
+impl Default for MetricsFileConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            endpoint: "depot.local:8089".to_string(),
+            interval_hz: 1,
+        }
+    }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(default)]
+struct DiscoveryFileConfig {
+    enabled: bool,
+    endpoint: String,
+    rover_id: Option<String>,
+    rover_name: Option<String>,
+    ws_port: u16,
+    ws_video_port: u16,
+    heartbeat_secs: u32,
+}
+
+impl Default for DiscoveryFileConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            endpoint: "depot.local:4860".to_string(),
+            rover_id: None,
+            rover_name: None,
+            ws_port: 4850,
+            ws_video_port: 4851,
+            heartbeat_secs: 2,
+        }
+    }
+}
+
+impl FileConfig {
+    fn load(path: &std::path::Path) -> Result<Self> {
+        if path.exists() {
+            let content = std::fs::read_to_string(path)?;
+            let config: FileConfig = toml::from_str(&content)?;
+            Ok(config)
+        } else {
+            warn!(path = %path.display(), "Config file not found, using defaults");
+            Ok(FileConfig::default())
+        }
+    }
+}
 
 #[derive(Parser)]
 #[command(name = "bvrd", about = "Base Vectoring Rover daemon")]
@@ -102,25 +183,25 @@ struct Args {
     #[arg(long, default_value = "info")]
     log_level: String,
 
-    /// Disable metrics push to Depot
+    /// Disable metrics push to Depot (overrides config file)
     #[arg(long)]
     no_metrics: bool,
 
-    /// Depot metrics endpoint (e.g., "depot:8089")
-    #[arg(long, default_value = "depot:8089")]
-    metrics_endpoint: String,
+    /// Depot metrics endpoint - overrides config file (e.g., "192.168.1.100:8089")
+    #[arg(long)]
+    metrics_endpoint: Option<String>,
 
-    /// Metrics push rate in Hz
-    #[arg(long, default_value = "1")]
-    metrics_hz: u32,
+    /// Metrics push rate in Hz - overrides config file
+    #[arg(long)]
+    metrics_hz: Option<u32>,
 
-    /// Disable discovery service registration
+    /// Disable discovery service registration (overrides config file)
     #[arg(long)]
     no_discovery: bool,
 
-    /// Depot discovery endpoint (e.g., "depot:4860")
-    #[arg(long, default_value = "depot:4860")]
-    discovery_endpoint: String,
+    /// Depot discovery endpoint - overrides config file (e.g., "192.168.1.100:4860")
+    #[arg(long)]
+    discovery_endpoint: Option<String>,
 }
 
 /// CAN interface abstraction for real or simulated hardware.
@@ -181,14 +262,20 @@ async fn main() -> Result<()> {
     // The _guard must be held for the lifetime of the program to ensure logs are flushed
     let _log_guard = init_logging(&args.log_dir, &args.log_level)?;
 
+    // Load configuration file
+    let file_config = FileConfig::load(&args.config)?;
+    info!(path = %args.config.display(), "Loaded config");
+
+    // Resolve rover_id from config file
+    let rover_id = file_config.identity.rover_id.clone();
+
     // CAN interface: CLI arg > default "can0"
-    // TODO: load from config file
     let can_iface = args.can_interface.as_deref().unwrap_or("can0");
 
     if args.sim {
         info!("Starting bvrd in SIMULATION mode");
     } else {
-        info!(config = ?args.config, can = %can_iface, "Starting bvrd");
+        info!(config = ?args.config, can = %can_iface, rover = %rover_id, "Starting bvrd");
     }
 
     // Initialize telemetry recorder
@@ -198,7 +285,7 @@ async fn main() -> Result<()> {
     } else {
         let recording_config = RecordingConfig {
             session_dir: args.recording_dir.clone(),
-            rover_id: args.rover_id.clone(),
+            rover_id: rover_id.clone(),
             max_storage_bytes: 10 * 1024 * 1024 * 1024, // 10 GB
             include_camera: false,
             enabled: true,
@@ -218,13 +305,15 @@ async fn main() -> Result<()> {
     };
 
     // Initialize metrics pusher for Depot
+    // Priority: CLI args > config file
     let (metrics_tx, metrics_rx) = watch::channel(MetricsSnapshot::default());
-    if !args.no_metrics {
+    let metrics_enabled = !args.no_metrics && file_config.metrics.enabled;
+    if metrics_enabled {
         let metrics_config = MetricsConfig {
             enabled: true,
-            endpoint: args.metrics_endpoint.clone(),
-            interval_hz: args.metrics_hz,
-            rover_id: args.rover_id.clone(),
+            endpoint: args.metrics_endpoint.clone().unwrap_or(file_config.metrics.endpoint.clone()),
+            interval_hz: args.metrics_hz.unwrap_or(file_config.metrics.interval_hz),
+            rover_id: rover_id.clone(),
         };
         match MetricsPusher::new(&metrics_config) {
             Ok(pusher) => {
@@ -244,15 +333,24 @@ async fn main() -> Result<()> {
     }
 
     // Initialize discovery client for Depot
-    if !args.no_discovery {
+    // Priority: CLI args > config file
+    let discovery_enabled = !args.no_discovery && file_config.discovery.enabled;
+    if discovery_enabled {
+        let discovery_endpoint = args.discovery_endpoint.clone()
+            .unwrap_or(file_config.discovery.endpoint.clone());
+        let discovery_rover_id = file_config.discovery.rover_id.clone()
+            .unwrap_or(rover_id.clone());
+        let discovery_rover_name = file_config.discovery.rover_name.clone()
+            .unwrap_or_else(|| discovery_rover_id.replace("bvr-", "Beaver-").replace("frog-", "Frog-"));
+
         let discovery_config = DiscoveryConfig {
             enabled: true,
-            endpoint: args.discovery_endpoint.clone(),
-            heartbeat_secs: 2,
-            rover_id: args.rover_id.clone(),
-            rover_name: args.rover_id.replace("bvr-", "Beaver-"),
-            ws_port: args.ws_port,
-            ws_video_port: args.ws_video_port,
+            endpoint: discovery_endpoint.clone(),
+            heartbeat_secs: file_config.discovery.heartbeat_secs,
+            rover_id: discovery_rover_id,
+            rover_name: discovery_rover_name,
+            ws_port: file_config.discovery.ws_port,
+            ws_video_port: file_config.discovery.ws_video_port,
         };
 
         let discovery_client = DiscoveryClient::new(discovery_config);
@@ -263,7 +361,7 @@ async fn main() -> Result<()> {
         });
 
         info!(
-            endpoint = %args.discovery_endpoint,
+            endpoint = %discovery_endpoint,
             "Discovery client started"
         );
     } else {
@@ -497,16 +595,14 @@ async fn main() -> Result<()> {
     let control_period = Duration::from_millis(10); // 100 Hz
     let mut last_tick = Instant::now();
 
-    // Smoothing filter for commanded twist (reduces jitter from network/input noise)
-    // Alpha = 0.5 gives ~2 cycle time constant (~20ms smoothing at 100Hz)
-    let smoothing_alpha = 0.5;
-    let mut smoothed_twist = Twist::default();
-
     // Current tool command (from teleop)
     let mut tool_command = types::ToolCommand::default();
 
     // Track mode for change detection (for recording annotations)
     let mut last_mode = initial_mode;
+
+    // Diagnostic counter for battery logging
+    let mut loop_count: u64 = 0;
 
     info!("Entering control loop");
     info!("Dashboard available at http://localhost:{}", args.ui_port);
@@ -540,6 +636,19 @@ async fn main() -> Result<()> {
             state.tool_registry.process_frame(&frame);
         }
 
+        loop_count += 1;
+
+        // Log battery voltage every 10 seconds for diagnostics
+        if loop_count % 1000 == 0 {
+            let state = shared.lock().unwrap();
+            let voltage = state.drivetrain.battery_voltage();
+            if voltage > 0.0 {
+                info!(voltage = format!("{:.1}V", voltage), "Battery status");
+            } else {
+                warn!("Battery voltage not received - check VESC CAN status settings");
+            }
+        }
+
         // Process incoming commands (non-blocking)
         while let Ok(cmd) = cmd_rx.try_recv() {
             let mut state = shared.lock().unwrap();
@@ -567,7 +676,6 @@ async fn main() -> Result<()> {
                 Command::EStop => {
                     warn!("E-Stop command received");
                     state.state_machine.transition(Event::EStop);
-                    smoothed_twist = Twist::default();
                     rate_limiter.reset();
                 }
                 Command::EStopRelease => {
@@ -601,23 +709,18 @@ async fn main() -> Result<()> {
             warn!("Command watchdog timeout");
             state.state_machine.transition(Event::CommandTimeout);
             state.commanded_twist = Twist::default();
-            smoothed_twist = Twist::default();
             rate_limiter.reset();
         }
 
-        // Compute motor outputs
+        // Compute motor outputs — direct teleop, no smoothing for lowest latency
         let (target_twist, boost_active) = if state.state_machine.is_driving() {
             (state.commanded_twist, state.commanded_twist.boost)
         } else {
             (Twist::default(), false)
         };
 
-        // Apply exponential smoothing to reduce jitter from network/input noise
-        smoothed_twist.linear += smoothing_alpha * (target_twist.linear - smoothed_twist.linear);
-        smoothed_twist.angular += smoothing_alpha * (target_twist.angular - smoothed_twist.angular);
-
-        // Rate limit the smoothed twist
-        let mut twist = rate_limiter.limit(smoothed_twist);
+        // Rate limit for safety (acceleration limits only)
+        let mut twist = rate_limiter.limit(target_twist);
 
         // Boost angular for skid steering (requires more torque than forward motion)
         twist.angular *= 2.5;
