@@ -234,13 +234,15 @@ impl Drivetrain {
 
     /// Get battery voltage (from any VESC that has reported).
     pub fn battery_voltage(&self) -> f32 {
-        // Return voltage from front-left, or any that has a reading
-        let v = self.front_left.state.status5.voltage_in;
-        if v > 0.0 {
-            v
-        } else {
-            self.front_right.state.status5.voltage_in
+        // Return voltage from any VESC that has a valid reading
+        // Check all 4 VESCs in case some aren't sending STATUS5
+        for vesc in [&self.front_left, &self.front_right, &self.rear_left, &self.rear_right] {
+            let v = vesc.state.status5.voltage_in;
+            if v > 0.0 {
+                return v;
+            }
         }
+        0.0
     }
 
     /// Get all VESC states.
