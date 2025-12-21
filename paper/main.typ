@@ -145,6 +145,20 @@ The system described in this paper is operational. Specifications reflect curren
   caption: [System architecture: local-first SCADA model with no cloud dependency],
 ) <fig:architecture>
 
+= Why Now: The Hardware Inflection Point
+
+This system would not have been economically viable five years ago. Several technology trends have converged to create an inflection point for low-cost outdoor robotics.
+
+*48V ecosystem standardization.* The electric bicycle and personal mobility industry has driven massive production scale for 48V lithium-ion batteries, motor controllers, and hub motors. Components that cost \$500+ in 2018 now cost under \$100 at retail. More importantly, this ecosystem has standardized on common form factors, connectors, and protocols. The BVR0 prototype uses an off-the-shelf e-bike battery (\$200), hoverboard hub motors (\$80 each), and VESC motor controllers (\$60 each). Total drivetrain cost: under \$500 for a platform capable of moving 50kg payloads at walking speed.
+
+*Edge compute cost collapse.* The NVIDIA Jetson Orin NX delivers 100 TOPS of AI inference at 15W for under \$500. Five years ago, equivalent compute required \$5,000+ in hardware and 10× the power budget. This enables onboard perception, mapping, and decision-making without cloud connectivity. The Raspberry Pi 5 and similar single-board computers now provide sufficient compute for teleoperation and basic autonomy at \$100.
+
+*Sensor commoditization.* The Livox Mid-360 solid-state LiDAR costs \$1,000 and provides 360° coverage with 40m range. Consumer 360° cameras like the Insta360 X3 (\$400) provide sufficient resolution for remote operation and machine vision. Recent research has demonstrated practical calibration methods for fusing these sensors into coherent spatial representations @bedkowski2025spherical. Five years ago, this sensor suite would have cost \$20,000+.
+
+*Open-source software maturity.* ROS2, OpenCV, PyTorch, and related tools have matured to production quality. Pre-trained models for common perception tasks (pedestrian detection, path segmentation, obstacle classification) are freely available and run efficiently on edge hardware.
+
+The result: a complete sidewalk-clearing robot can be built for under \$5,000 in hardware, using components available from consumer electronics suppliers. This is below the threshold where municipalities can experiment without major capital approval processes.
+
 = Problem Definition: Public Works as a Control System
 
 == The Optimization Problem
@@ -157,11 +171,20 @@ The control variables available to a public works director are labor hours alloc
 
 == Reference Case: Lakewood, Ohio
 
-Lakewood is a first-ring suburb of Cleveland with a population of 49,517 @census2024lakewood and over 180 miles of sidewalks @lakewood2024sidewalks. It is the most walkable city in Ohio and the state's most densely populated municipality (~9,000 residents per square mile). The city experiences an average of 24 snow events per season requiring clearing @noaa2024cleveland.
+Lakewood is a first-ring suburb of Cleveland with a population of 49,517 @census2024lakewood and over 180 miles of sidewalks @lakewood2024sidewalks. It is the most walkable city in Ohio and the state's most densely populated municipality (\~9,000 residents per square mile). The city experiences an average of 24 snow events per season requiring clearing @noaa2024cleveland.
+
+#figure(
+  image("images/lakewood-aerial.png", width: 80%),
+  caption: [Aerial view of Lakewood, Ohio showing dense residential grid with continuous sidewalk network. Lake Erie and downtown Cleveland visible in background.],
+) <fig:lakewood-aerial>
+
+Lakewood presents a compelling case study for several reasons. As a "streetcar suburb" developed in the early 20th century, the city was designed around pedestrian access to transit stops. This legacy produces an unusually complete and well-connected sidewalk network with high daily foot traffic: residents routinely walk to schools, commercial districts, and transit. Sidewalk accessibility is not optional infrastructure; it is the primary mobility layer for a significant portion of the population.
+
+However, this same legacy produces challenges. Aging infrastructure (century-old water mains, overhead power lines, and narrow rights-of-way) creates maintenance complexity. In June 2022, a severe storm system spawned tornadoes that knocked out power across the city for up to two weeks. Cellular connectivity failed within days as tower batteries depleted without grid power. This event demonstrated both the fragility of communications infrastructure and the city's resilience requirements: any deployed system must degrade gracefully when connectivity is unavailable.
 
 Currently, Lakewood does not clear sidewalks municipally. Property owners are required by ordinance to clear adjacent sidewalks within 24 hours of snowfall. Enforcement is handled by the Division of Housing and Building on a complaint basis. The city does not provide school busing, making sidewalk accessibility a student safety issue.
 
-This profile (high density, extensive sidewalk network, property-owner mandate with uneven compliance, and no current municipal clearing budget) represents a common pattern in Midwestern cities.
+This profile (high density, extensive sidewalk network, heavy pedestrian reliance, aging infrastructure, demonstrated connectivity fragility, property-owner mandate with uneven compliance, and no current municipal clearing budget) represents a common pattern in Midwestern streetcar suburbs and makes Lakewood an ideal testbed for autonomous sidewalk maintenance.
 
 == Current Approaches and Failure Modes
 
@@ -376,9 +399,32 @@ This section describes the technical architecture at a level appropriate for IT 
   caption: [Platform specifications],
 ) <tab:platform>
 
+#figure(
+  grid(
+    columns: 3,
+    gutter: 8pt,
+    image("images/prototype-pavement.jpg"),
+    image("images/prototype-drift.png"),
+    image("images/wheel-snow.jpg"),
+  ),
+  caption: [BVR0 engineering prototype: ultra-low-cost, field-repairable. Pavement testing (left), mid-drift maneuver on grass (center), hoverboard hub motor after snow operation showing acceptable winter traction (right)],
+) <fig:bvr0>
+
+#figure(
+  grid(
+    columns: 2,
+    gutter: 12pt,
+    image("images/bvr0-disassembled.jpg"),
+    image("images/bvr1-render.png"),
+  ),
+  caption: [Left: BVR0 disassembled for maintenance: aluminum extrusion frame, hoverboard hub motors, e-bike battery, and modular plow attachment. All components replaceable with hand tools in under 30 minutes, with parts generally available from big box stores. Right: BVR1 (rendering), precision-engineered production unit shipping to pilot customers, featuring enclosed weatherproof chassis, integrated plow, RTK GPS, and stereo vision.],
+) <fig:bvr0-bvr1>
+
 == Communications Stack
 
 The system uses a layered communications architecture. Transport uses QUIC over UDP for low-latency command and telemetry. Video streams use H.265 RTP at 720p, 30 fps, requiring approximately 2 Mbps. The base station maintains direct connections to rovers via LTE or local WiFi mesh. No cloud services are required for operation. Rovers fail safe on connectivity loss by stopping, holding position, or continuing autonomous waypoint following depending on mode. Typical end-to-end latency from operator input to rover response is 50–150ms over local network, 100–250ms over LTE.
+
+*Safety implications of latency:* At 250ms round-trip latency and maximum speed of 1.5 m/s, a rover travels 375mm before an operator's reaction reaches it. This is well within the 500mm obstacle detection margin. However, latency directly affects operator situational awareness and reaction time. The system compensates by: (1) running obstacle detection locally with zero network dependency, (2) applying velocity limits proportional to latency, and (3) providing latency indicators in the operator UI. If latency exceeds 500ms, the rover automatically reduces speed; above 1000ms, it stops and awaits reconnection.
 
 == Onboard Compute Philosophy
 
@@ -1067,7 +1113,7 @@ This appendix applies the economic model to a specific municipality using public
     table.header([*Parameter*], [*Value*], [*Source*]),
     [Population], [49,517], [Census (2024)],
     [Area], [5.5 sq mi], [Census],
-    [Population density], [~9,000/sq mi], [Highest in Ohio],
+    [Population density], [\~9,000/sq mi], [Highest in Ohio],
     [Sidewalk network], [180+ miles], [City of Lakewood],
     [Street network], [90 miles], [City of Lakewood],
     [Snow events (1"+)], [24/season], [NOAA],
@@ -1169,7 +1215,7 @@ At supervised autonomy (1:10), robotic systems reduce 5-year TCO by *74% vs manu
     columns: 3,
     align: (left, left, left),
     table.header([*Parameter*], [*Specification*], [*Notes*]),
-    [Operating temperature], [−20°F to 40°F (−29°C to 4°C)], [Battery capacity reduced ~30% at low end],
+    [Operating temperature], [−20°F to 40°F (−29°C to 4°C)], [Battery capacity reduced \~30% at low end],
     [Storage temperature], [−40°F to 120°F], [Requires climate-controlled charging],
     [Precipitation], [IP65 rated], [Continuous operation in snow, rain, sleet],
     [Snow depth (clearing)], [Up to 6 inches per pass], [Deeper accumulations require multiple passes],
