@@ -115,11 +115,11 @@ For more headroom or x86 compatibility:
 
 ### External Power
 
-| Component     | Model               | Price | Notes                   |
-| ------------- | ------------------- | ----- | ----------------------- |
-| Power Station | EcoFlow River 3     | $200  | 245Wh, solar-ready      |
-| DC Cable      | 12V barrel to PoE   | $10   | Or use AC outlet        |
-|               | **Subtotal**        | $210  |                         |
+| Component     | Model             | Price | Notes              |
+| ------------- | ----------------- | ----- | ------------------ |
+| Power Station | EcoFlow River 3   | $200  | 245Wh, solar-ready |
+| DC Cable      | 12V barrel to PoE | $10   | Or use AC outlet   |
+|               | **Subtotal**      | $210  |                    |
 
 ### Total Cost
 
