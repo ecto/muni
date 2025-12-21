@@ -1,5 +1,11 @@
 #import "@preview/cetz:0.4.2"
 #import "@preview/lilaq:0.5.0" as lq
+#import "@preview/fletcher:0.5.7" as fletcher: diagram, node, edge
+#import "@preview/timeliney:0.4.0"
+#import "@preview/zero:0.5.0": num, ztable, set-num
+
+// Configure zero for large numbers with comma grouping
+#set-num(group: (threshold: 4, separator: ","))
 
 // Document setup
 #set document(
@@ -23,11 +29,11 @@
   footer: context {
     if counter(page).get().first() > 1 [
       #set text(size: 8pt, fill: gray)
-      Rev 1.0, December 2024
+      Rev 1.1, December 2025
       #h(1fr)
       #counter(page).display()
       #h(1fr)
-      Engineering Whitepaper
+      Whitepaper
     ]
   },
 )
@@ -155,11 +161,13 @@ This system would not have been economically viable five years ago. Several tech
 
 *Sensor commoditization.* The Livox Mid-360 solid-state LiDAR costs \$1,000 and provides 360° coverage with 40m range. Consumer 360° cameras like the Insta360 X3 (\$400) provide sufficient resolution for remote operation and machine vision. Recent research has demonstrated practical calibration methods for fusing these sensors into coherent spatial representations @bedkowski2025spherical. Five years ago, this sensor suite would have cost \$20,000+.
 
-*Open-source software maturity.* ROS2, OpenCV, PyTorch, and related tools have matured to production quality. Pre-trained models for common perception tasks (pedestrian detection, path segmentation, obstacle classification) are freely available and run efficiently on edge hardware.
+*Open-source software maturity.* ROS2, OpenCV, PyTorch, and related tools have matured to production quality. Pre-trained models for common perception tasks (pedestrian detection, path segmentation, obstacle classification) are freely available and run efficiently on edge hardware. Projects like comma.ai's openpilot demonstrate what is possible: an open-source driver assistance system with over #num[300e6] miles driven, 325+ supported vehicle models, and contributions from over #num[1000] developers @openpilot2025. The entire perception and control stack runs on a \$500 device.
 
-The result: a complete sidewalk-clearing robot can be built for under \$5,000 in hardware, using components available from consumer electronics suppliers. This is below the threshold where municipalities can experiment without major capital approval processes.
+*Proven autonomous navigation at scale.* The question of whether robots can navigate shared pedestrian spaces has been answered. Starship Technologies' delivery robots have logged over #num[12e6] autonomous miles on sidewalks worldwide @starship2025. Waymo's robotaxi fleet has driven #num[25e6]+ fully driverless miles with demonstrated safety improvements: 72% fewer injury-causing crashes than human drivers @waymo2024safety. These are not research prototypes; they are commercial services operating daily. The perception, planning, and safety systems required for sidewalk navigation exist and work.
 
-= Problem Definition: Public Works as a Control System
+The result: a complete sidewalk-clearing robot can be built for under \$5,000 in hardware, using components available from consumer electronics suppliers. The software stack to operate it autonomously has been proven at scale in adjacent domains. This is below the threshold where municipalities can experiment without major capital approval processes.
+
+= Public Works as an Optimization Problem
 
 == The Optimization Problem
 
@@ -186,6 +194,32 @@ Currently, Lakewood does not clear sidewalks municipally. Property owners are re
 
 This profile (high density, extensive sidewalk network, heavy pedestrian reliance, aging infrastructure, demonstrated connectivity fragility, property-owner mandate with uneven compliance, and no current municipal clearing budget) represents a common pattern in Midwestern streetcar suburbs and makes Lakewood an ideal testbed for autonomous sidewalk maintenance.
 
+== Reference Case: Minneapolis, Minnesota
+
+Minneapolis presents a contrasting case: a larger city actively grappling with the economics of municipal sidewalk clearing. With a population of 429,000 and approximately 1,910 miles of sidewalks, Minneapolis has 92% of streets with sidewalks on both sides and is recognized as a Gold-level Walk Friendly Community.
+
+The city experiences an average of 52 inches of annual snowfall across approximately 23 snow events per season, with four typically triggering declared snow emergencies @mndnr2024snow. Current ordinance requires residential property owners to clear sidewalks within 24 hours of snowfall; commercial properties must clear within 4 daytime hours. Enforcement, as in most cities, is complaint-driven.
+
+In 2023, Minneapolis commissioned a study of citywide municipal sidewalk clearing. The projected cost: \$#num[116.2e6] over the first three years, with annual operating costs of \$#num[40.6e6] thereafter @startribune2023sidewalk. At #num[1910] miles, this works out to approximately \$#num[21250] per mile per year, reflecting the full cost of equipment, labor, and overhead at municipal scale.
+
+Rather than commit to this expense, the city launched a targeted pilot program in 2024-2025. The program focused on 66 miles of high-priority pedestrian sidewalks in South Minneapolis, deploying four "Snow Ambassador" staff to patrol, clear, and treat problem areas. The pilot also included a mobile response team for 311 requests and a senior assistance program partnering with neighborhood groups @axios2025sidewalkpilot.
+
+Results were striking: the pilot spent approximately \$#num[230000], less than half the budgeted \$#num[595000], while addressing #num[534] site clearings and #num[902] problem addresses @axios2025sidewalkpilot. The per-mile cost of \$#num[3485] for targeted intervention compares favorably to the \$#num[21250] per-mile estimate for comprehensive municipal clearing.
+
+#figure(
+  grid(
+    columns: 2,
+    gutter: 1em,
+    image("images/minneapolis-clearing-1.jpg"),
+    image("images/minneapolis-clearing-2.jpg"),
+  ),
+  caption: [Minneapolis Snow Ambassadors clearing priority sidewalks during the 2024-2025 pilot program. Manual labor with shovels and walk-behind blowers remains the standard approach.],
+) <fig:minneapolis-clearing>
+
+Minneapolis illustrates the cost cliff municipalities face: property-owner mandates are cheap but ineffective, while full municipal programs are effective but prohibitively expensive. The pilot suggests a middle path, targeted intervention on priority routes, but this approach still requires significant labor coordination and does not scale gracefully to full network coverage.
+
+This gap between "complaint-driven non-enforcement" and "\$40 million annual programs" is precisely where robotic systems can operate. A fleet of autonomous units could provide consistent coverage of priority routes at a fraction of the labor cost, while the logging and verification capabilities address the accountability gaps that plague contractor and property-owner models.
+
 == Current Approaches and Failure Modes
 
 #figure(
@@ -201,6 +235,56 @@ This profile (high density, extensive sidewalk network, heavy pedestrian relianc
 The consequences are measurable: in 2023, 65% of pedestrian fatalities occurred in locations without a sidewalk or where the sidewalk was obstructed @ghsa2024pedestrian. Sidewalk coverage in major U.S. cities averages only 27–58% of road networks @lee2024sidewalk.
 
 Most municipalities address sidewalk maintenance through one of three approaches:
+
+#figure(
+  cetz.canvas(length: 1cm, {
+    import cetz.draw: *
+
+    // Three columns for three approaches
+    let col-width = 3.5
+    let col-gap = 0.5
+
+    // Column 1: Municipal Crews
+    rect((-5.5, -3), (-2, 2.5), fill: rgb("#e3f2fd"), stroke: rgb("#1976d2") + 1pt, radius: 0.15)
+    content((-3.75, 2), text(size: 8pt, weight: "bold")[Municipal Crews])
+
+    content((-3.75, 1.2), text(size: 6pt)[Seasonal workers])
+    content((-3.75, 0.7), text(size: 6pt)[Shovels, blowers])
+
+    rect((-5.3, -2.7), (-2.2, -0.2), fill: rgb("#ffebee"), stroke: none, radius: 0.1)
+    content((-3.75, -0.5), text(size: 6pt, fill: rgb("#c62828"))[✗ Labor shortages])
+    content((-3.75, -1.0), text(size: 6pt, fill: rgb("#c62828"))[✗ 0.1 mi/hr rate])
+    content((-3.75, -1.5), text(size: 6pt, fill: rgb("#c62828"))[✗ Injury risk])
+    content((-3.75, -2.0), text(size: 6pt, fill: rgb("#c62828"))[✗ Inconsistent])
+
+    // Column 2: Contractors
+    rect((-1.75, -3), (1.75, 2.5), fill: rgb("#fff3e0"), stroke: rgb("#ff9800") + 1pt, radius: 0.15)
+    content((0, 2), text(size: 8pt, weight: "bold")[Contractors])
+
+    content((0, 1.2), text(size: 6pt)[Landscaping cos])
+    content((0, 0.7), text(size: 6pt)[Per-event billing])
+
+    rect((-1.55, -2.7), (1.55, -0.2), fill: rgb("#ffebee"), stroke: none, radius: 0.1)
+    content((0, -0.5), text(size: 6pt, fill: rgb("#c62828"))[✗ Incentive mismatch])
+    content((0, -1.0), text(size: 6pt, fill: rgb("#c62828"))[✗ No verification])
+    content((0, -1.5), text(size: 6pt, fill: rgb("#c62828"))[✗ Multi-client])
+    content((0, -2.0), text(size: 6pt, fill: rgb("#c62828"))[✗ Wrong equipment])
+
+    // Column 3: Property Mandates
+    rect((2, -3), (5.5, 2.5), fill: rgb("#f3e5f5"), stroke: rgb("#7b1fa2") + 1pt, radius: 0.15)
+    content((3.75, 2), text(size: 8pt, weight: "bold")[Property Mandates])
+
+    content((3.75, 1.2), text(size: 6pt)[Ordinance-based])
+    content((3.75, 0.7), text(size: 6pt)[78% of cities])
+
+    rect((2.2, -2.7), (5.3, -0.2), fill: rgb("#ffebee"), stroke: none, radius: 0.1)
+    content((3.75, -0.5), text(size: 6pt, fill: rgb("#c62828"))[✗ No enforcement])
+    content((3.75, -1.0), text(size: 6pt, fill: rgb("#c62828"))[✗ Equity gaps])
+    content((3.75, -1.5), text(size: 6pt, fill: rgb("#c62828"))[✗ Inconsistent])
+    content((3.75, -2.0), text(size: 6pt, fill: rgb("#c62828"))[✗ Liability unclear])
+  }),
+  caption: [Three current approaches to sidewalk maintenance, all with significant failure modes],
+) <fig:approaches>
 
 *1. Municipal crews with hand tools and small equipment*
 
@@ -224,11 +308,11 @@ This is the dominant approach. A survey by the Institute of Transportation Engin
 
 In practice, enforcement is nearly nonexistent. A University of Delaware study found that 70% of surveyed municipalities did not enforce their sidewalk snow-removal ordinances @udel2010snow. Most cities enforce on a complaint basis only. The result is that *most sidewalks in most American cities are not reliably cleared*. The liability has been transferred on paper, but the service gap remains.
 
-This creates a paradox: cities avoid clearing sidewalks to limit liability, but uncleared sidewalks generate liability anyway. The same study found that 58% of municipalities reported being sued for pedestrian accidents on improperly maintained sidewalks @udel2010snow. Zurich Insurance reserves approximately \$1 billion annually for slip-and-fall claims, with sidewalk incidents averaging \$19,776 per claim @zurich2019slipfall. The current equilibrium is unstable. It persists only because no cost-effective alternative has existed.
+This creates a paradox: cities avoid clearing sidewalks to limit liability, but uncleared sidewalks generate liability anyway. The same study found that 58% of municipalities reported being sued for pedestrian accidents on improperly maintained sidewalks @udel2010snow. Zurich Insurance reserves approximately \$#num[1e9] annually for slip-and-fall claims, with sidewalk incidents averaging \$#num[19776] per claim @zurich2019slipfall. The current equilibrium is unstable. It persists only because no cost-effective alternative has existed.
 
 == The Structural Problem
 
-All three approaches share a common failure: they treat sidewalk maintenance as an episodic labor problem rather than a continuous coverage problem.
+All three approaches share a common failure: they treat sidewalk maintenance as an episodic labor problem rather than a continuous coverage problem (like an indoor robotic vacuum).
 
 The service requirement is spatial: every linear foot of sidewalk must be cleared. The labor model is temporal: workers clock in and clock out. The mismatch is fundamental.
 
@@ -361,6 +445,51 @@ A single rover platform supports multiple attachments:
 
 This approach reduces capital cost (one platform, multiple uses) and increases utilization (year-round operation).
 
+#figure(
+  cetz.canvas(length: 1cm, {
+    import cetz.draw: *
+
+    // Central rover body
+    rect((-1.5, -1), (1.5, 1), fill: rgb("#e8f5e9"), stroke: rgb("#2e7d32") + 1.5pt, radius: 0.2)
+    content((0, 0), text(size: 9pt, weight: "bold")[Rover\ Platform])
+
+    // Attachment mount point (top)
+    rect((-0.5, 1), (0.5, 1.3), fill: rgb("#666"), stroke: none)
+
+    // Four attachments around it
+    // Snow auger (top left)
+    rect((-4.5, 1.5), (-2.5, 3), fill: rgb("#bbdefb"), stroke: rgb("#1976d2") + 1pt, radius: 0.15)
+    content((-3.5, 2.5), text(size: 7pt)[Snow])
+    content((-3.5, 2.0), text(size: 7pt)[Auger])
+    line((-2.5, 2.25), (-1.5, 1.3), stroke: (dash: "dashed", paint: rgb("#666")), mark: (end: ">"))
+
+    // Brine sprayer (top right)
+    rect((2.5, 1.5), (4.5, 3), fill: rgb("#c8e6c9"), stroke: rgb("#388e3c") + 1pt, radius: 0.15)
+    content((3.5, 2.5), text(size: 7pt)[Brine])
+    content((3.5, 2.0), text(size: 7pt)[Sprayer])
+    line((2.5, 2.25), (1.5, 1.3), stroke: (dash: "dashed", paint: rgb("#666")), mark: (end: ">"))
+
+    // Sweeper (bottom left)
+    rect((-4.5, -3), (-2.5, -1.5), fill: rgb("#ffe0b2"), stroke: rgb("#f57c00") + 1pt, radius: 0.15)
+    content((-3.5, -2.0), text(size: 7pt)[Rotary])
+    content((-3.5, -2.5), text(size: 7pt)[Sweeper])
+    line((-2.5, -2.25), (-1.5, -0.5), stroke: (dash: "dashed", paint: rgb("#666")), mark: (end: ">"))
+
+    // Camera (bottom right)
+    rect((2.5, -3), (4.5, -1.5), fill: rgb("#e1bee7"), stroke: rgb("#7b1fa2") + 1pt, radius: 0.15)
+    content((3.5, -2.0), text(size: 7pt)[Inspection])
+    content((3.5, -2.5), text(size: 7pt)[Camera])
+    line((2.5, -2.25), (1.5, -0.5), stroke: (dash: "dashed", paint: rgb("#666")), mark: (end: ">"))
+
+    // Season labels
+    content((-3.5, 3.3), text(size: 6pt, fill: rgb("#666"))[Winter])
+    content((3.5, 3.3), text(size: 6pt, fill: rgb("#666"))[Winter])
+    content((-3.5, -3.3), text(size: 6pt, fill: rgb("#666"))[Spring/Fall])
+    content((3.5, -3.3), text(size: 6pt, fill: rgb("#666"))[Year-round])
+  }),
+  caption: [Modular attachment system: single platform supports seasonal tool changes, maximizing asset utilization],
+) <fig:attachments>
+
 == Spatial Redundancy Over Mechanical Complexity
 
 Instead of building one highly reliable rover, deploy $N + 2$ rovers for an $N$-rover workload. The probability that at least $N$ rovers are operational is:
@@ -426,11 +555,140 @@ The system uses a layered communications architecture. Transport uses QUIC over 
 
 *Safety implications of latency:* At 250ms round-trip latency and maximum speed of 1.5 m/s, a rover travels 375mm before an operator's reaction reaches it. This is well within the 500mm obstacle detection margin. However, latency directly affects operator situational awareness and reaction time. The system compensates by: (1) running obstacle detection locally with zero network dependency, (2) applying velocity limits proportional to latency, and (3) providing latency indicators in the operator UI. If latency exceeds 500ms, the rover automatically reduces speed; above 1000ms, it stops and awaits reconnection.
 
+#figure(
+  timeliney.timeline(
+    show-grid: true,
+    spacing: 2pt,
+    {
+      import timeliney: *
+
+      headerline(
+        group(([0], 1)),
+        group(([50ms], 1)),
+        group(([100ms], 1)),
+        group(([150ms], 1)),
+        group(([200ms], 1)),
+        group(([250ms], 1)),
+      )
+
+      taskgroup(title: [*Onboard (safety-critical)*], {
+        task("LiDAR scan", (0, 0.5), style: (stroke: 5pt + rgb("#c62828")))
+        task("Obstacle detected", (0.5, 0.7), style: (stroke: 5pt + rgb("#c62828")))
+        task("Stop command", (0.7, 0.9), style: (stroke: 5pt + rgb("#c62828")))
+        task("Motors halt", (0.9, 1.5), style: (stroke: 5pt + rgb("#c62828")))
+      })
+
+      taskgroup(title: [*Network (non-critical)*], {
+        task("Telemetry tx", (0.8, 1.5), style: (stroke: 5pt + rgb("#1976d2")))
+        task("Network transit", (1.5, 3.5), style: (stroke: 5pt + rgb("#90caf9")))
+        task("Operator sees alert", (3.5, 4), style: (stroke: 5pt + rgb("#1976d2")))
+      })
+
+      taskgroup(title: [*Operator response*], {
+        task("Reaction time", (4, 5.5), style: (stroke: 5pt + rgb("#ff9800")))
+        task("Command tx", (5.5, 6), style: (stroke: 5pt + rgb("#ff9800")))
+      })
+
+      milestone(
+        at: 1.5,
+        style: (stroke: (dash: "dashed", paint: rgb("#2e7d32"))),
+        align(center, text(size: 6pt, fill: rgb("#2e7d32"))[*Rover stopped*\ (75ms)])
+      )
+
+      milestone(
+        at: 4,
+        style: (stroke: (dash: "dotted", paint: rgb("#666"))),
+        align(center, text(size: 6pt)[Operator\ aware\ (200ms)])
+      )
+    }
+  ),
+  caption: [Safety response timeline: onboard obstacle detection and stop (red) completes in ~75ms, independent of network path (blue). Operator notification is informational, not safety-critical.],
+) <fig:latency-timeline>
+
 == Onboard Compute Philosophy
 
-Processing is distributed between edge (rover) and base station. Onboard processing handles real-time, safety-critical functions: the motor control loop at 100 Hz, obstacle detection and emergency stop, watchdog and heartbeat monitoring, telemetry collection, and autonomous waypoint following. The base station handles fleet coordination, dispatch, route optimization, historical data analysis, and incident review. All data remains on-premises. This division ensures rovers operate fully during network outages: they continue clearing assigned routes and sync when connectivity is restored.
+Processing is distributed between edge (rover) and base station. @fig:compute-split shows this division.
+
+#figure(
+  cetz.canvas(length: 1cm, {
+    import cetz.draw: *
+
+    // Rover box (left)
+    rect((-5.5, -2.5), (-0.5, 2.5), fill: rgb("#e3f2fd"), stroke: rgb("#1976d2") + 1.5pt, radius: 0.2)
+    content((-3, 2), text(weight: "bold", size: 9pt)[Rover (Edge)])
+
+    // Rover contents
+    rect((-5.2, 0.8), (-0.8, 1.6), fill: rgb("#c62828"), stroke: none, radius: 0.1)
+    content((-3, 1.2), text(size: 7pt, fill: white)[Motor Control 100Hz])
+
+    rect((-5.2, -0.1), (-0.8, 0.6), fill: rgb("#c62828"), stroke: none, radius: 0.1)
+    content((-3, 0.25), text(size: 7pt, fill: white)[Obstacle Detection])
+
+    rect((-5.2, -1.0), (-0.8, -0.3), fill: rgb("#ff9800"), stroke: none, radius: 0.1)
+    content((-3, -0.65), text(size: 7pt, fill: white)[Watchdog / E-Stop])
+
+    rect((-5.2, -1.9), (-0.8, -1.2), fill: rgb("#4caf50"), stroke: none, radius: 0.1)
+    content((-3, -1.55), text(size: 7pt, fill: white)[Waypoint Following])
+
+    // Base station box (right)
+    rect((0.5, -2.5), (5.5, 2.5), fill: rgb("#f3e5f5"), stroke: rgb("#7b1fa2") + 1.5pt, radius: 0.2)
+    content((3, 2), text(weight: "bold", size: 9pt)[Base Station])
+
+    // Base contents
+    rect((0.8, 0.8), (5.2, 1.6), fill: rgb("#7b1fa2"), stroke: none, radius: 0.1)
+    content((3, 1.2), text(size: 7pt, fill: white)[Fleet Coordination])
+
+    rect((0.8, -0.1), (5.2, 0.6), fill: rgb("#7b1fa2"), stroke: none, radius: 0.1)
+    content((3, 0.25), text(size: 7pt, fill: white)[Route Optimization])
+
+    rect((0.8, -1.0), (5.2, -0.3), fill: rgb("#9c27b0"), stroke: none, radius: 0.1)
+    content((3, -0.65), text(size: 7pt, fill: white)[Historical Analysis])
+
+    rect((0.8, -1.9), (5.2, -1.2), fill: rgb("#9c27b0"), stroke: none, radius: 0.1)
+    content((3, -1.55), text(size: 7pt, fill: white)[Incident Review])
+
+    // Connection arrow
+    line((-0.5, 0), (0.5, 0), mark: (end: ">", start: ">"), stroke: 1.5pt)
+    content((0, 0.5), text(size: 6pt)[LTE/WiFi])
+    content((0, -0.4), text(size: 6pt)[Telemetry])
+
+    // Labels
+    content((-3, -2.2), text(size: 6pt, fill: rgb("#666"))[Real-time, safety-critical])
+    content((3, -2.2), text(size: 6pt, fill: rgb("#666"))[Non-critical, async])
+  }),
+  caption: [Compute distribution: safety-critical functions run onboard (left), fleet management runs on base station (right). Rovers operate independently during network outages.],
+) <fig:compute-split>
+
+Onboard processing handles real-time, safety-critical functions: the motor control loop at 100 Hz, obstacle detection and emergency stop, watchdog and heartbeat monitoring, telemetry collection, and autonomous waypoint following. The base station handles fleet coordination, dispatch, route optimization, historical data analysis, and incident review. All data remains on-premises. This division ensures rovers operate fully during network outages: they continue clearing assigned routes and sync when connectivity is restored.
 
 == Fleet Coordination Model
+
+#figure(
+  diagram(
+    node-stroke: 1pt,
+    edge-stroke: 1pt,
+    spacing: (18mm, 14mm),
+    // Rovers (left column)
+    node((0, 0), [Rover 1], shape: rect, fill: rgb("#e8f5e9"), name: <r1>),
+    node((0, 1), [Rover 2], shape: rect, fill: rgb("#e8f5e9"), name: <r2>),
+    node((0, 2), [Rover N], shape: rect, fill: rgb("#e8f5e9"), name: <rn>),
+    // Base station (center)
+    node((1.5, 1), [*Base Station*\ Fleet Manager], shape: rect, fill: rgb("#e3f2fd"), width: 28mm, name: <base>),
+    // Municipal systems (right column)
+    node((3, 0), [GIS], shape: rect, fill: rgb("#fff3e0"), name: <gis>),
+    node((3, 1), [Work Orders], shape: rect, fill: rgb("#fff3e0"), name: <work>),
+    node((3, 2), [Weather API], shape: rect, fill: rgb("#fff3e0"), name: <weather>),
+    // Edges: rovers to base
+    edge(<r1>, <base>, "<|-|>"),
+    edge(<r2>, <base>, "<|-|>"),
+    edge(<rn>, <base>, "<|-|>"),
+    // Edges: base to municipal
+    edge(<base>, <gis>, "-|>", [Import]),
+    edge(<base>, <work>, "-|>", [Export]),
+    edge(<weather>, <base>, "-|>", [Forecast]),
+  ),
+  caption: [Fleet coordination architecture: rovers connect to base station via LTE; base station integrates with municipal GIS, work order, and weather systems.],
+) <fig:fleet-arch>
 
 The fleet management system provides a dashboard showing real-time status of all rovers including position, battery level, and operational state. Dispatch functions assign routes based on weather conditions and network priority. Automated alerts notify operators of faults, low battery, and connectivity loss. Analytics capabilities generate coverage reports, performance metrics, and cost tracking. The system integrates with municipal GIS via standard formats (Shapefile, GeoJSON) and can export to work order systems via API or file export.
 
@@ -438,13 +696,113 @@ The fleet management system provides a dashboard showing real-time status of all
 
 This section explicitly separates automated functions from human-controlled functions. This transparency builds trust with operators and regulators.
 
+#figure(
+  cetz.canvas(length: 1cm, {
+    import cetz.draw: *
+
+    // Pyramid layers (bottom to top)
+    // Layer 1: Deterministic (bottom, widest)
+    line((-4, 0), (4, 0), (2.5, 1.5), (-2.5, 1.5), close: true, fill: rgb("#c8e6c9"), stroke: rgb("#2e7d32") + 1pt)
+    content((0, 0.6), text(size: 8pt, weight: "bold")[Deterministic])
+    content((0, 0.1), text(size: 6pt)[Motor control, watchdog, E-stop])
+
+    // Layer 2: Learned Perception (middle)
+    line((-2.5, 1.5), (2.5, 1.5), (1.2, 3), (-1.2, 3), close: true, fill: rgb("#fff9c4"), stroke: rgb("#f9a825") + 1pt)
+    content((0, 2.1), text(size: 8pt, weight: "bold")[Learned])
+    content((0, 1.65), text(size: 6pt)[Obstacle classification, path planning])
+
+    // Layer 3: Human-in-Loop (top, narrowest)
+    line((-1.2, 3), (1.2, 3), (0, 4.2), close: true, fill: rgb("#ffcdd2"), stroke: rgb("#c62828") + 1pt)
+    content((0, 3.4), text(size: 8pt, weight: "bold")[Human])
+    content((0, 3.0), text(size: 5pt)[Decisions])
+
+    // Right side labels
+    content((5.2, 0.75), text(size: 7pt, fill: rgb("#2e7d32"))[Firmware, 100% reliable])
+    content((5.2, 2.25), text(size: 7pt, fill: rgb("#f9a825"))[ML models, supervised])
+    content((5.2, 3.6), text(size: 7pt, fill: rgb("#c62828"))[Operator judgment])
+
+    // Arrows pointing to labels
+    line((4.1, 0.75), (4.5, 0.75), stroke: 0.5pt + rgb("#666"))
+    line((2.6, 2.25), (4.5, 2.25), stroke: 0.5pt + rgb("#666"))
+    line((1.3, 3.6), (4.5, 3.6), stroke: 0.5pt + rgb("#666"))
+
+    // Left side: automation level
+    content((-5.5, 0.75), text(size: 7pt)[Fully automated])
+    content((-5.5, 2.25), text(size: 7pt)[Supervised])
+    content((-5.5, 3.6), text(size: 7pt)[Manual])
+
+    line((-4.5, 0.75), (-4.1, 0.75), stroke: 0.5pt + rgb("#666"))
+    line((-4.5, 2.25), (-2.6, 2.25), stroke: 0.5pt + rgb("#666"))
+    line((-4.5, 3.6), (-1.3, 3.6), stroke: 0.5pt + rgb("#666"))
+  }),
+  caption: [Autonomy pyramid: deterministic behaviors (base) are fully automated in firmware; learned perception (middle) uses ML with supervision; human judgment (top) handles exceptions and decisions.],
+) <fig:autonomy-pyramid>
+
 == Deterministic Behaviors (Fully Automated)
 
 These functions operate without human intervention. Motor control translates velocity commands to wheel speeds. The watchdog stops the rover if no command is received for 250ms. E-stop response immediately halts the rover on command. Low battery response reduces speed and initiates return to base. Obstacle stop halts the rover when LiDAR detects an obstacle within 500mm. These behaviors are implemented in firmware and cannot be overridden by software.
 
 == Learned Perception (Automated with Supervision)
 
-These functions use trained models and require validation. Obstacle classification distinguishes pedestrians, vehicles, and fixed objects. Surface assessment estimates snow depth and ice presence. Path planning selects routes around obstacles. Current status: in development, not deployed in production.
+These functions use trained models and require validation before deployment. The key distinction from Layer 1 (deterministic safety) is that learned systems can fail in unexpected ways: a model may misclassify an obstacle, hallucinate a path, or degrade in conditions not represented in training data. Human supervision provides the safety net while models are validated.
+
+=== Obstacle Classification
+
+*Task:* Distinguish between obstacle types (pedestrian, vehicle, fixed object, animal) to enable appropriate responses. A pedestrian requires yielding and path deviation; a parked car requires routing around; a trash can may be passable.
+
+*Architecture:* Two-stage approach combining LiDAR and camera:
+
+1. *3D Detection (LiDAR):* PointPillars architecture converts sparse point clouds into a dense pseudo-image representation, then applies 2D convolutions for efficient processing @pointpillars2019. On the Jetson Orin NX with TensorRT optimization @tensorrt, PointPillars achieves 20--40 FPS depending on scene complexity. The model outputs 3D bounding boxes with class predictions.
+
+2. *2D Verification (Camera):* YOLOv8n runs on the 360° camera feed to verify and refine LiDAR detections @yolov8. With INT8 quantization, YOLOv8n achieves 60+ FPS on the Orin NX. Camera provides texture and appearance cues that LiDAR lacks (e.g., distinguishing a person from a mannequin).
+
+*Training data:* Initial models use public datasets (nuScenes @nuscenes2020, KITTI, Waymo Open Dataset) for pretraining, then fine-tune on collected sidewalk data. The system logs all sensor data during teleoperation, building a dataset specific to sidewalk environments: pedestrians with strollers, dogs on leashes, delivery carts, snow-covered obstacles.
+
+*Failure modes:* Novel objects not in training data, heavy precipitation degrading both sensors, reflective surfaces confusing LiDAR. Mitigation: conservative default behavior (stop and alert operator on low-confidence detections).
+
+=== Surface Assessment
+
+*Task:* Estimate surface conditions (snow depth, ice presence, wet pavement) to adapt clearing behavior and provide work verification.
+
+*Architecture:* Semantic segmentation using a lightweight encoder-decoder network. The model classifies each pixel of the camera feed into categories: cleared pavement, snow-covered, ice/slush, grass, obstacle.
+
+*Candidate models:*
+- *SegFormer-B0:* Transformer-based segmentation @segformer2021, 3.8M parameters, ~30 FPS on Orin NX
+- *DDRNet-23-slim:* Designed for real-time segmentation, ~60 FPS on Orin NX
+- *BiSeNet V2:* Bilateral network for fast segmentation, ~50 FPS on Orin NX
+
+*Snow depth estimation:* Rather than absolute depth measurement (which requires stereo or structured light), the system estimates relative depth categories: trace (under 1 inch), light (1--3 inches), moderate (3--6 inches), heavy (over 6 inches). This is sufficient for operational decisions: trace requires no action, light uses standard clearing, heavy may require multiple passes or operator intervention.
+
+*Training approach:* Self-supervised learning using LiDAR as ground truth. The LiDAR provides geometric measurements of surface height; the camera model learns to predict these categories from visual appearance. This avoids manual labeling of snow depth.
+
+*Ice detection:* Visual detection of ice is challenging due to transparency and variable appearance. The system uses a combination of visual cues (specular reflection, texture) and contextual priors (temperature, recent precipitation, shaded areas). Confidence thresholds are set conservatively; uncertain areas are flagged for operator review or brine application.
+
+=== Path Planning
+
+*Task:* Select collision-free trajectories that keep the rover on the sidewalk, avoid obstacles, and maintain efficient coverage.
+
+*Architecture:* Hybrid approach combining learned and classical methods:
+
+1. *Traversability estimation (learned):* A segmentation model classifies terrain into traversable (cleared sidewalk), semi-traversable (snow-covered sidewalk), and non-traversable (grass, obstacles, road). This replaces hand-tuned cost maps with learned representations that generalize across environments.
+
+2. *Local planning (classical):* Dynamic Window Approach (DWA) or Model Predictive Control (MPC) generates velocity commands that respect kinematic constraints while following the traversability map. Classical planners are predictable and verifiable; learned traversability provides the environmental understanding.
+
+3. *Global planning (graph-based):* Pre-mapped routes stored as waypoint graphs. The rover follows the graph while the local planner handles obstacle avoidance. Route graphs are generated from GIS data and refined during initial teleoperated surveys.
+
+*Training data:* Egocentric video from teleoperation sessions, automatically labeled by projecting the rover's actual trajectory onto the camera view. Paths the operator chose are labeled as traversable; areas avoided are labeled as obstacles or non-traversable.
+
+=== Deployment Pipeline
+
+All learned models follow a standardized deployment pipeline:
+
+1. *Training:* PyTorch on workstation GPUs using collected data
+2. *Validation:* Held-out test set plus adversarial examples (edge cases)
+3. *Export:* Convert to ONNX format for portability
+4. *Optimization:* TensorRT compilation with INT8 quantization for Orin NX
+5. *Integration:* C++ inference runtime with Rust bindings for bvrd
+6. *Monitoring:* Runtime confidence tracking; low-confidence triggers fallback to operator
+
+Current status: none of these learned perception systems are implemented. Development is blocked on LiDAR hardware integration (pending sensor arrival). The architecture and model choices described above represent the planned approach based on literature review and hardware constraints. Target timeline: obstacle classification Q3 2025, surface assessment Q4 2025, path planning Q1 2026. All current autonomy relies on deterministic behaviors plus human supervision.
 
 == Human-in-the-Loop Operations (Current)
 
@@ -484,51 +842,25 @@ This ordering is enforced in firmware. Task completion is always the lowest prio
 @fig:states shows the rover state machine. The system can only transition to operational states (Teleop, Autonomous) from Idle, and any fault or E-stop immediately halts operations.
 
 #figure(
-  cetz.canvas(length: 1cm, {
-    import cetz.draw: *
-
-    // States
-    let state-fill = rgb("#e3f2fd")
-    let estop-fill = rgb("#ffebee")
-
-    // Disabled
-    circle((-3, 2), radius: 0.7, name: "disabled", fill: rgb("#f5f5f5"), stroke: black)
-    content("disabled.center", text(size: 8pt)[Disabled])
-
-    // Idle
-    circle((0, 2), radius: 0.7, name: "idle", fill: state-fill, stroke: black)
-    content("idle.center", text(size: 8pt)[Idle])
-
-    // Teleop
-    circle((-1.5, 0), radius: 0.7, name: "teleop", fill: rgb("#e8f5e9"), stroke: black)
-    content("teleop.center", text(size: 8pt)[Teleop])
-
-    // Autonomous
-    circle((1.5, 0), radius: 0.7, name: "auto", fill: rgb("#e8f5e9"), stroke: black)
-    content("auto.center", text(size: 8pt)[Auto])
-
-    // E-Stop
-    circle((0, -2), radius: 0.7, name: "estop", fill: estop-fill, stroke: rgb("#c62828") + 1.5pt)
-    content("estop.center", text(size: 8pt, fill: rgb("#c62828"))[*E-Stop*])
-
+  diagram(
+    node-stroke: 1pt,
+    edge-stroke: 1pt,
+    spacing: (15mm, 12mm),
+    // States: (col, row)
+    node((0, 0), [Disabled], shape: circle, fill: rgb("#f5f5f5"), name: <disabled>),
+    node((1, 0), [Idle], shape: circle, fill: rgb("#e3f2fd"), name: <idle>),
+    node((0, 1), [Teleop], shape: circle, fill: rgb("#e8f5e9"), name: <teleop>),
+    node((1, 1), [Auto], shape: circle, fill: rgb("#e8f5e9"), name: <auto>),
+    node((0.5, 2), text(fill: rgb("#c62828"))[*E-Stop*], shape: circle, fill: rgb("#ffebee"), stroke: rgb("#c62828") + 1.5pt, name: <estop>),
     // Transitions
-    line((-2.3, 2), (-0.7, 2), mark: (end: ">"), stroke: 1pt)
-    content((-1.5, 2.4), text(size: 6pt)[Enable])
-
-    line((-0.5, 1.4), (-1.2, 0.6), mark: (end: ">"), stroke: 1pt)
-    line((0.5, 1.4), (1.2, 0.6), mark: (end: ">"), stroke: 1pt)
-
-    // Bidirectional between teleop and auto
-    line((-0.8, 0), (0.8, 0), mark: (end: ">", start: ">"), stroke: 1pt)
-
-    // To E-Stop (from both operational modes)
-    line((-1.2, -0.6), (-0.5, -1.4), mark: (end: ">"), stroke: rgb("#c62828") + 1pt)
-    line((1.2, -0.6), (0.5, -1.4), mark: (end: ">"), stroke: rgb("#c62828") + 1pt)
-
-    // E-Stop release back to Idle (curve goes wide right to avoid Auto)
-    bezier((0.7, -2), (3.5, -2), (3.5, 2), (0.7, 2), mark: (end: ">"), stroke: 1pt)
-    content((3.7, 0), text(size: 6pt)[Release])
-  }),
+    edge(<disabled>, <idle>, "-|>", [Enable]),
+    edge(<idle>, <teleop>, "-|>"),
+    edge(<idle>, <auto>, "-|>"),
+    edge(<teleop>, <auto>, "<|-|>"),
+    edge(<teleop>, <estop>, "-|>", stroke: rgb("#c62828")),
+    edge(<auto>, <estop>, "-|>", stroke: rgb("#c62828")),
+    edge(<estop>, <idle>, "-|>", [Release], bend: -50deg),
+  ),
   caption: [Rover state machine: E-stop is reachable from any operational state],
 ) <fig:states>
 
@@ -639,21 +971,21 @@ This section presents the economic case for robotic sidewalk maintenance. All fi
 
 == Baseline: Current Municipal Costs
 
-*Methodology note:* Productivity figures are based on timed clearing of marked sidewalk segments (100m intervals) across four snow events in Northeast Ohio during the 2024–2025 season.
-
 #figure(
   table(
     columns: 3,
     align: (left, left, left),
     table.header([*Parameter*], [*Value*], [*Source*]),
-    [Loaded labor rate], [\$35–45/hour], [BLS, municipal contracts],
-    [Productivity (shovel)], [0.08–0.12 mi/hr], [Field observation],
-    [Productivity (blower)], [0.15–0.25 mi/hr], [Manufacturer spec],
-    [Snow events/season], [15–25], [NOAA climate data],
+    [Loaded labor rate], [\$35–45/hour], [BLS @bls2024wages],
+    [Productivity (shovel)], [0.08–0.12 mi/hr], [SaMS Toolkit @vadeq2021sams],
+    [Productivity (blower)], [0.15–0.25 mi/hr], [SaMS Toolkit @vadeq2021sams],
+    [Snow events/season], [15–25], [NOAA @noaa2024cleveland],
     [Clearing requirement], [4–12 hrs post-snowfall], [Municipal ordinance],
   ),
   caption: [Manual labor cost parameters],
 ) <tab:labor>
+
+*Note:* Productivity rates from the SaMS Toolkit assume 2–3 inches of snow on a 4-foot-wide sidewalk. Hand shoveling clears 1,500–3,000 sq ft/hr; 24-inch snow blowers clear approximately 5,000 sq ft/hr @vadeq2021sams. These rates align with field observations from timed clearing of 100m sidewalk segments across four snow events in Northeast Ohio during the 2024–2025 season.
 
 The cost per mile cleared is derived from labor rate and productivity:
 
@@ -672,17 +1004,18 @@ Per-event contractor rates range from \$150–400 per mile. Seasonal contracts f
 == System Capital Costs
 
 #figure(
-  table(
+  ztable(
     columns: 2,
     align: (left, right),
+    format: (none, auto),
     table.header([*Category*], [*Cost*]),
     [Chassis and drivetrain], [\$950],
     [Electronics (compute, CAN, LTE)], [\$890],
-    [Perception (LiDAR, camera)], [\$1,820],
+    [Perception (LiDAR, camera)], [\$1820],
     [Power system], [\$400],
     [Snow clearing attachment], [\$365],
     [Assembly, wiring, integration], [\$400],
-    [*Total hardware cost*], [*\$4,825*],
+    [*Total hardware cost*], [*\$4825*],
   ),
   caption: [Per-unit hardware cost (current prototype, ~\$5,000)],
 ) <tab:bom>
@@ -722,18 +1055,19 @@ Capital investment: $15 times 18,000 = 270,000$
 Annual per-rover operating costs vary significantly by operator ratio:
 
 #figure(
-  table(
+  ztable(
     columns: 4,
-    align: (left, right, right, right),
+    align: (left, right, right, left),
+    format: (none, auto, auto, none),
     table.header([*Cost Category*], [*1:1 Teleop*], [*1:10 Supervised*], [*Notes*]),
-    [Operator labor], [\$4,000], [\$400], [160 hrs/season × \$25/hr ÷ ratio],
+    [Operator labor], [\$4000], [\$400], [160 hrs/season × \$25/hr ÷ ratio],
     [LTE connectivity], [\$360], [\$360], [Fixed],
     [Maintenance], [\$500], [\$500], [Fixed],
     [Battery (amortized)], [\$200], [\$200], [Fixed],
     [Charging energy], [\$125], [\$125], [Fixed],
-    [Software subscription], [\$1,200], [\$1,200], [Fixed],
+    [Software subscription], [\$1200], [\$1200], [Fixed],
     [Insurance], [\$400], [\$400], [Fixed],
-    [*Total per rover*], [*\$6,785*], [*\$3,185*], [],
+    [*Total per rover*], [*\$6785*], [*\$3185*], [],
   ),
   caption: [Annual operating cost per rover by supervision mode],
 ) <tab:opcost>
@@ -753,9 +1087,10 @@ $ C_"rover-hr" = 25 / 10 = 2.50 " dollars/rover-hour" $
 This represents a 10× reduction in labor cost per unit of work compared to 1:1 teleoperation.
 
 #figure(
-  table(
+  ztable(
     columns: 4,
     align: (left, left, right, right),
+    format: (none, none, auto, auto),
     table.header([*Mode*], [*Ratio*], [*Op. Cost/hr*], [*Cost/Rover-Hr*]),
     [Direct teleop], [1:1], [\$25], [\$25.00],
     [Assisted teleop], [1:2], [\$25], [\$12.50],
@@ -825,7 +1160,7 @@ This represents a 10× reduction in labor cost per unit of work compared to 1:1 
 
 *Current capability:* Direct teleoperation (1:1). Operator labor savings come from reduced physical labor and reduced injury risk, not from ratio improvement.
 
-*Target capability:* Supervised autonomy (1:10). This requires autonomous waypoint following, static obstacle detection, dynamic obstacle avoidance, and exception handling. These capabilities are in active development.
+*Target capability:* Supervised autonomy (1:10). This requires autonomous waypoint following, static obstacle detection, dynamic obstacle avoidance, and exception handling. These capabilities are planned but not yet implemented; development is pending LiDAR integration.
 
 *Labor considerations:* Robotic systems change the nature of sidewalk maintenance labor; they do not eliminate it. Operators are typically drawn from existing staff and reassigned from physical clearing to supervisory roles.
 
@@ -848,14 +1183,15 @@ This operational model mirrors air traffic control and industrial SCADA supervis
 Scenario: 50 miles of priority sidewalk, 20 snow events per season, 5-year analysis period, 15-rover fleet.
 
 #figure(
-  table(
+  ztable(
     columns: 4,
     align: (left, right, right, right),
+    format: (none, auto, none, auto),
     table.header([*Approach*], [*Year 1*], [*Years 2–5*], [*5-Year TCO*]),
-    [Manual labor (municipal)], [\$333,000], [\$333,000/yr], [\$1,665,000],
-    [Contractor (\$200/mi)], [\$200,000], [\$200,000/yr], [\$1,000,000],
-    [Robotic (1:1 teleop)], [\$372,000], [\$102,000/yr], [\$780,000],
-    [Robotic (1:10 supervised)], [\$318,000], [\$48,000/yr], [\$510,000],
+    [Manual labor (municipal)], [\$333000], [\$333,000/yr], [\$1665000],
+    [Contractor (\$200/mi)], [\$200000], [\$200,000/yr], [\$1000000],
+    [Robotic (1:1 teleop)], [\$372000], [\$102,000/yr], [\$780000],
+    [Robotic (1:10 supervised)], [\$318000], [\$48,000/yr], [\$510000],
   ),
   caption: [Total cost of ownership comparison (50 miles, 15 rovers)],
 ) <tab:tco>
@@ -905,14 +1241,15 @@ These indirect savings are difficult to guarantee but can exceed direct labor sa
 The economic model is most sensitive to operator ratio and snow event frequency:
 
 #figure(
-  table(
+  ztable(
     columns: 3,
     align: (left, left, left),
+    format: (none, auto, auto),
     table.header([*Variable*], [*Base Case*], [*Break-Even vs Contractor*]),
     [Operator ratio], [1:10], [1:3],
     [Snow events/season], [20], [10],
     [Clearing rate], [0.5 mi/hr], [0.25 mi/hr],
-    [Hardware cost], [\$18,000], [\$40,000],
+    [Hardware cost], [\$18000], [\$40000],
     [Rover lifespan], [5 years], [2.5 years],
     [Fleet uptime], [90%], [70%],
   ),
@@ -1071,6 +1408,61 @@ What we can say:
 - 1:10 supervised autonomy requires 18–24 months of development and validation
 - Full autonomy (1:50+) is a multi-year effort dependent on regulatory progress
 
+#figure(
+  timeliney.timeline(
+    show-grid: true,
+    spacing: 3pt,
+    {
+      import timeliney: *
+
+      headerline(group(([*2025*], 4)), group(([*2026*], 4)), group(([*2027*], 4)))
+      headerline(
+        group(..range(4).map(n => [Q#str(n + 1)])),
+        group(..range(4).map(n => [Q#str(n + 1)])),
+        group(..range(4).map(n => [Q#str(n + 1)])),
+      )
+
+      taskgroup(title: [*Hardware*], {
+        task("Platform refinement", (0, 2), style: (stroke: 5pt + rgb("#1976d2")))
+        task("Sensor upgrades", (3, 5), style: (stroke: 5pt + rgb("#1976d2")))
+        task("Gen 2 chassis", (7, 10), style: (stroke: 5pt + rgb("#1976d2")))
+      })
+
+      taskgroup(title: [*Autonomy*], {
+        task("1:1 Teleoperation", (0, 3), style: (stroke: 5pt + rgb("#4caf50")))
+        task("1:2 Assisted", (3, 6), style: (stroke: 5pt + rgb("#4caf50")))
+        task("1:10 Supervised", (6, 10), style: (stroke: 5pt + rgb("#4caf50")))
+        task("Full autonomy R&D", (8, 12), style: (stroke: 5pt + rgb("#81c784")))
+      })
+
+      taskgroup(title: [*Deployment*], {
+        task("Pilot programs", (0, 4), style: (stroke: 5pt + rgb("#ff9800")))
+        task("Commercial pilots", (4, 8), style: (stroke: 5pt + rgb("#ff9800")))
+        task("Scale deployment", (8, 12), style: (stroke: 5pt + rgb("#ff9800")))
+      })
+
+      taskgroup(title: [*Regulatory*], {
+        task("PDD compliance", (0, 2), style: (stroke: 5pt + rgb("#9c27b0")))
+        task("Multi-state expansion", (2, 6), style: (stroke: 5pt + rgb("#9c27b0")))
+        task("Autonomy permits", (6, 12), style: (stroke: 5pt + rgb("#9c27b0")))
+      })
+
+      milestone(
+        at: 4,
+        style: (stroke: (dash: "dashed")),
+        align(center, text(size: 7pt)[*1:2 Achieved*])
+      )
+
+      milestone(
+        at: 8,
+        style: (stroke: (dash: "dashed")),
+        align(center, text(size: 7pt)[*1:10 Target*])
+      )
+    }
+  ),
+  caption: [Development roadmap: autonomy progression and deployment phases],
+) <fig:roadmap>
+
 We are building a company, not a demo. The path to full autonomy is measured in years and validated in operational hours, not press releases.
 
 = Conclusion
@@ -1153,19 +1545,49 @@ Rather than attempting to clear all 180 miles, a robotic system would focus on a
 
 This represents 28% of the total network but covers the highest-liability and highest-visibility segments.
 
+#figure(
+  cetz.canvas(length: 1cm, {
+    import cetz.draw: *
+
+    // Pie chart - manual since lilaq doesn't have pie charts
+    let total = 50
+    let data = ((25, rgb("#1976d2"), "Schools 50%"), (12, rgb("#4caf50"), "Commercial 24%"), (8, rgb("#ff9800"), "Transit 16%"), (5, rgb("#9c27b0"), "Senior 10%"))
+
+    let start = 0
+    for (val, color, label) in data {
+      let angle = val / total * 360
+      let end = start + angle
+      let mid = start + angle / 2
+
+      // Draw arc segment
+      arc((0, 0), start: start * 1deg, stop: end * 1deg, radius: 2, mode: "PIE", fill: color, stroke: white + 1pt)
+
+      // Label
+      let label-r = 2.7
+      let label-x = calc.cos(mid * 1deg) * label-r
+      let label-y = calc.sin(mid * 1deg) * label-r
+      content((label-x, label-y), text(size: 7pt)[#label])
+
+      start = end
+    }
+  }),
+  caption: [Priority network allocation: school routes comprise half the priority miles],
+) <fig:priority-pie>
+
 == Cost Comparison
 
 Lakewood's 24-event season (vs 20 in the base model) increases both manual costs and robotic operating hours proportionally. Fleet sizing: 15 rovers (50 mi ÷ 4 mi/rover + N+2 redundancy).
 
 #figure(
-  table(
+  ztable(
     columns: 4,
     align: (left, right, right, right),
+    format: (none, auto, none, auto),
     table.header([*Approach*], [*Year 1*], [*Years 2–5*], [*5-Year TCO*]),
-    [Manual (hypothetical)], [\$400,000], [\$400,000/yr], [\$2,000,000],
-    [Contractor (\$200/mi)], [\$240,000], [\$240,000/yr], [\$1,200,000],
-    [Robotic (1:1 teleop)], [\$385,000], [\$115,000/yr], [\$845,000],
-    [Robotic (1:10 supervised)], [\$319,000], [\$49,000/yr], [\$515,000],
+    [Manual (hypothetical)], [\$400000], [\$400,000/yr], [\$2000000],
+    [Contractor (\$200/mi)], [\$240000], [\$240,000/yr], [\$1200000],
+    [Robotic (1:1 teleop)], [\$385000], [\$115,000/yr], [\$845000],
+    [Robotic (1:10 supervised)], [\$319000], [\$49,000/yr], [\$515000],
   ),
   caption: [Lakewood 5-year TCO comparison (50-mile priority network, 24 events/season)],
 ) <tab:lakewood-tco>
