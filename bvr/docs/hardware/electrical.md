@@ -205,6 +205,8 @@ Expected output with all 4 VESCs configured:
 
 ## VESC Configuration
 
+> **See also:** [Motor Configuration & Tuning](motors.md) for detailed motor parameters, hall sensor setup, and troubleshooting cogging issues.
+
 Each VESC must be configured via VESC Tool (USB connection):
 
 **App Settings → General:**
