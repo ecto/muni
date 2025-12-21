@@ -164,7 +164,7 @@ async fn main() -> Result<()> {
 
     match args.command {
         Commands::Drive { linear, angular } => {
-            let twist = Twist { linear, angular };
+            let twist = Twist { linear, angular, boost: false };
             println!(
                 "Sending twist: linear={:.2} m/s, angular={:.2} rad/s",
                 linear, angular
