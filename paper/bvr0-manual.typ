@@ -22,73 +22,73 @@
 #figure(
   cetz.canvas({
     import cetz.draw: *
-    
+
     // === TOP VIEW (left side) ===
     let tx = -5  // top view center x
-    
+
     // Chassis
     rect((tx - 2.5, -2.5), (tx + 2.5, 2.5), stroke: 1.5pt + diagram-black, radius: 4pt)
-    
+
     // Wheels
     for (x, y) in ((tx - 2.7, 2), (tx + 2.7, 2), (tx - 2.7, -2), (tx + 2.7, -2)) {
       rect((x - 0.4, y - 0.6), (x + 0.4, y + 0.6), fill: diagram-black, radius: 2pt)
     }
-    
+
     // Electronics bay
     rect((tx - 1.8, -1.8), (tx + 1.8, 0.8), fill: diagram-light, stroke: 0.5pt + diagram-gray, radius: 2pt)
-    
+
     // Tool mount
     rect((tx - 1.2, 2.1), (tx + 1.2, 2.5), fill: diagram-light, stroke: 0.5pt + diagram-gray)
-    
+
     // Sensor mast
     circle((tx, 1.2), radius: 0.25, fill: diagram-black)
-    
+
     // Dimensions
     dim-h(-2.5, tx - 2.5, tx + 2.5, "600", offset: 1.2)
     dim-v(tx + 2.5, -2.5, 2.5, "600", offset: 1.2)
-    
+
     // Front indicator
     motion-arrow((tx, 3), (tx, 3.8))
     content((tx, 4.1), text(size: 6pt)[FRONT])
-    
+
     // Label
     content((tx, -4), text(size: 8pt, weight: "bold")[TOP VIEW])
-    
+
     // === SIDE VIEW (right side) ===
     let sx = 4  // side view center x
-    
+
     // Ground line
     line((sx - 3.5, -2), (sx + 3.5, -2), stroke: 0.5pt + diagram-gray)
-    
+
     // Chassis body
     rect((sx - 2.5, -1.5), (sx + 2.5, -0.3), stroke: 1.5pt + diagram-black, radius: 2pt)
-    
+
     // Wheels
     circle((sx - 2, -2), radius: 0.6, stroke: 1.5pt + diagram-black, fill: diagram-light)
     circle((sx + 2, -2), radius: 0.6, stroke: 1.5pt + diagram-black, fill: diagram-light)
-    
+
     // Sensor mast
     line((sx, -0.3), (sx, 2.5), stroke: 1.5pt + diagram-black)
-    
+
     // LiDAR
     rect((sx - 0.35, 1.8), (sx + 0.35, 2.2), fill: diagram-light, stroke: 1pt + diagram-black, radius: 2pt)
-    
+
     // Camera
     circle((sx, 2.7), radius: 0.2, fill: diagram-black)
-    
+
     // Tool mount
     rect((sx + 2.2, -1.2), (sx + 3, -0.6), fill: diagram-light, stroke: 0.5pt + diagram-gray)
-    
+
     // Height dimension
     dim-v(sx + 3.2, -2, 2.7, "700", offset: 0.3)
-    
+
     // Ground clearance
     line((sx - 1, -2), (sx - 1, -1.5), stroke: 0.5pt + diagram-gray)
     content((sx - 1.5, -1.75), text(size: 5pt)[50])
-    
+
     // Label
     content((sx, -4), text(size: 8pt, weight: "bold")[SIDE VIEW])
-    
+
     // === CALLOUTS ===
     callout-leader((tx - 2.7, 2), (-9, 3), "1")
     callout-leader((tx, -0.5), (-9, -1), "2")
@@ -108,7 +108,7 @@
   [
     // Component key
     #text(weight: "bold", size: 9pt)[Components]
-    
+
     #table(
       columns: (auto, 1fr),
       stroke: none,
@@ -124,7 +124,7 @@
   [
     // Key specs
     #text(weight: "bold", size: 9pt)[Specifications]
-    
+
     #table(
       columns: (1fr, auto),
       stroke: none,
@@ -150,36 +150,36 @@
 #figure(
   cetz.canvas({
     import cetz.draw: *
-    
+
     // === EXPLODED PARTS LAYOUT ===
     // All major components shown as if laid out on a table before assembly
-    
+
     // --- CHASSIS (top left) ---
     let cx = -6
     let cy = 4
-    
+
     // Extrusion pieces
     for i in range(4) {
-      rect((cx - 2 + i * 0.4, cy - 0.1), (cx - 1.7 + i * 0.4, cy + 2), 
+      rect((cx - 2 + i * 0.4, cy - 0.1), (cx - 1.7 + i * 0.4, cy + 2),
            fill: diagram-light, stroke: 0.75pt + diagram-black)
     }
     content((cx - 0.8, cy + 1), text(size: 5pt)[×8])
     callout((cx + 0.5, cy + 2.3), "A")
-    
+
     // Corner brackets
     for i in range(4) {
       corner-bracket((cx + 2 + i * 0.6, cy + 1), size: 0.4)
     }
     content((cx + 4.5, cy + 1), text(size: 5pt)[×16])
-    
+
     // Electronics plate
     rect((cx - 1.5, cy - 1.5), (cx + 1.5, cy - 0.5), fill: diagram-light, stroke: 1pt + diagram-black, radius: 2pt)
     content((cx, cy - 1), text(size: 5pt)[Plate])
-    
+
     // --- DRIVETRAIN (top right) ---
     let dx = 3
     let dy = 4
-    
+
     // Hub motors
     for i in range(2) {
       for j in range(2) {
@@ -189,81 +189,81 @@
     }
     content((dx + 0.9, dy - 0.5), text(size: 5pt)[Hub Motors ×4])
     callout((dx + 2.5, dy + 2.3), "B")
-    
+
     // VESCs
     for i in range(4) {
       vesc-top((dx + 4 + i * 0.8, dy + 0.5 + calc.rem(i, 2) * 1), size: (0.6, 0.4), id: none)
     }
     content((dx + 5.6, dy - 0.3), text(size: 5pt)[VESC ×4])
-    
+
     // --- ELECTRONICS (middle left) ---
     let ex = -5
     let ey = 0
-    
+
     // Jetson
     jetson-top((ex, ey), size: (1.5, 1))
     callout((ex - 1.2, ey + 0.8), "C")
-    
+
     // USB CAN
     rect((ex + 2, ey - 0.3), (ex + 2.8, ey + 0.3), fill: diagram-light, stroke: 0.75pt + diagram-black, radius: 2pt)
     content((ex + 2.4, ey), text(size: 4pt)[CAN])
-    
+
     // LTE modem
     rect((ex + 3.2, ey - 0.3), (ex + 4.2, ey + 0.3), fill: diagram-light, stroke: 0.75pt + diagram-black, radius: 2pt)
     content((ex + 3.7, ey), text(size: 4pt)[LTE])
-    
+
     // --- PERCEPTION (middle right) ---
     let px = 3
     let py = 0
-    
+
     // LiDAR
     lidar-top((px, py), size: 0.6)
     content((px, py - 1), text(size: 5pt)[Mid-360])
     callout((px - 0.8, py + 0.8), "D")
-    
+
     // Camera
     camera-top((px + 2.5, py), radius: 0.4)
     content((px + 2.5, py - 0.8), text(size: 5pt)[X4])
-    
+
     // Sensor pole
     rect((px + 4.5, py - 1), (px + 4.7, py + 1), fill: diagram-light, stroke: 0.75pt + diagram-black)
     content((px + 5.3, py), text(size: 5pt)[Pole])
-    
+
     // --- POWER (bottom left) ---
     let bx = -5
     let by = -3.5
-    
+
     // Battery
     battery-top((bx, by), size: (2, 1))
     callout((bx - 1.5, by + 0.8), "E")
-    
+
     // DC-DC
     rect((bx + 2, by - 0.4), (bx + 3, by + 0.4), fill: diagram-light, stroke: 0.75pt + diagram-black, radius: 2pt)
     content((bx + 2.5, by), text(size: 4pt)[DC-DC])
-    
+
     // Fuse
     rect((bx + 3.5, by - 0.2), (bx + 4.2, by + 0.2), fill: rgb("#fbbf24"), stroke: 0.75pt + diagram-black, radius: 2pt)
     content((bx + 3.85, by), text(size: 4pt)[100A])
-    
+
     // E-Stop
     estop-symbol((bx + 5, by), size: 0.4)
-    
+
     // --- CONNECTORS (bottom right) ---
     let wx = 3
     let wy = -3.5
-    
+
     // XT90
     connector-xt((wx, wy), size: "90")
     content((wx, wy - 0.6), text(size: 5pt)[XT90])
-    
+
     // XT30
     connector-xt((wx + 1.5, wy), size: "30")
     content((wx + 1.5, wy - 0.6), text(size: 5pt)[XT30])
-    
+
     // DT connector
     connector-dt((wx + 3, wy), pins: 4)
     content((wx + 3, wy - 0.6), text(size: 5pt)[DT])
-    
+
     // Hardware
     screw-actual-size((wx + 5, wy + 0.3), thread: "M5", length: 10)
     tnut-side((wx + 6, wy + 0.3), size: 0.3)
@@ -305,7 +305,7 @@
       [Hardware/Wiring], [\$100],
       [*Total*], [*\$4,150*],
     )
-    
+
     #v(0.5em)
     #text(size: 7pt, fill: gray)[All parts commercially available. Custom fab limited to plate cutting.]
   ]
