@@ -2,6 +2,7 @@
 // Base Vectoring Rover - Revision 0
 
 #import "lib/template.typ": *
+#import "lib/diagrams.typ": *
 #import "@preview/fletcher:0.5.7" as fletcher: diagram, node, edge
 
 #show: manual.with(
@@ -27,43 +28,38 @@ Four independently-driven hub motors provide omnidirectional control without mec
   cetz.canvas({
     import cetz.draw: *
 
-    // Top-down view of rover
-    rect((-3, -3), (3, 3), stroke: 1.5pt + black, radius: 4pt)
+    // Chassis frame
+    rect((-3, -3), (3, 3), stroke: 1.5pt + diagram-black, radius: 4pt)
 
-    // Wheels (4 corners)
-    rect((-3.5, 2), (-3, 3.5), fill: black, radius: 2pt)  // FL
-    rect((3, 2), (3.5, 3.5), fill: black, radius: 2pt)    // FR
-    rect((-3.5, -3.5), (-3, -2), fill: black, radius: 2pt) // RL
-    rect((3, -3.5), (3.5, -2), fill: black, radius: 2pt)   // RR
+    // Wheels at corners
+    for (x, y) in ((-3.25, 2.75), (3.25, 2.75), (-3.25, -2.75), (3.25, -2.75)) {
+      rect((x - 0.5, y - 0.75), (x + 0.5, y + 0.75), fill: diagram-black, radius: 2pt)
+    }
 
-    // Dimension lines
-    line((-3, -4.5), (3, -4.5), stroke: 0.5pt + gray)
-    line((-3, -4.3), (-3, -4.7), stroke: 0.5pt + gray)
-    line((3, -4.3), (3, -4.7), stroke: 0.5pt + gray)
-    content((0, -5), text(size: 8pt)[600 mm])
-
-    line((4.5, -3), (4.5, 3), stroke: 0.5pt + gray)
-    line((4.3, -3), (4.7, -3), stroke: 0.5pt + gray)
-    line((4.3, 3), (4.7, 3), stroke: 0.5pt + gray)
-    content((5.5, 0), text(size: 8pt)[600 mm])
-
-    // Electronics plate
-    rect((-2, -2), (2, 1), fill: muni-light-gray, stroke: 0.5pt + gray, radius: 2pt)
-    content((0, -0.5), text(size: 7pt)[Electronics])
+    // Electronics area
+    rect((-2, -2), (2, 1), fill: diagram-light, stroke: 0.5pt + diagram-gray, radius: 2pt)
 
     // Tool mount (front)
-    rect((-1.5, 2.5), (1.5, 3), fill: muni-light-gray, stroke: 0.5pt + gray)
-    content((0, 2.75), text(size: 6pt)[Tool Mount])
+    rect((-1.5, 2.5), (1.5, 3), fill: diagram-light, stroke: 0.5pt + diagram-gray)
 
     // Sensor mast
-    circle((0, 1.5), radius: 0.3, fill: black)
-    content((0.8, 1.5), text(size: 6pt)[Sensor Mast])
+    circle((0, 1.5), radius: 0.3, fill: diagram-black)
 
-    // Direction arrow
-    line((0, 3.5), (0, 4.5), stroke: 1pt + black, mark: (end: ">"))
-    content((0, 5), text(size: 7pt)[Front])
+    // Dimension lines using library helpers
+    dim-h(-3, -3, 3, "600 mm", offset: 1.5)
+    dim-v(3, -3, 3, "600 mm", offset: 1.5)
+
+    // Numbered callouts with leaders
+    callout-leader((-3.25, 2.75), (-5, 3.5), "1")
+    callout-leader((0, -0.5), (-4, -1.5), "2")
+    callout-leader((0, 2.75), (3.5, 4), "3")
+    callout-leader((0, 1.5), (2.5, 2.5), "4")
+
+    // Direction indicator
+    motion-arrow((0, 3.5), (0, 4.5))
+    content((0, 4.8), text(size: 7pt)[FRONT])
   }),
-  caption: [BVR0 top-down view showing chassis dimensions and component layout],
+  caption: [BVR0 top view: (1) Hub motor wheels, (2) Electronics bay, (3) Tool mount, (4) Sensor mast],
 )
 
 == Physical Specifications
@@ -401,30 +397,37 @@ The electronics plate serves as both a mounting surface and heat sink. VESCs mou
   cetz.canvas({
     import cetz.draw: *
 
-    // Electronics plate top view
-    rect((-3, -2), (3, 2), fill: muni-light-gray, stroke: 1pt + black, radius: 2pt)
+    // Electronics plate
+    rect((-4, -2.5), (4, 2.5), fill: diagram-light, stroke: 1pt + diagram-black, radius: 2pt)
 
-    // Jetson
-    rect((-2.5, 0.5), (-0.5, 1.5), stroke: 1pt + black)
-    content((-1.5, 1), text(size: 6pt)[Jetson])
-
-    // VESCs (4 units)
-    let vesc-positions = (-2, -0.5, 1, 2.5)
-    for i in range(4) {
-      let x = vesc-positions.at(i)
-      rect((x - 0.4, -1.5), (x + 0.4, -0.5), stroke: 1pt + black)
-      content((x, -1), text(size: 5pt)[V#(i+1)])
+    // Mounting holes (corners)
+    for (x, y) in ((-3.5, 2), (3.5, 2), (-3.5, -2), (3.5, -2)) {
+      circle((x, y), radius: 0.15, fill: white, stroke: 0.5pt + diagram-gray)
     }
 
-    // DCDC
-    rect((0.5, 0.5), (1.5, 1.5), stroke: 1pt + black)
-    content((1, 1), text(size: 5pt)[DCDC])
+    // Jetson compute module
+    jetson-top((-2, 1), size: (2.2, 1.5))
 
-    // Fuse
-    rect((2, 0.5), (2.8, 1.5), stroke: 1pt + black)
-    content((2.4, 1), text(size: 5pt)[Fuse])
+    // VESCs (4 units in a row)
+    for i in range(4) {
+      vesc-top((-2.5 + i * 1.8, -1), size: (1.4, 0.8), id: str(i + 1))
+    }
+
+    // DCDC converter
+    rect((1.5, 0.5), (2.8, 1.5), fill: diagram-light, stroke: 1pt + diagram-black, radius: 2pt)
+    content((2.15, 1), text(size: 5pt)[DC-DC])
+
+    // Main fuse
+    rect((3, 0.5), (3.7, 1.5), fill: rgb("#fbbf24"), stroke: 1pt + diagram-black, radius: 2pt)
+    content((3.35, 1), text(size: 5pt)[100A])
+
+    // Callouts
+    callout-leader((-2, 1), (-4.5, 2.5), "1")
+    callout-leader((-0.7, -1), (-2, -3), "2")
+    callout-leader((2.15, 1), (3.5, 2.5), "3")
+    callout-leader((3.35, 1), (4.5, 0), "4")
   }),
-  caption: [Electronics plate layout showing component placement],
+  caption: [Electronics plate: (1) Jetson Orin NX, (2) VESC motor controllers, (3) DC-DC converter, (4) Main fuse],
 )
 
 *Assembly steps:*
@@ -443,29 +446,49 @@ Wiring divides into two domains: high-current power wiring and low-current signa
   cetz.canvas({
     import cetz.draw: *
 
-    // Power wiring diagram
-    rect((-4, 2), (-2, 3), fill: muni-orange, stroke: none, radius: 2pt)
-    content((-3, 2.5), text(fill: white, size: 7pt, weight: "bold")[Battery])
+    // Battery
+    battery-top((-3, 3), size: (2, 1))
 
-    line((-3, 2), (-3, 1.5), stroke: 2pt + muni-orange)
+    // Connection from battery
+    line((-3, 2.5), (-3, 2), stroke: 3pt + diagram-accent)
 
-    rect((-3.5, 1), (-2.5, 1.5), fill: muni-light-gray, stroke: 1pt + black)
-    content((-3, 1.25), text(size: 6pt)[Fuse])
+    // Main fuse
+    rect((-3.5, 1.5), (-2.5, 2), fill: rgb("#fbbf24"), stroke: 1pt + diagram-black, radius: 2pt)
+    content((-3, 1.75), text(size: 6pt, weight: "bold")[100A])
+    callout-leader((-3, 1.75), (-4.5, 1.5), "1")
 
-    line((-3, 1), (-3, 0.5), stroke: 2pt + muni-orange)
-    line((-3, 0.5), (2, 0.5), stroke: 2pt + muni-orange)
+    // E-Stop relay
+    line((-3, 1.5), (-3, 1), stroke: 3pt + diagram-accent)
+    rect((-3.5, 0.5), (-2.5, 1), fill: diagram-danger, stroke: 1pt + diagram-black, radius: 2pt)
+    content((-3, 0.75), text(size: 5pt, fill: white, weight: "bold")[E-STOP])
+    callout-leader((-3, 0.75), (-4.5, 0.5), "2")
 
-    // Branches
-    for x in (-2, -0.5, 1, 2) {
-      line((x, 0.5), (x, 0), stroke: 1.5pt + muni-orange)
-      rect((x - 0.3, -0.5), (x + 0.3, 0), fill: muni-light-gray, stroke: 0.5pt + black)
+    // Main power bus
+    line((-3, 0.5), (-3, 0), stroke: 3pt + diagram-accent)
+    line((-3, 0), (3, 0), stroke: 3pt + diagram-accent)
+
+    // Branch to DC-DC
+    line((2.5, 0), (2.5, -0.5), stroke: 2pt + diagram-accent)
+    rect((2, -1.2), (3, -0.5), fill: diagram-light, stroke: 1pt + diagram-black, radius: 2pt)
+    content((2.5, -0.85), text(size: 5pt)[DC-DC])
+    line((2.5, -1.2), (2.5, -1.7), stroke: 1.5pt + rgb("#3b82f6"))
+    content((2.5, -2), text(size: 5pt)[12V])
+    callout-leader((2.5, -0.85), (4, -0.5), "3")
+
+    // Branches to VESCs
+    let vesc-x = (-2, -0.5, 1, 2)
+    for i in range(4) {
+      let x = vesc-x.at(i)
+      line((x, 0), (x, -0.5), stroke: 2pt + diagram-accent)
+      vesc-top((x, -1.1), size: (0.8, 0.6), id: str(i + 1))
     }
-    content((-2, -0.25), text(size: 5pt)[V1])
-    content((-0.5, -0.25), text(size: 5pt)[V2])
-    content((1, -0.25), text(size: 5pt)[V3])
-    content((2, -0.25), text(size: 5pt)[V4])
+    callout-leader((-0.5, -1.1), (-1.5, -2.5), "4")
+
+    // XT90 connector symbol
+    connector-xt((-3, 2.25), size: "90")
+    callout-leader((-3, 2.25), (-4.5, 2.5), "5")
   }),
-  caption: [Power wiring runs from battery through fuse to all VESCs],
+  caption: [Power distribution: (1) Main fuse, (2) E-Stop relay, (3) DC-DC converter, (4) VESCs, (5) XT90 disconnect],
 )
 
 *Power wiring:*
@@ -916,21 +939,32 @@ Understanding potential hazards enables safe operation.
   cetz.canvas({
     import cetz.draw: *
 
-    // Hazard diagram
-    rect((-3, -2), (3, 2), stroke: 1pt + black, radius: 4pt)
+    // Rover outline (top view)
+    rect((-3, -2), (3, 2), stroke: 1.5pt + diagram-black, radius: 4pt)
     content((0, 0), text(size: 8pt)[BVR0])
 
-    // Pinch points at wheels
-    for pos in ((-2.5, 1.5), (2.5, 1.5), (-2.5, -1.5), (2.5, -1.5)) {
-      circle(pos, radius: 0.3, stroke: 2pt + muni-danger)
-      content((pos.at(0), pos.at(1)), text(size: 10pt, fill: muni-danger)[!])
+    // Wheels
+    for (x, y) in ((-3, 1.5), (3, 1.5), (-3, -1.5), (3, -1.5)) {
+      rect((x - 0.4, y - 0.6), (x + 0.4, y + 0.6), fill: diagram-black, radius: 2pt)
     }
 
+    // Warning triangles at wheel areas (pinch points)
+    for pos in ((-3.8, 1.5), (3.8, 1.5), (-3.8, -1.5), (3.8, -1.5)) {
+      warning-symbol(pos, size: 0.6)
+    }
+
+    // Tool mount hazard (front)
+    warning-symbol((0, 2.8), size: 0.6)
+
+    // Direction indicator
+    line((0, 2.3), (0, 2.1), stroke: 0.5pt + diagram-gray, mark: (end: ">"))
+    content((0, 2.5), text(size: 5pt)[FRONT])
+
     // Legend
-    circle((-2, -3), radius: 0.2, stroke: 2pt + muni-danger)
-    content((-0.5, -3), text(size: 7pt)[Pinch/Crush Hazard])
+    warning-symbol((-2.5, -3.5), size: 0.4)
+    content((-0.5, -3.5), text(size: 7pt)[Pinch/Crush Hazard Zone])
   }),
-  caption: [Wheel areas present pinch and crush hazards],
+  caption: [Hazard zones: wheel areas and tool mount require clearance during operation],
 )
 
 Keep hands and feet clear of wheels and moving parts at all times. The hub motors can generate significant torque instantly. Never reach under the rover while it is powered.
