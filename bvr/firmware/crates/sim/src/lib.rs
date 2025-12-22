@@ -1,10 +1,20 @@
 //! Hardware simulation for development and testing.
 //!
-//! Provides simulated VESC responses, tool discovery, and physics.
+//! Provides simulated VESC responses, tool discovery, physics, and sensors.
+//!
+//! # Modules
+//!
+//! - `physics` - 2D rigid body physics for differential drive
+//! - `world` - Obstacles and collision detection
+//! - `lidar` - Synthetic LiDAR point cloud generation
+//! - `vesc` - Simulated VESC motor controllers
+//! - `tool` - Simulated tool attachments
 
-pub mod vesc;
-pub mod tool;
+pub mod lidar;
 pub mod physics;
+pub mod tool;
+pub mod vesc;
+pub mod world;
 
 use can::Frame;
 use std::collections::VecDeque;

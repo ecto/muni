@@ -1,0 +1,19 @@
+[package]
+name = "rl"
+description = "Reinforcement learning environment for BVR rover simulation"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+types = { workspace = true }
+sim = { workspace = true }
+tracing = { workspace = true }
+nalgebra = { workspace = true }
+
+# Random number generation
+rand = "0.8"
+
+[dev-dependencies]
+# For running training examples
+anyhow = { workspace = true }
