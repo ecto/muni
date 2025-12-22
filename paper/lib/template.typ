@@ -96,7 +96,7 @@
   }
 
   // Code blocks
-  show raw: set text(font: ("JetBrains Mono", "Menlo", "Monaco"), size: 9pt)
+  show raw: set text(font: ("Courier New", "Courier"), size: 9pt)
   show raw.where(block: true): it => {
     block(
       width: 100%,

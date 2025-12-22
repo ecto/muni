@@ -361,33 +361,82 @@ Each hub motor mounts to a custom bracket that bolts to the extrusion. The brack
   cetz.canvas({
     import cetz.draw: *
 
-    // Motor mount detail
-    rect((-1, 0), (1, 2), stroke: 1pt + black, fill: muni-light-gray)
-    content((0, 1), text(size: 7pt)[Mount Bracket])
-
-    // Extrusion
-    rect((-1.5, 2), (1.5, 2.5), stroke: 1pt + black)
-    content((0, 2.25), text(size: 6pt)[Extrusion])
-
-    // Motor
-    circle((0, -0.8), radius: 0.8, stroke: 1pt + black)
-    circle((0, -0.8), radius: 0.3, fill: black)
-    content((0, -0.8), text(size: 5pt, fill: white)[Axle])
-
-    // Bolts
-    for x in (-0.5, 0.5) {
-      circle((x, 1.5), radius: 0.1, fill: black)
-    }
+    // === EXPLODED VIEW: Motor Mount Assembly ===
+    
+    // Step numbers
+    assembly-step((-3.5, 4), "1")
+    assembly-step((-3.5, 1.5), "2")
+    assembly-step((-3.5, -1.5), "3")
+    
+    // --- Part 1: Extrusion (top, assembled position reference) ---
+    extrusion-end((0, 4.5), size: 0.6)
+    content((1.2, 4.5), text(size: 7pt)[2020 Extrusion])
+    
+    // --- Part 2: T-Nut + Bolt (exploded above bracket) ---
+    // T-nut
+    tnut-side((-0.5, 2.8), size: 0.35)
+    explode-arrow((-0.5, 2.8), (-0.5, 4.2))
+    content((-1.5, 2.8), text(size: 6pt)[T-Nut])
+    
+    // Bolt
+    bolt-iso((0.5, 2.8), length: 0.6, head-size: 0.25)
+    explode-arrow((0.5, 2.8), (0.5, 4.2))
+    content((1.5, 2.8), text(size: 6pt)[M5×10])
+    
+    // --- Part 3: Motor Mount Bracket ---
+    rect((-1, 0.5), (1, 2), fill: diagram-light, stroke: 1pt + diagram-black, radius: 2pt)
+    content((0, 1.25), text(size: 7pt)[Mount Bracket])
+    // Mounting holes
+    circle((-0.5, 1.6), radius: 0.08, fill: white, stroke: 0.5pt + diagram-gray)
+    circle((0.5, 1.6), radius: 0.08, fill: white, stroke: 0.5pt + diagram-gray)
+    // Motor attachment holes
+    circle((-0.4, 0.7), radius: 0.06, fill: white, stroke: 0.5pt + diagram-gray)
+    circle((0.4, 0.7), radius: 0.06, fill: white, stroke: 0.5pt + diagram-gray)
+    
+    // Explode arrow from bracket to extrusion
+    explode-arrow((0, 2), (0, 4.2))
+    
+    // --- Part 4: Hub Motor (exploded below bracket) ---
+    // Motor body
+    circle((0, -1.5), radius: 1, stroke: 1.5pt + diagram-black, fill: diagram-light)
+    circle((0, -1.5), radius: 0.6, stroke: 1pt + diagram-black)
+    circle((0, -1.5), radius: 0.25, fill: diagram-black)
+    content((0, -1.5), text(size: 5pt, fill: white)[Axle])
+    content((1.8, -1.5), text(size: 7pt)[Hub Motor])
+    
+    // Motor mounting bolts
+    bolt-iso((-0.4, -0.3), length: 0.4, head-size: 0.2)
+    bolt-iso((0.4, -0.3), length: 0.4, head-size: 0.2)
+    content((1.5, -0.3), text(size: 6pt)[M4×8 (×4)])
+    
+    // Explode arrow from motor to bracket
+    explode-arrow((0, -0.5), (0, 0.5))
+    
+    // --- Part 5: Wheel/Tire (exploded below motor) ---
+    circle((0, -4), radius: 1.2, stroke: 2pt + diagram-black, fill: white)
+    circle((0, -4), radius: 0.8, stroke: 1pt + diagram-gray)
+    content((0, -4), text(size: 6pt)[165mm])
+    content((1.8, -4), text(size: 7pt)[Tire])
+    
+    // Explode arrow from tire to motor
+    explode-arrow((0, -2.8), (0, -2.5))
+    
+    // Assembly direction indicator
+    line((3, -4), (3, 4.5), stroke: 1pt + diagram-accent, mark: (end: ">"))
+    content((3.8, 0), text(size: 7pt, fill: diagram-accent)[Assembly])
   }),
-  caption: [Motor mount bracket connects hub motor to chassis extrusion],
+  caption: [Exploded view: (1) Insert T-nuts into extrusion, (2) Bolt bracket to frame, (3) Attach motor and tire],
 )
 
 *Assembly steps:*
 
-+ Attach motor mount brackets to the base extrusion at each corner.
-+ Install hub motors into the brackets, securing with the provided hardware.
-+ Route the three phase wires from each motor toward the electronics area.
-+ Spin each wheel by hand to verify free rotation without rubbing.
+#step(1) Slide M5 T-nuts into the extrusion slot at each motor position.
+
+#step(2) Align the motor bracket holes with the T-nuts and secure with M5×10 bolts. Torque to 4 Nm.
+
+#step(3) Mount the hub motor to the bracket using four M4×8 bolts. Ensure the axle is centered.
+
+#step(4) Press the tire onto the hub motor rim. Spin by hand to verify free rotation.
 
 == Phase 3: Electronics Mounting
 

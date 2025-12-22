@@ -36,10 +36,10 @@
 // Draw an isometric box (rectangular prism)
 #let iso-box(ctx, origin, size, fill: none, stroke: 1pt + black, label: none) = {
   import cetz.draw: *
-  
+
   let (ox, oy, oz) = origin
   let (sx, sy, sz) = size
-  
+
   // 8 corners
   let p0 = iso(ox, oy, oz)
   let p1 = iso(ox + sx, oy, oz)
@@ -49,7 +49,7 @@
   let p5 = iso(ox + sx, oy, oz + sz)
   let p6 = iso(ox + sx, oy + sy, oz + sz)
   let p7 = iso(ox, oy + sy, oz + sz)
-  
+
   // Draw visible faces (top, right, front)
   // Top face
   line(p4, p5, p6, p7, close: true, fill: fill, stroke: stroke)
@@ -57,12 +57,12 @@
   line(p1, p2, p6, p5, close: true, fill: fill, stroke: stroke)
   // Front face
   line(p0, p1, p5, p4, close: true, fill: fill, stroke: stroke)
-  
+
   // Hidden edges (dashed)
   line(p0, p3, stroke: (dash: "dashed", paint: gray, thickness: 0.5pt))
   line(p3, p2, stroke: (dash: "dashed", paint: gray, thickness: 0.5pt))
   line(p3, p7, stroke: (dash: "dashed", paint: gray, thickness: 0.5pt))
-  
+
   if label != none {
     let center = iso(ox + sx/2, oy + sy/2, oz + sz + 0.3)
     content(center, label)
@@ -83,14 +83,14 @@
 // Leader line with callout
 #let callout-leader(from, to, number, text-content: none, anchor: "left") = {
   import cetz.draw: *
-  
+
   // Line from point to callout
   line(from, to, stroke: 0.75pt + diagram-gray)
-  
+
   // Callout bubble
   circle(to, radius: 0.35, fill: diagram-accent, stroke: none)
   content(to, text(fill: white, weight: "bold", size: 8pt)[#number])
-  
+
   // Optional text label
   if text-content != none {
     let offset = if anchor == "left" { (-0.6, 0) } else { (0.6, 0) }
@@ -113,7 +113,7 @@
 // Curved motion arrow (for rotation)
 #let rotation-arrow(center, radius, start-angle, end-angle, stroke-color: diagram-black) = {
   import cetz.draw: *
-  arc(center, start: start-angle, stop: end-angle, radius: radius, 
+  arc(center, start: start-angle, stop: end-angle, radius: radius,
       stroke: 1.5pt + stroke-color, mark: (end: ">"))
 }
 
@@ -130,7 +130,7 @@
 // Insert/push action arrow
 #let insert-arrow(from, to) = {
   import cetz.draw: *
-  line(from, to, stroke: (thickness: 2pt, paint: diagram-accent, dash: "solid"), 
+  line(from, to, stroke: (thickness: 2pt, paint: diagram-accent, dash: "solid"),
        mark: (end: ">", fill: diagram-accent))
 }
 
@@ -142,15 +142,15 @@
 #let dim-h(y, x1, x2, label, offset: 0.3) = {
   import cetz.draw: *
   let y-line = y - offset
-  
+
   // Extension lines
   line((x1, y), (x1, y-line - 0.1), stroke: 0.5pt + diagram-gray)
   line((x2, y), (x2, y-line - 0.1), stroke: 0.5pt + diagram-gray)
-  
+
   // Dimension line with arrows
   line((x1, y-line), (x2, y-line), stroke: 0.5pt + diagram-black,
        mark: (start: "|", end: "|"))
-  
+
   // Label
   content(((x1 + x2) / 2, y-line - 0.25), text(size: 7pt)[#label])
 }
@@ -159,15 +159,15 @@
 #let dim-v(x, y1, y2, label, offset: 0.3) = {
   import cetz.draw: *
   let x-line = x + offset
-  
+
   // Extension lines
   line((x, y1), (x-line + 0.1, y1), stroke: 0.5pt + diagram-gray)
   line((x, y2), (x-line + 0.1, y2), stroke: 0.5pt + diagram-gray)
-  
+
   // Dimension line
   line((x-line, y1), (x-line, y2), stroke: 0.5pt + diagram-black,
        mark: (start: "|", end: "|"))
-  
+
   // Label (rotated)
   content((x-line + 0.35, (y1 + y2) / 2), text(size: 7pt)[#label])
 }
@@ -180,7 +180,7 @@
 #let wheel-top(pos, size: 0.6, label: none) = {
   import cetz.draw: *
   let (x, y) = pos
-  rect((x - size/2, y - size*1.5), (x + size/2, y + size*1.5), 
+  rect((x - size/2, y - size*1.5), (x + size/2, y + size*1.5),
        fill: diagram-black, radius: 2pt)
   if label != none {
     content((x, y - size*1.5 - 0.3), text(size: 6pt)[#label])
@@ -191,7 +191,7 @@
 #let wheel-side(pos, radius: 1, tire-width: 0.3) = {
   import cetz.draw: *
   let (x, y) = pos
-  
+
   // Tire (outer)
   circle((x, y), radius: radius, stroke: 2pt + diagram-black, fill: diagram-light)
   // Hub (inner)
@@ -205,16 +205,16 @@
   import cetz.draw: *
   let (x, y) = pos
   let (w, h) = size
-  
-  rect((x - w/2, y - h/2), (x + w/2, y + h/2), 
+
+  rect((x - w/2, y - h/2), (x + w/2, y + h/2),
        fill: diagram-light, stroke: 1pt + diagram-black, radius: 2pt)
-  
+
   // Heat sink fins
   for i in range(5) {
     let fx = x - w/2 + 0.15 + i * (w - 0.3) / 4
     line((fx, y - h/2), (fx, y - h/2 - 0.1), stroke: 0.5pt + diagram-gray)
   }
-  
+
   if id != none {
     content((x, y), text(size: 6pt, weight: "bold")[VESC #id])
   }
@@ -225,14 +225,14 @@
   import cetz.draw: *
   let (x, y) = pos
   let (w, h) = size
-  
+
   rect((x - w/2, y - h/2), (x + w/2, y + h/2),
        fill: diagram-light, stroke: 1pt + diagram-black, radius: 2pt)
-  
+
   // Heatsink pattern
   rect((x - w/2 + 0.1, y - h/2 + 0.1), (x + w/2 - 0.1, y + h/2 - 0.1),
        stroke: 0.5pt + diagram-gray)
-  
+
   content((x, y), text(size: 6pt)[Jetson])
 }
 
@@ -241,14 +241,14 @@
   import cetz.draw: *
   let (x, y) = pos
   let (w, h) = size
-  
+
   rect((x - w/2, y - h/2), (x + w/2, y + h/2),
        fill: diagram-accent, stroke: 1pt + diagram-black, radius: 4pt)
-  
+
   // Terminal indicators
   circle((x + w/2 - 0.2, y + 0.2), radius: 0.1, fill: diagram-danger, stroke: none)
   circle((x + w/2 - 0.2, y - 0.2), radius: 0.1, fill: diagram-black, stroke: none)
-  
+
   content((x, y), text(size: 7pt, fill: white, weight: "bold")[48V 20Ah])
 }
 
@@ -257,17 +257,17 @@
   import cetz.draw: *
   let (x, y) = pos
   let s = size
-  
+
   // Outer square
   rect((x - s/2, y - s/2), (x + s/2, y + s/2), stroke: 1pt + diagram-black)
-  
+
   // T-slot grooves (simplified)
   let groove = s * 0.15
   rect((x - groove, y + s/2 - groove), (x + groove, y + s/2), fill: white, stroke: 0.5pt + diagram-gray)
   rect((x - groove, y - s/2), (x + groove, y - s/2 + groove), fill: white, stroke: 0.5pt + diagram-gray)
   rect((x - s/2, y - groove), (x - s/2 + groove, y + groove), fill: white, stroke: 0.5pt + diagram-gray)
   rect((x + s/2 - groove, y - groove), (x + s/2, y + groove), fill: white, stroke: 0.5pt + diagram-gray)
-  
+
   // Center hole
   circle((x, y), radius: s * 0.12, fill: white, stroke: 0.5pt + diagram-gray)
 }
@@ -276,13 +276,13 @@
 #let lidar-top(pos, size: 0.8) = {
   import cetz.draw: *
   let (x, y) = pos
-  
+
   // Cylindrical body (shown as circle from top)
   circle((x, y), radius: size, fill: diagram-light, stroke: 1pt + diagram-black)
-  
+
   // Dome
   circle((x, y), radius: size * 0.7, stroke: 0.5pt + diagram-gray)
-  
+
   // FOV indicator arcs
   for angle in range(0, 360, step: 45) {
     let a = angle * 1deg
@@ -300,10 +300,10 @@
 #let camera-top(pos, radius: 0.3) = {
   import cetz.draw: *
   let (x, y) = pos
-  
+
   // Body
   circle((x, y), radius: radius, fill: diagram-black, stroke: none)
-  
+
   // Lens indicators (dual fisheye)
   circle((x, y + radius * 0.4), radius: radius * 0.25, fill: diagram-gray, stroke: none)
   circle((x, y - radius * 0.4), radius: radius * 0.25, fill: diagram-gray, stroke: none)
@@ -317,21 +317,21 @@
 #let wheel-iso(origin, radius: 0.8, width: 0.4) = {
   import cetz.draw: *
   let (ox, oy, oz) = origin
-  
+
   // Simplified as cylinder approximation
   let p1 = iso(ox, oy - width/2, oz)
   let p2 = iso(ox, oy + width/2, oz)
-  
+
   // Draw ellipses for wheel faces
   circle(p1, radius: radius * iso-scale, fill: diagram-light, stroke: 1pt + diagram-black)
   circle(p2, radius: radius * iso-scale, fill: diagram-black, stroke: 1pt + diagram-black)
-  
+
   // Connecting lines (top and bottom of cylinder)
   let top1 = (p1.at(0), p1.at(1) + radius * iso-scale)
   let top2 = (p2.at(0), p2.at(1) + radius * iso-scale)
   let bot1 = (p1.at(0), p1.at(1) - radius * iso-scale)
   let bot2 = (p2.at(0), p2.at(1) - radius * iso-scale)
-  
+
   line(top1, top2, stroke: 1pt + diagram-black)
   line(bot1, bot2, stroke: 1pt + diagram-black)
 }
@@ -346,7 +346,7 @@
   let (x, y) = pos
   let w = if size == "90" { 0.8 } else if size == "60" { 0.6 } else { 0.4 }
   let h = w * 0.6
-  
+
   if orientation == "h" {
     rect((x - w/2, y - h/2), (x + w/2, y + h/2), fill: rgb("#f5d742"), stroke: 1pt + diagram-black, radius: 2pt)
     content((x, y), text(size: 5pt, weight: "bold")[XT#size])
@@ -362,9 +362,9 @@
   let (x, y) = pos
   let w = 0.8
   let h = 0.5
-  
+
   rect((x - w/2, y - h/2), (x + w/2, y + h/2), fill: diagram-gray, stroke: 1pt + diagram-black, radius: 2pt)
-  
+
   // Pin holes
   let pin-spacing = (w - 0.2) / (pins - 1)
   for i in range(pins) {
@@ -382,7 +382,7 @@
   import cetz.draw: *
   let (x, y) = pos
   let h = size * 0.866  // equilateral triangle height
-  
+
   line(
     (x, y + h * 0.67),
     (x - size/2, y - h * 0.33),
@@ -398,7 +398,7 @@
 #let danger-symbol(pos, size: 0.4) = {
   import cetz.draw: *
   let (x, y) = pos
-  
+
   circle((x, y), radius: size, fill: none, stroke: 2pt + diagram-danger)
   line((x - size * 0.7, y + size * 0.7), (x + size * 0.7, y - size * 0.7), stroke: 2pt + diagram-danger)
 }
@@ -407,7 +407,7 @@
 #let estop-symbol(pos, size: 0.6) = {
   import cetz.draw: *
   let (x, y) = pos
-  
+
   // Outer ring
   circle((x, y), radius: size, fill: diagram-danger, stroke: 2pt + diagram-black)
   // Inner button
@@ -424,7 +424,7 @@
 #let process-box(pos, label, width: 2, height: 0.8, fill-color: diagram-light) = {
   import cetz.draw: *
   let (x, y) = pos
-  
+
   rect((x - width/2, y - height/2), (x + width/2, y + height/2),
        fill: fill-color, stroke: 1pt + diagram-black, radius: 4pt)
   content((x, y), text(size: 7pt)[#label])
@@ -435,7 +435,7 @@
   import cetz.draw: *
   let (x, y) = pos
   let s = size / 2
-  
+
   line((x, y + s), (x + s, y), (x, y - s), (x - s, y), close: true,
        fill: diagram-light, stroke: 1pt + diagram-black)
   content((x, y), text(size: 6pt)[#label])
@@ -448,37 +448,194 @@
 }
 
 // =============================================================================
+// EXPLODED VIEW HELPERS
+// =============================================================================
+
+// Exploded assembly arrow (dashed line showing part movement)
+#let explode-arrow(from, to, label: none) = {
+  import cetz.draw: *
+  
+  // Dashed guide line
+  line(from, to, stroke: (thickness: 0.75pt, paint: diagram-gray, dash: "dashed"))
+  
+  // Arrowhead at destination
+  let dx = to.at(0) - from.at(0)
+  let dy = to.at(1) - from.at(1)
+  let len = calc.sqrt(dx * dx + dy * dy)
+  if len > 0 {
+    let ux = dx / len * 0.3
+    let uy = dy / len * 0.3
+    let arrow-base = (to.at(0) - ux, to.at(1) - uy)
+    line(arrow-base, to, stroke: 1pt + diagram-gray, mark: (end: ">"))
+  }
+  
+  if label != none {
+    let mid = ((from.at(0) + to.at(0)) / 2 + 0.3, (from.at(1) + to.at(1)) / 2)
+    content(mid, text(size: 6pt, fill: diagram-gray)[#label])
+  }
+}
+
+// Exploded part with offset and guide
+#let explode-part(assembled-pos, offset, draw-fn) = {
+  import cetz.draw: *
+  
+  let exploded-pos = (assembled-pos.at(0) + offset.at(0), assembled-pos.at(1) + offset.at(1))
+  
+  // Draw the explode arrow
+  explode-arrow(exploded-pos, assembled-pos)
+  
+  // Draw the part at exploded position (caller provides draw function)
+  // Note: caller should use exploded-pos
+}
+
+// Bolt with washer (isometric, for exploded views)
+#let bolt-iso(pos, length: 1, head-size: 0.3) = {
+  import cetz.draw: *
+  let (x, y) = pos
+  
+  // Bolt head (hexagon approximated as rect)
+  rect((x - head-size/2, y - head-size/4), (x + head-size/2, y + head-size/4), 
+       fill: diagram-light, stroke: 0.75pt + diagram-black)
+  
+  // Shaft
+  line((x, y - head-size/4), (x, y - length), stroke: 1pt + diagram-black)
+  
+  // Thread lines
+  for i in range(3) {
+    let ty = y - head-size/4 - 0.2 - i * 0.15
+    line((x - 0.08, ty), (x + 0.08, ty), stroke: 0.3pt + diagram-gray)
+  }
+}
+
+// Washer (for exploded views)
+#let washer(pos, outer: 0.3, inner: 0.12) = {
+  import cetz.draw: *
+  let (x, y) = pos
+  
+  circle((x, y), radius: outer, fill: diagram-light, stroke: 0.75pt + diagram-black)
+  circle((x, y), radius: inner, fill: white, stroke: 0.5pt + diagram-gray)
+}
+
+// Nut (hexagonal, top view)
+#let nut-top(pos, size: 0.25) = {
+  import cetz.draw: *
+  let (x, y) = pos
+  let r = size
+  
+  // Hexagon
+  let pts = range(6).map(i => {
+    let angle = i * 60deg + 30deg
+    (x + r * calc.cos(angle), y + r * calc.sin(angle))
+  })
+  line(..pts, close: true, fill: diagram-light, stroke: 0.75pt + diagram-black)
+  
+  // Center hole
+  circle((x, y), radius: size * 0.4, fill: white, stroke: 0.5pt + diagram-gray)
+}
+
+// T-nut for extrusion (side view)
+#let tnut-side(pos, size: 0.4) = {
+  import cetz.draw: *
+  let (x, y) = pos
+  let s = size
+  
+  // T-shape
+  rect((x - s/2, y), (x + s/2, y + s/4), fill: diagram-light, stroke: 0.75pt + diagram-black)
+  rect((x - s/4, y - s/2), (x + s/4, y), fill: diagram-light, stroke: 0.75pt + diagram-black)
+  
+  // Thread hole
+  circle((x, y - s/4), radius: s/8, fill: white, stroke: 0.5pt + diagram-gray)
+}
+
+// Corner bracket (isometric-ish side view)
+#let corner-bracket(pos, size: 0.8) = {
+  import cetz.draw: *
+  let (x, y) = pos
+  let s = size
+  
+  // L-shape
+  line(
+    (x - s/2, y + s/2),
+    (x - s/2, y - s/2),
+    (x + s/2, y - s/2),
+    (x + s/2, y - s/3),
+    (x - s/3, y - s/3),
+    (x - s/3, y + s/2),
+    close: true,
+    fill: diagram-light,
+    stroke: 0.75pt + diagram-black
+  )
+  
+  // Mounting holes
+  circle((x - s/2 + s/6, y), radius: 0.06, fill: white, stroke: 0.5pt + diagram-gray)
+  circle((x, y - s/2 + s/6), radius: 0.06, fill: white, stroke: 0.5pt + diagram-gray)
+}
+
+// Extrusion end (2020 profile, end-on view)
+#let extrusion-end(pos, size: 0.5) = {
+  import cetz.draw: *
+  let (x, y) = pos
+  let s = size
+  
+  // Main square
+  rect((x - s/2, y - s/2), (x + s/2, y + s/2), fill: diagram-light, stroke: 1pt + diagram-black)
+  
+  // T-slots (simplified as indents on each side)
+  let slot = s * 0.2
+  // Top slot
+  rect((x - slot/2, y + s/2 - slot/4), (x + slot/2, y + s/2), fill: white, stroke: 0.5pt + diagram-gray)
+  // Bottom slot
+  rect((x - slot/2, y - s/2), (x + slot/2, y - s/2 + slot/4), fill: white, stroke: 0.5pt + diagram-gray)
+  // Right slot
+  rect((x + s/2 - slot/4, y - slot/2), (x + s/2, y + slot/2), fill: white, stroke: 0.5pt + diagram-gray)
+  // Left slot
+  rect((x - s/2, y - slot/2), (x - s/2 + slot/4, y + slot/2), fill: white, stroke: 0.5pt + diagram-gray)
+  
+  // Center bore
+  circle((x, y), radius: s * 0.15, fill: white, stroke: 0.5pt + diagram-gray)
+}
+
+// Assembly step number (large circled number)
+#let assembly-step(pos, number, size: 0.6) = {
+  import cetz.draw: *
+  let (x, y) = pos
+  
+  circle((x, y), radius: size, fill: white, stroke: 2pt + diagram-accent)
+  content((x, y), text(size: 14pt, weight: "bold", fill: diagram-accent)[#number])
+}
+
+// =============================================================================
 // COMPLETE ROVER DIAGRAMS
 // =============================================================================
 
 // BVR0 top view (complete assembly)
 #let rover-top-view(scale: 1) = {
   import cetz.draw: *
-  
+
   let s = scale
-  
+
   // Chassis frame
   rect((-3 * s, -3 * s), (3 * s, 3 * s), stroke: 1.5pt + diagram-black, radius: 4pt)
-  
+
   // Wheels at corners
   for (x, y, label) in ((-3, 2.5, "FL"), (3, 2.5, "FR"), (-3, -2.5, "RL"), (3, -2.5, "RR")) {
-    rect(((x - 0.5) * s, (y - 0.8) * s), ((x + 0.5) * s, (y + 0.8) * s), 
+    rect(((x - 0.5) * s, (y - 0.8) * s), ((x + 0.5) * s, (y + 0.8) * s),
          fill: diagram-black, radius: 2pt)
     content((x * s, (y - 1.2) * s), text(size: 6pt)[#label])
   }
-  
+
   // Electronics area
   rect((-2 * s, -2 * s), (2 * s, 1 * s), fill: diagram-light, stroke: 0.5pt + diagram-gray, radius: 2pt)
   content((0, -0.5 * s), text(size: 7pt)[Electronics])
-  
+
   // Tool mount (front)
   rect((-1.5 * s, 2.5 * s), (1.5 * s, 3 * s), fill: diagram-light, stroke: 0.5pt + diagram-gray)
   content((0, 2.75 * s), text(size: 6pt)[Tool Mount])
-  
+
   // Sensor mast
   circle((0, 1.5 * s), radius: 0.3 * s, fill: diagram-black)
   content((0.8 * s, 1.5 * s), text(size: 6pt)[Sensors])
-  
+
   // Direction indicator
   line((0, 3.5 * s), (0, 4.5 * s), stroke: 1pt + diagram-black, mark: (end: ">"))
   content((0, 4.8 * s), text(size: 7pt)[FRONT])
@@ -487,27 +644,27 @@
 // BVR0 side view
 #let rover-side-view(scale: 1) = {
   import cetz.draw: *
-  
+
   let s = scale
-  
+
   // Chassis
   rect((-3 * s, 0.5 * s), (3 * s, 1.5 * s), stroke: 1pt + diagram-black, radius: 2pt)
   content((0, 1 * s), text(size: 7pt)[Chassis])
-  
+
   // Wheels
   circle((-2.5 * s, 0), radius: 0.6 * s, stroke: 1pt + diagram-black, fill: diagram-light)
   circle((2.5 * s, 0), radius: 0.6 * s, stroke: 1pt + diagram-black, fill: diagram-light)
-  
+
   // Ground line
   line((-4 * s, -0.6 * s), (4 * s, -0.6 * s), stroke: 0.5pt + diagram-gray)
-  
+
   // Sensor mast
   line((0, 1.5 * s), (0, 3.5 * s), stroke: 1.5pt + diagram-black)
-  
+
   // LiDAR
   rect((-0.4 * s, 2.5 * s), (0.4 * s, 3 * s), fill: diagram-light, stroke: 1pt + diagram-black, radius: 2pt)
   content((1.2 * s, 2.75 * s), text(size: 6pt)[LiDAR])
-  
+
   // Camera
   circle((0, 3.5 * s), radius: 0.25 * s, fill: diagram-black)
   content((1 * s, 3.5 * s), text(size: 6pt)[Camera])
