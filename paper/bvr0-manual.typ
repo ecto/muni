@@ -180,6 +180,36 @@ The chassis uses 2020 aluminum extrusion for its balance of strength, weight, an
   [*Subtotal*], [], [], [*\$147*],
 )
 
+#figure(
+  cetz.canvas({
+    import cetz.draw: *
+    
+    // Hardware reference at approximate scale
+    content((0, 2), text(size: 8pt, weight: "bold")[Hardware Reference])
+    
+    // M5x10 bolt
+    screw-actual-size((-3, 0), thread: "M5", length: 10)
+    
+    // M5x16 bolt
+    screw-actual-size((-1, 0), thread: "M5", length: 16)
+    
+    // M4x8 bolt
+    screw-actual-size((1, 0), thread: "M4", length: 8)
+    
+    // T-nut
+    tnut-side((3, 0), size: 0.5)
+    content((3, -0.7), text(size: 6pt)[M5 T-Nut])
+    
+    // Corner bracket
+    corner-bracket((5, 0), size: 0.9)
+    content((5, -0.9), text(size: 6pt)[Bracket])
+    
+    // Scale bar
+    scale-bar((-2, -1.8), length: 3, real-length: "20 mm", divisions: 4)
+  }),
+  caption: [Chassis hardware reference. Use this scale bar to verify print size.],
+)
+
 == Drivetrain
 
 Hub motors eliminate chains, belts, and gearboxes. Each motor contains a brushless DC motor, planetary gearbox, and wheel tire in a single unit. VESC motor controllers provide precise torque control and regenerative braking.

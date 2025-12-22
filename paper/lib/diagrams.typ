@@ -605,6 +605,124 @@
 }
 
 // =============================================================================
+// SCALE INDICATORS
+// =============================================================================
+
+// Scale bar (shows real-world measurement)
+#let scale-bar(pos, length: 2, real-length: "10 mm", divisions: 5) = {
+  import cetz.draw: *
+  let (x, y) = pos
+  
+  // Main bar
+  rect((x, y - 0.1), (x + length, y + 0.1), fill: diagram-black, stroke: none)
+  
+  // Division marks
+  let div-width = length / divisions
+  for i in range(divisions + 1) {
+    let dx = x + i * div-width
+    let h = if calc.rem(i, 2) == 0 { 0.2 } else { 0.15 }
+    line((dx, y - h), (dx, y + h), stroke: 1pt + diagram-black)
+  }
+  
+  // Alternating fill pattern
+  for i in range(divisions) {
+    if calc.rem(i, 2) == 0 {
+      rect((x + i * div-width, y - 0.1), (x + (i + 1) * div-width, y + 0.1), 
+           fill: white, stroke: 0.5pt + diagram-black)
+    }
+  }
+  
+  // Label
+  content((x + length / 2, y - 0.4), text(size: 7pt)[#real-length])
+}
+
+// 1:1 scale indicator box (for small hardware)
+#let scale-one-to-one(pos, width: 1.5, height: 0.8) = {
+  import cetz.draw: *
+  let (x, y) = pos
+  
+  // Border box
+  rect((x - width/2, y - height/2), (x + width/2, y + height/2),
+       fill: white, stroke: 1pt + diagram-accent, dash: "dashed")
+  
+  // Label
+  content((x, y), text(size: 8pt, weight: "bold", fill: diagram-accent)[1:1 SCALE])
+}
+
+// Actual size reference (circle at known diameter)
+#let actual-size-circle(pos, diameter-mm: 5, label: none) = {
+  import cetz.draw: *
+  let (x, y) = pos
+  
+  // Convert mm to approximate Typst units (assuming ~2.83 units per mm at 72dpi)
+  // This is approximate - actual rendering depends on PDF viewer zoom
+  let radius = diameter-mm * 0.035  // Scaled for diagram context
+  
+  circle((x, y), radius: radius, fill: none, stroke: 1pt + diagram-accent)
+  
+  // Crosshairs
+  line((x - radius * 1.3, y), (x + radius * 1.3, y), stroke: 0.5pt + diagram-gray)
+  line((x, y - radius * 1.3), (x, y + radius * 1.3), stroke: 0.5pt + diagram-gray)
+  
+  // Label
+  let lbl = if label != none { label } else { str(diameter-mm) + " mm" }
+  content((x, y - radius - 0.3), text(size: 6pt)[#lbl])
+}
+
+// Screw/bolt actual size reference
+#let screw-actual-size(pos, thread: "M5", length: 10) = {
+  import cetz.draw: *
+  let (x, y) = pos
+  
+  // Thread diameter mapping (approximate visual scale)
+  let dia = if thread == "M3" { 0.12 } else if thread == "M4" { 0.15 } else if thread == "M5" { 0.18 } else { 0.22 }
+  let len = length * 0.03
+  
+  // Head
+  rect((x - dia * 1.5, y), (x + dia * 1.5, y + dia), 
+       fill: diagram-light, stroke: 0.75pt + diagram-black)
+  
+  // Socket
+  rect((x - dia * 0.5, y + dia * 0.3), (x + dia * 0.5, y + dia * 0.7),
+       fill: diagram-black, stroke: none)
+  
+  // Shaft
+  rect((x - dia/2, y - len), (x + dia/2, y), 
+       fill: diagram-light, stroke: 0.75pt + diagram-black)
+  
+  // Thread indication
+  for i in range(int(len / 0.08)) {
+    let ty = y - 0.05 - i * 0.08
+    line((x - dia/2, ty), (x + dia/2, ty), stroke: 0.3pt + diagram-gray)
+  }
+  
+  // Label
+  content((x, y - len - 0.25), text(size: 6pt)[#thread × #length])
+}
+
+// Size comparison ruler (shows multiple common sizes)
+#let size-ruler(pos, sizes: (3, 5, 10, 20), unit: "mm") = {
+  import cetz.draw: *
+  let (x, y) = pos
+  
+  // Draw graduated marks for each size
+  let scale-factor = 0.03  // Approximate mm to drawing units
+  
+  for (i, size) in sizes.enumerate() {
+    let mark-x = x + i * 1.2
+    let mark-height = size * scale-factor * 2
+    
+    line((mark-x, y), (mark-x, y + mark-height), stroke: 1.5pt + diagram-black)
+    line((mark-x - 0.15, y), (mark-x + 0.15, y), stroke: 1pt + diagram-black)
+    line((mark-x - 0.1, y + mark-height), (mark-x + 0.1, y + mark-height), stroke: 0.75pt + diagram-black)
+    
+    content((mark-x, y - 0.25), text(size: 6pt)[#size])
+  }
+  
+  content((x + (sizes.len() - 1) * 0.6, y - 0.5), text(size: 5pt, fill: diagram-gray)[#unit])
+}
+
+// =============================================================================
 // HAND AND TOOL ICONS
 // =============================================================================
 
