@@ -46,12 +46,10 @@
     number-align: center,
     header: context {
       if counter(page).get().first() > 2 [
-        #set text(size: 9pt, fill: muni-gray)
-        #smallcaps[#title]
+        #set text(size: 9pt, fill: gray)
+        #title
         #h(1fr)
         Municipal Robotics
-        #v(-0.5em)
-        #line(length: 100%, stroke: 0.5pt + muni-orange)
       ]
     },
     footer: context {
