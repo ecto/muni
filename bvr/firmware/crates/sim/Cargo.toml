@@ -10,6 +10,13 @@ types = { workspace = true }
 can = { workspace = true }
 tools = { workspace = true }
 tracing = { workspace = true }
+nalgebra = { workspace = true }
+
+# Ray-casting for synthetic LiDAR
+parry3d = "0.17"
+
+# Random number generation for noise/spawning
+rand = "0.8"
 
 
 

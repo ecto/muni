@@ -60,6 +60,10 @@ gps = { path = "crates/gps" }
 localization = { path = "crates/localization" }
 recording = { path = "crates/recording" }
 metrics = { path = "crates/metrics" }
+rl = { path = "crates/rl" }
+
+# RL training dependencies
+rand = "0.8"
 
 
 
