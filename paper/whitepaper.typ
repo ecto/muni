@@ -67,7 +67,7 @@
   ]
   #v(2em)
   #text(size: 11pt, fill: gray)[
-    Technical Whitepaper, December 2024
+    Whitepaper, December 2025
   ]
   #v(2em)
   #text(size: 12pt)[
@@ -877,7 +877,7 @@ All learned models follow a standardized deployment pipeline:
 5. *Integration:* C++ inference runtime with Rust bindings for bvrd
 6. *Monitoring:* Runtime confidence tracking; low-confidence triggers fallback to operator
 
-Current status: none of these learned perception systems are implemented. Development is blocked on LiDAR hardware integration (pending sensor arrival). The architecture and model choices described above represent the planned approach based on literature review and hardware constraints. Target timeline: obstacle classification Q3 2025, surface assessment Q4 2025, path planning Q1 2026. All current autonomy relies on deterministic behaviors plus human supervision.
+Current status: none of these learned perception systems are implemented. Development is blocked on LiDAR hardware integration (pending sensor arrival). The architecture and model choices described above represent the planned approach based on literature review and hardware constraints. Target timeline: obstacle classification Q2 2026, surface assessment Q3 2026, path planning Q4 2026. All current autonomy relies on deterministic behaviors plus human supervision.
 
 == Human-in-the-Loop Operations (Current)
 
@@ -985,7 +985,7 @@ All operational data is logged. Telemetry (position, velocity, motor currents, b
 
 == Regulatory Status
 
-Sidewalk robots are not federally regulated in the United States. Regulation, where it exists, is at the state or municipal level. As of December 2024, 14 states have enacted personal delivery device (PDD) legislation @pdd2024legislation with weight limits typically ranging from 80–550 lbs and speed limits of 6–12 mph. Most require yielding to pedestrians, operator oversight, and liability insurance.
+Sidewalk robots are not federally regulated in the United States. Regulation, where it exists, is at the state or municipal level. As of December 2025, 14 states have enacted personal delivery device (PDD) legislation @pdd2024legislation with weight limits typically ranging from 80–550 lbs and speed limits of 6–12 mph. Most require yielding to pedestrians, operator oversight, and liability insurance.
 
 The system described in this paper is designed to comply with the most restrictive common requirements.
 
@@ -1406,7 +1406,7 @@ Snow clearing rate is fundamentally limited by auger capacity and forward speed.
 
 == What Depends on Regulation
 
-Autonomous operation in public rights-of-way is subject to state and local regulation. As of December 2024, 14 states have personal delivery device legislation. Expansion to other jurisdictions requires either legislative action or municipal pilot agreements. The system is designed to comply with the most restrictive current requirements, ensuring broad deployability as regulations evolve.
+Autonomous operation in public rights-of-way is subject to state and local regulation. As of December 2025, 14 states have personal delivery device legislation. Expansion to other jurisdictions requires either legislative action or municipal pilot agreements. The system is designed to comply with the most restrictive current requirements, ensuring broad deployability as regulations evolve.
 
 = The Path to Full Autonomy
 
