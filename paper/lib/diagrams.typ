@@ -456,14 +456,14 @@
   import cetz.draw: *
   let (x, y) = pos
   let (w, h) = size
-  
+
   // Panel border
   rect((x, y), (x + w, y + h), fill: white, stroke: 0.75pt + diagram-gray, radius: 2pt)
-  
+
   // Step number badge (top-left corner)
   circle((x + 0.4, y + h - 0.4), radius: 0.35, fill: diagram-accent, stroke: none)
   content((x + 0.4, y + h - 0.4), text(fill: white, weight: "bold", size: 10pt)[#step-num])
-  
+
   // Title (if provided)
   if title != none {
     content((x + w/2 + 0.3, y + h - 0.4), text(size: 7pt, weight: "bold")[#title])
@@ -475,11 +475,11 @@
   import cetz.draw: *
   let (x, y) = from-panel-pos
   let (w, h) = from-size
-  
+
   let arrow-y = y + h / 2
   let arrow-x1 = x + w + 0.1
   let arrow-x2 = x + w + gap - 0.1
-  
+
   line((arrow-x1, arrow-y), (arrow-x2, arrow-y), stroke: 1.5pt + diagram-accent, mark: (end: ">"))
 }
 
@@ -488,11 +488,11 @@
   import cetz.draw: *
   let (x, y) = from-panel-pos
   let (w, h) = from-size
-  
+
   let arrow-x = x + w / 2
   let arrow-y1 = y - 0.1
   let arrow-y2 = y - gap + 0.1
-  
+
   line((arrow-x, arrow-y1), (arrow-x, arrow-y2), stroke: 1.5pt + diagram-accent, mark: (end: ">"))
 }
 
@@ -500,7 +500,7 @@
 #let state-before(pos) = {
   import cetz.draw: *
   let (x, y) = pos
-  
+
   rect((x - 0.5, y - 0.2), (x + 0.5, y + 0.2), fill: diagram-light, stroke: 0.75pt + diagram-gray, radius: 2pt)
   content((x, y), text(size: 5pt, fill: diagram-gray)[BEFORE])
 }
@@ -509,7 +509,7 @@
 #let state-after(pos) = {
   import cetz.draw: *
   let (x, y) = pos
-  
+
   rect((x - 0.5, y - 0.2), (x + 0.5, y + 0.2), fill: rgb("#dcfce7"), stroke: 0.75pt + diagram-success, radius: 2pt)
   content((x, y), text(size: 5pt, fill: diagram-success)[AFTER])
 }
@@ -519,7 +519,7 @@
   import cetz.draw: *
   let (x, y) = pos
   let s = size
-  
+
   circle((x, y), radius: s, fill: diagram-success, stroke: none)
   line((x - s * 0.4, y), (x - s * 0.1, y - s * 0.3), (x + s * 0.4, y + s * 0.4),
        stroke: 2pt + white)
@@ -530,7 +530,7 @@
   import cetz.draw: *
   let (x, y) = pos
   let s = size
-  
+
   circle((x, y), radius: s, fill: diagram-danger, stroke: none)
   line((x - s * 0.35, y - s * 0.35), (x + s * 0.35, y + s * 0.35), stroke: 2pt + white)
   line((x - s * 0.35, y + s * 0.35), (x + s * 0.35, y - s * 0.35), stroke: 2pt + white)
@@ -540,7 +540,7 @@
 #let do-this(pos) = {
   import cetz.draw: *
   let (x, y) = pos
-  
+
   check-mark((x, y), size: 0.35)
   content((x + 0.6, y), text(size: 6pt, fill: diagram-success)[Do])
 }
@@ -549,7 +549,7 @@
 #let dont-do(pos) = {
   import cetz.draw: *
   let (x, y) = pos
-  
+
   x-mark((x, y), size: 0.35)
   content((x + 0.7, y), text(size: 6pt, fill: diagram-danger)[Don't])
 }
@@ -560,20 +560,20 @@
   let (fx, fy) = from
   let (tx, ty) = to
   let (w, h) = size
-  
+
   // Circle at source
   circle(from, radius: 0.2, fill: none, stroke: 1pt + diagram-accent)
-  
+
   // Dashed line to detail box
   line(from, to, stroke: (thickness: 0.75pt, paint: diagram-accent, dash: "dashed"))
-  
+
   // Detail box
   rect((tx, ty), (tx + w, ty + h), fill: white, stroke: 1pt + diagram-accent, radius: 2pt)
-  
+
   // Magnifying glass icon
   circle((tx + 0.25, ty + h - 0.25), radius: 0.15, fill: none, stroke: 1pt + diagram-accent)
   line((tx + 0.35, ty + h - 0.35), (tx + 0.5, ty + h - 0.5), stroke: 1pt + diagram-accent)
-  
+
   if label != none {
     content((tx + w/2, ty + h - 0.25), text(size: 6pt)[#label])
   }
@@ -586,10 +586,10 @@
 // Exploded assembly arrow (dashed line showing part movement)
 #let explode-arrow(from, to, label: none) = {
   import cetz.draw: *
-  
+
   // Dashed guide line
   line(from, to, stroke: (thickness: 0.75pt, paint: diagram-gray, dash: "dashed"))
-  
+
   // Arrowhead at destination
   let dx = to.at(0) - from.at(0)
   let dy = to.at(1) - from.at(1)
@@ -600,7 +600,7 @@
     let arrow-base = (to.at(0) - ux, to.at(1) - uy)
     line(arrow-base, to, stroke: 1pt + diagram-gray, mark: (end: ">"))
   }
-  
+
   if label != none {
     let mid = ((from.at(0) + to.at(0)) / 2 + 0.3, (from.at(1) + to.at(1)) / 2)
     content(mid, text(size: 6pt, fill: diagram-gray)[#label])
@@ -610,12 +610,12 @@
 // Exploded part with offset and guide
 #let explode-part(assembled-pos, offset, draw-fn) = {
   import cetz.draw: *
-  
+
   let exploded-pos = (assembled-pos.at(0) + offset.at(0), assembled-pos.at(1) + offset.at(1))
-  
+
   // Draw the explode arrow
   explode-arrow(exploded-pos, assembled-pos)
-  
+
   // Draw the part at exploded position (caller provides draw function)
   // Note: caller should use exploded-pos
 }
@@ -624,14 +624,14 @@
 #let bolt-iso(pos, length: 1, head-size: 0.3) = {
   import cetz.draw: *
   let (x, y) = pos
-  
+
   // Bolt head (hexagon approximated as rect)
-  rect((x - head-size/2, y - head-size/4), (x + head-size/2, y + head-size/4), 
+  rect((x - head-size/2, y - head-size/4), (x + head-size/2, y + head-size/4),
        fill: diagram-light, stroke: 0.75pt + diagram-black)
-  
+
   // Shaft
   line((x, y - head-size/4), (x, y - length), stroke: 1pt + diagram-black)
-  
+
   // Thread lines
   for i in range(3) {
     let ty = y - head-size/4 - 0.2 - i * 0.15
@@ -643,7 +643,7 @@
 #let washer(pos, outer: 0.3, inner: 0.12) = {
   import cetz.draw: *
   let (x, y) = pos
-  
+
   circle((x, y), radius: outer, fill: diagram-light, stroke: 0.75pt + diagram-black)
   circle((x, y), radius: inner, fill: white, stroke: 0.5pt + diagram-gray)
 }
@@ -653,14 +653,14 @@
   import cetz.draw: *
   let (x, y) = pos
   let r = size
-  
+
   // Hexagon
   let pts = range(6).map(i => {
     let angle = i * 60deg + 30deg
     (x + r * calc.cos(angle), y + r * calc.sin(angle))
   })
   line(..pts, close: true, fill: diagram-light, stroke: 0.75pt + diagram-black)
-  
+
   // Center hole
   circle((x, y), radius: size * 0.4, fill: white, stroke: 0.5pt + diagram-gray)
 }
@@ -670,11 +670,11 @@
   import cetz.draw: *
   let (x, y) = pos
   let s = size
-  
+
   // T-shape
   rect((x - s/2, y), (x + s/2, y + s/4), fill: diagram-light, stroke: 0.75pt + diagram-black)
   rect((x - s/4, y - s/2), (x + s/4, y), fill: diagram-light, stroke: 0.75pt + diagram-black)
-  
+
   // Thread hole
   circle((x, y - s/4), radius: s/8, fill: white, stroke: 0.5pt + diagram-gray)
 }
@@ -684,7 +684,7 @@
   import cetz.draw: *
   let (x, y) = pos
   let s = size
-  
+
   // L-shape
   line(
     (x - s/2, y + s/2),
@@ -697,7 +697,7 @@
     fill: diagram-light,
     stroke: 0.75pt + diagram-black
   )
-  
+
   // Mounting holes
   circle((x - s/2 + s/6, y), radius: 0.06, fill: white, stroke: 0.5pt + diagram-gray)
   circle((x, y - s/2 + s/6), radius: 0.06, fill: white, stroke: 0.5pt + diagram-gray)
@@ -708,10 +708,10 @@
   import cetz.draw: *
   let (x, y) = pos
   let s = size
-  
+
   // Main square
   rect((x - s/2, y - s/2), (x + s/2, y + s/2), fill: diagram-light, stroke: 1pt + diagram-black)
-  
+
   // T-slots (simplified as indents on each side)
   let slot = s * 0.2
   // Top slot
@@ -722,7 +722,7 @@
   rect((x + s/2 - slot/4, y - slot/2), (x + s/2, y + slot/2), fill: white, stroke: 0.5pt + diagram-gray)
   // Left slot
   rect((x - s/2, y - slot/2), (x - s/2 + slot/4, y + slot/2), fill: white, stroke: 0.5pt + diagram-gray)
-  
+
   // Center bore
   circle((x, y), radius: s * 0.15, fill: white, stroke: 0.5pt + diagram-gray)
 }
@@ -731,7 +731,7 @@
 #let assembly-step(pos, number, size: 0.6) = {
   import cetz.draw: *
   let (x, y) = pos
-  
+
   circle((x, y), radius: size, fill: white, stroke: 2pt + diagram-accent)
   content((x, y), text(size: 14pt, weight: "bold", fill: diagram-accent)[#number])
 }
@@ -744,10 +744,10 @@
 #let scale-bar(pos, length: 2, real-length: "10 mm", divisions: 5) = {
   import cetz.draw: *
   let (x, y) = pos
-  
+
   // Main bar
   rect((x, y - 0.1), (x + length, y + 0.1), fill: diagram-black, stroke: none)
-  
+
   // Division marks
   let div-width = length / divisions
   for i in range(divisions + 1) {
@@ -755,15 +755,15 @@
     let h = if calc.rem(i, 2) == 0 { 0.2 } else { 0.15 }
     line((dx, y - h), (dx, y + h), stroke: 1pt + diagram-black)
   }
-  
+
   // Alternating fill pattern
   for i in range(divisions) {
     if calc.rem(i, 2) == 0 {
-      rect((x + i * div-width, y - 0.1), (x + (i + 1) * div-width, y + 0.1), 
+      rect((x + i * div-width, y - 0.1), (x + (i + 1) * div-width, y + 0.1),
            fill: white, stroke: 0.5pt + diagram-black)
     }
   }
-  
+
   // Label
   content((x + length / 2, y - 0.4), text(size: 7pt)[#real-length])
 }
@@ -772,11 +772,11 @@
 #let scale-one-to-one(pos, width: 1.5, height: 0.8) = {
   import cetz.draw: *
   let (x, y) = pos
-  
+
   // Border box
   rect((x - width/2, y - height/2), (x + width/2, y + height/2),
        fill: white, stroke: 1pt + diagram-accent, dash: "dashed")
-  
+
   // Label
   content((x, y), text(size: 8pt, weight: "bold", fill: diagram-accent)[1:1 SCALE])
 }
@@ -785,17 +785,17 @@
 #let actual-size-circle(pos, diameter-mm: 5, label: none) = {
   import cetz.draw: *
   let (x, y) = pos
-  
+
   // Convert mm to approximate Typst units (assuming ~2.83 units per mm at 72dpi)
   // This is approximate - actual rendering depends on PDF viewer zoom
   let radius = diameter-mm * 0.035  // Scaled for diagram context
-  
+
   circle((x, y), radius: radius, fill: none, stroke: 1pt + diagram-accent)
-  
+
   // Crosshairs
   line((x - radius * 1.3, y), (x + radius * 1.3, y), stroke: 0.5pt + diagram-gray)
   line((x, y - radius * 1.3), (x, y + radius * 1.3), stroke: 0.5pt + diagram-gray)
-  
+
   // Label
   let lbl = if label != none { label } else { str(diameter-mm) + " mm" }
   content((x, y - radius - 0.3), text(size: 6pt)[#lbl])
@@ -805,29 +805,29 @@
 #let screw-actual-size(pos, thread: "M5", length: 10) = {
   import cetz.draw: *
   let (x, y) = pos
-  
+
   // Thread diameter mapping (approximate visual scale)
   let dia = if thread == "M3" { 0.12 } else if thread == "M4" { 0.15 } else if thread == "M5" { 0.18 } else { 0.22 }
   let len = length * 0.03
-  
+
   // Head
-  rect((x - dia * 1.5, y), (x + dia * 1.5, y + dia), 
+  rect((x - dia * 1.5, y), (x + dia * 1.5, y + dia),
        fill: diagram-light, stroke: 0.75pt + diagram-black)
-  
+
   // Socket
   rect((x - dia * 0.5, y + dia * 0.3), (x + dia * 0.5, y + dia * 0.7),
        fill: diagram-black, stroke: none)
-  
+
   // Shaft
-  rect((x - dia/2, y - len), (x + dia/2, y), 
+  rect((x - dia/2, y - len), (x + dia/2, y),
        fill: diagram-light, stroke: 0.75pt + diagram-black)
-  
+
   // Thread indication
   for i in range(int(len / 0.08)) {
     let ty = y - 0.05 - i * 0.08
     line((x - dia/2, ty), (x + dia/2, ty), stroke: 0.3pt + diagram-gray)
   }
-  
+
   // Label
   content((x, y - len - 0.25), text(size: 6pt)[#thread × #length])
 }
@@ -836,21 +836,21 @@
 #let size-ruler(pos, sizes: (3, 5, 10, 20), unit: "mm") = {
   import cetz.draw: *
   let (x, y) = pos
-  
+
   // Draw graduated marks for each size
   let scale-factor = 0.03  // Approximate mm to drawing units
-  
+
   for (i, size) in sizes.enumerate() {
     let mark-x = x + i * 1.2
     let mark-height = size * scale-factor * 2
-    
+
     line((mark-x, y), (mark-x, y + mark-height), stroke: 1.5pt + diagram-black)
     line((mark-x - 0.15, y), (mark-x + 0.15, y), stroke: 1pt + diagram-black)
     line((mark-x - 0.1, y + mark-height), (mark-x + 0.1, y + mark-height), stroke: 0.75pt + diagram-black)
-    
+
     content((mark-x, y - 0.25), text(size: 6pt)[#size])
   }
-  
+
   content((x + (sizes.len() - 1) * 0.6, y - 0.5), text(size: 5pt, fill: diagram-gray)[#unit])
 }
 
@@ -863,18 +863,18 @@
   import cetz.draw: *
   let (x, y) = pos
   let s = scale * 0.4
-  
+
   // Palm (oval)
   circle((x, y), radius: (s, s * 0.7), fill: rgb("#fcd5b5"), stroke: 0.75pt + diagram-black)
-  
+
   // Fingers (simplified as rectangles)
   for i in range(4) {
     let fx = x - s * 0.6 + i * s * 0.4
     let fy = y + s * 0.8
-    rect((fx - s * 0.12, fy), (fx + s * 0.12, fy + s * 0.6), 
+    rect((fx - s * 0.12, fy), (fx + s * 0.12, fy + s * 0.6),
          fill: rgb("#fcd5b5"), stroke: 0.5pt + diagram-black, radius: 2pt)
   }
-  
+
   // Thumb
   rect((x + s * 0.7, y - s * 0.1), (x + s * 1.1, y + s * 0.3),
        fill: rgb("#fcd5b5"), stroke: 0.5pt + diagram-black, radius: 2pt)
@@ -885,15 +885,15 @@
   import cetz.draw: *
   let (x, y) = pos
   let s = scale * 0.3
-  
+
   // Pointing finger
   let dx = if direction == "right" { 1 } else if direction == "left" { -1 } else { 0 }
   let dy = if direction == "up" { 1 } else if direction == "down" { -1 } else { 0 }
-  
+
   // Finger
   rect((x, y - s * 0.15), (x + dx * s * 1.2, y + s * 0.15),
        fill: rgb("#fcd5b5"), stroke: 0.75pt + diagram-black, radius: 2pt)
-  
+
   // Knuckle/hand base
   circle((x - dx * s * 0.2, y), radius: s * 0.4, fill: rgb("#fcd5b5"), stroke: 0.75pt + diagram-black)
 }
@@ -903,11 +903,11 @@
   import cetz.draw: *
   let (x, y) = pos
   let s = size * 0.5
-  
+
   // L-shape
   line((x - s, y + s * 0.6), (x - s, y - s * 0.3), (x + s * 0.3, y - s * 0.3),
        stroke: 2pt + diagram-black)
-  
+
   // Hex tip
   circle((x + s * 0.3, y - s * 0.3), radius: s * 0.1, fill: diagram-black, stroke: none)
 }
@@ -917,15 +917,15 @@
   import cetz.draw: *
   let (x, y) = pos
   let s = size * 0.5
-  
+
   // Handle
   rect((x - s * 0.2, y + s * 0.3), (x + s * 0.2, y + s),
        fill: diagram-accent, stroke: 0.75pt + diagram-black, radius: 2pt)
-  
+
   // Shaft
   rect((x - s * 0.08, y - s * 0.5), (x + s * 0.08, y + s * 0.3),
        fill: diagram-light, stroke: 0.75pt + diagram-black)
-  
+
   // Tip
   if tip == "phillips" {
     line((x, y - s * 0.5), (x, y - s * 0.7), stroke: 1.5pt + diagram-black)
@@ -941,11 +941,11 @@
   import cetz.draw: *
   let (x, y) = pos
   let s = size * 0.5
-  
+
   // Handle
   rect((x - s * 0.1, y - s * 0.8), (x + s * 0.1, y + s * 0.3),
        fill: diagram-light, stroke: 0.75pt + diagram-black, radius: 1pt)
-  
+
   // Head (open-end wrench)
   line((x - s * 0.25, y + s * 0.5), (x - s * 0.1, y + s * 0.3), stroke: 1.5pt + diagram-black)
   line((x + s * 0.25, y + s * 0.5), (x + s * 0.1, y + s * 0.3), stroke: 1.5pt + diagram-black)
@@ -957,18 +957,18 @@
   import cetz.draw: *
   let (x, y) = pos
   let s = size * 0.6
-  
+
   // Body
   rect((x - s * 0.5, y - s), (x + s * 0.5, y + s),
        fill: rgb("#fbbf24"), stroke: 1pt + diagram-black, radius: 4pt)
-  
+
   // Display
   rect((x - s * 0.35, y + s * 0.3), (x + s * 0.35, y + s * 0.8),
        fill: rgb("#d1fae5"), stroke: 0.5pt + diagram-black)
-  
+
   // Dial
   circle((x, y - s * 0.2), radius: s * 0.25, fill: diagram-light, stroke: 0.5pt + diagram-black)
-  
+
   // Probes
   line((x - s * 0.3, y - s), (x - s * 0.3, y - s * 1.4), stroke: 1.5pt + diagram-danger)
   line((x + s * 0.3, y - s), (x + s * 0.3, y - s * 1.4), stroke: 1.5pt + diagram-black)
@@ -978,7 +978,7 @@
 #let gesture-rotate(pos, radius: 0.5, clockwise: true) = {
   import cetz.draw: *
   let (x, y) = pos
-  
+
   if clockwise {
     arc((x, y), start: 45deg, stop: 135deg, radius: radius, stroke: 1.5pt + diagram-accent, mark: (end: ">"))
     arc((x, y), start: 225deg, stop: 315deg, radius: radius, stroke: 1.5pt + diagram-accent, mark: (end: ">"))
@@ -992,12 +992,12 @@
 #let gesture-press(pos, direction: "down") = {
   import cetz.draw: *
   let (x, y) = pos
-  
+
   let dy = if direction == "down" { -1 } else { 1 }
-  
+
   // Arrow
   line((x, y), (x, y + dy * 0.8), stroke: 2pt + diagram-accent, mark: (end: ">"))
-  
+
   // Press lines (impact indicator)
   line((x - 0.3, y + dy * 0.9), (x + 0.3, y + dy * 0.9), stroke: 1pt + diagram-accent)
   line((x - 0.2, y + dy * 1.0), (x + 0.2, y + dy * 1.0), stroke: 0.75pt + diagram-accent)
@@ -1008,17 +1008,17 @@
   import cetz.draw: *
   let (x, y) = pos
   let s = size * 0.4
-  
+
   // Wrench handle
   rect((x - s * 2, y - s * 0.15), (x, y + s * 0.15),
        fill: diagram-light, stroke: 0.75pt + diagram-black, radius: 1pt)
-  
+
   // Socket head
   circle((x, y), radius: s * 0.35, fill: diagram-light, stroke: 0.75pt + diagram-black)
-  
+
   // Rotation arrow
   arc((x, y), start: -45deg, stop: -150deg, radius: s * 0.7, stroke: 1.5pt + diagram-accent, mark: (end: ">"))
-  
+
   // Torque value
   content((x, y - s * 1.2), text(size: 7pt, weight: "bold", fill: diagram-accent)[#value])
 }

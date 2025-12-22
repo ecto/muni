@@ -15,134 +15,129 @@
 )
 
 // =============================================================================
-= Specifications
+= Overview
 // =============================================================================
 
-== Overview
-
-The BVR0 (Base Vectoring Rover, Revision 0) is a compact sidewalk-scale robotic platform designed for snow clearing and grounds maintenance. The rover measures 600mm square and stands 400mm tall, sized to navigate standard sidewalks while remaining small enough for a single person to lift.
-
-Four independently-driven hub motors provide omnidirectional control without mechanical steering. A modular tool interface at the front accepts snow augers, brine sprayers, and sweeper attachments. The operator controls the rover remotely via LTE teleoperation, viewing a 360° video feed from the onboard camera.
-
+// Large annotated diagram - this IS the overview
 #figure(
   cetz.canvas({
     import cetz.draw: *
-
-    // Chassis frame
-    rect((-3, -3), (3, 3), stroke: 1.5pt + diagram-black, radius: 4pt)
-
-    // Wheels at corners
-    for (x, y) in ((-3.25, 2.75), (3.25, 2.75), (-3.25, -2.75), (3.25, -2.75)) {
-      rect((x - 0.5, y - 0.75), (x + 0.5, y + 0.75), fill: diagram-black, radius: 2pt)
-    }
-
-    // Electronics area
-    rect((-2, -2), (2, 1), fill: diagram-light, stroke: 0.5pt + diagram-gray, radius: 2pt)
-
-    // Tool mount (front)
-    rect((-1.5, 2.5), (1.5, 3), fill: diagram-light, stroke: 0.5pt + diagram-gray)
-
-    // Sensor mast
-    circle((0, 1.5), radius: 0.3, fill: diagram-black)
-
-    // Dimension lines using library helpers
-    dim-h(-3, -3, 3, "600 mm", offset: 1.5)
-    dim-v(3, -3, 3, "600 mm", offset: 1.5)
-
-    // Numbered callouts with leaders
-    callout-leader((-3.25, 2.75), (-5, 3.5), "1")
-    callout-leader((0, -0.5), (-4, -1.5), "2")
-    callout-leader((0, 2.75), (3.5, 4), "3")
-    callout-leader((0, 1.5), (2.5, 2.5), "4")
-
-    // Direction indicator
-    motion-arrow((0, 3.5), (0, 4.5))
-    content((0, 4.8), text(size: 7pt)[FRONT])
-  }),
-  caption: [BVR0 top view: (1) Hub motor wheels, (2) Electronics bay, (3) Tool mount, (4) Sensor mast],
-)
-
-== Physical Specifications
-
-The chassis is constructed from 2020 aluminum extrusion, providing a rigid yet lightweight frame. The electronics plate mounts centrally, keeping the center of gravity low. Hub motors integrate directly into the wheels, eliminating drivetrain complexity.
-
-#spec-table(
-  [*Dimension*], [*Value*],
-  [Length], [600 mm],
-  [Width], [600 mm],
-  [Height], [400 mm (without sensor mast)],
-  [Weight], [~25 kg (without battery)],
-  [Ground Clearance], [50 mm],
-  [Wheel Diameter], [165 mm (6.5")],
-)
-
-== Electrical Specifications
-
-The rover operates on a 48V nominal battery pack, providing sufficient voltage for efficient motor operation while remaining within safe handling limits. A DC-DC converter steps voltage down to 12V for the compute module and accessories.
-
-#spec-table(
-  [*Parameter*], [*Value*],
-  [Battery], [13S4P Li-ion, 48V nominal, 20Ah],
-  [Voltage Range], [39V - 54.6V],
-  [Motor Power], [4× 350W hub motors (1.4 kW total)],
-  [Continuous Current], [60A per motor controller],
-  [Control Voltage], [12V (via DC-DC converter)],
-  [Communication], [CAN bus 500 kbps],
-)
-
-== Performance
-
-Operating speed is intentionally limited to human walking pace. This enables safe sidewalk operation, reduces stopping distance, and improves operator situational awareness. The 4-hour runtime covers typical snow clearing shifts.
-
-#spec-table(
-  [*Metric*], [*Value*],
-  [Max Speed], [2.5 m/s (5.6 mph)],
-  [Operating Speed], [1.0 - 1.5 m/s],
-  [Runtime], [~4 hours at working speed],
-  [Max Grade], [15%],
-  [Operating Temperature], [-20°C to 40°C],
-)
-
-== Sensors
-
-The sensor suite prioritizes situational awareness for teleoperation. The 360° camera provides immersive video for the operator. LiDAR enables future autonomous capabilities and provides depth information for obstacle detection.
-
-#figure(
-  cetz.canvas({
-    import cetz.draw: *
-
-    // Side view of rover with sensor mast
-    rect((-3, 0), (3, 1), stroke: 1pt + black, radius: 2pt)
-    content((0, 0.5), text(size: 7pt)[Chassis])
-
+    
+    // === TOP VIEW (left side) ===
+    let tx = -5  // top view center x
+    
+    // Chassis
+    rect((tx - 2.5, -2.5), (tx + 2.5, 2.5), stroke: 1.5pt + diagram-black, radius: 4pt)
+    
     // Wheels
-    circle((-2.5, 0), radius: 0.6, stroke: 1pt + black)
-    circle((2.5, 0), radius: 0.6, stroke: 1pt + black)
-
+    for (x, y) in ((tx - 2.7, 2), (tx + 2.7, 2), (tx - 2.7, -2), (tx + 2.7, -2)) {
+      rect((x - 0.4, y - 0.6), (x + 0.4, y + 0.6), fill: diagram-black, radius: 2pt)
+    }
+    
+    // Electronics bay
+    rect((tx - 1.8, -1.8), (tx + 1.8, 0.8), fill: diagram-light, stroke: 0.5pt + diagram-gray, radius: 2pt)
+    
+    // Tool mount
+    rect((tx - 1.2, 2.1), (tx + 1.2, 2.5), fill: diagram-light, stroke: 0.5pt + diagram-gray)
+    
     // Sensor mast
-    line((0, 1), (0, 3), stroke: 1.5pt + black)
-
+    circle((tx, 1.2), radius: 0.25, fill: diagram-black)
+    
+    // Dimensions
+    dim-h(-2.5, tx - 2.5, tx + 2.5, "600", offset: 1.2)
+    dim-v(tx + 2.5, -2.5, 2.5, "600", offset: 1.2)
+    
+    // Front indicator
+    motion-arrow((tx, 3), (tx, 3.8))
+    content((tx, 4.1), text(size: 6pt)[FRONT])
+    
+    // Label
+    content((tx, -4), text(size: 8pt, weight: "bold")[TOP VIEW])
+    
+    // === SIDE VIEW (right side) ===
+    let sx = 4  // side view center x
+    
+    // Ground line
+    line((sx - 3.5, -2), (sx + 3.5, -2), stroke: 0.5pt + diagram-gray)
+    
+    // Chassis body
+    rect((sx - 2.5, -1.5), (sx + 2.5, -0.3), stroke: 1.5pt + diagram-black, radius: 2pt)
+    
+    // Wheels
+    circle((sx - 2, -2), radius: 0.6, stroke: 1.5pt + diagram-black, fill: diagram-light)
+    circle((sx + 2, -2), radius: 0.6, stroke: 1.5pt + diagram-black, fill: diagram-light)
+    
+    // Sensor mast
+    line((sx, -0.3), (sx, 2.5), stroke: 1.5pt + diagram-black)
+    
     // LiDAR
-    rect((-0.4, 2.5), (0.4, 3), fill: muni-light-gray, stroke: 1pt + black, radius: 2pt)
-    content((1.2, 2.75), text(size: 6pt)[LiDAR])
-
+    rect((sx - 0.35, 1.8), (sx + 0.35, 2.2), fill: diagram-light, stroke: 1pt + diagram-black, radius: 2pt)
+    
     // Camera
-    circle((0, 3.3), radius: 0.25, fill: black)
-    content((1, 3.3), text(size: 6pt)[360° Camera])
-
-    // Field of view arcs
-    arc((0, 2.75), start: 20deg, stop: 160deg, radius: 2, stroke: 0.5pt + gray)
-    arc((0, 2.75), start: 200deg, stop: 340deg, radius: 2, stroke: 0.5pt + gray)
+    circle((sx, 2.7), radius: 0.2, fill: diagram-black)
+    
+    // Tool mount
+    rect((sx + 2.2, -1.2), (sx + 3, -0.6), fill: diagram-light, stroke: 0.5pt + diagram-gray)
+    
+    // Height dimension
+    dim-v(sx + 3.2, -2, 2.7, "700", offset: 0.3)
+    
+    // Ground clearance
+    line((sx - 1, -2), (sx - 1, -1.5), stroke: 0.5pt + diagram-gray)
+    content((sx - 1.5, -1.75), text(size: 5pt)[50])
+    
+    // Label
+    content((sx, -4), text(size: 8pt, weight: "bold")[SIDE VIEW])
+    
+    // === CALLOUTS ===
+    callout-leader((tx - 2.7, 2), (-9, 3), "1")
+    callout-leader((tx, -0.5), (-9, -1), "2")
+    callout-leader((tx, 2.3), (-9, 4.5), "3")
+    callout-leader((sx, 2.7), (8, 3.5), "4")
+    callout-leader((sx, 2), (8, 2), "5")
+    callout-leader((sx + 2.6, -0.9), (8, 0), "6")
   }),
-  caption: [Sensor mast carries LiDAR and 360° camera above obstacle height],
+  caption: none,
 )
 
-#spec-table(
-  [*Sensor*], [*Purpose*],
-  [Livox Mid-360 LiDAR], [3D mapping, obstacle detection],
-  [Insta360 X4], [360° video for teleoperation],
-  [IMU (integrated)], [Orientation, motion estimation],
-  [GPS (optional)], [Georeferenced positioning],
+#v(-0.5em)
+
+#grid(
+  columns: (1fr, 1fr),
+  column-gutter: 2em,
+  [
+    // Component key
+    #text(weight: "bold", size: 9pt)[Components]
+    
+    #table(
+      columns: (auto, 1fr),
+      stroke: none,
+      inset: 4pt,
+      [#text(fill: muni-orange, weight: "bold")[1]], [Hub motor wheels (×4) — 350W each],
+      [#text(fill: muni-orange, weight: "bold")[2]], [Electronics bay — Jetson, VESCs, power],
+      [#text(fill: muni-orange, weight: "bold")[3]], [Tool mount — quick-attach interface],
+      [#text(fill: muni-orange, weight: "bold")[4]], [360° camera — Insta360 X4],
+      [#text(fill: muni-orange, weight: "bold")[5]], [LiDAR — Livox Mid-360],
+      [#text(fill: muni-orange, weight: "bold")[6]], [Tool attachment point],
+    )
+  ],
+  [
+    // Key specs
+    #text(weight: "bold", size: 9pt)[Specifications]
+    
+    #table(
+      columns: (1fr, auto),
+      stroke: none,
+      inset: 4pt,
+      [Dimensions], [600 × 600 × 700 mm],
+      [Weight], [~30 kg with battery],
+      [Battery], [48V 20Ah (960 Wh)],
+      [Motors], [4× 350W hub motors],
+      [Speed], [1.0–2.5 m/s],
+      [Runtime], [~4 hours],
+      [Temp range], [-20°C to +40°C],
+    )
+  ]
 )
 
 #pagebreak()
@@ -151,159 +146,169 @@ The sensor suite prioritizes situational awareness for teleoperation. The 360° 
 = Bill of Materials
 // =============================================================================
 
-The BVR0 is designed for approximately \$4,000 in components, prioritizing availability and replaceability over optimization. All parts are commercially available; custom fabrication is limited to simple cut-and-drill operations on aluminum plate and extrusion.
-
-== Cost Summary
-
-#spec-table(
-  [*Category*], [*Est. Cost*],
-  [Chassis], [\$150],
-  [Drivetrain], [\$800],
-  [Electronics], [\$900],
-  [Perception], [\$1,800],
-  [Power], [\$400],
-  [Wiring/Misc], [\$100],
-  [*Total*], [*~\$4,150*],
-)
-
-== Chassis
-
-The chassis uses 2020 aluminum extrusion for its balance of strength, weight, and ease of modification. T-slot construction allows components to be repositioned without drilling.
-
-#bom-table(
-  [Part], [Qty], [Unit], [Total],
-  [2020 extrusion 600mm], [8], [\$5], [\$40],
-  [2020 corner bracket], [16], [\$2], [\$32],
-  [M5×10 BHCS], [100], [\$0.10], [\$10],
-  [M5 T-nut], [100], [\$0.15], [\$15],
-  [Electronics plate (1/4" AL)], [1], [\$50], [\$50],
-  [*Subtotal*], [], [], [*\$147*],
-)
-
+// Full parts layout diagram
 #figure(
   cetz.canvas({
     import cetz.draw: *
     
-    // Hardware reference at approximate scale
-    content((0, 2), text(size: 8pt, weight: "bold")[Hardware Reference])
+    // === EXPLODED PARTS LAYOUT ===
+    // All major components shown as if laid out on a table before assembly
     
-    // M5x10 bolt
-    screw-actual-size((-3, 0), thread: "M5", length: 10)
+    // --- CHASSIS (top left) ---
+    let cx = -6
+    let cy = 4
     
-    // M5x16 bolt
-    screw-actual-size((-1, 0), thread: "M5", length: 16)
+    // Extrusion pieces
+    for i in range(4) {
+      rect((cx - 2 + i * 0.4, cy - 0.1), (cx - 1.7 + i * 0.4, cy + 2), 
+           fill: diagram-light, stroke: 0.75pt + diagram-black)
+    }
+    content((cx - 0.8, cy + 1), text(size: 5pt)[×8])
+    callout((cx + 0.5, cy + 2.3), "A")
     
-    // M4x8 bolt
-    screw-actual-size((1, 0), thread: "M4", length: 8)
+    // Corner brackets
+    for i in range(4) {
+      corner-bracket((cx + 2 + i * 0.6, cy + 1), size: 0.4)
+    }
+    content((cx + 4.5, cy + 1), text(size: 5pt)[×16])
     
-    // T-nut
-    tnut-side((3, 0), size: 0.5)
-    content((3, -0.7), text(size: 6pt)[M5 T-Nut])
+    // Electronics plate
+    rect((cx - 1.5, cy - 1.5), (cx + 1.5, cy - 0.5), fill: diagram-light, stroke: 1pt + diagram-black, radius: 2pt)
+    content((cx, cy - 1), text(size: 5pt)[Plate])
     
-    // Corner bracket
-    corner-bracket((5, 0), size: 0.9)
-    content((5, -0.9), text(size: 6pt)[Bracket])
+    // --- DRIVETRAIN (top right) ---
+    let dx = 3
+    let dy = 4
     
-    // Scale bar
-    scale-bar((-2, -1.8), length: 3, real-length: "20 mm", divisions: 4)
+    // Hub motors
+    for i in range(2) {
+      for j in range(2) {
+        circle((dx + i * 1.8, dy + j * 1.5), radius: 0.6, stroke: 1pt + diagram-black, fill: diagram-light)
+        circle((dx + i * 1.8, dy + j * 1.5), radius: 0.2, fill: diagram-black)
+      }
+    }
+    content((dx + 0.9, dy - 0.5), text(size: 5pt)[Hub Motors ×4])
+    callout((dx + 2.5, dy + 2.3), "B")
+    
+    // VESCs
+    for i in range(4) {
+      vesc-top((dx + 4 + i * 0.8, dy + 0.5 + calc.rem(i, 2) * 1), size: (0.6, 0.4), id: none)
+    }
+    content((dx + 5.6, dy - 0.3), text(size: 5pt)[VESC ×4])
+    
+    // --- ELECTRONICS (middle left) ---
+    let ex = -5
+    let ey = 0
+    
+    // Jetson
+    jetson-top((ex, ey), size: (1.5, 1))
+    callout((ex - 1.2, ey + 0.8), "C")
+    
+    // USB CAN
+    rect((ex + 2, ey - 0.3), (ex + 2.8, ey + 0.3), fill: diagram-light, stroke: 0.75pt + diagram-black, radius: 2pt)
+    content((ex + 2.4, ey), text(size: 4pt)[CAN])
+    
+    // LTE modem
+    rect((ex + 3.2, ey - 0.3), (ex + 4.2, ey + 0.3), fill: diagram-light, stroke: 0.75pt + diagram-black, radius: 2pt)
+    content((ex + 3.7, ey), text(size: 4pt)[LTE])
+    
+    // --- PERCEPTION (middle right) ---
+    let px = 3
+    let py = 0
+    
+    // LiDAR
+    lidar-top((px, py), size: 0.6)
+    content((px, py - 1), text(size: 5pt)[Mid-360])
+    callout((px - 0.8, py + 0.8), "D")
+    
+    // Camera
+    camera-top((px + 2.5, py), radius: 0.4)
+    content((px + 2.5, py - 0.8), text(size: 5pt)[X4])
+    
+    // Sensor pole
+    rect((px + 4.5, py - 1), (px + 4.7, py + 1), fill: diagram-light, stroke: 0.75pt + diagram-black)
+    content((px + 5.3, py), text(size: 5pt)[Pole])
+    
+    // --- POWER (bottom left) ---
+    let bx = -5
+    let by = -3.5
+    
+    // Battery
+    battery-top((bx, by), size: (2, 1))
+    callout((bx - 1.5, by + 0.8), "E")
+    
+    // DC-DC
+    rect((bx + 2, by - 0.4), (bx + 3, by + 0.4), fill: diagram-light, stroke: 0.75pt + diagram-black, radius: 2pt)
+    content((bx + 2.5, by), text(size: 4pt)[DC-DC])
+    
+    // Fuse
+    rect((bx + 3.5, by - 0.2), (bx + 4.2, by + 0.2), fill: rgb("#fbbf24"), stroke: 0.75pt + diagram-black, radius: 2pt)
+    content((bx + 3.85, by), text(size: 4pt)[100A])
+    
+    // E-Stop
+    estop-symbol((bx + 5, by), size: 0.4)
+    
+    // --- CONNECTORS (bottom right) ---
+    let wx = 3
+    let wy = -3.5
+    
+    // XT90
+    connector-xt((wx, wy), size: "90")
+    content((wx, wy - 0.6), text(size: 5pt)[XT90])
+    
+    // XT30
+    connector-xt((wx + 1.5, wy), size: "30")
+    content((wx + 1.5, wy - 0.6), text(size: 5pt)[XT30])
+    
+    // DT connector
+    connector-dt((wx + 3, wy), pins: 4)
+    content((wx + 3, wy - 0.6), text(size: 5pt)[DT])
+    
+    // Hardware
+    screw-actual-size((wx + 5, wy + 0.3), thread: "M5", length: 10)
+    tnut-side((wx + 6, wy + 0.3), size: 0.3)
+    callout((wx + 5.5, wy + 1), "F")
   }),
-  caption: [Chassis hardware reference. Use this scale bar to verify print size.],
+  caption: none,
 )
 
-== Drivetrain
+#v(-0.5em)
 
-Hub motors eliminate chains, belts, and gearboxes. Each motor contains a brushless DC motor, planetary gearbox, and wheel tire in a single unit. VESC motor controllers provide precise torque control and regenerative braking.
-
-#figure(
-  cetz.canvas({
-    import cetz.draw: *
-
-    // Hub motor cross-section
-    circle((0, 0), radius: 2, stroke: 1.5pt + black)
-    circle((0, 0), radius: 1.2, stroke: 1pt + black)
-    circle((0, 0), radius: 0.4, fill: black)
-
-    // Labels
-    content((0, 2.5), text(size: 7pt)[Tire])
-    content((0, 1.6), text(size: 6pt)[Stator])
-    content((0, 0.8), text(size: 6pt)[Rotor])
-    content((0, 0), text(size: 5pt, fill: white)[Axle])
-
-    // Dimension
-    line((-2.3, -2), (-2.3, 2), stroke: 0.5pt + gray)
-    line((-2.5, -2), (-2.1, -2), stroke: 0.5pt + gray)
-    line((-2.5, 2), (-2.1, 2), stroke: 0.5pt + gray)
-    content((-3, 0), text(size: 7pt)[165mm])
-  }),
-  caption: [Hub motor integrates motor, gearbox, and wheel in one unit],
-)
-
-#bom-table(
-  [Part], [Qty], [Unit], [Total],
-  [Hoverboard hub motor 350W], [4], [\$50], [\$200],
-  [VESC 6.6], [4], [\$120], [\$480],
-  [Motor mount (custom)], [4], [\$20], [\$80],
-  [Wheel spacer (custom)], [4], [\$10], [\$40],
-  [*Subtotal*], [], [], [*\$800*],
-)
-
-== Electronics
-
-The Jetson Orin NX provides GPU-accelerated compute for video encoding, sensor processing, and future autonomy features. The Sierra MC7455 LTE modem enables reliable cellular connectivity for teleoperation.
-
-#bom-table(
-  [Part], [Qty], [Unit], [Total],
-  [Jetson Orin NX 16GB], [1], [\$600], [\$600],
-  [Jetson carrier board], [1], [\$100], [\$100],
-  [USB CAN adapter], [1], [\$30], [\$30],
-  [LTE modem (Sierra MC7455)], [1], [\$80], [\$80],
-  [7" HDMI display], [1], [\$50], [\$50],
-  [GPS module (optional)], [1], [\$30], [\$30],
-  [*Subtotal*], [], [], [*\$890*],
-)
-
-== Perception
-
-The Livox Mid-360 provides 360° LiDAR coverage in a compact, solid-state package. The Insta360 X4 captures 360° video that the operator can pan and tilt virtually, providing natural situational awareness.
-
-#bom-table(
-  [Part], [Qty], [Unit], [Total],
-  [Livox Mid-360 LiDAR], [1], [\$1,500], [\$1,500],
-  [Insta360 X4], [1], [\$300], [\$300],
-  [Sensor mount pole (1" AL)], [1], [\$20], [\$20],
-  [*Subtotal*], [], [], [*\$1,820*],
-)
-
-== Power System
-
-The 13S4P battery pack provides 960Wh of capacity. At typical operating loads of 200-300W, this yields 3-4 hours of runtime. The pack includes a battery management system (BMS) for cell balancing and protection.
-
-#bom-table(
-  [Part], [Qty], [Unit], [Total],
-  [13S4P battery pack 20Ah], [1], [\$300], [\$300],
-  [48V→12V DCDC 20A], [1], [\$40], [\$40],
-  [100A ANL fuse + holder], [1], [\$15], [\$15],
-  [E-Stop relay 100A], [1], [\$25], [\$25],
-  [E-Stop button], [1], [\$15], [\$15],
-  [*Subtotal*], [], [], [*\$395*],
-)
-
-== Wiring & Connectors
-
-Silicone wire handles the temperature extremes of outdoor operation. XT90 connectors are rated for the high currents of the main battery circuit. Deutsch DT connectors provide weatherproof connections for the tool interface.
-
-#bom-table(
-  [Part], [Qty], [Unit], [Total],
-  [8 AWG silicone wire (red)], [2m], [\$3/m], [\$6],
-  [8 AWG silicone wire (black)], [2m], [\$3/m], [\$6],
-  [14 AWG wire assortment], [1], [\$15], [\$15],
-  [22 AWG twisted pair], [5m], [\$1/m], [\$5],
-  [XT90 connectors (5 pair)], [1], [\$12], [\$12],
-  [XT30 connectors (10 pair)], [1], [\$8], [\$8],
-  [Deutsch DT connector kit], [1], [\$25], [\$25],
-  [Heat shrink kit], [1], [\$12], [\$12],
-  [Cable management], [1], [\$10], [\$10],
-  [*Subtotal*], [], [], [*\$99*],
+#grid(
+  columns: (1fr, 1fr),
+  column-gutter: 1.5em,
+  [
+    #text(weight: "bold", size: 9pt)[Parts Key]
+    #table(
+      columns: (auto, 1fr, auto),
+      stroke: none,
+      inset: 3pt,
+      [#text(fill: muni-orange, weight: "bold")[A]], [Chassis: extrusions, brackets, plate], [\$150],
+      [#text(fill: muni-orange, weight: "bold")[B]], [Drivetrain: motors, VESCs, mounts], [\$800],
+      [#text(fill: muni-orange, weight: "bold")[C]], [Electronics: Jetson, CAN, LTE], [\$900],
+      [#text(fill: muni-orange, weight: "bold")[D]], [Perception: LiDAR, camera, pole], [\$1,800],
+      [#text(fill: muni-orange, weight: "bold")[E]], [Power: battery, DC-DC, fuse, E-stop], [\$400],
+      [#text(fill: muni-orange, weight: "bold")[F]], [Hardware: bolts, T-nuts, wire, connectors], [\$100],
+    )
+  ],
+  [
+    #text(weight: "bold", size: 9pt)[Cost Summary]
+    #table(
+      columns: (1fr, auto),
+      stroke: none,
+      inset: 3pt,
+      [Chassis], [\$150],
+      [Drivetrain], [\$800],
+      [Electronics], [\$900],
+      [Perception], [\$1,800],
+      [Power], [\$400],
+      [Hardware/Wiring], [\$100],
+      [*Total*], [*\$4,150*],
+    )
+    
+    #v(0.5em)
+    #text(size: 7pt, fill: gray)[All parts commercially available. Custom fab limited to plate cutting.]
+  ]
 )
 
 #pagebreak()
@@ -312,119 +317,127 @@ Silicone wire handles the temperature extremes of outdoor operation. XT90 connec
 = Assembly
 // =============================================================================
 
-Assembly proceeds in five phases: chassis frame, motor mounting, electronics installation, wiring, and testing. Each phase should be completed and verified before proceeding to the next.
-
-== Required Tools
-
-A basic set of hand tools is sufficient for assembly. No specialized equipment is required.
-
+// Tools required - visual only
 #figure(
   cetz.canvas({
     import cetz.draw: *
 
-    // Tool icons with visual representations
-    
+    // Section label
+    content((0, 2.5), text(size: 10pt, weight: "bold")[Required Tools])
+
     // Hex keys
-    tool-hex-key((-5, 0), size: 1.2)
-    content((-5, -1.2), text(size: 7pt)[Hex Keys])
-    content((-5, -1.6), text(size: 5pt, fill: diagram-gray)[2.5, 3, 4, 5mm])
-    
+    tool-hex-key((-5, 0), size: 1.4)
+    content((-5, -1.4), text(size: 8pt)[Hex Keys])
+    content((-5, -1.9), text(size: 6pt, fill: diagram-gray)[2.5, 3, 4, 5mm])
+
     // Screwdriver
-    tool-screwdriver((-2.5, 0), size: 1.2, tip: "phillips")
-    content((-2.5, -1.2), text(size: 7pt)[Screwdriver])
-    content((-2.5, -1.6), text(size: 5pt, fill: diagram-gray)[Phillips #2])
-    
+    tool-screwdriver((-2.5, 0), size: 1.4, tip: "phillips")
+    content((-2.5, -1.4), text(size: 8pt)[Screwdriver])
+    content((-2.5, -1.9), text(size: 6pt, fill: diagram-gray)[Phillips #2])
+
     // Wrench
-    tool-wrench((0, 0), size: 1.2)
-    content((0, -1.2), text(size: 7pt)[Wrench])
-    content((0, -1.6), text(size: 5pt, fill: diagram-gray)[8, 10, 13mm])
-    
+    tool-wrench((0, 0), size: 1.4)
+    content((0, -1.4), text(size: 8pt)[Wrenches])
+    content((0, -1.9), text(size: 6pt, fill: diagram-gray)[8, 10, 13mm])
+
     // Multimeter
-    tool-multimeter((2.5, 0), size: 1)
-    content((2.5, -1.2), text(size: 7pt)[Multimeter])
-    content((2.5, -1.6), text(size: 5pt, fill: diagram-gray)[Voltage/Cont.])
-    
-    // Torque reference
-    torque-indicator((5.5, 0), value: "4 Nm", size: 1.2)
-    content((5.5, -1.2), text(size: 7pt)[Torque])
-    content((5.5, -1.6), text(size: 5pt, fill: diagram-gray)[M5 fasteners])
+    tool-multimeter((2.5, 0), size: 1.2)
+    content((2.5, -1.4), text(size: 8pt)[Multimeter])
+    content((2.5, -1.9), text(size: 6pt, fill: diagram-gray)[V / Ω / Cont.])
+
+    // Torque indicator
+    torque-indicator((5.5, 0), value: "4 Nm", size: 1.4)
+    content((5.5, -1.4), text(size: 8pt)[Torque])
+    content((5.5, -1.9), text(size: 6pt, fill: diagram-gray)[All M5 bolts])
   }),
-  caption: [Required tools: hex keys, screwdriver, wrenches, multimeter. M5 bolts torque to 4 Nm.],
+  caption: none,
 )
+
+#v(1em)
 
 == Phase 1: Chassis Frame
 
-The chassis forms a 600mm square base with vertical supports for the electronics plate. Corner brackets provide rigidity without welding.
-
 #figure(
   cetz.canvas({
     import cetz.draw: *
 
-    // Isometric view of frame
-    let iso = (x, y, z) => (x * 0.7 - y * 0.7, x * 0.4 + y * 0.4 + z)
+    // === 4-STEP CHASSIS ASSEMBLY ===
+    let pw = 3.2
+    let ph = 2.8
+    let gap = 0.4
 
-    // Base rectangle
-    line(iso(-2, -2, 0), iso(2, -2, 0), stroke: 1.5pt + black)
-    line(iso(2, -2, 0), iso(2, 2, 0), stroke: 1.5pt + black)
-    line(iso(2, 2, 0), iso(-2, 2, 0), stroke: 1.5pt + black)
-    line(iso(-2, 2, 0), iso(-2, -2, 0), stroke: 1.5pt + black)
-
-    // Vertical posts
-    line(iso(-2, -2, 0), iso(-2, -2, 1.5), stroke: 1.5pt + black)
-    line(iso(2, -2, 0), iso(2, -2, 1.5), stroke: 1.5pt + black)
-    line(iso(2, 2, 0), iso(2, 2, 1.5), stroke: 1.5pt + black)
-    line(iso(-2, 2, 0), iso(-2, 2, 1.5), stroke: 1.5pt + black)
-
-    // Corner brackets (simplified)
-    for pos in ((-2, -2), (2, -2), (2, 2), (-2, 2)) {
-      circle(iso(pos.at(0), pos.at(1), 0), radius: 0.15, fill: gray)
+    // Step 1: Cut extrusions
+    step-panel((0, 0), size: (pw, ph), step-num: 1, title: "Cut")
+    // Extrusions
+    for i in range(4) {
+      rect((0.3 + i * 0.5, 0.5), (0.5 + i * 0.5, 2.2), fill: diagram-light, stroke: 0.75pt + diagram-black)
     }
+    content((1.5, 0.25), text(size: 5pt)[600mm × 8])
 
-    // Labels
-    content(iso(0, -2.5, 0), text(size: 7pt)[Base extrusions])
-    content(iso(2.5, 0, 0.75), text(size: 7pt)[Vertical supports])
+    panel-arrow-h((0, 0), from-size: (pw, ph), gap: gap)
+
+    // Step 2: Base frame
+    step-panel((pw + gap, 0), size: (pw, ph), step-num: 2, title: "Base")
+    // Square frame top view
+    rect((pw + gap + 0.5, 0.5), (pw + gap + 2.7, 2.2), stroke: 1.5pt + diagram-black)
+    // Corner brackets
+    for (x, y) in ((0.5, 0.5), (2.7, 0.5), (0.5, 2.2), (2.7, 2.2)) {
+      corner-bracket((pw + gap + x, y), size: 0.3)
+    }
+    content((pw + gap + 1.6, 0.25), text(size: 5pt)[Check diagonals])
+
+    panel-arrow-h((pw + gap, 0), from-size: (pw, ph), gap: gap)
+
+    // Step 3: Verticals
+    step-panel((2 * (pw + gap), 0), size: (pw, ph), step-num: 3, title: "Verticals")
+    // Isometric-ish view
+    let bx = 2 * (pw + gap) + 1.6
+    let by = 1.2
+    rect((bx - 1, by - 0.6), (bx + 1, by + 0.6), stroke: 1pt + diagram-black)
+    // Vertical posts
+    for (dx, dy) in ((-0.8, -0.4), (0.8, -0.4), (-0.8, 0.4), (0.8, 0.4)) {
+      line((bx + dx, by + dy), (bx + dx + 0.15, by + dy + 0.8), stroke: 1.5pt + diagram-black)
+    }
+    content((bx, 0.25), text(size: 5pt)[4 corners])
+
+    panel-arrow-h((2 * (pw + gap), 0), from-size: (pw, ph), gap: gap)
+
+    // Step 4: Done - check mark
+    step-panel((3 * (pw + gap), 0), size: (pw, ph), step-num: 4, title: "Verify")
+    check-mark((3 * (pw + gap) + 1.6, 1.2), size: 0.6)
+    content((3 * (pw + gap) + 1.6, 0.4), text(size: 5pt)[Square & rigid])
   }),
-  caption: [Chassis frame assembly sequence],
+  caption: none,
 )
 
-*Assembly steps:*
-
-+ Cut extrusions to length if not pre-cut. Deburr all cuts with a file.
-+ Assemble the base rectangle (600×600mm) using corner brackets.
-+ Verify the frame is square by measuring diagonals (should be equal).
-+ Add corner gussets at each joint for additional rigidity.
-+ Mount the four vertical supports at the corners.
-
 == Phase 2: Motor Mounting
-
-Each hub motor mounts to a custom bracket that bolts to the extrusion. The bracket positions the wheel axis at the correct height for ground clearance.
 
 #figure(
   cetz.canvas({
     import cetz.draw: *
 
     // === EXPLODED VIEW: Motor Mount Assembly ===
-    
+
     // Step numbers
     assembly-step((-3.5, 4), "1")
     assembly-step((-3.5, 1.5), "2")
     assembly-step((-3.5, -1.5), "3")
-    
+
     // --- Part 1: Extrusion (top, assembled position reference) ---
     extrusion-end((0, 4.5), size: 0.6)
     content((1.2, 4.5), text(size: 7pt)[2020 Extrusion])
-    
+
     // --- Part 2: T-Nut + Bolt (exploded above bracket) ---
     // T-nut
     tnut-side((-0.5, 2.8), size: 0.35)
     explode-arrow((-0.5, 2.8), (-0.5, 4.2))
     content((-1.5, 2.8), text(size: 6pt)[T-Nut])
-    
+
     // Bolt
     bolt-iso((0.5, 2.8), length: 0.6, head-size: 0.25)
     explode-arrow((0.5, 2.8), (0.5, 4.2))
     content((1.5, 2.8), text(size: 6pt)[M5×10])
-    
+
     // --- Part 3: Motor Mount Bracket ---
     rect((-1, 0.5), (1, 2), fill: diagram-light, stroke: 1pt + diagram-black, radius: 2pt)
     content((0, 1.25), text(size: 7pt)[Mount Bracket])
@@ -434,10 +447,10 @@ Each hub motor mounts to a custom bracket that bolts to the extrusion. The brack
     // Motor attachment holes
     circle((-0.4, 0.7), radius: 0.06, fill: white, stroke: 0.5pt + diagram-gray)
     circle((0.4, 0.7), radius: 0.06, fill: white, stroke: 0.5pt + diagram-gray)
-    
+
     // Explode arrow from bracket to extrusion
     explode-arrow((0, 2), (0, 4.2))
-    
+
     // --- Part 4: Hub Motor (exploded below bracket) ---
     // Motor body
     circle((0, -1.5), radius: 1, stroke: 1.5pt + diagram-black, fill: diagram-light)
@@ -445,24 +458,24 @@ Each hub motor mounts to a custom bracket that bolts to the extrusion. The brack
     circle((0, -1.5), radius: 0.25, fill: diagram-black)
     content((0, -1.5), text(size: 5pt, fill: white)[Axle])
     content((1.8, -1.5), text(size: 7pt)[Hub Motor])
-    
+
     // Motor mounting bolts
     bolt-iso((-0.4, -0.3), length: 0.4, head-size: 0.2)
     bolt-iso((0.4, -0.3), length: 0.4, head-size: 0.2)
     content((1.5, -0.3), text(size: 6pt)[M4×8 (×4)])
-    
+
     // Explode arrow from motor to bracket
     explode-arrow((0, -0.5), (0, 0.5))
-    
+
     // --- Part 5: Wheel/Tire (exploded below motor) ---
     circle((0, -4), radius: 1.2, stroke: 2pt + diagram-black, fill: white)
     circle((0, -4), radius: 0.8, stroke: 1pt + diagram-gray)
-    content((0, -4), text(size: 6pt)[165mm])
+    content((0, -4), text(size: 6pt)[160mm])
     content((1.8, -4), text(size: 7pt)[Tire])
-    
+
     // Explode arrow from tire to motor
     explode-arrow((0, -2.8), (0, -2.5))
-    
+
     // Assembly direction indicator
     line((3, -4), (3, 4.5), stroke: 1pt + diagram-accent, mark: (end: ">"))
     content((3.8, 0), text(size: 7pt, fill: diagram-accent)[Assembly])
@@ -470,19 +483,7 @@ Each hub motor mounts to a custom bracket that bolts to the extrusion. The brack
   caption: [Exploded view: (1) Insert T-nuts into extrusion, (2) Bolt bracket to frame, (3) Attach motor and tire],
 )
 
-*Assembly steps:*
-
-#step(1) Slide M5 T-nuts into the extrusion slot at each motor position.
-
-#step(2) Align the motor bracket holes with the T-nuts and secure with M5×10 bolts. Torque to 4 Nm.
-
-#step(3) Mount the hub motor to the bracket using four M4×8 bolts. Ensure the axle is centered.
-
-#step(4) Press the tire onto the hub motor rim. Spin by hand to verify free rotation.
-
 == Phase 3: Electronics Mounting
-
-The electronics plate serves as both a mounting surface and heat sink. VESCs mount with thermal pads to conduct heat into the aluminum plate.
 
 #figure(
   cetz.canvas({
@@ -521,17 +522,7 @@ The electronics plate serves as both a mounting surface and heat sink. VESCs mou
   caption: [Electronics plate: (1) Jetson Orin NX, (2) VESC motor controllers, (3) DC-DC converter, (4) Main fuse],
 )
 
-*Assembly steps:*
-
-+ Mount the electronics plate to the vertical chassis supports.
-+ Install the Jetson module using M3 standoffs.
-+ Mount VESCs with thermal pads between the VESC and plate.
-+ Install the DC-DC converter and main fuse holder.
-+ Route all power wiring before securing with cable ties.
-
 == Phase 4: Wiring
-
-Wiring divides into two domains: high-current power wiring and low-current signal wiring. Keep these separated to reduce electrical noise.
 
 #figure(
   cetz.canvas({
@@ -582,30 +573,15 @@ Wiring divides into two domains: high-current power wiring and low-current signa
   caption: [Power distribution: (1) Main fuse, (2) E-Stop relay, (3) DC-DC converter, (4) VESCs, (5) XT90 disconnect],
 )
 
-*Power wiring:*
-
-+ Connect the battery positive to the main fuse.
-+ Wire from fuse output to E-Stop relay input.
-+ Connect E-Stop relay output to all four VESCs in parallel.
-+ Wire battery to DC-DC input; DC-DC output to Jetson and accessories.
-+ Install XT90 connector inline for battery disconnect.
-
-*Signal wiring:*
-
-+ Connect CAN bus in a daisy chain: Jetson → VESC1 → VESC2 → VESC3 → VESC4.
-+ Install 120Ω termination resistors at each end of the CAN bus.
-+ Wire the E-Stop button in series with the relay coil.
-+ Connect the LTE modem to Jetson via USB.
-
 #figure(
   cetz.canvas({
     import cetz.draw: *
-    
+
     // Multi-step CAN connection sequence
     let pw = 2.8  // panel width
     let ph = 2.2  // panel height
     let gap = 0.6
-    
+
     // Panel 1: Strip wire
     step-panel((0, 0), size: (pw, ph), step-num: 1, title: "Strip")
     // Wire with stripped end
@@ -613,9 +589,9 @@ Wiring divides into two domains: high-current power wiring and low-current signa
     line((2.0, 0.7), (2.5, 0.7), stroke: 1.5pt + rgb("#cd7f32"))  // exposed copper
     line((2.0, 0.9), (2.5, 0.9), stroke: 1.5pt + rgb("#cd7f32"))
     content((1.4, 0.4), text(size: 5pt)[Strip 5mm])
-    
+
     panel-arrow-h((0, 0), from-size: (pw, ph), gap: gap)
-    
+
     // Panel 2: Tin wire
     step-panel((pw + gap, 0), size: (pw, ph), step-num: 2, title: "Tin")
     // Soldering iron approaching wire
@@ -625,9 +601,9 @@ Wiring divides into two domains: high-current power wiring and low-current signa
     // Soldering iron
     rect((pw + gap + 2.2, 0.5), (pw + gap + 2.6, 1.1), fill: diagram-accent, stroke: 0.75pt + diagram-black, radius: 1pt)
     content((pw + gap + 1.4, 0.4), text(size: 5pt)[Apply solder])
-    
+
     panel-arrow-h((pw + gap, 0), from-size: (pw, ph), gap: gap)
-    
+
     // Panel 3: Insert into connector
     step-panel((2 * (pw + gap), 0), size: (pw, ph), step-num: 3, title: "Insert")
     // JST connector
@@ -636,9 +612,9 @@ Wiring divides into two domains: high-current power wiring and low-current signa
     line((2 * (pw + gap) + 0.3, 0.8), (2 * (pw + gap) + 1.0, 0.8), stroke: 2pt + diagram-accent)
     insert-arrow((2 * (pw + gap) + 0.8, 0.8), (2 * (pw + gap) + 1.0, 0.8))
     content((2 * (pw + gap) + 1.5, 0.3), text(size: 5pt)[Push until click])
-    
+
     panel-arrow-h((2 * (pw + gap), 0), from-size: (pw, ph), gap: gap)
-    
+
     // Panel 4: Verify
     step-panel((3 * (pw + gap), 0), size: (pw, ph), step-num: 4, title: "Verify")
     // Connected wire in connector
@@ -654,56 +630,58 @@ Wiring divides into two domains: high-current power wiring and low-current signa
 
 == Phase 5: Testing
 
-Testing proceeds from basic power verification to full system operation. Never skip steps; catching problems early prevents damage.
-
 #figure(
   cetz.canvas({
     import cetz.draw: *
 
-    // Testing flowchart
-    let boxes = (
-      (0, 4, "Power Off\nMultimeter Check"),
-      (0, 2.5, "Power On\nNo Motors"),
-      (0, 1, "VESC\nInitialization"),
-      (0, -0.5, "E-Stop\nTest"),
-      (0, -2, "Motor Spin\n(Wheels Up)"),
+    // Horizontal testing flow
+    let steps = (
+      (0, 0, "1", "Power Off\nMultimeter", "No shorts"),
+      (3, 0, "2", "Power On\nNo Motors", "Jetson boots"),
+      (6, 0, "3", "VESC\nStatus", "4× green LED"),
+      (9, 0, "4", "E-Stop\nTest", "Power cuts"),
+      (12, 0, "5", "Motor\nSpin", "Wheels up"),
     )
 
-    for (x, y, label) in boxes {
-      rect((x - 1.2, y - 0.5), (x + 1.2, y + 0.5), fill: muni-light-gray, stroke: 1pt + black, radius: 4pt)
-      content((x, y), text(size: 6pt)[#label])
+    for (x, y, num, label, check) in steps {
+      process-box((x, y), label, width: 2.4, height: 1.2)
+      callout((x - 0.9, y + 0.4), num)
+      content((x, y - 1), text(size: 5pt, fill: diagram-gray)[#check])
     }
 
     for i in range(4) {
-      let y1 = 4 - i * 1.5 - 0.5
-      let y2 = 4 - (i + 1) * 1.5 + 0.5
-      line((0, y1), (0, y2), stroke: 1pt + black, mark: (end: ">"))
+      flow-arrow((0.2 + i * 3 + 1.2, 0), (0.2 + (i + 1) * 3 - 1.2, 0))
     }
+
+    // Final check
+    check-mark((14, 0), size: 0.5)
   }),
-  caption: [Testing sequence from power-off checks to motor operation],
+  caption: none,
 )
 
-*Testing steps:*
+#v(1em)
 
-+ *Power off:* Use a multimeter to verify no shorts between battery terminals.
-+ *Power on (no motors):* Connect battery, verify Jetson boots, check 12V rail.
-+ *VESC initialization:* Confirm all four VESCs show green status LEDs.
-+ *E-Stop test:* Press E-Stop, verify power to VESCs is cut.
-+ *Motor spin:* With wheels off the ground, command each motor individually.
-
-== Quality Checklist
-
-Before considering the build complete, verify each item on this checklist.
-
-#checklist(
-  [All bolts torqued to specification],
-  [No exposed wiring or bare conductors],
-  [CAN bus termination verified with oscilloscope or by VESC status],
-  [E-Stop cuts power within 100ms],
-  [All wheels spin freely without rubbing],
-  [Battery is secure and protected from impact],
-  [All connectors fully seated with positive click],
-  [Thermal management verified under load],
+#grid(
+  columns: (1fr, 1fr),
+  column-gutter: 1em,
+  [
+    #text(weight: "bold", size: 9pt)[Quality Checklist]
+    #checklist(
+      [All bolts torqued to 4 Nm],
+      [No exposed wiring],
+      [CAN bus termination verified],
+      [E-Stop cuts power in 100ms],
+    )
+  ],
+  [
+    #v(1.2em)
+    #checklist(
+      [All wheels spin freely],
+      [Battery secure],
+      [All connectors clicked],
+      [Thermal management OK],
+    )
+  ]
 )
 
 #pagebreak()
