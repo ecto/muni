@@ -38,7 +38,7 @@
   },
 )
 
-#set text(font: "New Computer Modern", size: 11pt)
+#set text(font: "Times New Roman", size: 10pt)
 #set par(justify: true, leading: 0.65em)
 #set heading(numbering: "1.1")
 #show heading.where(level: 1): it => {
@@ -404,9 +404,83 @@ Delivery robots optimize for navigation efficiency and payload capacity. Mainten
 
 Furthermore, delivery robot business models depend on per-delivery revenue with high utilization. Municipal contracts require guaranteed availability during unpredictable weather events. The operational and economic models are incompatible.
 
+== Competitive Landscape
+
+Several companies have developed autonomous snow-clearing robots, though none has achieved significant municipal adoption.
+
+#figure(
+  image("images/competitors-comparison.jpg", width: 100%),
+  caption: [Competitive landscape: form factor comparison. Large-format platforms (Toro RT-1000, Snowbotix) target commercial properties; consumer products (Yarbo) target residential; the Muni BVR targets the underserved municipal sidewalk segment with a compact 600mm footprint.],
+) <fig:competitors>
+
+=== Toro / Left Hand Robotics
+
+The Toro Company acquired Left Hand Robotics in 2021, gaining the RT-1000 autonomous platform @toro2021lefthand. The RT-1000 is a multi-purpose robot capable of mowing and snow clearing, using RTK GPS, LiDAR, radar, and six cameras for navigation. It clears approximately 2 miles of sidewalk per hour with a 56-inch brush attachment.
+
+The RT-1000 has seen limited municipal deployment, notably in Grande Prairie, Alberta for trail maintenance. However, its form factor (ATV-sized, ~1,000 lbs) limits sidewalk applicability: it cannot navigate narrow passages, ADA ramps, or constrained urban sidewalks common in older cities.
+
+*Toro's likely strategy:* Toro is the dominant player in commercial grounds equipment (\$4B+ revenue). Their acquisition of Left Hand signals intent to lead in autonomous outdoor equipment. However, Toro's core business is selling equipment to landscaping contractors and grounds managers, not operating municipal services. They will likely pursue an equipment-sales model (sell RT-1000 units to municipalities or contractors) rather than a service model. This creates an opening for service-oriented approaches that align incentives with municipal outcomes rather than equipment purchases.
+
+Toro's installed base and dealer network give them distribution advantages, but their large-format approach leaves the narrow-sidewalk segment underserved. A 600mm-wide rover can access infrastructure that a 1,400mm-wide RT-1000 cannot.
+
+=== Snowbotix
+
+Snowbotix offers multi-utility robots with 48--72 inch clearing widths, operating in temperatures as low as −40°F @snowbotix2024. Their robots can clear up to 5 acres per charge and include solid/liquid deicing capability. Like the RT-1000, these are large-format machines designed for parking lots, campuses, and wide pathways rather than constrained urban sidewalks.
+
+=== ASV.ai
+
+ASV.ai (Canada) offers a Robotics-as-a-Service model for autonomous snow removal, targeting both municipal and commercial customers @asvai2024. Their approach emphasizes fleet management and centralized monitoring rather than individual unit sales. This service model is closer to our approach, though their platform details and municipal deployment track record are limited.
+
+=== Yarbo
+
+Yarbo produces a consumer/prosumer autonomous snow blower with 24-inch clearing width and 12-inch depth capacity @yarbo2024. It features weather-triggered scheduling and operates in temperatures as low as −13°F. Yarbo targets residential customers and small commercial properties rather than municipal infrastructure.
+
+=== Nivoso (Inactive)
+
+Nivoso was a University of Minnesota spinout that secured over \$1 million in letters of intent for commercial snow-clearing robots as of 2024 @nivoso2024. However, the project appears to be inactive: founder Max Minakov's LinkedIn shows he has moved to a role at another startup. No product has shipped, and the company has no active web presence. This illustrates a common pattern in robotics: university spinouts often struggle to bridge the gap from prototype to commercial deployment.
+
+=== Municipal Pilots
+
+- *Innisfil, Ontario (2024):* Partnered with Swap Robotics for a sidewalk-clearing pilot, using a v-plow and onboard salt with human chaperones during initial deployment.
+- *Grande Prairie, Alberta (2024):* Deployed Toro RT-1000 for autonomous trail maintenance.
+
+These pilots demonstrate municipal interest but have not scaled beyond single-unit demonstrations.
+
+=== Market Gap
+
+The competitive landscape reveals a clear gap:
+
+#figure(
+  table(
+    columns: 4,
+    align: (left, center, center, center),
+    table.header([*Segment*], [*Form Factor*], [*Business Model*], [*Players*]),
+    [Large commercial], [ATV-sized], [Equipment sales], [Toro, Snowbotix],
+    [Residential], [Walk-behind], [Consumer purchase], [Yarbo],
+    [Municipal sidewalk], [Compact], [Service/RaaS], [?],
+  ),
+  caption: [Competitive landscape segmentation],
+) <tab:competitive>
+
+No established player offers a compact, sidewalk-optimized platform with a municipal service model. Toro's equipment-sales approach requires municipalities to build operational capability internally. Consumer products like Yarbo lack the durability and fleet management for municipal scale. The narrow-sidewalk, service-oriented segment remains open.
+
 == Why This System Is Different
 
-The system described in this paper is designed around municipal constraints from inception. It is integration-first, designed to connect to existing GIS, work order, and complaint systems rather than replace them. It is operator-centric, keeping human operators in the loop with autonomy increasing incrementally as reliability is demonstrated. It is serviceable, built from commodity components with documented repair procedures. And it is accountable, with full telemetry logging, 90-day retention, and incident replay capability.
+The system described in this paper is designed around municipal constraints from inception, addressing gaps left by existing competitors:
+
+*Form factor optimized for urban sidewalks.* At 600mm × 600mm, the rover navigates narrow passages, ADA ramps, and constrained infrastructure that larger platforms cannot access. This is not a downsized lawn tractor; it is purpose-built for the 4-foot sidewalk envelope.
+
+*Service model aligned with municipal outcomes.* Unlike Toro's equipment-sales approach (which transfers operational risk to the municipality), this system can operate as a managed service where the vendor is accountable for cleared miles, not units sold. Municipalities pay for outcomes, not assets.
+
+*Teleoperation-first autonomy progression.* Competitors like Snowbotix and the RT-1000 emphasize autonomous operation from day one. This system starts with human operators, building reliability data and public trust before autonomy increases. The progression is: 1:1 teleop → 1:2 assisted → 1:10 supervised → eventual full autonomy. Each transition requires demonstrated reliability over a full season.
+
+*Integration-first architecture.* Designed to connect to existing GIS, work order, and complaint systems rather than replace them. Municipal IT departments can integrate telemetry into existing dashboards without new software platforms.
+
+*Commodity components, field-serviceable.* Built from off-the-shelf parts (VESC motor controllers, Jetson compute, commodity LiDAR) with documented repair procedures. A municipal fleet technician can replace components without specialized training or vendor lock-in.
+
+*Full accountability.* Complete telemetry logging with 90-day retention, geo-stamped work verification, and incident replay capability. When a resident complains their sidewalk wasn't cleared, the system provides timestamped evidence of what actually happened.
+
+The competitive moat is not technology: the components are available to anyone. The moat is operational fit: a system designed for how municipalities actually work, not how robotics companies wish they worked.
 
 = Design Principles
 
@@ -703,37 +777,38 @@ This section explicitly separates automated functions from human-controlled func
     // Pyramid layers (bottom to top)
     // Layer 1: Deterministic (bottom, widest)
     line((-4, 0), (4, 0), (2.5, 1.5), (-2.5, 1.5), close: true, fill: rgb("#c8e6c9"), stroke: rgb("#2e7d32") + 1pt)
-    content((0, 0.6), text(size: 8pt, weight: "bold")[Deterministic])
-    content((0, 0.1), text(size: 6pt)[Motor control, watchdog, E-stop])
+    content((0, 1), text(size: 8pt, weight: "bold")[Deterministic])
+    content((0, 0.5), text(size: 6pt)[Motor control, watchdog, E-stop])
 
     // Layer 2: Learned Perception (middle)
     line((-2.5, 1.5), (2.5, 1.5), (1.2, 3), (-1.2, 3), close: true, fill: rgb("#fff9c4"), stroke: rgb("#f9a825") + 1pt)
-    content((0, 2.1), text(size: 8pt, weight: "bold")[Learned])
-    content((0, 1.65), text(size: 6pt)[Obstacle classification, path planning])
+    content((0, 2.5), text(size: 8pt, weight: "bold")[Learned])
+    content((0, 2), text(size: 6pt)[Obstacle classification, path planning])
 
     // Layer 3: Human-in-Loop (top, narrowest)
     line((-1.2, 3), (1.2, 3), (0, 4.2), close: true, fill: rgb("#ffcdd2"), stroke: rgb("#c62828") + 1pt)
-    content((0, 3.4), text(size: 8pt, weight: "bold")[Human])
-    content((0, 3.0), text(size: 5pt)[Decisions])
+    content((0, 3.5), text(size: 8pt, weight: "bold")[Human])
+    content((0, 3.2), text(size: 5pt)[Decisions])
 
-    // Right side labels
-    content((5.2, 0.75), text(size: 7pt, fill: rgb("#2e7d32"))[Firmware, 100% reliable])
-    content((5.2, 2.25), text(size: 7pt, fill: rgb("#f9a825"))[ML models, supervised])
-    content((5.2, 3.6), text(size: 7pt, fill: rgb("#c62828"))[Operator judgment])
+    // Right side labels (positioned outside pyramid)
+    content((6, 0.75), text(size: 7pt, fill: rgb("#2e7d32"))[_Firmware, 100% reliable_])
+    content((6, 2.25), text(size: 7pt, fill: rgb("#f9a825"))[_ML models, supervised_])
+    content((6, 3.6), text(size: 7pt, fill: rgb("#c62828"))[_Operator judgment_])
 
-    // Arrows pointing to labels
-    line((4.1, 0.75), (4.5, 0.75), stroke: 0.5pt + rgb("#666"))
-    line((2.6, 2.25), (4.5, 2.25), stroke: 0.5pt + rgb("#666"))
-    line((1.3, 3.6), (4.5, 3.6), stroke: 0.5pt + rgb("#666"))
+    // Connector lines from pyramid edge to labels
+    line((3.25, 0.75), (4.8, 0.75), stroke: 0.5pt + rgb("#999"))
+    line((1.85, 2.25), (4.8, 2.25), stroke: 0.5pt + rgb("#999"))
+    line((0.6, 3.6), (4.8, 3.6), stroke: 0.5pt + rgb("#999"))
 
-    // Left side: automation level
-    content((-5.5, 0.75), text(size: 7pt)[Fully automated])
-    content((-5.5, 2.25), text(size: 7pt)[Supervised])
-    content((-5.5, 3.6), text(size: 7pt)[Manual])
+    // Left side: automation level labels
+    content((-6, 0.75), text(size: 7pt)[Fully automated])
+    content((-6, 2.25), text(size: 7pt)[Supervised])
+    content((-6, 3.6), text(size: 7pt)[Manual])
 
-    line((-4.5, 0.75), (-4.1, 0.75), stroke: 0.5pt + rgb("#666"))
-    line((-4.5, 2.25), (-2.6, 2.25), stroke: 0.5pt + rgb("#666"))
-    line((-4.5, 3.6), (-1.3, 3.6), stroke: 0.5pt + rgb("#666"))
+    // Connector lines from labels to pyramid edge
+    line((-4.8, 0.75), (-3.25, 0.75), stroke: 0.5pt + rgb("#999"))
+    line((-4.8, 2.25), (-1.85, 2.25), stroke: 0.5pt + rgb("#999"))
+    line((-4.8, 3.6), (-0.6, 3.6), stroke: 0.5pt + rgb("#999"))
   }),
   caption: [Autonomy pyramid: deterministic behaviors (base) are fully automated in firmware; learned perception (middle) uses ML with supervision; human judgment (top) handles exceptions and decisions.],
 ) <fig:autonomy-pyramid>
@@ -1546,31 +1621,52 @@ Rather than attempting to clear all 180 miles, a robotic system would focus on a
 This represents 28% of the total network but covers the highest-liability and highest-visibility segments.
 
 #figure(
-  cetz.canvas(length: 1cm, {
-    import cetz.draw: *
+  grid(
+    columns: 2,
+    gutter: 1em,
+    align: horizon,
+    // Simple visual bar representation
+    cetz.canvas(length: 1cm, {
+      import cetz.draw: *
 
-    // Pie chart - manual since lilaq doesn't have pie charts
-    let total = 50
-    let data = ((25, rgb("#1976d2"), "Schools 50%"), (12, rgb("#4caf50"), "Commercial 24%"), (8, rgb("#ff9800"), "Transit 16%"), (5, rgb("#9c27b0"), "Senior 10%"))
+      // Horizontal stacked bar instead of pie
+      let total-width = 6
+      let bar-height = 0.8
+      let data = (
+        (0.50, rgb("#1976d2"), "Schools 50%"),
+        (0.24, rgb("#4caf50"), "Commercial 24%"),
+        (0.16, rgb("#ff9800"), "Transit 16%"),
+        (0.10, rgb("#9c27b0"), "Senior 10%"),
+      )
 
-    let start = 0
-    for (val, color, label) in data {
-      let angle = val / total * 360
-      let end = start + angle
-      let mid = start + angle / 2
+      let x = 0
+      for (pct, color, label) in data {
+        let width = pct * total-width
+        rect((x, 0), (x + width, bar-height), fill: color, stroke: white + 0.5pt)
+        x = x + width
+      }
 
-      // Draw arc segment
-      arc((0, 0), start: start * 1deg, stop: end * 1deg, radius: 2, mode: "PIE", fill: color, stroke: white + 1pt)
-
-      // Label
-      let label-r = 2.7
-      let label-x = calc.cos(mid * 1deg) * label-r
-      let label-y = calc.sin(mid * 1deg) * label-r
-      content((label-x, label-y), text(size: 7pt)[#label])
-
-      start = end
-    }
-  }),
+      // Legend below
+      let legend-y = -0.8
+      let legend-x = 0
+      for (pct, color, label) in data {
+        rect((legend-x, legend-y - 0.3), (legend-x + 0.3, legend-y), fill: color, stroke: none)
+        content((legend-x + 0.5, legend-y - 0.15), text(size: 6pt)[#label], anchor: "west")
+        legend-x = legend-x + 1.8
+      }
+    }),
+    // Data table
+    table(
+      columns: 2,
+      align: (left, right),
+      stroke: none,
+      [Schools], [25 mi],
+      [Commercial], [12 mi],
+      [Transit], [8 mi],
+      [Senior], [5 mi],
+      [*Total*], [*50 mi*],
+    ),
+  ),
   caption: [Priority network allocation: school routes comprise half the priority miles],
 ) <fig:priority-pie>
 
