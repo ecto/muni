@@ -597,6 +597,61 @@ Wiring divides into two domains: high-current power wiring and low-current signa
 + Wire the E-Stop button in series with the relay coil.
 + Connect the LTE modem to Jetson via USB.
 
+#figure(
+  cetz.canvas({
+    import cetz.draw: *
+    
+    // Multi-step CAN connection sequence
+    let pw = 2.8  // panel width
+    let ph = 2.2  // panel height
+    let gap = 0.6
+    
+    // Panel 1: Strip wire
+    step-panel((0, 0), size: (pw, ph), step-num: 1, title: "Strip")
+    // Wire with stripped end
+    line((0.3, 0.8), (2.5, 0.8), stroke: 2pt + diagram-accent)
+    line((2.0, 0.7), (2.5, 0.7), stroke: 1.5pt + rgb("#cd7f32"))  // exposed copper
+    line((2.0, 0.9), (2.5, 0.9), stroke: 1.5pt + rgb("#cd7f32"))
+    content((1.4, 0.4), text(size: 5pt)[Strip 5mm])
+    
+    panel-arrow-h((0, 0), from-size: (pw, ph), gap: gap)
+    
+    // Panel 2: Tin wire
+    step-panel((pw + gap, 0), size: (pw, ph), step-num: 2, title: "Tin")
+    // Soldering iron approaching wire
+    line((pw + gap + 0.3, 0.8), (pw + gap + 2.0, 0.8), stroke: 2pt + diagram-accent)
+    line((pw + gap + 1.5, 0.7), (pw + gap + 2.0, 0.7), stroke: 1.5pt + rgb("#c0c0c0"))  // tinned
+    line((pw + gap + 1.5, 0.9), (pw + gap + 2.0, 0.9), stroke: 1.5pt + rgb("#c0c0c0"))
+    // Soldering iron
+    rect((pw + gap + 2.2, 0.5), (pw + gap + 2.6, 1.1), fill: diagram-accent, stroke: 0.75pt + diagram-black, radius: 1pt)
+    content((pw + gap + 1.4, 0.4), text(size: 5pt)[Apply solder])
+    
+    panel-arrow-h((pw + gap, 0), from-size: (pw, ph), gap: gap)
+    
+    // Panel 3: Insert into connector
+    step-panel((2 * (pw + gap), 0), size: (pw, ph), step-num: 3, title: "Insert")
+    // JST connector
+    rect((2 * (pw + gap) + 1.0, 0.5), (2 * (pw + gap) + 2.0, 1.1), fill: diagram-light, stroke: 1pt + diagram-black, radius: 2pt)
+    // Wire going in
+    line((2 * (pw + gap) + 0.3, 0.8), (2 * (pw + gap) + 1.0, 0.8), stroke: 2pt + diagram-accent)
+    insert-arrow((2 * (pw + gap) + 0.8, 0.8), (2 * (pw + gap) + 1.0, 0.8))
+    content((2 * (pw + gap) + 1.5, 0.3), text(size: 5pt)[Push until click])
+    
+    panel-arrow-h((2 * (pw + gap), 0), from-size: (pw, ph), gap: gap)
+    
+    // Panel 4: Verify
+    step-panel((3 * (pw + gap), 0), size: (pw, ph), step-num: 4, title: "Verify")
+    // Connected wire in connector
+    rect((3 * (pw + gap) + 1.0, 0.5), (3 * (pw + gap) + 2.0, 1.1), fill: diagram-light, stroke: 1pt + diagram-black, radius: 2pt)
+    line((3 * (pw + gap) + 0.3, 0.8), (3 * (pw + gap) + 1.0, 0.8), stroke: 2pt + diagram-accent)
+    // Tug arrow
+    motion-arrow((3 * (pw + gap) + 0.5, 0.6), (3 * (pw + gap) + 0.3, 0.4), label: "Tug")
+    // Check mark
+    check-mark((3 * (pw + gap) + 2.4, 0.8), size: 0.3)
+  }),
+  caption: [CAN wiring sequence: (1) Strip 5mm insulation, (2) Tin exposed wire, (3) Insert into JST connector, (4) Verify with gentle tug test],
+)
+
 == Phase 5: Testing
 
 Testing proceeds from basic power verification to full system operation. Never skip steps; catching problems early prevents damage.

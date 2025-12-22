@@ -448,6 +448,138 @@
 }
 
 // =============================================================================
+// STEP SEQUENCE PANELS
+// =============================================================================
+
+// Step panel frame (for multi-panel sequences)
+#let step-panel(pos, size: (3, 2.5), step-num: 1, title: none) = {
+  import cetz.draw: *
+  let (x, y) = pos
+  let (w, h) = size
+  
+  // Panel border
+  rect((x, y), (x + w, y + h), fill: white, stroke: 0.75pt + diagram-gray, radius: 2pt)
+  
+  // Step number badge (top-left corner)
+  circle((x + 0.4, y + h - 0.4), radius: 0.35, fill: diagram-accent, stroke: none)
+  content((x + 0.4, y + h - 0.4), text(fill: white, weight: "bold", size: 10pt)[#step-num])
+  
+  // Title (if provided)
+  if title != none {
+    content((x + w/2 + 0.3, y + h - 0.4), text(size: 7pt, weight: "bold")[#title])
+  }
+}
+
+// Arrow between panels (horizontal flow)
+#let panel-arrow-h(from-panel-pos, from-size: (3, 2.5), gap: 0.5) = {
+  import cetz.draw: *
+  let (x, y) = from-panel-pos
+  let (w, h) = from-size
+  
+  let arrow-y = y + h / 2
+  let arrow-x1 = x + w + 0.1
+  let arrow-x2 = x + w + gap - 0.1
+  
+  line((arrow-x1, arrow-y), (arrow-x2, arrow-y), stroke: 1.5pt + diagram-accent, mark: (end: ">"))
+}
+
+// Arrow between panels (vertical flow)
+#let panel-arrow-v(from-panel-pos, from-size: (3, 2.5), gap: 0.5) = {
+  import cetz.draw: *
+  let (x, y) = from-panel-pos
+  let (w, h) = from-size
+  
+  let arrow-x = x + w / 2
+  let arrow-y1 = y - 0.1
+  let arrow-y2 = y - gap + 0.1
+  
+  line((arrow-x, arrow-y1), (arrow-x, arrow-y2), stroke: 1.5pt + diagram-accent, mark: (end: ">"))
+}
+
+// "Before" state indicator
+#let state-before(pos) = {
+  import cetz.draw: *
+  let (x, y) = pos
+  
+  rect((x - 0.5, y - 0.2), (x + 0.5, y + 0.2), fill: diagram-light, stroke: 0.75pt + diagram-gray, radius: 2pt)
+  content((x, y), text(size: 5pt, fill: diagram-gray)[BEFORE])
+}
+
+// "After" state indicator
+#let state-after(pos) = {
+  import cetz.draw: *
+  let (x, y) = pos
+  
+  rect((x - 0.5, y - 0.2), (x + 0.5, y + 0.2), fill: rgb("#dcfce7"), stroke: 0.75pt + diagram-success, radius: 2pt)
+  content((x, y), text(size: 5pt, fill: diagram-success)[AFTER])
+}
+
+// Check mark (completion indicator)
+#let check-mark(pos, size: 0.4) = {
+  import cetz.draw: *
+  let (x, y) = pos
+  let s = size
+  
+  circle((x, y), radius: s, fill: diagram-success, stroke: none)
+  line((x - s * 0.4, y), (x - s * 0.1, y - s * 0.3), (x + s * 0.4, y + s * 0.4),
+       stroke: 2pt + white)
+}
+
+// X mark (error/don't do indicator)
+#let x-mark(pos, size: 0.4) = {
+  import cetz.draw: *
+  let (x, y) = pos
+  let s = size
+  
+  circle((x, y), radius: s, fill: diagram-danger, stroke: none)
+  line((x - s * 0.35, y - s * 0.35), (x + s * 0.35, y + s * 0.35), stroke: 2pt + white)
+  line((x - s * 0.35, y + s * 0.35), (x + s * 0.35, y - s * 0.35), stroke: 2pt + white)
+}
+
+// "Do this" indicator (thumb up simplified)
+#let do-this(pos) = {
+  import cetz.draw: *
+  let (x, y) = pos
+  
+  check-mark((x, y), size: 0.35)
+  content((x + 0.6, y), text(size: 6pt, fill: diagram-success)[Do])
+}
+
+// "Don't do this" indicator (thumb down simplified)
+#let dont-do(pos) = {
+  import cetz.draw: *
+  let (x, y) = pos
+  
+  x-mark((x, y), size: 0.35)
+  content((x + 0.7, y), text(size: 6pt, fill: diagram-danger)[Don't])
+}
+
+// Zoom/detail callout box
+#let detail-callout(from, to, size: (1.5, 1), label: none) = {
+  import cetz.draw: *
+  let (fx, fy) = from
+  let (tx, ty) = to
+  let (w, h) = size
+  
+  // Circle at source
+  circle(from, radius: 0.2, fill: none, stroke: 1pt + diagram-accent)
+  
+  // Dashed line to detail box
+  line(from, to, stroke: (thickness: 0.75pt, paint: diagram-accent, dash: "dashed"))
+  
+  // Detail box
+  rect((tx, ty), (tx + w, ty + h), fill: white, stroke: 1pt + diagram-accent, radius: 2pt)
+  
+  // Magnifying glass icon
+  circle((tx + 0.25, ty + h - 0.25), radius: 0.15, fill: none, stroke: 1pt + diagram-accent)
+  line((tx + 0.35, ty + h - 0.35), (tx + 0.5, ty + h - 0.5), stroke: 1pt + diagram-accent)
+  
+  if label != none {
+    content((tx + w/2, ty + h - 0.25), text(size: 6pt)[#label])
+  }
+}
+
+// =============================================================================
 // EXPLODED VIEW HELPERS
 // =============================================================================
 
