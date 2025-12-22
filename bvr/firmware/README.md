@@ -41,13 +41,17 @@ Onboard software for the Base Vectoring Rover, targeting Jetson Orin NX.
 | `metrics`   | Real-time metrics push to Depot    |
 | `gps`       | GPS receiver integration           |
 | `camera`    | Camera capture and streaming       |
+| `rl`        | RL environment for training        |
+| `sim`       | Physics simulation for training    |
+| `policy`    | Policy loading and inference       |
 
 ## Binaries
 
-| Binary | Purpose           |
-| ------ | ----------------- |
-| `bvrd` | Main daemon       |
-| `bvr`  | Debug/control CLI |
+| Binary  | Purpose                        |
+| ------- | ------------------------------ |
+| `bvrd`  | Main daemon                    |
+| `bvr`   | Debug/control CLI              |
+| `train` | RL training for nav policies   |
 
 ## Building
 
@@ -190,6 +194,81 @@ cargo run --bin bvrd -- --can-interface vcan0
 ```bash
 cargo test
 ```
+
+## Autonomous Mode & Policies
+
+The rover supports autonomous navigation using RL-trained policies.
+
+### Policy Format
+
+Policies are versioned JSON files with the following structure:
+
+```json
+{
+  "version": "1.0.0",
+  "name": "nav",
+  "description": "Navigation policy trained with REINFORCE",
+  "observation_size": 7,
+  "action_size": 2,
+  "architecture": "linear",
+  "weights": [[...], [...]],
+  "biases": [0.0, 0.0],
+  "metrics": {
+    "success_rate": 0.85,
+    "avg_reward": 95.2,
+    "training_iterations": 1000,
+    "training_episodes": 10000
+  }
+}
+```
+
+See `config/policies/nav-v0.1.0.json.example` for a complete example.
+
+### Training Policies
+
+```bash
+# Run training with default settings
+cargo run --bin train -- train --output ./policies
+
+# Train with custom parameters
+cargo run --bin train -- train \
+  --iterations 2000 \
+  --episodes-per-iter 20 \
+  --lr 0.005 \
+  --output ./policies \
+  --name nav \
+  --version 1.0.0
+
+# Benchmark environment performance
+cargo run --bin train -- bench --steps 100000
+
+# Test heuristic policy
+cargo run --bin train -- heuristic --episodes 100 --verbose
+```
+
+### Deploying Policies
+
+1. Copy policy files to `/var/lib/bvr/policies/` on the rover
+2. Set the default policy in `bvr.toml`:
+   ```toml
+   [autonomous]
+   enabled = true
+   policy_dir = "/var/lib/bvr/policies"
+   policy_file = "/var/lib/bvr/policies/nav-v1.0.0.json"
+   ```
+3. Or specify via CLI: `--policy /path/to/policy.json`
+
+### Running Autonomous Mode
+
+```bash
+# Start with autonomous mode enabled
+./target/release/bvrd --policy /var/lib/bvr/policies/nav-v1.0.0.json --goal "5.0,0.0"
+
+# In simulation mode
+cargo run --bin bvrd -- --sim --policy ./policies/nav-v0.1.0.json --goal "5.0,0.0"
+```
+
+Switch to autonomous mode via teleop command: `SetMode(Autonomous)`
 
 ## Documentation
 

@@ -111,3 +111,18 @@ ws_video_port = 4851
 # Heartbeat interval in seconds
 heartbeat_secs = 2
 
+[autonomous]
+# Enable autonomous mode support (policy loading)
+enabled = true
+# Directory containing policy files (.json)
+# Policies are versioned JSON files output by the training pipeline
+policy_dir = "/var/lib/bvr/policies"
+# Specific policy file to load (optional, otherwise loads default.json or first found)
+# policy_file = "/var/lib/bvr/policies/nav-v1.0.0.json"
+# Maximum linear velocity in autonomous mode (m/s) - safety limit
+max_linear_vel = 1.0
+# Maximum angular velocity in autonomous mode (rad/s) - safety limit
+max_angular_vel = 1.5
+# Goal waypoint [x, y] for testing (optional, can be set via command)
+# goal = [5.0, 0.0]
+

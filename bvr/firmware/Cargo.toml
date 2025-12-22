@@ -61,6 +61,7 @@ localization = { path = "crates/localization" }
 recording = { path = "crates/recording" }
 metrics = { path = "crates/metrics" }
 rl = { path = "crates/rl" }
+policy = { path = "crates/policy" }
 
 # RL training dependencies
 rand = "0.8"
