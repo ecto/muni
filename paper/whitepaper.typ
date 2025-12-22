@@ -1479,8 +1479,7 @@ We do not provide a timeline for full autonomy. Too many variables are outside o
 
 What we can say:
 
-- 1:2 assisted teleoperation is achievable within 12 months with current technology
-- 1:10 supervised autonomy requires 18–24 months of development and validation
+- 1:10 supervised autonomy is targeted for Q3 2026
 - Full autonomy (1:50+) is a multi-year effort dependent on regulatory progress
 
 #figure(
@@ -1504,8 +1503,7 @@ What we can say:
       })
 
       taskgroup(title: [*Autonomy*], {
-        task("1:1 Teleoperation", (0, 3), style: (stroke: 5pt + rgb("#4caf50")))
-        task("1:2 Assisted", (3, 6), style: (stroke: 5pt + rgb("#4caf50")))
+        task("1:1 Teleoperation", (0, 6), style: (stroke: 5pt + rgb("#4caf50")))
         task("1:10 Supervised", (6, 10), style: (stroke: 5pt + rgb("#4caf50")))
         task("Full autonomy R&D", (8, 12), style: (stroke: 5pt + rgb("#81c784")))
       })
@@ -1523,13 +1521,13 @@ What we can say:
       })
 
       milestone(
-        at: 4,
+        at: 6,
         style: (stroke: (dash: "dashed")),
-        align(center, text(size: 7pt)[*1:2 Achieved*])
+        align(center, text(size: 7pt)[*Autonomy Release*])
       )
 
       milestone(
-        at: 8,
+        at: 10,
         style: (stroke: (dash: "dashed")),
         align(center, text(size: 7pt)[*1:10 Target*])
       )
@@ -1716,7 +1714,7 @@ At supervised autonomy (1:10), robotic systems reduce 5-year TCO by *74% vs manu
 
 *Capital cost:* 3 × \$18,000 = \$54,000
 
-*Operating cost (1:1 teleop):* 3 × \$6,785 = \$20,400 for the season
+*Operating cost (1:1 teleop):* 3 × \$6,785 = \$20,355 for the season
 
 *Total pilot investment:* ~\$75,000
 
