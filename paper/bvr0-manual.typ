@@ -292,22 +292,34 @@ A basic set of hand tools is sufficient for assembly. No specialized equipment i
   cetz.canvas({
     import cetz.draw: *
 
-    // Tool icons in a row
-    let tools = (
-      ("Hex Keys", (-4, 0)),
-      ("Strippers", (-2, 0)),
-      ("Soldering", (0, 0)),
-      ("Multimeter", (2, 0)),
-      ("Heat Gun", (4, 0)),
-    )
-
-    for (name, pos) in tools {
-      rect((pos.at(0) - 0.6, pos.at(1) - 0.4), (pos.at(0) + 0.6, pos.at(1) + 0.4),
-           fill: muni-light-gray, stroke: 0.5pt + gray, radius: 2pt)
-      content(pos, text(size: 6pt)[#name])
-    }
+    // Tool icons with visual representations
+    
+    // Hex keys
+    tool-hex-key((-5, 0), size: 1.2)
+    content((-5, -1.2), text(size: 7pt)[Hex Keys])
+    content((-5, -1.6), text(size: 5pt, fill: diagram-gray)[2.5, 3, 4, 5mm])
+    
+    // Screwdriver
+    tool-screwdriver((-2.5, 0), size: 1.2, tip: "phillips")
+    content((-2.5, -1.2), text(size: 7pt)[Screwdriver])
+    content((-2.5, -1.6), text(size: 5pt, fill: diagram-gray)[Phillips #2])
+    
+    // Wrench
+    tool-wrench((0, 0), size: 1.2)
+    content((0, -1.2), text(size: 7pt)[Wrench])
+    content((0, -1.6), text(size: 5pt, fill: diagram-gray)[8, 10, 13mm])
+    
+    // Multimeter
+    tool-multimeter((2.5, 0), size: 1)
+    content((2.5, -1.2), text(size: 7pt)[Multimeter])
+    content((2.5, -1.6), text(size: 5pt, fill: diagram-gray)[Voltage/Cont.])
+    
+    // Torque reference
+    torque-indicator((5.5, 0), value: "4 Nm", size: 1.2)
+    content((5.5, -1.2), text(size: 7pt)[Torque])
+    content((5.5, -1.6), text(size: 5pt, fill: diagram-gray)[M5 fasteners])
   }),
-  caption: [Required tools for assembly],
+  caption: [Required tools: hex keys, screwdriver, wrenches, multimeter. M5 bolts torque to 4 Nm.],
 )
 
 == Phase 1: Chassis Frame

@@ -605,6 +605,175 @@
 }
 
 // =============================================================================
+// HAND AND TOOL ICONS
+// =============================================================================
+
+// Simplified hand icon (grip position indicator)
+#let hand-grip(pos, rotation: 0deg, scale: 1) = {
+  import cetz.draw: *
+  let (x, y) = pos
+  let s = scale * 0.4
+  
+  // Palm (oval)
+  circle((x, y), radius: (s, s * 0.7), fill: rgb("#fcd5b5"), stroke: 0.75pt + diagram-black)
+  
+  // Fingers (simplified as rectangles)
+  for i in range(4) {
+    let fx = x - s * 0.6 + i * s * 0.4
+    let fy = y + s * 0.8
+    rect((fx - s * 0.12, fy), (fx + s * 0.12, fy + s * 0.6), 
+         fill: rgb("#fcd5b5"), stroke: 0.5pt + diagram-black, radius: 2pt)
+  }
+  
+  // Thumb
+  rect((x + s * 0.7, y - s * 0.1), (x + s * 1.1, y + s * 0.3),
+       fill: rgb("#fcd5b5"), stroke: 0.5pt + diagram-black, radius: 2pt)
+}
+
+// Hand pointing (direction indicator)
+#let hand-point(pos, direction: "right", scale: 1) = {
+  import cetz.draw: *
+  let (x, y) = pos
+  let s = scale * 0.3
+  
+  // Pointing finger
+  let dx = if direction == "right" { 1 } else if direction == "left" { -1 } else { 0 }
+  let dy = if direction == "up" { 1 } else if direction == "down" { -1 } else { 0 }
+  
+  // Finger
+  rect((x, y - s * 0.15), (x + dx * s * 1.2, y + s * 0.15),
+       fill: rgb("#fcd5b5"), stroke: 0.75pt + diagram-black, radius: 2pt)
+  
+  // Knuckle/hand base
+  circle((x - dx * s * 0.2, y), radius: s * 0.4, fill: rgb("#fcd5b5"), stroke: 0.75pt + diagram-black)
+}
+
+// Tool icon: Hex key / Allen wrench
+#let tool-hex-key(pos, size: 1) = {
+  import cetz.draw: *
+  let (x, y) = pos
+  let s = size * 0.5
+  
+  // L-shape
+  line((x - s, y + s * 0.6), (x - s, y - s * 0.3), (x + s * 0.3, y - s * 0.3),
+       stroke: 2pt + diagram-black)
+  
+  // Hex tip
+  circle((x + s * 0.3, y - s * 0.3), radius: s * 0.1, fill: diagram-black, stroke: none)
+}
+
+// Tool icon: Screwdriver
+#let tool-screwdriver(pos, size: 1, tip: "phillips") = {
+  import cetz.draw: *
+  let (x, y) = pos
+  let s = size * 0.5
+  
+  // Handle
+  rect((x - s * 0.2, y + s * 0.3), (x + s * 0.2, y + s),
+       fill: diagram-accent, stroke: 0.75pt + diagram-black, radius: 2pt)
+  
+  // Shaft
+  rect((x - s * 0.08, y - s * 0.5), (x + s * 0.08, y + s * 0.3),
+       fill: diagram-light, stroke: 0.75pt + diagram-black)
+  
+  // Tip
+  if tip == "phillips" {
+    line((x, y - s * 0.5), (x, y - s * 0.7), stroke: 1.5pt + diagram-black)
+    line((x - s * 0.1, y - s * 0.6), (x + s * 0.1, y - s * 0.6), stroke: 1pt + diagram-black)
+  } else {
+    rect((x - s * 0.12, y - s * 0.7), (x + s * 0.12, y - s * 0.5),
+         fill: diagram-light, stroke: 0.75pt + diagram-black)
+  }
+}
+
+// Tool icon: Wrench / Spanner
+#let tool-wrench(pos, size: 1) = {
+  import cetz.draw: *
+  let (x, y) = pos
+  let s = size * 0.5
+  
+  // Handle
+  rect((x - s * 0.1, y - s * 0.8), (x + s * 0.1, y + s * 0.3),
+       fill: diagram-light, stroke: 0.75pt + diagram-black, radius: 1pt)
+  
+  // Head (open-end wrench)
+  line((x - s * 0.25, y + s * 0.5), (x - s * 0.1, y + s * 0.3), stroke: 1.5pt + diagram-black)
+  line((x + s * 0.25, y + s * 0.5), (x + s * 0.1, y + s * 0.3), stroke: 1.5pt + diagram-black)
+  arc((x, y + s * 0.5), start: 180deg, stop: 0deg, radius: s * 0.25, stroke: 1.5pt + diagram-black)
+}
+
+// Tool icon: Multimeter
+#let tool-multimeter(pos, size: 1) = {
+  import cetz.draw: *
+  let (x, y) = pos
+  let s = size * 0.6
+  
+  // Body
+  rect((x - s * 0.5, y - s), (x + s * 0.5, y + s),
+       fill: rgb("#fbbf24"), stroke: 1pt + diagram-black, radius: 4pt)
+  
+  // Display
+  rect((x - s * 0.35, y + s * 0.3), (x + s * 0.35, y + s * 0.8),
+       fill: rgb("#d1fae5"), stroke: 0.5pt + diagram-black)
+  
+  // Dial
+  circle((x, y - s * 0.2), radius: s * 0.25, fill: diagram-light, stroke: 0.5pt + diagram-black)
+  
+  // Probes
+  line((x - s * 0.3, y - s), (x - s * 0.3, y - s * 1.4), stroke: 1.5pt + diagram-danger)
+  line((x + s * 0.3, y - s), (x + s * 0.3, y - s * 1.4), stroke: 1.5pt + diagram-black)
+}
+
+// Rotation gesture (two curved arrows)
+#let gesture-rotate(pos, radius: 0.5, clockwise: true) = {
+  import cetz.draw: *
+  let (x, y) = pos
+  
+  if clockwise {
+    arc((x, y), start: 45deg, stop: 135deg, radius: radius, stroke: 1.5pt + diagram-accent, mark: (end: ">"))
+    arc((x, y), start: 225deg, stop: 315deg, radius: radius, stroke: 1.5pt + diagram-accent, mark: (end: ">"))
+  } else {
+    arc((x, y), start: 45deg, stop: 135deg, radius: radius, stroke: 1.5pt + diagram-accent, mark: (start: ">"))
+    arc((x, y), start: 225deg, stop: 315deg, radius: radius, stroke: 1.5pt + diagram-accent, mark: (start: ">"))
+  }
+}
+
+// Push/press gesture indicator
+#let gesture-press(pos, direction: "down") = {
+  import cetz.draw: *
+  let (x, y) = pos
+  
+  let dy = if direction == "down" { -1 } else { 1 }
+  
+  // Arrow
+  line((x, y), (x, y + dy * 0.8), stroke: 2pt + diagram-accent, mark: (end: ">"))
+  
+  // Press lines (impact indicator)
+  line((x - 0.3, y + dy * 0.9), (x + 0.3, y + dy * 0.9), stroke: 1pt + diagram-accent)
+  line((x - 0.2, y + dy * 1.0), (x + 0.2, y + dy * 1.0), stroke: 0.75pt + diagram-accent)
+}
+
+// Torque indicator (wrench with rotation arrow)
+#let torque-indicator(pos, value: "4 Nm", size: 1) = {
+  import cetz.draw: *
+  let (x, y) = pos
+  let s = size * 0.4
+  
+  // Wrench handle
+  rect((x - s * 2, y - s * 0.15), (x, y + s * 0.15),
+       fill: diagram-light, stroke: 0.75pt + diagram-black, radius: 1pt)
+  
+  // Socket head
+  circle((x, y), radius: s * 0.35, fill: diagram-light, stroke: 0.75pt + diagram-black)
+  
+  // Rotation arrow
+  arc((x, y), start: -45deg, stop: -150deg, radius: s * 0.7, stroke: 1.5pt + diagram-accent, mark: (end: ">"))
+  
+  // Torque value
+  content((x, y - s * 1.2), text(size: 7pt, weight: "bold", fill: diagram-accent)[#value])
+}
+
+// =============================================================================
 // COMPLETE ROVER DIAGRAMS
 // =============================================================================
 
