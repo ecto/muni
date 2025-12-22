@@ -690,11 +690,7 @@
 = Electrical System
 // =============================================================================
 
-The electrical system distributes power from the 48V battery to motors and electronics. This section details the power topology, CAN bus network, and connector pinouts.
-
 == Power Distribution
-
-Power flows from the battery through a single 100A fuse, then splits to three subsystems: motor controllers (VESCs), emergency stop circuit, and DC-DC converter. The E-Stop relay can cut power to the VESCs while leaving the Jetson powered for diagnostics.
 
 #figure(
   cetz.canvas({
@@ -753,22 +749,7 @@ Power flows from the battery through a single 100A fuse, then splits to three su
   caption: [Power distribution from 48V battery to all subsystems],
 )
 
-== Main Components
-
-Each component in the power system serves a specific protective or conversion function.
-
-#spec-table(
-  [*Component*], [*Specification*],
-  [Battery], [13S4P Li-ion, 48V 20Ah with BMS],
-  [Main Fuse], [100A ANL at battery positive],
-  [E-Stop], [Normally closed contactor, cuts 48V to VESCs],
-  [DCDC], [48V→12V, 20A for Jetson + accessories],
-  [VESCs], [4× VESC 6, 60A continuous each],
-)
-
-== CAN Bus Topology
-
-The CAN bus connects all motor controllers and the tool interface in a daisy chain. Each end of the bus requires a 120Ω termination resistor to prevent signal reflections.
+== CAN Bus
 
 #figure(
   cetz.canvas({
@@ -804,11 +785,7 @@ The CAN bus connects all motor controllers and the tool interface in a daisy cha
   caption: [CAN bus daisy chain with 120Ω termination at each end],
 )
 
-The CAN bus operates at 500 kbps using twisted pair wiring (CANH and CANL). Termination resistors are essential: without them, signal reflections cause communication errors.
-
 == Connectors
-
-Standardized connectors enable quick assembly and field replacement.
 
 #figure(
   cetz.canvas({
@@ -834,18 +811,7 @@ Standardized connectors enable quick assembly and field replacement.
   caption: [Connector types used throughout the rover],
 )
 
-#spec-table(
-  [*Connector*], [*Use*],
-  [XT90], [Main battery power (90A rated)],
-  [5.5mm bullet], [Motor phase wires (60A rated)],
-  [XT30], [12V accessories (30A rated)],
-  [JST-XH], [Sensors and buttons (signal level)],
-  [Deutsch DT06-6S], [Tool interface (weatherproof)],
-)
-
 == VESC Configuration
-
-Each VESC requires configuration via the VESC Tool software before first use. The CAN ID must be unique for each motor controller.
 
 #figure(
   cetz.canvas({
@@ -891,11 +857,7 @@ Each VESC requires configuration via the VESC Tool software before first use. Th
 = Operation
 // =============================================================================
 
-Operating the BVR0 requires completing startup procedures, understanding teleoperation controls, and following shutdown protocols. This section covers each phase of operation.
-
-== Startup Procedure
-
-Startup follows a consistent sequence that verifies system health before enabling motor control.
+== Startup
 
 #figure(
   cetz.canvas({
@@ -924,15 +886,7 @@ Startup follows a consistent sequence that verifies system health before enablin
   caption: [Startup sequence from inspection to operation],
 )
 
-*Pre-flight check:* Before connecting power, verify the battery is charged (>40V), the E-Stop is not engaged, wheels are clear of obstructions, and the LTE antenna is connected.
-
-*Power on:* Connect the battery via the XT90 connector. The Jetson will boot automatically, which takes approximately 30 seconds. The onboard display will show the dashboard when ready.
-
-*Connect operator station:* Open the operator interface in a web browser and navigate to the rover's IP address. Verify the video feed is active and telemetry readings are nominal before commanding movement.
-
-== Teleoperation
-
-The operator controls the rover through a web interface that displays video, telemetry, and control inputs.
+== Controls
 
 #figure(
   cetz.canvas({
@@ -965,22 +919,7 @@ The operator controls the rover through a web interface that displays video, tel
   caption: [Gamepad control layout for teleoperation],
 )
 
-The rover accepts input from keyboard (WASD), gamepad, or touchscreen. Movement commands map the left stick to forward/backward and rotation. The right stick pans the 360° camera view. Speed is adjusted with bumpers or scroll wheel.
-
-=== Control Modes
-
-Three control modes provide different levels of automation.
-
-#spec-table(
-  [*Mode*], [*Description*],
-  [Direct], [1:1 joystick to motor control, no assistance],
-  [Assisted], [Obstacle avoidance prevents collisions],
-  [Waypoint], [Autonomous path following between points],
-)
-
-== Shutdown Procedure
-
-Proper shutdown protects the electronics and battery.
+== Shutdown
 
 #figure(
   cetz.canvas({
@@ -1008,11 +947,7 @@ Proper shutdown protects the electronics and battery.
   caption: [Shutdown sequence],
 )
 
-Release all controls so the rover comes to a stop. Disconnect from the operator interface. Press the physical E-Stop button. Finally, disconnect the battery using the XT90 connector and store the rover in a dry location.
-
 == Tool Attachment
-
-Tools connect via a quick-release mechanical mount and a Deutsch DT electrical connector.
 
 #figure(
   cetz.canvas({
@@ -1041,23 +976,17 @@ Tools connect via a quick-release mechanical mount and a Deutsch DT electrical c
   caption: [Tool attachment via quick-release mount and DT connector],
 )
 
-Power off the rover before attaching tools. Align the tool mount with the front bracket and engage the quick-release latch. Connect the Deutsch DT connector for power and CAN communication. Power on and verify the tool appears in the dashboard.
-
 #pagebreak()
 
 // =============================================================================
 = Safety
 // =============================================================================
 
-The BVR0 is a powered machine capable of causing injury. This section covers safety protocols, hazard awareness, and emergency procedures.
-
 #danger[
-  This is a heavy, powered machine. It can cause serious injury if mishandled. Always maintain situational awareness when operating.
+  Heavy powered machine. Can cause serious injury. Maintain situational awareness.
 ]
 
-== Hazard Awareness
-
-Understanding potential hazards enables safe operation.
+== Hazard Zones
 
 #figure(
   cetz.canvas({
@@ -1091,14 +1020,10 @@ Understanding potential hazards enables safe operation.
   caption: [Hazard zones: wheel areas and tool mount require clearance during operation],
 )
 
-Keep hands and feet clear of wheels and moving parts at all times. The hub motors can generate significant torque instantly. Never reach under the rover while it is powered.
-
 == Battery Safety
 
-Lithium-ion batteries require careful handling to prevent fire or explosion.
-
 #warning[
-  Lithium-ion batteries can catch fire if damaged, overcharged, or short-circuited. Handle with care.
+  Li-ion batteries can catch fire if damaged or short-circuited.
 ]
 
 #figure(
@@ -1121,11 +1046,7 @@ Lithium-ion batteries require careful handling to prevent fire or explosion.
   caption: [Battery handling requirements],
 )
 
-Store batteries at room temperature (15-25°C). Never charge batteries unattended. Inspect for physical damage before each use. Do not expose to water or extreme temperatures. Use only the provided charger. Dispose of damaged batteries through proper recycling channels.
-
 == Emergency Stop
-
-Multiple E-Stop mechanisms provide redundant safety.
 
 #figure(
   cetz.canvas({
@@ -1154,25 +1075,9 @@ Multiple E-Stop mechanisms provide redundant safety.
   caption: [Three independent paths to emergency stop],
 )
 
-The physical E-Stop button on the rover chassis immediately cuts power to all motors. The software E-Stop (spacebar in operator interface) sends a stop command over the network. If the network connection is lost for more than 2 seconds, the rover automatically stops.
-
 #note[
-  To reset after E-Stop: identify and resolve the cause, twist or pull the physical button to release, reconnect the operator interface, and confirm the rover is ready in the dashboard.
+  To reset: resolve cause, release button, reconnect, verify dashboard.
 ]
-
-== Operating Conditions
-
-Environmental limits ensure safe operation.
-
-#spec-table(
-  [*Condition*], [*Limit*],
-  [Temperature], [-20°C to 40°C],
-  [Precipitation], [Light rain/snow only],
-  [Wind], [< 40 km/h],
-  [Visibility], [Operator must see rover or camera feed],
-)
-
-Do not operate on slopes exceeding 15%. Do not operate in standing water deeper than 50mm. Always maintain a clear line of sight or reliable video feed.
 
 #pagebreak()
 
@@ -1180,11 +1085,7 @@ Do not operate on slopes exceeding 15%. Do not operate in standing water deeper 
 = Maintenance
 // =============================================================================
 
-Regular maintenance ensures reliable operation and extends the life of components. This section covers inspection schedules, maintenance procedures, and troubleshooting.
-
-== Regular Inspection
-
-Perform these checks before each operation.
+== Pre-Operation Inspection
 
 #figure(
   cetz.canvas({
@@ -1224,9 +1125,7 @@ Perform these checks before each operation.
   [Sensors clean and unobstructed],
 )
 
-== Periodic Maintenance
-
-Scheduled maintenance prevents failures and catches wear before it becomes critical.
+== Maintenance Schedule
 
 #figure(
   cetz.canvas({
@@ -1253,15 +1152,30 @@ Scheduled maintenance prevents failures and catches wear before it becomes criti
   caption: [Maintenance schedule intervals],
 )
 
-*Weekly:* Clean debris from wheels and chassis. Wipe camera lenses. Check CAN bus connections. Verify LTE signal strength at operating locations.
-
-*Monthly:* Inspect wiring for chafing or wear. Check bolt torque on motor mounts. Clean battery contacts. Update firmware if available.
-
-*Seasonal:* Perform full electrical inspection. Check bearings on hub motors. Replace worn cables or connectors. Calibrate sensors if needed.
+#grid(
+  columns: (1fr, 1fr, 1fr),
+  column-gutter: 1em,
+  [
+    *Weekly*
+    - Clean wheels/chassis
+    - Wipe lenses
+    - Check connections
+  ],
+  [
+    *Monthly*
+    - Inspect wiring
+    - Verify bolt torque
+    - Clean contacts
+  ],
+  [
+    *Seasonal*
+    - Full electrical check
+    - Check bearings
+    - Replace worn parts
+  ]
+)
 
 == Storage
-
-Proper storage protects the battery and electronics during periods of non-use.
 
 #figure(
   cetz.canvas({
@@ -1284,11 +1198,7 @@ Proper storage protects the battery and electronics during periods of non-use.
   caption: [Storage preparation requirements],
 )
 
-For extended storage (>2 weeks): charge the battery to 50-60% (storage charge), disconnect the battery from the rover, store in a dry location at 15-25°C, cover to protect from dust, and check battery monthly to top up if below 40%.
-
 == Troubleshooting
-
-Common issues and their solutions.
 
 #spec-table(
   [*Symptom*], [*Solution*],
