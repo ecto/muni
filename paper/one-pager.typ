@@ -99,7 +99,7 @@
     #text(size: 11pt, weight: "bold", fill: muni-orange)[Team]
 
     *Cam Pedersen, Founder* \
-    12+ years building software at scale. Former Staff Engineer at major tech companies. Based in Cleveland, Ohio.
+    Autonomous vehicle scheduling at Uber. CTO & Co-founder at DitchCarbon. Based in Cleveland, Ohio.
 
     *Hiring:* Robotics engineer, Business development
 
