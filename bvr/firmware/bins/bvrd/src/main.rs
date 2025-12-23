@@ -9,6 +9,7 @@ use control::{ChassisParams, DiffDriveMixer, Limits, RateLimiter, Watchdog};
 use gps::{Config as GpsConfig, GpsReader, GpsState};
 use localization::{PoseEstimator, WheelOdometry};
 use metrics::{Config as MetricsConfig, DiscoveryClient, DiscoveryConfig, MetricsPusher, MetricsSnapshot};
+use policy::{NormalizationConfig, Policy, PolicyManager, PolicyObservation};
 use recording::{Config as RecordingConfig, Recorder};
 use serde::Deserialize;
 use sim::SimBus;
@@ -35,6 +36,37 @@ struct FileConfig {
     identity: IdentityConfig,
     metrics: MetricsFileConfig,
     discovery: DiscoveryFileConfig,
+    autonomous: AutonomousFileConfig,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(default)]
+struct AutonomousFileConfig {
+    /// Enable autonomous mode support
+    enabled: bool,
+    /// Directory containing policy files
+    policy_dir: String,
+    /// Specific policy file to load (overrides default)
+    policy_file: Option<String>,
+    /// Maximum linear velocity in autonomous mode (m/s)
+    max_linear_vel: f64,
+    /// Maximum angular velocity in autonomous mode (rad/s)
+    max_angular_vel: f64,
+    /// Goal waypoint [x, y] in local frame (for testing)
+    goal: Option<[f64; 2]>,
+}
+
+impl Default for AutonomousFileConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            policy_dir: "/var/lib/bvr/policies".to_string(),
+            policy_file: None,
+            max_linear_vel: 1.0,
+            max_angular_vel: 1.5,
+            goal: None,
+        }
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -202,6 +234,33 @@ struct Args {
     /// Depot discovery endpoint - overrides config file (e.g., "192.168.1.100:4860")
     #[arg(long)]
     discovery_endpoint: Option<String>,
+
+    /// Disable autonomous mode (policy loading)
+    #[arg(long)]
+    no_autonomous: bool,
+
+    /// Path to policy file for autonomous mode
+    #[arg(long)]
+    policy: Option<PathBuf>,
+
+    /// Directory containing policy files
+    #[arg(long)]
+    policy_dir: Option<PathBuf>,
+
+    /// Autonomous mode goal position [x,y] (for testing)
+    #[arg(long, value_parser = parse_goal)]
+    goal: Option<[f64; 2]>,
+}
+
+/// Parse goal position from "x,y" string.
+fn parse_goal(s: &str) -> Result<[f64; 2], String> {
+    let parts: Vec<&str> = s.split(',').collect();
+    if parts.len() != 2 {
+        return Err("goal must be in format 'x,y'".to_string());
+    }
+    let x = parts[0].parse::<f64>().map_err(|e| e.to_string())?;
+    let y = parts[1].parse::<f64>().map_err(|e| e.to_string())?;
+    Ok([x, y])
 }
 
 /// CAN interface abstraction for real or simulated hardware.
@@ -366,6 +425,73 @@ async fn main() -> Result<()> {
         );
     } else {
         info!("Discovery registration disabled");
+    }
+
+    // Initialize autonomous mode (policy loading)
+    let autonomous_enabled = !args.no_autonomous && file_config.autonomous.enabled;
+    let mut loaded_policy: Option<Policy> = None;
+    let mut autonomous_goal: Option<[f64; 2]> = args.goal.or(file_config.autonomous.goal);
+    let autonomous_max_linear = file_config.autonomous.max_linear_vel;
+    let autonomous_max_angular = file_config.autonomous.max_angular_vel;
+    let norm_config = NormalizationConfig::default();
+
+    if autonomous_enabled {
+        // Determine policy path
+        let policy_path = if let Some(ref path) = args.policy {
+            Some(path.clone())
+        } else if let Some(ref file) = file_config.autonomous.policy_file {
+            Some(PathBuf::from(file))
+        } else {
+            None
+        };
+
+        // Load policy
+        if let Some(path) = policy_path {
+            match Policy::load(&path) {
+                Ok(policy) => {
+                    info!(
+                        name = %policy.name(),
+                        version = %policy.version(),
+                        path = %path.display(),
+                        "Loaded autonomous policy"
+                    );
+                    loaded_policy = Some(policy);
+                }
+                Err(e) => {
+                    warn!(?e, path = %path.display(), "Failed to load policy");
+                }
+            }
+        } else {
+            // Try to load from policy directory
+            let policy_dir = args.policy_dir
+                .clone()
+                .unwrap_or_else(|| PathBuf::from(&file_config.autonomous.policy_dir));
+
+            let mut manager = PolicyManager::new(&policy_dir);
+            match manager.load_default() {
+                Ok(policy) => {
+                    info!(
+                        name = %policy.name(),
+                        version = %policy.version(),
+                        dir = %policy_dir.display(),
+                        "Loaded default policy from directory"
+                    );
+                    loaded_policy = Some(policy.clone());
+                }
+                Err(e) => {
+                    debug!(?e, "No policy found (autonomous mode will be unavailable)");
+                }
+            }
+        }
+
+        if loaded_policy.is_some() {
+            info!("Autonomous mode enabled");
+            if let Some(goal) = autonomous_goal {
+                info!(x = goal[0], y = goal[1], "Initial goal set");
+            }
+        }
+    } else {
+        info!("Autonomous mode disabled");
     }
 
     // Initialize CAN interface
@@ -704,20 +830,96 @@ async fn main() -> Result<()> {
         }
 
         // Check watchdog
-        let mut state = shared.lock().unwrap();
-        if watchdog.is_timed_out() && state.state_machine.is_driving() {
-            warn!("Command watchdog timeout");
-            state.state_machine.transition(Event::CommandTimeout);
-            state.commanded_twist = Twist::default();
-            rate_limiter.reset();
+        {
+            let mut state = shared.lock().unwrap();
+            if watchdog.is_timed_out() && state.state_machine.is_driving() {
+                warn!("Command watchdog timeout");
+                state.state_machine.transition(Event::CommandTimeout);
+                state.commanded_twist = Twist::default();
+                rate_limiter.reset();
+            }
         }
 
-        // Compute motor outputs — direct teleop, no smoothing for lowest latency
-        let (target_twist, boost_active) = if state.state_machine.is_driving() {
-            (state.commanded_twist, state.commanded_twist.boost)
-        } else {
-            (Twist::default(), false)
+        // Get current mode and commanded twist for control decisions
+        let (current_mode, commanded_twist) = {
+            let state = shared.lock().unwrap();
+            (state.state_machine.mode(), state.commanded_twist)
         };
+
+        // Compute motor outputs based on mode
+        let (target_twist, boost_active) = match current_mode {
+            Mode::Autonomous => {
+                // Autonomous mode: use policy for navigation
+                if let (Some(ref policy), Some(goal)) = (&loaded_policy, autonomous_goal) {
+                    // Get current pose estimate
+                    let current_pose = if args.sim {
+                        can_interface.pose()
+                    } else {
+                        pose_estimator.pose()
+                    };
+
+                    // Get velocity estimate (use last commanded as approximation)
+                    let linear_vel = commanded_twist.linear;
+                    let angular_vel = commanded_twist.angular;
+
+                    // Build observation for policy
+                    let obs = PolicyObservation::from_raw(
+                        current_pose.x,
+                        current_pose.y,
+                        current_pose.theta,
+                        linear_vel,
+                        angular_vel,
+                        goal[0],
+                        goal[1],
+                        &norm_config,
+                    );
+
+                    // Run policy inference
+                    match policy.infer(&obs) {
+                        Ok(action) => {
+                            let twist = action.to_twist(autonomous_max_linear, autonomous_max_angular);
+                            debug!(
+                                linear = twist.linear,
+                                angular = twist.angular,
+                                goal_x = goal[0],
+                                goal_y = goal[1],
+                                "Autonomous policy output"
+                            );
+
+                            // Check if goal reached (within 0.5m)
+                            let dx = goal[0] - current_pose.x;
+                            let dy = goal[1] - current_pose.y;
+                            let dist = (dx * dx + dy * dy).sqrt();
+                            if dist < 0.5 {
+                                info!(distance = dist, "Goal reached!");
+                                // Could transition back to idle here
+                            }
+
+                            (twist, false)
+                        }
+                        Err(e) => {
+                            warn!(?e, "Policy inference failed, stopping");
+                            (Twist::default(), false)
+                        }
+                    }
+                } else {
+                    // No policy or goal, stay stopped
+                    debug!("Autonomous mode but no policy/goal configured");
+                    (Twist::default(), false)
+                }
+            }
+            Mode::Teleop => {
+                // Teleop mode: use commanded twist directly
+                (commanded_twist, commanded_twist.boost)
+            }
+            _ => {
+                // Not driving: zero velocity
+                (Twist::default(), false)
+            }
+        };
+
+        // Lock state for motor commands and telemetry
+        let mut state = shared.lock().unwrap();
 
         // Rate limit for safety (acceleration limits only)
         let mut twist = rate_limiter.limit(target_twist);

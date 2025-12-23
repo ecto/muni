@@ -5,11 +5,12 @@
 
 use anyhow::Result;
 use clap::{Parser, Subcommand};
+use policy::{PolicyBuilder, PolicyMetrics};
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
-use rl::{Action, BVREnv, EnvConfig, Environment, EpisodeStats, Observation};
+use rl::{Action, BVREnv, EnvConfig, Environment, EpisodeStats};
 use std::time::Instant;
-use tracing::{info, warn};
+use tracing::info;
 
 #[derive(Parser)]
 #[command(name = "train")]
@@ -92,9 +93,17 @@ enum Commands {
         #[arg(short, long)]
         seed: Option<u64>,
 
-        /// Path to save policy
+        /// Path to save policy (directory or full path)
         #[arg(short, long)]
         output: Option<String>,
+
+        /// Policy name (used in versioned output)
+        #[arg(long, default_value = "nav")]
+        name: String,
+
+        /// Policy version (semver format)
+        #[arg(long, default_value = "0.1.0")]
+        version: String,
     },
 }
 
@@ -134,7 +143,9 @@ fn main() -> Result<()> {
             gamma,
             seed,
             output,
-        } => run_training(iterations, episodes_per_iter, lr, gamma, seed, output),
+            name,
+            version,
+        } => run_training(iterations, episodes_per_iter, lr, gamma, seed, output, name, version),
     }
 }
 
@@ -310,6 +321,8 @@ fn run_training(
     gamma: f32,
     seed: Option<u64>,
     output: Option<String>,
+    policy_name: String,
+    policy_version: String,
 ) -> Result<()> {
     info!(
         "Training for {} iterations ({} episodes/iter)",
@@ -332,6 +345,7 @@ fn run_training(
     };
 
     let mut best_reward = f32::NEG_INFINITY;
+    let mut best_success_rate = 0.0f32;
 
     for iter in 0..iterations {
         let mut all_rewards = Vec::new();
@@ -382,10 +396,6 @@ fn run_training(
         // Compute baseline (mean return)
         let baseline: f32 = all_rewards.iter().sum::<f32>() / all_rewards.len() as f32;
 
-        // Compute policy gradient
-        let mut grad_w = vec![vec![0.0f32; obs_size]; act_size];
-        let mut grad_b = vec![0.0f32; act_size];
-
         // Note: This is a simplified version. Full REINFORCE would need
         // the observation at each step to compute gradients properly.
         // For now, we just adjust based on returns.
@@ -395,22 +405,31 @@ fn run_training(
         // compute gradients through the policy network
 
         let mean_return: f32 = iter_returns.iter().sum::<f32>() / iter_returns.len() as f32;
+        let success_rate = iter_returns
+            .iter()
+            .filter(|&&r| r > 50.0) // Rough success threshold
+            .count() as f32
+            / iter_returns.len() as f32;
 
         if mean_return > best_reward {
             best_reward = mean_return;
+            best_success_rate = success_rate;
+
             if let Some(ref path) = output {
-                policy.save(path)?;
+                policy.save_versioned(
+                    path,
+                    &policy_name,
+                    &policy_version,
+                    iterations,
+                    iter * episodes_per_iter,
+                    mean_return,
+                    success_rate,
+                )?;
                 info!("Saved best policy (reward={:.2})", mean_return);
             }
         }
 
         if iter % 10 == 0 || iter == iterations - 1 {
-            let success_rate = iter_returns
-                .iter()
-                .filter(|&&r| r > 50.0) // Rough success threshold
-                .count() as f32
-                / iter_returns.len() as f32;
-
             info!(
                 "Iter {}: mean_return={:.2}, best={:.2}, success_rate={:.1}%",
                 iter,
@@ -428,7 +447,15 @@ fn run_training(
     info!("Training complete. Best reward: {:.2}", best_reward);
 
     if let Some(path) = output {
-        policy.save(&path)?;
+        policy.save_versioned(
+            &path,
+            &policy_name,
+            &policy_version,
+            iterations,
+            iterations * episodes_per_iter,
+            best_reward,
+            best_success_rate,
+        )?;
         info!("Saved final policy to {}", path);
     }
 
@@ -548,6 +575,51 @@ impl LinearPolicy {
         }
     }
 
+    /// Save policy in versioned format using PolicyBuilder.
+    fn save_versioned(
+        &self,
+        path: &str,
+        name: &str,
+        version: &str,
+        training_iterations: usize,
+        training_episodes: usize,
+        avg_reward: f32,
+        success_rate: f32,
+    ) -> Result<()> {
+        let builder = PolicyBuilder::new(name, version, self.weights.clone(), self.biases.clone())
+            .description("Navigation policy trained with REINFORCE")
+            .log_std(self.log_std.clone())
+            .metrics(PolicyMetrics {
+                success_rate,
+                avg_reward,
+                training_iterations,
+                training_episodes,
+            });
+
+        // Determine output path
+        let output_path = if path.ends_with(".json") {
+            path.to_string()
+        } else {
+            // Create filename from name and version
+            let filename = format!("{}-v{}.json", name, version);
+            if std::path::Path::new(path).is_dir() {
+                format!("{}/{}", path, filename)
+            } else {
+                // Create directory if needed
+                if let Some(parent) = std::path::Path::new(path).parent() {
+                    std::fs::create_dir_all(parent)?;
+                }
+                path.to_string()
+            }
+        };
+
+        builder.save(&output_path)?;
+        info!(path = %output_path, "Policy saved");
+        Ok(())
+    }
+
+    /// Save policy in legacy format (for backwards compatibility).
+    #[allow(dead_code)]
     fn save(&self, path: &str) -> Result<()> {
         let data = serde_json::json!({
             "weights": self.weights,
@@ -558,6 +630,7 @@ impl LinearPolicy {
         Ok(())
     }
 
+    #[allow(dead_code)]
     fn load(path: &str) -> Result<Self> {
         let data: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(path)?)?;
         
