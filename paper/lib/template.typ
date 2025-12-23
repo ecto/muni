@@ -16,6 +16,17 @@
 #let muni-note = rgb("#2563EB")        // Information
 #let muni-success = rgb("#16A34A")     // Success/complete
 
+// =============================================================================
+// Brand Typography
+// =============================================================================
+
+#let muni-font = "Times New Roman"
+#let muni-font-mono = ("SF Mono", "Courier New", "Courier")
+#let muni-font-size = 10pt
+#let muni-leading = 0.65em
+#let muni-tracking = 0em
+#let muni-justify = true
+
 // Configure zero for large numbers with comma grouping
 #set-num(group: (threshold: 4, separator: ","))
 
@@ -64,9 +75,9 @@
     },
   )
 
-  // Typography (Times New Roman for documents/marketing)
-  set text(font: "Times New Roman", size: 10pt)
-  set par(justify: true, leading: 0.65em)
+  // Typography (Times New Roman for formal documents)
+  set text(font: muni-font, size: muni-font-size, tracking: muni-tracking)
+  set par(justify: muni-justify, leading: muni-leading)
   set heading(numbering: "1.1")
 
   // Level 1 headings: Orange left border
@@ -78,25 +89,25 @@
     )[
       #text(size: 18pt, weight: "bold")[#it]
     ]
-    v(0.8em)
+    v(0.2em)
   }
 
   // Level 2 headings
   show heading.where(level: 2): it => {
     v(1em)
     text(size: 13pt, weight: "bold")[#it]
-    v(0.4em)
+    v(0.2em)
   }
 
   // Level 3 headings
   show heading.where(level: 3): it => {
     v(0.6em)
     text(size: 11pt, weight: "bold")[#it]
-    v(0.3em)
+    v(0.1em)
   }
 
   // Code blocks
-  show raw: set text(font: ("Courier New", "Courier"), size: 9pt)
+  show raw: set text(font: (muni-font-mono, "Courier New", "Courier"), size: 8pt)
   show raw.where(block: true): it => {
     block(
       width: 100%,
