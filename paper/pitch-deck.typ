@@ -73,17 +73,9 @@
     ],
     [
       #align(center)[
-        #box(
-          width: 100%,
-          height: 2.5in,
-          fill: muni-light-gray,
-          radius: 8pt,
-          align(center + horizon)[
-            #text(fill: gray)[_Photo: Person walking in street due to uncleared sidewalk_]
-          ]
-        )
+        #image("images/pedestrian-road.jpg", width: 100%)
 
-        #v(0.2in)
+        #v(0.1in)
 
         #text(size: 12pt, fill: gray)[
           Cities face impossible tradeoffs: \
@@ -101,22 +93,12 @@
 #page[
   #text(size: 32pt, weight: "bold", fill: muni-orange)[Our Solution]
 
-  #v(0.3in)
-
   #grid(
     columns: (1fr, 1fr),
     gutter: 0.5in,
     [
       #align(center)[
-        #box(
-          width: 100%,
-          height: 2.8in,
-          fill: muni-light-gray,
-          radius: 8pt,
-          align(center + horizon)[
-            #text(fill: gray)[_Photo/render: BVR rover clearing sidewalk_]
-          ]
-        )
+        #image("images/rover.jpg", width: 85%)
       ]
     ],
     [
@@ -169,8 +151,6 @@
       ]
     )
 
-    #v(0.3in)
-
     #text(size: 14pt, fill: gray)[
       bvr0 prototype operational December 2025 \
       bvr1 production units shipping Summer 2026
@@ -184,8 +164,6 @@
 
 #page[
   #text(size: 32pt, weight: "bold", fill: muni-orange)[Market Opportunity]
-
-  #v(0.2in)
 
   #text(size: 18pt, weight: "bold")[Total Addressable Market: \$14B+]
 
@@ -220,8 +198,6 @@
 
 #page[
   #text(size: 32pt, weight: "bold", fill: muni-orange)[Business Model]
-
-  #v(0.3in)
 
   #grid(
     columns: (1fr, 1fr),
@@ -279,8 +255,6 @@
 
 #page[
   #text(size: 32pt, weight: "bold", fill: muni-orange)[Traction]
-
-  #v(0.4in)
 
   #grid(
     columns: (1fr, 1fr, 1fr),
@@ -345,8 +319,6 @@
 #page[
   #text(size: 32pt, weight: "bold", fill: muni-orange)[Competitive Landscape]
 
-  #v(0.3in)
-
   #table(
     columns: (1.5fr, 1fr, 1fr, 1fr, 1fr),
     stroke: 0.5pt + muni-light-gray,
@@ -380,31 +352,21 @@
 #page[
   #text(size: 32pt, weight: "bold", fill: muni-orange)[Team]
 
-  #v(0.5in)
-
   #grid(
     columns: (auto, 1fr),
     gutter: 0.5in,
     [
-      #box(
-        width: 1.5in,
-        height: 1.5in,
-        fill: muni-light-gray,
-        radius: 8pt,
-        align(center + horizon)[
-          #text(fill: gray)[Photo]
-        ]
-      )
+      #image("images/cam.jpg", width: 1.5in)
     ],
     [
       #text(size: 24pt, weight: "bold")[Cam Pedersen]
       #text(size: 16pt, fill: gray)[, Founder]
 
       #text(size: 14pt)[
-        - 12+ years building software at scale
-        - Former Staff Engineer at major tech companies
-        - Built and shipped products used by millions
-        - Based in Cleveland, Ohio (snow belt)
+        - Autonomous vehicle scheduling, Uber
+        - CTO & Co-founder, DitchCarbon (carbon accounting SaaS)
+        - Director of Engineering, Vanilla
+        - Based in Cleveland, Ohio
       ]
     ]
   )
@@ -438,8 +400,6 @@
 #page[
   #text(size: 32pt, weight: "bold", fill: muni-orange)[Roadmap]
 
-  #v(0.3in)
-
   #table(
     columns: (1fr, 2fr, 2fr),
     stroke: 0.5pt + muni-light-gray,
@@ -464,8 +424,6 @@
 
 #page[
   #text(size: 32pt, weight: "bold", fill: muni-orange)[Financial Projections]
-
-  #v(0.3in)
 
   #grid(
     columns: (1fr, 1fr),
@@ -520,9 +478,11 @@
 #page[
   #text(size: 32pt, weight: "bold", fill: muni-orange)[The Ask]
 
+  #v(-0.5in)
+
   #align(center)[
     #text(size: 48pt, weight: "bold")[\$500-600k Pre-Seed]
-
+    #v(-0.5in)
     #text(size: 20pt, fill: gray)[at \$3M post-money valuation]
   ]
 
@@ -530,6 +490,7 @@
     columns: (1fr, 1fr),
     gutter: 0.5in,
     [
+    #v(-0.5in)
       #text(size: 18pt, weight: "bold")[Use of Funds]
 
       #table(
@@ -560,8 +521,6 @@
           [✓ 2-3 LOIs from larger cities],
         )
       ]
-
-      #v(0.3in)
 
       #text(size: 14pt)[
         *Seed target:* \$3M at \$12M post \

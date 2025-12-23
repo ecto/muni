@@ -29,7 +29,7 @@
   footer: context {
     if counter(page).get().first() > 1 [
       #set text(size: 8pt, fill: gray)
-      Rev 1.1, December 2025
+      Rev 1.2, December 2025
       #h(1fr)
       #counter(page).display()
       #h(1fr)
@@ -53,31 +53,31 @@
 }
 #show raw: set text(font: "Menlo", size: 9pt)
 
+  #v(10em)
+
 // Title page
 #align(center)[
-  #v(2in)
   #text(size: 24pt, weight: "bold")[
     Robotic Systems \
     for
     Sidewalk Maintenance \
   ]
-  #v(0.5em)
+  #v(0.1em)
   #text(size: 14pt)[
     Why aren't robots shoveling the snow?
   ]
-  #v(2em)
+  #v(0.1em)
   #text(size: 11pt, fill: gray)[
     Whitepaper, December 2025
   ]
-  #v(2em)
+  #v(0.1em)
   #text(size: 12pt)[
     *Municipal Robotics* \
     Cleveland, Ohio \
     #link("mailto:info@muni.works")[info\@muni.works]
   ]
-  #v(1em)
+  #v(0.1em)
   #image("images/rover.jpg", width: 60%)
-  #v(1fr)
 ]
 
 #pagebreak()
@@ -85,15 +85,15 @@
 // Abstract
 #heading(outlined: false, numbering: none)[Abstract]
 
-Municipalities, property managers, and commercial operators maintain hundreds of thousands of miles of sidewalks across the United States. Snow and ice removal on these surfaces is mandated by ADA compliance, tort liability, and ordinance. The labor required is seasonal, episodic, and difficult to staff. Equipment designed for roadways cannot operate on sidewalks. The result is a service gap addressed through overtime, contractors, and deferred maintenance.
+Sidewalk snow removal in the United States is mandated by law, underserved by equipment, and hemorrhaging labor. ADA compliance, municipal ordinance, and tort liability require cleared paths. The machines that clear roads cannot fit. The workers who could clear by hand are seasonal, expensive, and increasingly unavailable. Municipalities respond with overtime, contractors, and deferred maintenance. The gap persists.
 
-This paper describes a robotic system designed to close that gap. The system consists of a small-footprint rover platform (600mm × 600mm) capable of sidewalk navigation, a modular attachment interface supporting snow clearing, sweeping, and brine application, a remote operations model that allows one operator to supervise multiple units, and a fleet coordination layer that integrates with existing municipal GIS and work order systems.
+This paper presents a robotic system designed to close it: a 600mm x 600mm rover platform with modular attachments for snow clearing, sweeping, and brine application, operated remotely over LTE by a single supervisor monitoring multiple units. Fleet coordination integrates with existing municipal GIS and work order systems. The platform is currently deployed in pilot configuration under direct human supervision.
 
-Under supervised autonomy (one operator monitoring ten units), the system reduces five-year total cost of ownership by approximately 70% compared to manual labor and 50% compared to contractors. Even at current 1:1 teleoperation, TCO reduction exceeds 50% versus manual approaches and 20% versus contractors. Additional value from reduced slip-and-fall liability and eliminated worker injuries is not included in these figures. The system is currently deployed in pilot configuration under direct human supervision via LTE teleoperation. Specifications reflect current hardware and software constraints.
+Under supervised autonomy (1:10 operator-to-unit ratio), five-year total cost of ownership drops approximately 70% versus manual labor and 50% versus contractors. At current 1:1 teleoperation, TCO reduction still exceeds 50% versus manual and 20% versus contract crews. These figures exclude avoided slip-and-fall liability and eliminated worker injury costs. Specifications reflect current hardware and software constraints.
 
 #v(1em)
-#line(length: 100%, stroke: 0.5pt + gray)
-#v(1em)
+
+#pagebreak()
 
 // Table of contents
 #outline(
@@ -240,50 +240,62 @@ Most municipalities address sidewalk maintenance through one of three approaches
   cetz.canvas(length: 1cm, {
     import cetz.draw: *
 
-    // Three columns for three approaches
-    let col-width = 3.5
-    let col-gap = 0.5
+    // Color palette
+    let blue = rgb("#2563eb")
+    let blue-light = rgb("#eff6ff")
+    let amber = rgb("#d97706")
+    let amber-light = rgb("#fffbeb")
+    let purple = rgb("#7c3aed")
+    let purple-light = rgb("#f5f3ff")
+    let red = rgb("#dc2626")
+    let gray = rgb("#6b7280")
 
-    // Column 1: Municipal Crews
-    rect((-5.5, -3), (-2, 2.5), fill: rgb("#e3f2fd"), stroke: rgb("#1976d2") + 1pt, radius: 0.15)
-    content((-3.75, 2), text(size: 8pt, weight: "bold")[Municipal Crews])
+    // Card 1: Municipal Crews
+    let x1 = -5.8
+    rect((x1 - 0.05, -2.55), (x1 + 3.6 + 0.05, 2.25), fill: rgb("#e5e7eb"), stroke: none, radius: 0.2)
+    rect((x1, -2.5), (x1 + 3.6, 2.2), fill: blue-light, stroke: blue + 1.5pt, radius: 0.15)
+    content((x1 + 1.8, 1.7), text(size: 9pt, weight: "bold", fill: blue)[Municipal Crews])
+    content((x1 + 1.8, 1.1), text(size: 7pt, fill: gray)[Seasonal workers])
+    content((x1 + 1.8, 0.7), text(size: 7pt, fill: gray)[Hand tools & blowers])
+    content((x1 + 1.8, 0.1), text(size: 6pt, weight: "bold", fill: red)[WHY IT FAILS])
+    content((x1 + 1.8, -0.35), text(size: 6.5pt)[Labor shortages])
+    content((x1 + 1.8, -0.8), text(size: 6.5pt)[0.1 mi/hr coverage])
+    content((x1 + 1.8, -1.25), text(size: 6.5pt)[High injury rate])
+    content((x1 + 1.8, -1.7), text(size: 6.5pt)[Inconsistent quality])
 
-    content((-3.75, 1.2), text(size: 6pt)[Seasonal workers])
-    content((-3.75, 0.7), text(size: 6pt)[Shovels, blowers])
+    // Card 2: Contractors
+    let x2 = -1.4
+    rect((x2 - 0.05, -2.55), (x2 + 3.6 + 0.05, 2.25), fill: rgb("#e5e7eb"), stroke: none, radius: 0.2)
+    rect((x2, -2.5), (x2 + 3.6, 2.2), fill: amber-light, stroke: amber + 1.5pt, radius: 0.15)
+    content((x2 + 1.8, 1.7), text(size: 9pt, weight: "bold", fill: amber)[Contractors])
+    content((x2 + 1.8, 1.1), text(size: 7pt, fill: gray)[Landscaping companies])
+    content((x2 + 1.8, 0.7), text(size: 7pt, fill: gray)[Per-event billing])
+    content((x2 + 1.8, 0.1), text(size: 6pt, weight: "bold", fill: red)[WHY IT FAILS])
+    content((x2 + 1.8, -0.35), text(size: 6.5pt)[Incentive mismatch])
+    content((x2 + 1.8, -0.8), text(size: 6.5pt)[No verification])
+    content((x2 + 1.8, -1.25), text(size: 6.5pt)[Multi-client conflicts])
+    content((x2 + 1.8, -1.7), text(size: 6.5pt)[Wrong equipment])
 
-    rect((-5.3, -2.7), (-2.2, -0.2), fill: rgb("#ffebee"), stroke: none, radius: 0.1)
-    content((-3.75, -0.5), text(size: 6pt, fill: rgb("#c62828"))[✗ Labor shortages])
-    content((-3.75, -1.0), text(size: 6pt, fill: rgb("#c62828"))[✗ 0.1 mi/hr rate])
-    content((-3.75, -1.5), text(size: 6pt, fill: rgb("#c62828"))[✗ Injury risk])
-    content((-3.75, -2.0), text(size: 6pt, fill: rgb("#c62828"))[✗ Inconsistent])
+    // Card 3: Property Mandates
+    let x3 = 3.0
+    rect((x3 - 0.05, -2.55), (x3 + 3.6 + 0.05, 2.25), fill: rgb("#e5e7eb"), stroke: none, radius: 0.2)
+    rect((x3, -2.5), (x3 + 3.6, 2.2), fill: purple-light, stroke: purple + 1.5pt, radius: 0.15)
+    content((x3 + 1.8, 1.7), text(size: 9pt, weight: "bold", fill: purple)[Property Mandates])
+    content((x3 + 1.8, 1.1), text(size: 7pt, fill: gray)[Ordinance-based])
+    content((x3 + 1.8, 0.7), text(size: 7pt, fill: gray)[78% of U.S. cities])
+    content((x3 + 1.8, 0.1), text(size: 6pt, weight: "bold", fill: red)[WHY IT FAILS])
+    content((x3 + 1.8, -0.35), text(size: 6.5pt)[No enforcement])
+    content((x3 + 1.8, -0.8), text(size: 6.5pt)[Equity gaps])
+    content((x3 + 1.8, -1.25), text(size: 6.5pt)[Inconsistent coverage])
+    content((x3 + 1.8, -1.7), text(size: 6.5pt)[Unclear liability])
 
-    // Column 2: Contractors
-    rect((-1.75, -3), (1.75, 2.5), fill: rgb("#fff3e0"), stroke: rgb("#ff9800") + 1pt, radius: 0.15)
-    content((0, 2), text(size: 8pt, weight: "bold")[Contractors])
-
-    content((0, 1.2), text(size: 6pt)[Landscaping cos])
-    content((0, 0.7), text(size: 6pt)[Per-event billing])
-
-    rect((-1.55, -2.7), (1.55, -0.2), fill: rgb("#ffebee"), stroke: none, radius: 0.1)
-    content((0, -0.5), text(size: 6pt, fill: rgb("#c62828"))[✗ Incentive mismatch])
-    content((0, -1.0), text(size: 6pt, fill: rgb("#c62828"))[✗ No verification])
-    content((0, -1.5), text(size: 6pt, fill: rgb("#c62828"))[✗ Multi-client])
-    content((0, -2.0), text(size: 6pt, fill: rgb("#c62828"))[✗ Wrong equipment])
-
-    // Column 3: Property Mandates
-    rect((2, -3), (5.5, 2.5), fill: rgb("#f3e5f5"), stroke: rgb("#7b1fa2") + 1pt, radius: 0.15)
-    content((3.75, 2), text(size: 8pt, weight: "bold")[Property Mandates])
-
-    content((3.75, 1.2), text(size: 6pt)[Ordinance-based])
-    content((3.75, 0.7), text(size: 6pt)[78% of cities])
-
-    rect((2.2, -2.7), (5.3, -0.2), fill: rgb("#ffebee"), stroke: none, radius: 0.1)
-    content((3.75, -0.5), text(size: 6pt, fill: rgb("#c62828"))[✗ No enforcement])
-    content((3.75, -1.0), text(size: 6pt, fill: rgb("#c62828"))[✗ Equity gaps])
-    content((3.75, -1.5), text(size: 6pt, fill: rgb("#c62828"))[✗ Inconsistent])
-    content((3.75, -2.0), text(size: 6pt, fill: rgb("#c62828"))[✗ Liability unclear])
+    // Bottom insight callout
+    rect((-5.8, -3.8), (6.6, -3.0), fill: rgb("#fef2f2"), stroke: rgb("#fecaca") + 0.5pt, radius: 0.1)
+    content((0.4, -3.4), text(size: 7pt, style: "italic", fill: rgb("#991b1b"))[
+      All three treat maintenance as an episodic labor problem, not a continuous coverage problem.
+    ])
   }),
-  caption: [Three current approaches to sidewalk maintenance, all with significant failure modes],
+  caption: [Current approaches to sidewalk maintenance share structural failure modes that prevent reliable service delivery.],
 ) <fig:approaches>
 
 *1. Municipal crews with hand tools and small equipment*
