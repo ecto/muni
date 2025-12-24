@@ -163,7 +163,7 @@ This system would not have been economically viable five years ago. Several tech
 
 *Open-source software maturity.* ROS2, OpenCV, PyTorch, and related tools have matured to production quality. Pre-trained models for common perception tasks (pedestrian detection, path segmentation, obstacle classification) are freely available and run efficiently on edge hardware. Projects like comma.ai's openpilot demonstrate what is possible: an open-source driver assistance system with over #num[300e6] miles driven, 325+ supported vehicle models, and contributions from over #num[1000] developers @openpilot2025. The entire perception and control stack runs on a \$500 device.
 
-*Proven autonomous navigation at scale.* The question of whether robots can navigate shared pedestrian spaces has been answered. Starship Technologies' delivery robots have logged over #num[12e6] autonomous miles on sidewalks worldwide @starship2025. Waymo's robotaxi fleet has driven #num[25e6]+ fully driverless miles with demonstrated safety improvements: 72% fewer injury-causing crashes than human drivers @waymo2024safety. These are not research prototypes; they are commercial services operating daily. The perception, planning, and safety systems required for sidewalk navigation exist and work.
+*Proven autonomous navigation at scale.* The question of whether robots can navigate shared pedestrian spaces has been answered. Starship Technologies' delivery robots have logged over #num[12e6] autonomous miles on sidewalks worldwide @starship2025. Waymo's robotaxi fleet has driven #num[96e6]+ fully driverless miles with demonstrated safety improvements: 79% fewer injury-causing crashes than human drivers @waymo2024safety. These are not research prototypes; they are commercial services operating daily. The perception, planning, and safety systems required for sidewalk navigation exist and work.
 
 The result: a complete sidewalk-clearing robot can be built for under \$5,000 in hardware, using components available from consumer electronics suppliers. The software stack to operate it autonomously has been proven at scale in adjacent domains. This is below the threshold where municipalities can experiment without major capital approval processes.
 
@@ -198,7 +198,7 @@ This profile (high density, extensive sidewalk network, heavy pedestrian relianc
 
 Minneapolis presents a contrasting case: a larger city actively grappling with the economics of municipal sidewalk clearing. With a population of 429,000 and approximately 1,910 miles of sidewalks, Minneapolis has 92% of streets with sidewalks on both sides and is recognized as a Gold-level Walk Friendly Community.
 
-The city experiences an average of 52 inches of annual snowfall across approximately 23 snow events per season, with four typically triggering declared snow emergencies @mndnr2024snow. Current ordinance requires residential property owners to clear sidewalks within 24 hours of snowfall; commercial properties must clear within 4 daytime hours. Enforcement, as in most cities, is complaint-driven.
+The city experiences an average of 54 inches of annual snowfall across approximately 23 snow events per season, with four typically triggering declared snow emergencies @mndnr2024snow. Current ordinance requires residential property owners to clear sidewalks within 24 hours of snowfall; commercial properties must clear within 4 daytime hours. Enforcement, as in most cities, is complaint-driven.
 
 In 2023, Minneapolis commissioned a study of citywide municipal sidewalk clearing. The projected cost: \$#num[116.2e6] over the first three years, with annual operating costs of \$#num[40.6e6] thereafter @startribune2023sidewalk. At #num[1910] miles, this works out to approximately \$#num[21250] per mile per year, reflecting the full cost of equipment, labor, and overhead at municipal scale.
 
@@ -429,7 +429,7 @@ Several companies have developed autonomous snow-clearing robots, though none ha
 
 The Toro Company acquired Left Hand Robotics in 2021, gaining the RT-1000 autonomous platform @toro2021lefthand. The RT-1000 is a multi-purpose robot capable of mowing and snow clearing, using RTK GPS, LiDAR, radar, and six cameras for navigation. It clears approximately 2 miles of sidewalk per hour with a 56-inch brush attachment.
 
-The RT-1000 has seen limited municipal deployment, notably in Grande Prairie, Alberta for trail maintenance. However, its form factor (ATV-sized, ~1,000 lbs) limits sidewalk applicability: it cannot navigate narrow passages, ADA ramps, or constrained urban sidewalks common in older cities.
+The RT-1000 has seen limited municipal deployment, notably in Grande Prairie, Alberta for trail maintenance. However, its form factor (ATV-sized, ~1,250 lbs) limits sidewalk applicability: it cannot navigate narrow passages, ADA ramps, or constrained urban sidewalks common in older cities.
 
 *Toro's likely strategy:* Toro is the dominant player in commercial grounds equipment (\$4B+ revenue). Their acquisition of Left Hand signals intent to lead in autonomous outdoor equipment. However, Toro's core business is selling equipment to landscaping contractors and grounds managers, not operating municipal services. They will likely pursue an equipment-sales model (sell RT-1000 units to municipalities or contractors) rather than a service model. This creates an opening for service-oriented approaches that align incentives with municipal outcomes rather than equipment purchases.
 
@@ -447,14 +447,14 @@ ASV.ai (Canada) offers a Robotics-as-a-Service model for autonomous snow removal
 
 Yarbo produces a consumer/prosumer autonomous snow blower with 24-inch clearing width and 12-inch depth capacity @yarbo2024. It features weather-triggered scheduling and operates in temperatures as low as −13°F. Yarbo targets residential customers and small commercial properties rather than municipal infrastructure.
 
-=== Nivoso (Inactive)
+=== Nivoso
 
-Nivoso was a University of Minnesota spinout that secured over \$1 million in letters of intent for commercial snow-clearing robots as of 2024 @nivoso2024. However, the project appears to be inactive: founder Max Minakov's LinkedIn shows he has moved to a role at another startup. No product has shipped, and the company has no active web presence. This illustrates a common pattern in robotics: university spinouts often struggle to bridge the gap from prototype to commercial deployment.
+Nivoso is a University of Minnesota spinout founded by Max Minakov that developed an autonomous snow-clearing robot. The company won the Student Division of the Minnesota Cup in 2023, earning \$26,000 in seed funding @nivoso2024. As of early 2025, Nivoso began selling robots to residential customers and piloting with large snow-clearing companies and senior living facilities. The company represents an emerging competitor in the residential/light commercial segment.
 
 === Municipal Pilots
 
-- *Innisfil, Ontario (2024):* Partnered with Swap Robotics for a sidewalk-clearing pilot, using a v-plow and onboard salt with human chaperones during initial deployment.
-- *Grande Prairie, Alberta (2024):* Deployed Toro RT-1000 for autonomous trail maintenance.
+- *Innisfil, Ontario (2021):* Partnered with Swap Robotics for a sidewalk-clearing pilot, using a v-plow and onboard salt with human chaperones during initial deployment. The pilot led to further development: Swap Robotics received \$790K from the Ontario government in 2023 and expanded to other Ontario locations.
+- *Grande Prairie, Alberta (2019):* Deployed Toro RT-1000 for autonomous trail maintenance around Bear Creek Reservoir, later relocated in 2021 for improved operational efficiency.
 
 These pilots demonstrate municipal interest but have not scaled beyond single-unit demonstrations.
 
