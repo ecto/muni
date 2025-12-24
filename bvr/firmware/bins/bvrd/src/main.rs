@@ -430,7 +430,7 @@ async fn main() -> Result<()> {
     // Initialize autonomous mode (policy loading)
     let autonomous_enabled = !args.no_autonomous && file_config.autonomous.enabled;
     let mut loaded_policy: Option<Policy> = None;
-    let mut autonomous_goal: Option<[f64; 2]> = args.goal.or(file_config.autonomous.goal);
+    let autonomous_goal: Option<[f64; 2]> = args.goal.or(file_config.autonomous.goal);
     let autonomous_max_linear = file_config.autonomous.max_linear_vel;
     let autonomous_max_angular = file_config.autonomous.max_angular_vel;
     let norm_config = NormalizationConfig::default();
@@ -850,7 +850,7 @@ async fn main() -> Result<()> {
         let (target_twist, boost_active) = match current_mode {
             Mode::Autonomous => {
                 // Autonomous mode: use policy for navigation
-                if let (Some(ref policy), Some(goal)) = (&loaded_policy, autonomous_goal) {
+                if let (Some(policy), Some(goal)) = (&loaded_policy, autonomous_goal) {
                     // Get current pose estimate
                     let current_pose = if args.sim {
                         can_interface.pose()
