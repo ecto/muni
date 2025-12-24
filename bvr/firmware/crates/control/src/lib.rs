@@ -204,6 +204,7 @@ mod tests {
         let twist = Twist {
             linear: 1.0,
             angular: 0.0,
+            boost: false,
         };
         let wheels = mixer.mix(twist);
 
@@ -220,6 +221,7 @@ mod tests {
         let twist = Twist {
             linear: 0.0,
             angular: 1.0,
+            boost: false,
         };
         let wheels = mixer.mix(twist);
 
