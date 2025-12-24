@@ -1,17 +1,17 @@
 //! LED controller using WS2812 via PIO.
 //!
 //! Supports multiple animation modes: solid, pulse, chase, flash.
+//! Uses embassy-rp's built-in PioWs2812 driver.
 
 #![no_std]
 
-use embassy_rp::pio::Instance;
 use embassy_time::Instant;
 use smart_leds::RGB8;
 
 pub mod animations;
 
 /// LED mode with parameters.
-#[derive(Debug, Clone, Copy, PartialEq, defmt::Format)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum LedMode {
     /// All LEDs off.
     Off,
@@ -138,7 +138,7 @@ impl<const N: usize> LedController<N> {
         if self.mode != mode {
             self.mode = mode;
             self.start_time = Instant::now();
-            defmt::info!("LED mode changed: {:?}", mode);
+            // Mode changed (defmt logging removed to avoid Format trait requirement)
         }
     }
 
@@ -166,7 +166,7 @@ impl<const N: usize> LedController<N> {
                 period_ms,
             } => {
                 let phase = animations::pulse_phase(elapsed_ms, period_ms as u32);
-                let scaled_brightness = ((brightness as u32 * phase) / 255) as u8;
+                let scaled_brightness = ((brightness as u32 * phase as u32) / 255) as u8;
                 let scaled = scale_color(color, scaled_brightness);
                 self.buffer.fill(scaled);
             }

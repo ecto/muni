@@ -8,29 +8,41 @@ Embedded firmware for CAN-connected microcontrollers on the rover.
 mcu/
 ├── crates/
 │   ├── mcu-core/     # Shared: CAN protocol, watchdog, heartbeat
-│   └── mcu-leds/     # Driver: WS2812 LED control via PIO
+│   └── mcu-leds/     # Driver: LED animations and control
 └── bins/
-    └── rover-leds/   # Binary: Base rover LED controller (Pico 2)
+    └── rover-leds/   # Binary: Base rover LED controller (Pico 2 W)
 ```
 
 ## Hardware
 
 ### LED Controller (rover-leds)
 
-- **MCU**: Raspberry Pi Pico 2 (RP2350)
-- **CAN**: MCP2515 via SPI
-- **LEDs**: WS2812/addressable 12V COB strip
+- **MCU**: Raspberry Pi Pico 2 W (RP2350)
+- **LEDs**: WS2811 12V addressable strip (ALITOVE RGB, 4 addressable units)
+- **CAN**: MCP2515 via SPI (planned)
 
 #### Pinout
 
-| Pico 2 Pin | Function      |
-| ---------- | ------------- |
-| GP16       | MCP2515 MISO  |
-| GP17       | MCP2515 CS    |
-| GP18       | MCP2515 SCK   |
-| GP19       | MCP2515 MOSI  |
-| GP20       | MCP2515 INT   |
-| GP0        | LED data (5V) |
+| Pico 2 Pin | Function           |
+| ---------- | ------------------ |
+| GP0        | LED data out       |
+| GP16       | MCP2515 MISO (TBD) |
+| GP17       | MCP2515 CS (TBD)   |
+| GP18       | MCP2515 SCK (TBD)  |
+| GP19       | MCP2515 MOSI (TBD) |
+| GP20       | MCP2515 INT (TBD)  |
+
+#### LED Wiring (WS2811 12V Strip)
+
+```
+LED Strip          Pico 2 W
+─────────          ────────
++12V (red)    -->  External 12V supply
+GND (white)   -->  GND (shared with 12V supply)
+DIN (green)   -->  GP0 (data output)
+```
+
+**Important**: The data wire (green) must connect to the **input** end of the strip (marked with arrow or "DIN"). Data flows in one direction only.
 
 ## CAN Protocol
 
@@ -65,23 +77,133 @@ mcu/
 
 ## Building
 
+### Prerequisites
+
 ```bash
-# Install target
+# Install Rust target for RP2350
 rustup target add thumbv8m.main-none-eabihf
 
-# Build
+# Install picotool (for flashing)
+brew install picotool  # macOS
+# or build from https://github.com/raspberrypi/picotool
+```
+
+### Build
+
+```bash
 cd mcu
 cargo build --release -p rover-leds
-
-# Flash (with Pico in BOOTSEL mode)
-elf2uf2-rs -d target/thumbv8m.main-none-eabihf/release/rover-leds
 ```
+
+### Flash
+
+1. **Enter BOOTSEL mode**: Hold BOOTSEL button while plugging in USB
+2. **Flash with picotool**:
+
+```bash
+picotool load target/thumbv8m.main-none-eabihf/release/rover-leds -t elf -f
+picotool reboot
+```
+
+**Note**: Do NOT use `elf2uf2-rs` for RP2350 - it generates the wrong UF2 family ID (RP2040 instead of RP2350). Use `picotool` which correctly identifies the target.
 
 ## Debugging
 
-Uses `defmt` for logging via RTT:
+Uses `defmt` for logging. With a debug probe (Picoprobe, etc.):
 
 ```bash
-# With probe-rs
-probe-rs run --chip RP2350 target/thumbv8m.main-none-eabihf/release/rover-leds
+probe-rs run --chip RP235x target/thumbv8m.main-none-eabihf/release/rover-leds
 ```
+
+Without a debug probe, add USB serial logging (see embassy-usb-logger).
+
+## RP2350 / Pico 2 W Notes
+
+### Key Differences from RP2040
+
+1. **Different UF2 family ID**: RP2350 uses `rp2350-arm-s` (0xe48bff59), not RP2040's 0xe48bff56
+2. **Boot2 required**: Must enable `boot2-w25q080` feature in embassy-rp for the flash bootloader
+3. **Memory layout**: Requires special linker sections for boot blocks (`.start_block`, `.end_block`)
+4. **Onboard LED**: On Pico 2 W, the LED is controlled via CYW43 WiFi chip (not GPIO25)
+
+### Required Embassy Features
+
+```toml
+embassy-rp = { version = "0.9", features = [
+    "rp235xa",              # RP2350 variant
+    "time-driver",          # Async timers
+    "boot2-w25q080",        # Flash bootloader (REQUIRED)
+    "critical-section-impl", # Critical section implementation
+    "binary-info",          # Picotool metadata
+] }
+```
+
+### Required Linker Script Sections
+
+The `memory.x` must include boot block sections for RP2350:
+
+```ld
+SECTIONS {
+    .start_block : ALIGN(4) {
+        __start_block_addr = .;
+        KEEP(*(.start_block));
+        KEEP(*(.boot_info));
+    } > FLASH
+} INSERT AFTER .vector_table;
+
+_stext = ADDR(.start_block) + SIZEOF(.start_block);
+
+SECTIONS {
+    .bi_entries : ALIGN(4) {
+        __bi_entries_start = .;
+        KEEP(*(.bi_entries));
+        . = ALIGN(4);
+        __bi_entries_end = .;
+    } > FLASH
+} INSERT AFTER .text;
+
+SECTIONS {
+    .end_block : ALIGN(4) {
+        __end_block_addr = .;
+        KEEP(*(.end_block));
+    } > FLASH
+} INSERT AFTER .uninit;
+```
+
+### Build.rs Requirements
+
+```rust
+// Required linker args for RP2350
+println!("cargo:rustc-link-arg-bins=--nmagic");
+println!("cargo:rustc-link-arg-bins=-Tlink.x");
+println!("cargo:rustc-link-arg-bins=-Tdefmt.x");
+```
+
+### Troubleshooting
+
+**Firmware doesn't run after flashing:**
+- Verify UF2 family ID is `rp2350-arm-s` (check with `xxd file.uf2 | head`)
+- Use `picotool` instead of `elf2uf2-rs`
+- Check `picotool info -a` for boot diagnostics
+
+**Picotool shows "Program Information: none":**
+- Device is in BOOTSEL mode, not running application
+- Check that boot2 feature is enabled
+- Verify memory.x has correct boot block sections
+
+**LEDs not working:**
+- Verify data wire goes to DIN (input) end of strip
+- Check WS2811 vs WS2812 timing (WS2811 uses 400kHz, WS2812 uses 800kHz)
+- Try different color order (GRB vs RGB) - use `Grb` type in PioWs2812
+- Confirm LED count matches addressable units (WS2811 12V has 3 LEDs per IC)
+
+## LED Modes
+
+| Mode       | Color  | Effect        | Use Case         |
+| ---------- | ------ | ------------- | ---------------- |
+| Off        | -      | -             | Disabled         |
+| Solid      | Green  | Constant      | Idle             |
+| Pulse      | Blue   | Breathing     | Teleop active    |
+| Pulse      | Cyan   | Breathing     | Autonomous       |
+| Flash      | Red    | Strobe 200ms  | E-Stop           |
+| Flash      | Orange | Strobe 500ms  | Fault            |

@@ -10,27 +10,26 @@ repository = "https://github.com/muni-town/muni"
 
 [workspace.dependencies]
 # Embassy async runtime
-embassy-executor = { version = "0.7", features = ["arch-cortex-m", "executor-thread"] }
-embassy-time = { version = "0.4", features = ["generic-queue-8"] }
+embassy-executor = { version = "0.9", features = ["arch-cortex-m", "executor-thread"] }
+embassy-time = { version = "0.5", features = ["generic-queue-8"] }
 embassy-sync = "0.6"
 embassy-futures = "0.1"
 
-# RP2350 HAL
-embassy-rp = { version = "0.4", features = ["rp235xa", "time-driver"] }
+# RP2350 HAL (boot2-w25q080 is required for Pico 2 W flash chip)
+embassy-rp = { version = "0.9", features = ["rp235xa", "time-driver", "boot2-w25q080", "critical-section-impl", "binary-info"] }
 
 # Embedded basics
-cortex-m = { version = "0.7", features = ["critical-section-single-core"] }
+cortex-m = { version = "0.7", features = ["inline-asm"] }
 cortex-m-rt = "0.7"
 embedded-hal = "1.0"
 embedded-hal-async = "1.0"
 
 # CAN via MCP2515
-mcp2515 = "0.5"
+mcp2515 = "0.3"
 embedded-can = "0.4"
 
 # LED driver
 smart-leds = "0.4"
-ws2812-pio = "0.8"
 
 # Debugging
 defmt = "1.0"

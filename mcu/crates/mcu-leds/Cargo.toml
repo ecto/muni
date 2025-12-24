@@ -7,5 +7,4 @@ edition.workspace = true
 embassy-rp.workspace = true
 embassy-time.workspace = true
 smart-leds.workspace = true
-ws2812-pio.workspace = true
 defmt.workspace = true
