@@ -21,19 +21,22 @@
 
 #page[
   #align(center + horizon)[
-    #v(0.5in)
-
     #text(size: 14pt, fill: gray)[Pre-Seed Investment Opportunity]
 
-    #v(0.3in)
+    #v(1em)
 
-    #text(size: 48pt, weight: "bold")[Municipal Robotics]
+    #text(size: 16pt, style: "italic")[The] \
+    #v(0.05in)
+    #text(size: 48pt, weight: "bold")[Municipal Robotics] \
+    #v(0.1in)
+    #text(size: 16pt, style: "italic")[Corporation of] \
+    #text(size: 24pt)[Cleveland, Ohio]
 
-    #v(0.2in)
+    #v(0.1in)
 
-    #text(size: 20pt)[Autonomous sidewalk maintenance for cities]
+    #text(size: 18pt)[builds _autonomous_ vehicles \ *to improve public spaces*]
 
-    #v(1in)
+    #v(1em)
 
     #text(size: 14pt, fill: gray)[
       Cam Pedersen, Founder \
@@ -128,32 +131,48 @@
 // =============================================================================
 
 #page[
-  #text(size: 32pt, weight: "bold", fill: muni-orange)[See It In Action]
+  #text(size: 32pt, weight: "bold", fill: muni-orange)[Progress]
 
-  #v(0.5in)
+  #v(0.2in)
 
   #align(center)[
-    #box(
-      width: 80%,
-      height: 3in,
-      fill: muni-light-gray,
-      radius: 8pt,
-      stroke: 2pt + muni-orange,
-      align(center + horizon)[
-        #text(size: 24pt, fill: muni-gray)[▶ Demo Video]
-
-        #v(0.2in)
-
-        #text(size: 14pt, fill: gray)[
-          BVR clearing sidewalk in real conditions \
-          _90 seconds_
-        ]
-      ]
+    #grid(
+      columns: 3,
+      gutter: 16pt,
+      [
+        #image("images/prototype-drift.png", height: 1.6in)
+        #v(4pt)
+        #text(size: 11pt, weight: "bold")[BVR0 Prototype]
+        #v(2pt)
+        #text(size: 10pt, fill: gray)[Operational December 2024]
+      ],
+      [
+        #image("images/bvr0-disassembled.jpg", height: 1.6in)
+        #v(4pt)
+        #text(size: 11pt, weight: "bold")[Field-Repairable]
+        #v(2pt)
+        #text(size: 10pt, fill: gray)[Off-the-shelf parts, \$5k BOM]
+      ],
+      [
+        #image("images/wheel-snow.jpg", height: 1.6in)
+        #v(4pt)
+        #text(size: 11pt, weight: "bold")[Winter Tested]
+        #v(2pt)
+        #text(size: 10pt, fill: gray)[Real snow, real conditions]
+      ],
     )
 
-    #text(size: 14pt, fill: gray)[
-      bvr0 prototype operational December 2025 \
-      bvr1 production units shipping Summer 2026
+    #v(0.2in)
+
+    #box(
+      fill: muni-light-gray,
+      radius: 6pt,
+      inset: 12pt,
+    )[
+      #text(size: 12pt)[
+        #text(fill: muni-orange, weight: "bold")[Solved:] Depot-rover communication #sym.dot Remote teleoperation #sym.dot Winter operation \
+        #text(fill: muni-orange, weight: "bold")[Now:] BVR1 productionization #sym.dot Autonomous navigation
+      ]
     ]
   ]
 ]
@@ -364,7 +383,7 @@
 
       #text(size: 14pt)[
         - Autonomous vehicle scheduling, Uber
-        - CTO & Co-founder, DitchCarbon (carbon accounting SaaS)
+        - CTO & Co-founder, DitchCarbon (Carbon data aggregation)
         - Director of Engineering, Vanilla
         - Based in Cleveland, Ohio
       ]
