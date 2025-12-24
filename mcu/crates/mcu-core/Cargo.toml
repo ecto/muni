@@ -1,0 +1,16 @@
+[package]
+name = "mcu-core"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+embassy-rp.workspace = true
+embassy-time.workspace = true
+embassy-sync.workspace = true
+embassy-executor.workspace = true
+embedded-hal.workspace = true
+embedded-hal-async.workspace = true
+mcp2515.workspace = true
+embedded-can.workspace = true
+defmt.workspace = true
+heapless.workspace = true

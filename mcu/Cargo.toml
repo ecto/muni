@@ -1,0 +1,46 @@
+[workspace]
+resolver = "2"
+members = ["crates/*", "bins/*"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+repository = "https://github.com/muni-town/muni"
+
+[workspace.dependencies]
+# Embassy async runtime
+embassy-executor = { version = "0.7", features = ["arch-cortex-m", "executor-thread"] }
+embassy-time = { version = "0.4", features = ["generic-queue-8"] }
+embassy-sync = "0.6"
+embassy-futures = "0.1"
+
+# RP2350 HAL
+embassy-rp = { version = "0.4", features = ["rp235xa", "time-driver"] }
+
+# Embedded basics
+cortex-m = { version = "0.7", features = ["critical-section-single-core"] }
+cortex-m-rt = "0.7"
+embedded-hal = "1.0"
+embedded-hal-async = "1.0"
+
+# CAN via MCP2515
+mcp2515 = "0.5"
+embedded-can = "0.4"
+
+# LED driver
+smart-leds = "0.4"
+ws2812-pio = "0.8"
+
+# Debugging
+defmt = "1.0"
+defmt-rtt = "0.4"
+panic-probe = { version = "1.0", features = ["print-defmt"] }
+
+# Shared types (no_std compatible)
+heapless = "0.8"
+
+[profile.release]
+opt-level = "s"
+lto = true
+debug = true  # Keep debug info for defmt
