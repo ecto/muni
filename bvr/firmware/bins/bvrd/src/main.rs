@@ -727,6 +727,18 @@ async fn main() -> Result<()> {
     // Track mode for change detection (for recording annotations)
     let mut last_mode = initial_mode;
 
+    // Send initial LED command for current mode
+    {
+        let state = shared.lock().unwrap();
+        let led_cmd = state.state_machine.led_command();
+        let led_frame = led_cmd.to_frame();
+        if let Err(e) = can_interface.send(&led_frame) {
+            debug!(?e, "Failed to send initial LED command");
+        } else {
+            info!(?initial_mode, "Initial LED state set");
+        }
+    }
+
     // Diagnostic counter for battery logging
     let mut loop_count: u64 = 0;
 
@@ -1099,10 +1111,20 @@ async fn main() -> Result<()> {
         let _ = recorder.log_power(telemetry.power.battery_voltage, telemetry.power.system_current);
         let _ = recorder.log_odometry(dx, dy, dtheta);
 
-        // Log mode changes
+        // Log mode changes and update LEDs
         let current_mode = telemetry.mode;
         if current_mode != last_mode {
             let _ = recorder.log_mode(current_mode);
+
+            // Send LED command for new mode
+            let led_cmd = state.state_machine.led_command();
+            let led_frame = led_cmd.to_frame();
+            if let Err(e) = can_interface.send(&led_frame) {
+                debug!(?e, "Failed to send LED command");
+            } else {
+                debug!(?current_mode, "LED command sent for mode change");
+            }
+
             last_mode = current_mode;
         }
 

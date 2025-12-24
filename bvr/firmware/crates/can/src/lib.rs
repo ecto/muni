@@ -2,6 +2,7 @@
 //!
 //! On Linux, uses SocketCAN. On other platforms, provides a mock for development.
 
+pub mod leds;
 pub mod vesc;
 
 use thiserror::Error;

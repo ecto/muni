@@ -1,5 +1,6 @@
 //! State machine and mode management for bvr.
 
+use can::leds::LedCommand;
 use tracing::{info, warn};
 use types::Mode;
 
@@ -111,6 +112,18 @@ impl StateMachine {
         if self.mode != Mode::EStop {
             warn!(old_mode = ?self.mode, "Forcing e-stop");
             self.mode = Mode::EStop;
+        }
+    }
+
+    /// Get the LED command for the current mode.
+    pub fn led_command(&self) -> LedCommand {
+        match self.mode {
+            Mode::Disabled => LedCommand::state_disabled(),
+            Mode::Idle => LedCommand::state_idle(),
+            Mode::Teleop => LedCommand::state_teleop(),
+            Mode::Autonomous => LedCommand::state_autonomous(),
+            Mode::EStop => LedCommand::state_estop(),
+            Mode::Fault => LedCommand::state_fault(),
         }
     }
 }
