@@ -105,8 +105,79 @@ services:
     # For production: use key-based auth by mounting authorized_keys
     command: "bvr:${SFTP_PASSWORD:-dev}:1000:1000:sessions"
 
+  # Map processing service - watches sessions, builds maps
+  mapper:
+    build:
+      context: ./mapper
+      dockerfile: Dockerfile
+    container_name: depot-mapper
+    restart: unless-stopped
+    volumes:
+      - sessions-data:/data/sessions:ro
+      - maps-data:/data/maps
+      - jobs-data:/data/jobs
+    environment:
+      - SESSIONS_DIR=/data/sessions
+      - MAPS_DIR=/data/maps
+      - JOBS_DIR=/data/jobs
+      - RUST_LOG=mapper=info
+    depends_on:
+      sftp:
+        condition: service_started
+
+  # Gaussian splatting worker - processes sessions into 3D splats
+  # Requires NVIDIA GPU runtime: docker compose --profile gpu up
+  splat-worker:
+    build:
+      context: ./splat-worker
+      dockerfile: Dockerfile
+    container_name: depot-splat-worker
+    restart: unless-stopped
+    profiles:
+      - gpu
+    volumes:
+      - sessions-data:/data/sessions:ro
+      - maps-data:/data/maps
+      - jobs-data:/data/jobs
+    environment:
+      - SESSIONS_DIR=/data/sessions
+      - MAPS_DIR=/data/maps
+      - JOBS_DIR=/data/jobs
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    depends_on:
+      - mapper
+
+  # Map API service - serves maps to operator app
+  map-api:
+    build:
+      context: ./map-api
+      dockerfile: Dockerfile
+    container_name: depot-map-api
+    restart: unless-stopped
+    ports:
+      - "4870:4870"
+    volumes:
+      - maps-data:/data/maps:ro
+    environment:
+      - MAPS_DIR=/data/maps
+      - PORT=4870
+      - RUST_LOG=map_api=info
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O-", "http://localhost:4870/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
 volumes:
   influxdb-data:
   influxdb-config:
   grafana-data:
   sessions-data:
+  maps-data:
+  jobs-data:

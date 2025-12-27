@@ -78,9 +78,61 @@ export type CameraMode = (typeof CameraMode)[keyof typeof CameraMode];
 export const View = {
   Home: "home",
   Teleop: "teleop",
+  Maps: "maps",
 } as const;
 
 export type View = (typeof View)[keyof typeof View];
+
+// Map types (from map-api service)
+export interface GpsBounds {
+  minLat: number;
+  maxLat: number;
+  minLon: number;
+  maxLon: number;
+}
+
+export interface MapSummary {
+  id: string;
+  name: string;
+  bounds: GpsBounds;
+  version: number;
+  updatedAt: string;
+  sessionCount: number;
+  hasSplat: boolean;
+  thumbnailUrl: string | null;
+}
+
+export interface MapAssets {
+  splat: string | null;
+  pointcloud: string | null;
+  mesh: string | null;
+  thumbnail: string | null;
+}
+
+export interface MapSessionRef {
+  sessionId: string;
+  roverId: string;
+  date: string;
+}
+
+export interface MapStats {
+  totalPoints: number;
+  totalSplats: number;
+  coveragePct: number;
+}
+
+export interface MapManifest {
+  id: string;
+  name: string;
+  description: string | null;
+  bounds: GpsBounds;
+  version: number;
+  createdAt: string;
+  updatedAt: string;
+  assets: MapAssets;
+  sessions: MapSessionRef[];
+  stats: MapStats;
+}
 
 // Rover info for fleet management
 export interface RoverInfo {
