@@ -1,0 +1,26 @@
+# Gaussian Splatting dependencies
+# Requires NVIDIA GPU with CUDA support
+
+# Core splatting library (nerfstudio's implementation)
+gsplat==1.4.0
+
+# Deep learning
+torch>=2.1.0
+torchvision>=0.16.0
+
+# Point cloud processing
+open3d>=0.18.0
+plyfile>=1.0.0
+
+# Image processing
+Pillow>=10.0.0
+opencv-python-headless>=4.8.0
+
+# Utilities
+numpy>=1.24.0
+tqdm>=4.65.0
+pyyaml>=6.0
+watchdog>=3.0.0
+
+# For equirectangular camera model
+pytorch3d>=0.7.0 ; platform_system != "Windows"

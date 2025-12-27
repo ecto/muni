@@ -6,7 +6,8 @@ Depot is the base station infrastructure for the Muni robot fleet. It provides:
 - **Real-time metrics** via InfluxDB (battery, motors, GPS, mode)
 - **Fleet dashboards** via Grafana (fleet overview + per-rover detail)
 - **Session storage** via SFTP (rovers upload recordings)
-- **Map processing** via Mapper service (Gaussian splatting pipeline)
+- **Map processing** via Mapper service (orchestrates splatting jobs)
+- **Gaussian splatting** via Splat Worker (GPU-accelerated 3D reconstruction)
 - **Map serving** via Map API (browse and download 3D maps)
 - **Automatic retention** (30-day cleanup by default)
 
@@ -39,6 +40,20 @@ docker compose up -d
 ```
 
 This starts all services with default development credentials.
+
+### GPU Support (for Gaussian Splatting)
+
+To enable the splat-worker for GPU-accelerated 3D reconstruction:
+
+```bash
+# Requires NVIDIA GPU and nvidia-docker2
+docker compose --profile gpu up -d
+```
+
+This starts the splat-worker service which:
+- Watches for splatting jobs from the mapper
+- Processes LiDAR + camera data into Gaussian splats
+- Outputs PLY files viewable in the operator app
 
 ### Access
 
@@ -275,17 +290,71 @@ docker compose logs -f sftp
 
 3. Reduce `RETENTION_DAYS` in `.env`
 
+## Mapping Pipeline
+
+The depot includes a complete 3D mapping pipeline:
+
+```
+Rover                    Depot
+  │                        │
+  │ Session upload ────────► SFTP (sessions-data)
+  │ (LiDAR + camera)       │
+  │                        │ Mapper watches
+  │                        │    ↓
+  │                        │ Validates session
+  │                        │    ↓
+  │                        │ Queues splat job
+  │                        │    ↓
+  │                        │ Splat Worker (GPU)
+  │                        │    ↓
+  │                        │ Gaussian splat → maps-data
+  │                        │    ↓
+  │                        │ Map API serves
+  │                        │    ↓
+  │                        │ Operator app views 3D
+```
+
+### Session Format
+
+Sessions uploaded by rovers should have this structure:
+
+```
+sessions/{rover_id}/{timestamp}/
+├── metadata.json          # Session metadata
+├── telemetry.rrd          # Rerun telemetry file
+├── lidar/                 # Point cloud frames
+│   ├── 000000.pcd
+│   └── timestamps.csv
+└── camera/                # Camera frames
+    ├── 000000.jpg
+    └── timestamps.csv
+```
+
+### Map Output
+
+Processed maps are stored as:
+
+```
+maps/{map-name}/
+├── manifest.json          # Map metadata
+├── splat.ply              # Gaussian splat (viewable in app)
+├── result.json            # Processing stats
+└── (optional)
+    ├── pointcloud.laz     # Georeferenced point cloud
+    └── mesh.glb           # Reconstructed mesh
+```
+
 ## Network Ports
 
-| Port | Protocol | Service   | Purpose               |
-| ---- | -------- | --------- | --------------------- |
-| 2222 | TCP      | SFTP      | Session file uploads  |
-| 3000 | TCP      | Grafana   | Web dashboards        |
-| 4860 | TCP      | Discovery | Rover registration    |
-| 4870 | TCP      | Map API   | Map serving           |
-| 8080 | TCP      | Operator  | Web teleop interface  |
-| 8086 | TCP      | InfluxDB  | HTTP API + Web UI     |
-| 8089 | UDP      | InfluxDB  | Line protocol metrics |
+| Port | Protocol | Service      | Purpose               |
+| ---- | -------- | ------------ | --------------------- |
+| 2222 | TCP      | SFTP         | Session file uploads  |
+| 3000 | TCP      | Grafana      | Web dashboards        |
+| 4860 | TCP      | Discovery    | Rover registration    |
+| 4870 | TCP      | Map API      | Map serving           |
+| 8080 | TCP      | Operator     | Web teleop interface  |
+| 8086 | TCP      | InfluxDB     | HTTP API + Web UI     |
+| 8089 | UDP      | InfluxDB     | Line protocol metrics |
 
 ## RTK Base Station
 

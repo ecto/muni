@@ -115,13 +115,43 @@ services:
     volumes:
       - sessions-data:/data/sessions:ro
       - maps-data:/data/maps
+      - jobs-data:/data/jobs
     environment:
       - SESSIONS_DIR=/data/sessions
       - MAPS_DIR=/data/maps
+      - JOBS_DIR=/data/jobs
       - RUST_LOG=mapper=info
     depends_on:
       sftp:
         condition: service_started
+
+  # Gaussian splatting worker - processes sessions into 3D splats
+  # Requires NVIDIA GPU runtime: docker compose --profile gpu up
+  splat-worker:
+    build:
+      context: ./splat-worker
+      dockerfile: Dockerfile
+    container_name: depot-splat-worker
+    restart: unless-stopped
+    profiles:
+      - gpu
+    volumes:
+      - sessions-data:/data/sessions:ro
+      - maps-data:/data/maps
+      - jobs-data:/data/jobs
+    environment:
+      - SESSIONS_DIR=/data/sessions
+      - MAPS_DIR=/data/maps
+      - JOBS_DIR=/data/jobs
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    depends_on:
+      - mapper
 
   # Map API service - serves maps to operator app
   map-api:
@@ -150,3 +180,4 @@ volumes:
   grafana-data:
   sessions-data:
   maps-data:
+  jobs-data:

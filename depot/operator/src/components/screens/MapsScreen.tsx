@@ -16,6 +16,7 @@ import {
 } from "@phosphor-icons/react";
 import { useState } from "react";
 import { useMaps, useMapDetails, getMapAssetUrl } from "@/hooks/useMaps";
+import { SplatViewer } from "@/components/scene/SplatViewer";
 
 function formatDate(dateStr: string): string {
   const date = new Date(dateStr);
@@ -88,13 +89,38 @@ function MapListItem({
 }
 
 function MapDetails({ manifest }: { manifest: MapManifest }) {
+  const [showViewer, setShowViewer] = useState(false);
+
   return (
     <div className="p-6 space-y-6">
+      {/* 3D Viewer (when enabled) */}
+      {showViewer && manifest.assets.splat && (
+        <div className="relative">
+          <SplatViewer mapId={manifest.id} className="h-96 rounded-lg overflow-hidden" />
+          <Button
+            variant="outline"
+            size="sm"
+            className="absolute top-2 right-2"
+            onClick={() => setShowViewer(false)}
+          >
+            Close Viewer
+          </Button>
+        </div>
+      )}
+
       {/* Header */}
-      <div>
-        <h2 className="text-2xl font-bold">{manifest.name}</h2>
-        {manifest.description && (
-          <p className="text-muted-foreground mt-1">{manifest.description}</p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h2 className="text-2xl font-bold">{manifest.name}</h2>
+          {manifest.description && (
+            <p className="text-muted-foreground mt-1">{manifest.description}</p>
+          )}
+        </div>
+        {manifest.assets.splat && !showViewer && (
+          <Button onClick={() => setShowViewer(true)} className="gap-2">
+            <Cube className="h-4 w-4" weight="fill" />
+            View 3D
+          </Button>
         )}
       </div>
 

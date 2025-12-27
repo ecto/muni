@@ -602,14 +602,125 @@ async fn merge_session_into_map(
     Ok(())
 }
 
-/// Run the Gaussian splatting pipeline
+/// Job request for the splat-worker
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SplatJob {
+    pub id: Uuid,
+    pub session_path: PathBuf,
+    pub output_path: PathBuf,
+    pub config: SplatConfig,
+}
+
+/// Configuration for Gaussian splatting
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SplatConfig {
+    pub iterations: u32,
+    pub resolution: u32,
+}
+
+impl Default for SplatConfig {
+    fn default() -> Self {
+        Self {
+            iterations: 30000,
+            resolution: 1024,
+        }
+    }
+}
+
+/// Result from splat-worker
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SplatResult {
+    pub job_id: Uuid,
+    pub status: String,
+    pub completed_at: Option<String>,
+    pub stats: Option<serde_json::Value>,
+}
+
+/// Queue a splatting job for the splat-worker.
 ///
-/// Currently a placeholder that creates a marker file.
-/// Will be replaced with actual splatting when we integrate a library.
+/// Creates a job.json file in the jobs directory that the splat-worker
+/// will pick up and process.
+async fn queue_splat_job(
+    session_path: &Path,
+    map_dir: &Path,
+    jobs_dir: &Path,
+) -> Result<Uuid, MapperError> {
+    // Check if we have the required data
+    let lidar_dir = session_path.join("lidar");
+    let camera_dir = session_path.join("camera");
+
+    if !lidar_dir.exists() && !camera_dir.exists() {
+        warn!(
+            session = %session_path.display(),
+            "No LiDAR or camera data, skipping splatting"
+        );
+        return Err(MapperError::ProcessingFailed(
+            "No LiDAR or camera data available".into(),
+        ));
+    }
+
+    // Create job
+    let job_id = Uuid::new_v4();
+    let job = SplatJob {
+        id: job_id,
+        session_path: session_path.to_path_buf(),
+        output_path: map_dir.to_path_buf(),
+        config: SplatConfig::default(),
+    };
+
+    // Ensure jobs directory exists
+    tokio::fs::create_dir_all(jobs_dir).await?;
+
+    // Write job file
+    let job_path = jobs_dir.join(format!("{}.json", job_id));
+    let json = serde_json::to_string_pretty(&job)?;
+    tokio::fs::write(&job_path, json).await?;
+
+    info!(
+        job_id = %job_id,
+        session = %session_path.display(),
+        output = %map_dir.display(),
+        "Queued splatting job"
+    );
+
+    Ok(job_id)
+}
+
+/// Check if a splat job has completed
+async fn check_splat_result(map_dir: &Path) -> Option<SplatResult> {
+    let result_path = map_dir.join("result.json");
+    
+    if !result_path.exists() {
+        return None;
+    }
+
+    match tokio::fs::read_to_string(&result_path).await {
+        Ok(json) => match serde_json::from_str(&json) {
+            Ok(result) => Some(result),
+            Err(e) => {
+                warn!(error = %e, "Failed to parse splat result");
+                None
+            }
+        },
+        Err(e) => {
+            warn!(error = %e, "Failed to read splat result");
+            None
+        }
+    }
+}
+
+/// Run the Gaussian splatting pipeline.
+///
+/// Queues a job for the splat-worker and optionally waits for completion.
 async fn run_splat_pipeline(
     session_path: &Path,
     map_dir: &Path,
 ) -> Result<Option<String>, MapperError> {
+    // Get jobs directory from environment or use default
+    let jobs_dir = std::env::var("JOBS_DIR")
+        .map(PathBuf::from)
+        .unwrap_or_else(|_| PathBuf::from("/data/jobs"));
+
     // Check if we have the required data
     let lidar_dir = session_path.join("lidar");
     let camera_dir = session_path.join("camera");
@@ -622,24 +733,29 @@ async fn run_splat_pipeline(
         return Ok(None);
     }
 
-    // Placeholder: create a marker file indicating processing happened
-    // In a real implementation, this would:
-    // 1. Load point clouds from lidar/*.pcd
-    // 2. Load images from camera/*.jpg
-    // 3. Load poses from telemetry.rrd
-    // 4. Run Gaussian splatting (gsplat, nerfstudio, etc.)
-    // 5. Output splat.ply
-
-    let splat_path = map_dir.join("splat.ply");
-    let placeholder = format!(
-        "# Placeholder PLY file\n# Source: {}\n# Generated: {}\n",
-        session_path.display(),
-        Utc::now()
+    // Queue the job
+    let job_id = queue_splat_job(session_path, map_dir, &jobs_dir).await?;
+    
+    // For now, we don't wait for completion (async processing)
+    // The splat-worker will write result.json when done
+    // A periodic check or webhook could update the map manifest
+    
+    info!(
+        job_id = %job_id,
+        "Splatting job queued, will be processed asynchronously"
     );
-    tokio::fs::write(&splat_path, placeholder).await?;
 
-    info!(path = %splat_path.display(), "Generated splat (placeholder)");
-    Ok(Some("splat.ply".to_string()))
+    // Check if there's already a result (from a previous run)
+    if let Some(result) = check_splat_result(map_dir).await {
+        if result.status == "success" || result.status == "point_cloud_only" {
+            info!(job_id = %result.job_id, status = %result.status, "Found existing splat result");
+            return Ok(Some("splat.ply".to_string()));
+        }
+    }
+
+    // Return None for now (processing is async)
+    // The map manifest will be updated when we detect the result
+    Ok(None)
 }
 
 // =============================================================================
@@ -688,6 +804,72 @@ async fn watch_sessions(
             _ = shutdown_rx.recv() => {
                 info!("Shutting down file watcher");
                 break;
+            }
+        }
+    }
+
+    Ok(())
+}
+
+// =============================================================================
+// Splat Job Monitoring
+// =============================================================================
+
+/// Check for completed splat jobs and update map manifests.
+async fn check_completed_splat_jobs(state: SharedState) -> Result<(), MapperError> {
+    let maps_to_check: Vec<(Uuid, PathBuf)> = {
+        let state = state.read().await;
+        state
+            .maps
+            .values()
+            .filter(|m| m.assets.splat.is_none()) // Only check maps without splats
+            .map(|m| (m.id, state.maps_dir.join(&m.name)))
+            .collect()
+    };
+
+    for (map_id, map_dir) in maps_to_check {
+        if let Some(result) = check_splat_result(&map_dir).await {
+            if result.status == "success" || result.status == "point_cloud_only" {
+                // Update map manifest with splat asset
+                let splat_path = map_dir.join("splat.ply");
+                if splat_path.exists() {
+                    info!(
+                        map_id = %map_id,
+                        status = %result.status,
+                        "Splat job completed, updating manifest"
+                    );
+
+                    let mut state = state.write().await;
+                    if let Some(map) = state.maps.get_mut(&map_id) {
+                        map.assets.splat = Some("splat.ply".to_string());
+                        map.updated_at = Utc::now();
+
+                        // Update stats if available
+                        if let Some(stats) = &result.stats {
+                            if let Some(points) = stats.get("output_points").and_then(|v| v.as_u64()) {
+                                map.stats.total_points = points;
+                            }
+                            if let Some(gaussians) = stats.get("output_gaussians").and_then(|v| v.as_u64()) {
+                                map.stats.total_splats = gaussians;
+                            }
+                        }
+
+                        // Save updated manifest
+                        let manifest = map.clone();
+                        if let Err(e) = state.save_manifest(&manifest).await {
+                            warn!(error = %e, "Failed to save updated manifest");
+                        }
+                        if let Err(e) = state.save_index().await {
+                            warn!(error = %e, "Failed to save index");
+                        }
+                    }
+                }
+            } else if result.status == "failed" {
+                warn!(
+                    map_id = %map_id,
+                    status = %result.status,
+                    "Splat job failed"
+                );
             }
         }
     }
@@ -773,6 +955,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     });
 
+    // Spawn task to check for completed splat jobs
+    let splat_checker_state = state.clone();
+    let splat_checker_handle = tokio::spawn(async move {
+        let mut interval = tokio::time::interval(Duration::from_secs(30));
+        loop {
+            interval.tick().await;
+            if let Err(e) = check_completed_splat_jobs(splat_checker_state.clone()).await {
+                error!(error = %e, "Error checking splat jobs");
+            }
+        }
+    });
+
     // Wait for shutdown signal
     tokio::signal::ctrl_c().await?;
     info!("Received shutdown signal");
@@ -781,6 +975,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let _ = shutdown_tx.send(()).await;
     watcher_handle.abort();
     processor_handle.abort();
+    splat_checker_handle.abort();
 
     info!("Mapper service stopped");
     Ok(())
