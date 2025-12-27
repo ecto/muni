@@ -91,6 +91,34 @@ pub struct MetricsSnapshot {
 
     /// GPS accuracy (meters, 0 if no fix)
     pub gps_accuracy: f32,
+
+    /// Mesh network health metrics
+    pub mesh: MeshMetrics,
+}
+
+/// Mesh network health metrics for coverage analysis.
+#[derive(Debug, Clone, Default)]
+pub struct MeshMetrics {
+    /// Signal strength to upstream node (dBm, 0 = no connection)
+    pub rssi: i8,
+
+    /// Connection quality percentage (0-100)
+    pub ccq: u8,
+
+    /// Number of hops to depot (0 = direct, 255 = disconnected)
+    pub hop_count: u8,
+
+    /// Round-trip latency to depot (ms)
+    pub latency_ms: u16,
+
+    /// TX rate to upstream (Mbps)
+    pub tx_rate: u16,
+
+    /// RX rate from upstream (Mbps)
+    pub rx_rate: u16,
+
+    /// MAC address of upstream node (for topology mapping)
+    pub upstream_mac: [u8; 6],
 }
 
 /// Metrics pusher that sends rover telemetry to Depot.
@@ -173,6 +201,31 @@ impl MetricsPusher {
                 snapshot.gps_latitude,
                 snapshot.gps_longitude,
                 snapshot.gps_accuracy,
+                timestamp_ns
+            ));
+        }
+
+        // Mesh network health (for coverage gap analysis)
+        if snapshot.mesh.rssi != 0 {
+            let upstream = format!(
+                "{:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}",
+                snapshot.mesh.upstream_mac[0],
+                snapshot.mesh.upstream_mac[1],
+                snapshot.mesh.upstream_mac[2],
+                snapshot.mesh.upstream_mac[3],
+                snapshot.mesh.upstream_mac[4],
+                snapshot.mesh.upstream_mac[5],
+            );
+            lines.push(format!(
+                "mesh,rover={},upstream={} rssi={},ccq={},hops={},latency={},tx_rate={},rx_rate={} {}",
+                rover,
+                upstream,
+                snapshot.mesh.rssi,
+                snapshot.mesh.ccq,
+                snapshot.mesh.hop_count,
+                snapshot.mesh.latency_ms,
+                snapshot.mesh.tx_rate,
+                snapshot.mesh.rx_rate,
                 timestamp_ns
             ));
         }
