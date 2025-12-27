@@ -4,35 +4,124 @@ Network architecture for BVR rovers and depot communication.
 
 ## Overview
 
+BVR uses a **Ubiquiti mesh network** for low-latency rover communication.
+This eliminates LTE data costs and provides 5-50ms latency (vs 100-250ms with LTE).
+
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                              Rover Network                                   │
+│                              Depot                                           │
 │                                                                              │
-│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐                     │
-│  │ Livox       │    │ Jetson      │    │ LTE Modem   │                     │
-│  │ Mid-360     │    │ Orin NX     │    │ (Sierra)    │                     │
-│  │             │    │             │    │             │                     │
-│  │ 192.168.1.10│    │ 192.168.1.1 │    │ DHCP (WAN)  │                     │
-│  └──────┬──────┘    └──────┬──────┘    └──────┬──────┘                     │
-│         │                  │                  │ USB                         │
-│         │ Ethernet         │ Ethernet         │                             │
-│         │                  │                  │                             │
-│         └──────────────────┴──────────────────┘                             │
-│                            │                                                 │
-│                      Direct / Switch                                         │
-└─────────────────────────────────────────────────────────────────────────────┘
-                             │
-                             │ LTE / Internet
-                             ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                              Depot Network                                   │
-│                                                                              │
-│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐    ┌─────────────┐ │
-│  │ Depot       │    │ InfluxDB    │    │ SFTP        │    │ RTK Base    │ │
-│  │ Server      │    │ (metrics)   │    │ (files)     │    │ Station     │ │
-│  └─────────────┘    └─────────────┘    └─────────────┘    └─────────────┘ │
-└─────────────────────────────────────────────────────────────────────────────┘
+│  ┌─────────────┐    ┌─────────────┐    ┌─────────────────────────────────┐ │
+│  │ Operator    │    │ InfluxDB    │    │ Rocket 5AC Prism                │ │
+│  │ Station     │    │ SFTP, etc.  │    │ + Omni Antenna                  │ │
+│  └──────┬──────┘    └──────┬──────┘    └───────────────┬─────────────────┘ │
+│         └──────────────────┴───────────────────────────┘                    │
+│                                         │ Ethernet                          │
+└─────────────────────────────────────────┼───────────────────────────────────┘
+                                          │
+                         5 GHz Mesh (PtMP + rover-to-rover relay)
+                                          │
+          ┌───────────────────────────────┼───────────────────────────────┐
+          │                               │                               │
+          ▼                               ▼                               ▼
+   ┌────────────┐                  ┌────────────┐                  ┌────────────┐
+   │ Rover A    │ ◄──── mesh ────► │ Rover B    │ ◄──── mesh ────► │ Rover C    │
+   │ NanoStation│                  │ NanoStation│                  │ NanoStation│
+   └────────────┘                  └────────────┘                  └────────────┘
+
+Optional: Fixed repeaters added where coverage gaps are identified
 ```
+
+## Network Strategy: Mesh-First, Repeaters Where Needed
+
+**Phase 1: Mesh Only**
+
+- Deploy with depot base station + rover radios only
+- Rovers relay for each other when out of direct range
+- Mesh health metrics identify coverage gaps
+
+**Phase 2: Data-Driven Repeaters**
+
+- Analyze mesh metrics (RSSI, latency, hop count) from InfluxDB
+- Add fixed repeaters only at specific problem locations
+- Typical cost: $200-250 per repeater site
+
+This approach minimizes upfront infrastructure while ensuring coverage grows with demand.
+
+## Patron WiFi (Optional)
+
+The depot mesh infrastructure can double as community WiFi, providing value to
+the neighborhood and leverage for repeater placement negotiations.
+
+### Requirements
+
+- **ISP with redistribution rights**: AT&T Business (patron WiFi allowed) or
+  Starlink Priority ($165+/mo, explicitly permits community hotspots)
+- **Additional hardware**: UniFi AP at depot and/or repeater sites (~$99-180 each)
+- **QoS configuration**: Prioritize rover traffic over public WiFi
+
+### Architecture
+
+```
+Internet (AT&T Business or Starlink Priority)
+    │
+    ▼
+┌─────────────────────────────────────────────────────────────┐
+│ Depot Rack                                                   │
+│                                                              │
+│   USW-Flex PoE Switch                                        │
+│       │                                                      │
+│       ├── RPi5 (services: InfluxDB, Grafana, NTRIP)         │
+│       ├── Display                                            │
+│       └── UniFi AP AC Lite ──► "Muni-Public" SSID (2.4/5GHz)│
+│                                                              │
+│   [Separate 24V PoE Injector]                               │
+│       └── Rocket 5AC Prism ──► airMAX mesh (rovers only)    │
+│                                                              │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Traffic Isolation
+
+| Network        | VLAN | Purpose                  | Priority           |
+| -------------- | ---- | ------------------------ | ------------------ |
+| Rover mesh     | 10   | Teleop, video, telemetry | High               |
+| Depot services | 20   | InfluxDB, Grafana, SFTP  | Medium             |
+| Patron WiFi    | 30   | Public internet access   | Low (rate-limited) |
+
+### Bandwidth Allocation
+
+| Traffic Class    | Guaranteed | Burst    | Notes               |
+| ---------------- | ---------- | -------- | ------------------- |
+| Rover operations | 50 Mbps    | 100 Mbps | Never degraded      |
+| Patron WiFi      | 10 Mbps    | 50 Mbps  | Uses spare capacity |
+
+### Traffic Breakdown (Per Rover)
+
+| Stream          | Direction        | Protocol      | Port | Bandwidth          |
+| --------------- | ---------------- | ------------- | ---- | ------------------ |
+| Video           | Rover → Depot    | UDP/WebSocket | 4851 | ~2 Mbps            |
+| Teleop commands | Operator → Rover | UDP           | 4840 | ~5 kbps            |
+| Telemetry       | Rover → Depot    | UDP           | 8089 | ~10 kbps           |
+| RTK corrections | Depot → Rover    | TCP (NTRIP)   | 2101 | ~1-2 kbps          |
+| Session sync    | Rover → Depot    | SFTP          | 2222 | Burst (background) |
+
+RTK corrections are negligible bandwidth but benefit from mesh's low latency
+(5-20ms vs 50-150ms with LTE) for faster fix acquisition.
+
+### Political Value
+
+Offering free community WiFi changes the conversation with municipalities:
+
+> "We're not just a snow removal company. We're deploying infrastructure that
+> provides free internet to underserved neighborhoods."
+
+This can be leveraged for:
+
+- Repeater placement on city property
+- Municipal contracts
+- Positive press coverage
+- Community goodwill
 
 ## bvr0: Direct Connection
 
@@ -114,37 +203,110 @@ Note: The Mid-360 IP is configurable via Livox Viewer or SDK. For fleet
 deployment, consider giving each unit a unique IP or use the default and
 rely on the isolated per-rover network.
 
-## LTE Connectivity
+## Mesh Hardware
 
-The rover connects to depot/operator via LTE modem.
+### Depot Base Station
 
-### Sierra MC7455 Configuration
-
-```bash
-# Check modem status
-mmcli -m 0
-
-# Connect
-sudo nmcli con add type gsm ifname cdc-wdm0 con-name lte apn "your_apn"
-```
-
-### VPN (Recommended for Production)
-
-Use Tailscale or WireGuard for secure rover-to-depot communication:
+| Component | Model            | Purpose                 |
+| --------- | ---------------- | ----------------------- |
+| Radio     | Rocket 5AC Prism | High-power base station |
+| Antenna   | AMO-5G13         | 360° omni, 13 dBi gain  |
+| Switch    | USW-Flex         | PoE for radio           |
 
 ```bash
-# Install Tailscale
-curl -fsSL https://tailscale.com/install.sh | sh
-
-# Connect to tailnet
-sudo tailscale up --authkey=YOUR_KEY
+# Base station config (via Ubiquiti web UI)
+# - Mode: Access Point PtMP
+# - Frequency: 5 GHz (DFS channels for less interference)
+# - Channel width: 40 MHz (balance of range/throughput)
+# - Output power: Max (for range)
 ```
 
-Benefits:
+Estimated coverage: 1-1.5 km radius in urban, 360° coverage.
 
-- NAT traversal (no port forwarding needed)
-- Encrypted tunnel
-- Stable IPs across cellular connections
+Product link: [Rocket 5AC Prism](https://store.ui.com/us/en/category/wireless-airmax-5ghz) ($249)
+
+**Why omni:** Rovers dispatch in all directions from depot. Sector antenna
+(AM-5G17-90, 17 dBi, 90°) available if longer range in one direction is needed.
+
+### Rover Radio
+
+For production rovers, use a low-profile combo antenna with external radio:
+
+| Component     | Model                                                                      | Cost | Notes                       |
+| ------------- | -------------------------------------------------------------------------- | ---- | --------------------------- |
+| Combo antenna | [Proxicast ANT-520-421](https://www.amazon.com/dp/B0D7JDPD8X)              | $367 | 7-in-1: 4x4 5G + WiFi + GPS |
+| Mesh radio    | [Bullet AC IP67](https://store.ui.com/us/en/category/wireless-airmax-5ghz) | $129 | External antenna, airMAX    |
+| Adapter       | RP-SMA to N-type                                                           | $10  | Connect antenna to radio    |
+
+**Why this setup:**
+
+- Ultra low-profile (1.26" tall) for durability and aesthetics
+- IP67 weatherproof, vehicle-grade construction
+- GPS integrated (no separate antenna needed)
+- LTE antenna ports available for optional fallback
+- 16 ft cable leads for flexible mounting
+
+```
+┌─────────────────────────────────────────────────────┐
+│                  Rover Antenna Stack                 │
+│                                                      │
+│   Proxicast 5-in-1 (roof mount, 1.25" hole)         │
+│         │                                            │
+│         ├── WiFi 5GHz ──► Bullet AC ──► Jetson eth1 │
+│         ├── WiFi 5GHz ──► (second chain, optional)  │
+│         ├── GPS ──► Jetson USB (u-blox module)      │
+│         ├── LTE ──► (future: fallback modem)        │
+│         └── LTE ──► (MIMO second chain)             │
+│                                                      │
+└─────────────────────────────────────────────────────┘
+```
+
+```bash
+# Bullet AC config (via UISP or web UI)
+# - Mode: Station PtMP
+# - Connect to depot SSID
+# - Enable WDS for mesh relay
+# - Antenna gain: 3 dBi (match Proxicast spec)
+```
+
+**Alternative for prototypes:** NanoStation 5AC Loco ($49) is simpler but taller.
+
+### Fixed Repeater (Optional)
+
+Add only where mesh metrics show coverage gaps.
+
+| Component     | Model                | Cost |
+| ------------- | -------------------- | ---- |
+| Radio         | NanoStation 5AC Loco | $49  |
+| Enclosure     | Outdoor NEMA         | $30  |
+| PoE injector  | Ubiquiti 24V         | $15  |
+| Mount         | Pole clamps          | $20  |
+| Power (grid)  | Outlet access        | -    |
+| Power (solar) | 20W panel + battery  | $100 |
+
+Total per site: $114 (grid) or $214 (solar)
+
+### Mesh Health Monitoring
+
+Rovers report mesh metrics to InfluxDB:
+
+| Metric       | Description            | Alert Threshold |
+| ------------ | ---------------------- | --------------- |
+| `rssi`       | Signal strength (dBm)  | < -75 dBm       |
+| `ccq`        | Connection quality (%) | < 70%           |
+| `hop_count`  | Hops to depot          | > 4             |
+| `latency_ms` | Round-trip to depot    | > 100 ms        |
+
+Query coverage gaps:
+
+```sql
+SELECT mean("rssi"), mean("latency")
+FROM "mesh"
+WHERE time > now() - 7d
+GROUP BY "rover", time(1h)
+```
+
+Grafana dashboard visualizes this as a coverage heatmap using GPS coordinates.
 
 ## Firewall Rules
 

@@ -6,11 +6,13 @@
 | ----------- | ----------- |
 | Chassis     | $150        |
 | Drivetrain  | $800        |
-| Electronics | $900        |
+| Electronics | $1,286      |
 | Perception  | $1,800      |
 | Power       | $400        |
 | Wiring/Misc | $100        |
-| **Total**   | **~$4,150** |
+| **Total**   | **~$4,536** |
+
+Depot base station adds ~$1,540 (rack + mesh). Fixed repeaters: $114-214 each as needed.
 
 ## Detailed BOM
 
@@ -37,15 +39,19 @@
 
 ### Electronics
 
-| Part                      | Qty | Unit | Total    | Link   |
-| ------------------------- | --- | ---- | -------- | ------ |
-| Jetson Orin NX 16GB       | 1   | $600 | $600     | NVIDIA |
-| Jetson carrier board      | 1   | $100 | $100     | Seeed  |
-| USB CAN adapter           | 1   | $30  | $30      | Amazon |
-| LTE modem (Sierra MC7455) | 1   | $80  | $80      | eBay   |
-| 7" HDMI display           | 1   | $50  | $50      | Amazon |
-| GPS module (optional)     | 1   | $30  | $30      | Amazon |
-| **Subtotal**              |     |      | **$890** |        |
+| Part                   | Qty | Unit | Total      | Link     |
+| ---------------------- | --- | ---- | ---------- | -------- |
+| Jetson Orin NX 16GB    | 1   | $600 | $600       | NVIDIA   |
+| Jetson carrier board   | 1   | $100 | $100       | Seeed    |
+| USB CAN adapter        | 1   | $30  | $30        | Amazon   |
+| Proxicast 7-in-1 combo | 1   | $367 | $367       | Amazon   |
+| Bullet AC IP67         | 1   | $129 | $129       | UI Store |
+| RP-SMA to N adapter    | 1   | $10  | $10        | Amazon   |
+| 7" HDMI display        | 1   | $50  | $50        | Amazon   |
+| **Subtotal**           |     |      | **$1,286** |          |
+
+Note: Proxicast 7-in-1 includes GPS and 4x4 MIMO 5G antenna ports for LTE/5G
+fallback. See [networking.md](networking.md).
 
 ### Perception
 
@@ -154,6 +160,43 @@ Complete base station for fleet operations. See [depot.md](depot.md) for full de
 | EcoFlow River 3             | 1   | $200 | $200       | Amazon    |
 | Misc (shelf, splitter, etc) | 1   | $80  | $80        | Various   |
 | **Subtotal**                |     |      | **$1,140** |           |
+
+Note: Requires internet gateway (ISP-provided router, or add UniFi Dream Router
+for $199). The USW-Flex is Layer 2 only and cannot provide NAT/DHCP.
+
+### Mesh Base Station (Required)
+
+| Part                  | Qty | Unit | Total    | Link     |
+| --------------------- | --- | ---- | -------- | -------- |
+| Rocket 5AC Prism      | 1   | $249 | $249     | UI Store |
+| AMO-5G13 omni antenna | 1   | $130 | $130     | UI Store |
+| Antenna mount + cable | 1   | $50  | $50      | Amazon   |
+| **Subtotal**          |     |      | **$429** |          |
+
+Note: Omni provides 360° coverage for rovers dispatching in all directions.
+Sector (AM-5G17-90, $100) available if longer range in one direction is needed.
+
+### Patron WiFi (Optional)
+
+| Part             | Qty | Unit | Total   | Link     |
+| ---------------- | --- | ---- | ------- | -------- |
+| UniFi AP AC Lite | 1   | $99  | $99     | UI Store |
+| **Subtotal**     |     |      | **$99** |          |
+
+Provides public WiFi at depot. Requires ISP with redistribution rights (AT&T
+Business or Starlink Priority). See [networking.md](networking.md) for details.
+
+### Fixed Repeater (Optional, add where needed)
+
+| Part                      | Qty | Unit | Total    | Link     |
+| ------------------------- | --- | ---- | -------- | -------- |
+| NanoStation 5AC Loco      | 1   | $49  | $49      | UI Store |
+| Outdoor NEMA enclosure    | 1   | $30  | $30      | Amazon   |
+| PoE injector 24V          | 1   | $15  | $15      | UI Store |
+| Pole mount clamps         | 1   | $20  | $20      | Amazon   |
+| Solar kit (if no grid)    | 1   | $100 | $100     | Amazon   |
+| **Subtotal (grid power)** |     |      | **$114** |          |
+| **Subtotal (solar)**      |     |      | **$214** |          |
 
 Alternatively, use an NTRIP network subscription (~$50/month) instead of
 running your own RTK base station.

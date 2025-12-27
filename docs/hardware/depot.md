@@ -37,6 +37,8 @@ external power station feeds the PoE switch, which distributes power to all
 rack components. The Raspberry Pi 5 with GeeekPi P31 HAT supports native PoE+,
 eliminating the need for splitters on the compute side.
 
+The mesh base station (Rocket 5AC) uses a separate 24V PoE injector (included).
+
 ```
 Power Station (external)
     │
@@ -44,9 +46,11 @@ Power Station (external)
     ▼
 ┌─────────────────────────────────────────────────┐
 │ PoE Switch (USW-Flex)                           │
-│   ├── PoE+ ─► RPi5 + P31 HAT (native PoE+)      │
-│   ├── PoE ──► Display (via 5V splitter)         │
-│   └── ETH ──► Rovers / Uplink                   │
+│   ├── Port 1: Uplink (router/internet)          │
+│   ├── Port 2: PoE+ ─► RPi5 + P31 HAT            │
+│   ├── Port 3: PoE ──► Display (via splitter)    │
+│   ├── Port 4: PoE ──► UniFi AP (Patron WiFi)    │
+│   └── Port 5: (spare)                           │
 └─────────────────────────────────────────────────┘
          │
          USB
@@ -56,6 +60,14 @@ Power Station (external)
          SMA cable (to roof)
          ▼
     GNSS Antenna
+
+
+Separate: Mesh Base Station
+─────────────────────────────
+Power ──► [24V PoE Injector] ──► Rocket 5AC Prism ──► Omni Antenna
+             (included)                                    │
+                                                     airMAX mesh
+                                                     to rovers
 ```
 
 ## Bill of Materials
@@ -149,13 +161,54 @@ See [depot/README.md](../../depot/README.md) for setup instructions.
 
 ## Power Budget
 
-| Component  | Power   | Notes             |
-| ---------- | ------- | ----------------- |
-| RPi5 + P31 | 5-12W   | Idle vs full load |
-| Display    | 5W      | Backlight at 50%  |
-| PoE Switch | 3W      | Self-consumption  |
-| ZED-F9P    | 0.5W    | USB-powered       |
-| **Total**  | ~15-22W |                   |
+| Component  | Power   | Notes                     |
+| ---------- | ------- | ------------------------- |
+| RPi5 + P31 | 5-12W   | Idle vs full load         |
+| Display    | 5W      | Backlight at 50%          |
+| PoE Switch | 3W      | Self-consumption          |
+| ZED-F9P    | 0.5W    | USB-powered               |
+| UniFi AP   | 6-10W   | Optional, for patron WiFi |
+| **Total**  | ~15-32W | With optional AP          |
+
+### Internet Gateway
+
+The depot requires a router/gateway for internet access, NAT, and DHCP. Options:
+
+| Option       | Device                        | Notes                           |
+| ------------ | ----------------------------- | ------------------------------- |
+| ISP-provided | Starlink router, AT&T gateway | Simplest, included with service |
+| Dedicated    | UniFi Dream Router ($199)     | Full control, UniFi ecosystem   |
+| RPi5         | Configure as gateway          | No extra hardware, more complex |
+
+The USW-Flex is a Layer 2 switch only; it cannot route or provide DHCP.
+
+```
+Internet ──► [ISP Router/Gateway] ──► USW-Flex ──► Rack devices
+                    │
+              NAT, DHCP, Firewall
+```
+
+### Mesh Base Station (Separate Power)
+
+The Rocket 5AC Prism uses Ubiquiti's proprietary 24V passive PoE, not standard
+802.3af/at. The USW-Flex outputs 48V PoE which is incompatible. Use the
+included 24V PoE injector:
+
+| Component        | Power | Notes                     |
+| ---------------- | ----- | ------------------------- |
+| Rocket 5AC Prism | 8W    | Separate 24V PoE injector |
+
+### USW-Flex Port Allocation
+
+| Port | Device          | PoE Power | Notes        |
+| ---- | --------------- | --------- | ------------ |
+| 1    | Uplink (router) | -         | Non-PoE      |
+| 2    | RPi5 + P31 HAT  | ~12W      | PoE+         |
+| 3    | Display         | ~5W       | Via splitter |
+| 4    | UniFi AP        | ~10W      | Patron WiFi  |
+| 5    | (Spare)         | -         | Future use   |
+
+Total PoE budget: 46W available, ~27W used.
 
 With the EcoFlow River 3 (245Wh), expect:
 
@@ -183,10 +236,12 @@ With the EcoFlow River 3 (245Wh), expect:
 
 1. Mount PoE switch in 1U slot
 2. Run ethernet from PoE switch to:
-   - RPi5 (native PoE+ via P31 HAT)
-   - Display (via PoE splitter)
-   - Uplink (to LAN/internet)
+   - Port 1: Uplink (router/internet)
+   - Port 2: RPi5 (native PoE+ via P31 HAT)
+   - Port 3: Display (via PoE splitter)
+   - Port 4: UniFi AP (optional, for patron WiFi)
 3. Connect power station to PoE switch
+4. Set up Rocket 5AC with its own 24V PoE injector (separate from rack)
 
 ### 4. RTK Base Station
 
