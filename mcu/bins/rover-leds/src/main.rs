@@ -1,6 +1,6 @@
-//! Rover LED controller firmware
+//! Rover LED controller firmware - Using stock WS2812 driver
 //!
-//! Drives WS2811 LED strip via PIO on GP0.
+//! WLED works with this strip, so let's use the proven driver.
 
 #![no_std]
 #![no_main]
@@ -8,20 +8,22 @@
 use defmt::*;
 use embassy_executor::Spawner;
 use embassy_rp::bind_interrupts;
-use embassy_rp::peripherals::PIO0;
+use embassy_rp::peripherals::{PIO0, USB};
 use embassy_rp::pio::{InterruptHandler as PioInterruptHandler, Pio};
-use embassy_rp::pio_programs::ws2812::{PioWs2812, PioWs2812Program, Grb};
-use embassy_time::{Duration, Ticker, Timer};
+use embassy_rp::pio_programs::ws2812::{Grb, PioWs2812, PioWs2812Program};
+use embassy_rp::usb::Driver as UsbDriver;
+use embassy_time::{Duration, Timer};
+use embassy_usb::class::cdc_acm::{CdcAcmClass, State};
+use embassy_usb::{Builder as UsbBuilder, Config as UsbConfig};
 use smart_leds::RGB8;
+use static_cell::StaticCell;
 use {defmt_rtt as _, panic_probe as _};
-
-use mcu_leds::{LedController, LedMode};
 
 bind_interrupts!(struct Irqs {
     PIO0_IRQ_0 => PioInterruptHandler<PIO0>;
+    USBCTRL_IRQ => embassy_rp::usb::InterruptHandler<USB>;
 });
 
-// Program metadata for `picotool info`.
 #[unsafe(link_section = ".bi_entries")]
 #[used]
 pub static PICOTOOL_ENTRIES: [embassy_rp::binary_info::EntryAddr; 4] = [
@@ -31,95 +33,101 @@ pub static PICOTOOL_ENTRIES: [embassy_rp::binary_info::EntryAddr; 4] = [
     embassy_rp::binary_info::rp_program_build_attribute!(),
 ];
 
-/// Number of addressable LED units (WS2811 12V has 3 LEDs per IC).
-/// Your strip has 4 sections = 4 addressable units.
-const NUM_LEDS: usize = 4;
+/// LED count - try small number first
+const NUM_LEDS: usize = 24;
 
-/// LED update rate (~30 FPS).
-const LED_UPDATE_MS: u64 = 33;
+static EP_MEMORY: StaticCell<[u8; 1024]> = StaticCell::new();
+static CONFIG_DESC: StaticCell<[u8; 256]> = StaticCell::new();
+static BOS_DESC: StaticCell<[u8; 256]> = StaticCell::new();
+static CONTROL_BUF: StaticCell<[u8; 128]> = StaticCell::new();
+static CDC_STATE: StaticCell<State> = StaticCell::new();
 
 #[embassy_executor::main]
-async fn main(_spawner: Spawner) {
+async fn main(spawner: Spawner) {
     let p = embassy_rp::init(Default::default());
 
-    info!("=== Rover LED controller starting ===");
+    info!("=== LED test (stock driver, GRB) - {} LEDs ===", NUM_LEDS);
 
-    // Initialize PIO for WS2812/WS2811
-    info!("Initializing PIO...");
+    // USB CDC setup for basic debugging over USB
+    let usb_driver = UsbDriver::new(p.USB, Irqs);
+
+    let mut usb_cfg = UsbConfig::new(0xCafe, 0x4004);
+    usb_cfg.manufacturer = Some("Muni");
+    usb_cfg.product = Some("Rover LEDs");
+    usb_cfg.serial_number = Some("0001");
+
+    let ep_mem = EP_MEMORY.init([0u8; 1024]);
+    let mut usb_builder = UsbBuilder::new(
+        usb_driver,
+        usb_cfg,
+        ep_mem,
+        CONFIG_DESC.init([0; 256]),
+        BOS_DESC.init([0; 256]),
+        CONTROL_BUF.init([0; 128]),
+    );
+
+    let cdc = CdcAcmClass::new(&mut usb_builder, CDC_STATE.init(State::new()), 64);
+    let usb = usb_builder.build();
+
+    spawner.spawn(usb_task(usb)).ok();
+    spawner.spawn(cdc_log_task(cdc)).ok();
+
     let Pio {
         mut common, sm0, ..
     } = Pio::new(p.PIO0, Irqs);
 
-    // Load the WS2812 program into PIO
-    info!("Loading WS2812 program...");
     let prg = PioWs2812Program::new(&mut common);
 
-    // Create WS2812 driver on GP0
-    info!("Creating WS2812 driver on GP0...");
+    // Use the stock WS2812 driver with GRB color order
     let mut ws2812: PioWs2812<'_, PIO0, 0, NUM_LEDS, Grb> =
         PioWs2812::new(&mut common, sm0, p.DMA_CH0, p.PIN_0, &prg);
 
-    info!("WS2812 initialized!");
+    let mut buffer: [RGB8; NUM_LEDS] = [RGB8::default(); NUM_LEDS];
 
-    // Test pattern: cycle through colors
-    info!("Starting test pattern: Red -> Green -> Blue");
+    // Clear on startup
+    info!("Clearing...");
+    ws2812.write(&buffer).await;
+    Timer::after(Duration::from_millis(100)).await;
+    ws2812.write(&buffer).await;
+    Timer::after(Duration::from_millis(100)).await;
 
-    // Red
-    let red: [RGB8; NUM_LEDS] = [RGB8::new(255, 0, 0); NUM_LEDS];
-    ws2812.write(&red).await;
-    info!("RED");
-    Timer::after(Duration::from_secs(2)).await;
-
-    // Green
-    let green: [RGB8; NUM_LEDS] = [RGB8::new(0, 255, 0); NUM_LEDS];
-    ws2812.write(&green).await;
-    info!("GREEN");
-    Timer::after(Duration::from_secs(2)).await;
-
-    // Blue
-    let blue: [RGB8; NUM_LEDS] = [RGB8::new(0, 0, 255); NUM_LEDS];
-    ws2812.write(&blue).await;
-    info!("BLUE");
-    Timer::after(Duration::from_secs(2)).await;
-
-    info!("Test pattern complete, starting animation loop");
-
-    // Initialize LED controller for animations
-    let mut leds = LedController::<NUM_LEDS>::new();
-
-    // LED update ticker
-    let mut led_ticker = Ticker::every(Duration::from_millis(LED_UPDATE_MS));
-
-    // Cycle through different modes for demo
-    let modes = [
-        LedMode::idle(),       // Solid green
-        LedMode::teleop(),     // Pulsing blue
-        LedMode::autonomous(), // Pulsing cyan
-        LedMode::estop(),      // Flashing red
-    ];
-    let mut mode_index = 0;
-    let mut mode_ticks = 0u32;
-    let mode_duration_ticks = 150; // ~5 seconds per mode at 30fps
-
-    leds.set_mode(modes[mode_index]);
-    info!("Starting mode: idle (green)");
+    info!("Starting multi-color mapping test");
 
     loop {
-        led_ticker.next().await;
+        // Test with single and mixed channels to deduce mapping.
+        info!("Send R=255 G=0 B=0 (expect red)");
+        buffer.fill(RGB8::new(255, 0, 0));
+        ws2812.write(&buffer).await;
+        Timer::after(Duration::from_secs(4)).await;
 
-        // Update LED buffer
-        let buffer = leds.update();
+        info!("Send G=255 R=0 B=0 (expect green)");
+        buffer.fill(RGB8::new(0, 255, 0));
+        ws2812.write(&buffer).await;
+        Timer::after(Duration::from_secs(4)).await;
 
-        // Write to LED strip
-        ws2812.write(buffer).await;
+        info!("Send B=255 R=0 G=0 (expect blue)");
+        buffer.fill(RGB8::new(0, 0, 255));
+        ws2812.write(&buffer).await;
+        Timer::after(Duration::from_secs(4)).await;
 
-        // Cycle modes for demo
-        mode_ticks += 1;
-        if mode_ticks >= mode_duration_ticks {
-            mode_ticks = 0;
-            mode_index = (mode_index + 1) % modes.len();
-            leds.set_mode(modes[mode_index]);
-            info!("Switched to mode {}", mode_index);
-        }
+        info!("Send YELLOW R=255 G=255 B=0 (expect yellow)");
+        buffer.fill(RGB8::new(255, 255, 0));
+        ws2812.write(&buffer).await;
+        Timer::after(Duration::from_secs(4)).await;
+
+        info!("Send CYAN R=0 G=255 B=255 (expect cyan)");
+        buffer.fill(RGB8::new(0, 255, 255));
+        ws2812.write(&buffer).await;
+        Timer::after(Duration::from_secs(4)).await;
+
+        info!("Send MAGENTA R=255 G=0 B=255 (expect magenta)");
+        buffer.fill(RGB8::new(255, 0, 255));
+        ws2812.write(&buffer).await;
+        Timer::after(Duration::from_secs(4)).await;
+
+        info!("Send WHITE R=255 G=255 B=255 (expect white)");
+        buffer.fill(RGB8::new(255, 255, 255));
+        ws2812.write(&buffer).await;
+        Timer::after(Duration::from_secs(4)).await;
     }
 }

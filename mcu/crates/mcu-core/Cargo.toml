@@ -14,3 +14,4 @@ embedded-hal-async.workspace = true
 embedded-can.workspace = true
 defmt.workspace = true
 heapless.workspace = true
+

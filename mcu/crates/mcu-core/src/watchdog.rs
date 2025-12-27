@@ -62,3 +62,4 @@ impl defmt::Format for Watchdog {
         )
     }
 }
+

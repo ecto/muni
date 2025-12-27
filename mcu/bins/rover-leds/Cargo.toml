@@ -20,6 +20,10 @@ embedded-hal-async.workspace = true
 
 smart-leds.workspace = true
 
+fixed = "1.29"
+pio = "0.3"
+
 defmt.workspace = true
 defmt-rtt.workspace = true
 panic-probe.workspace = true
+

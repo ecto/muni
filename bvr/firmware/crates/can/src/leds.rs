@@ -168,3 +168,4 @@ impl LedStatus {
         self.status == 0
     }
 }
+

@@ -182,16 +182,19 @@ println!("cargo:rustc-link-arg-bins=-Tdefmt.x");
 ### Troubleshooting
 
 **Firmware doesn't run after flashing:**
+
 - Verify UF2 family ID is `rp2350-arm-s` (check with `xxd file.uf2 | head`)
 - Use `picotool` instead of `elf2uf2-rs`
 - Check `picotool info -a` for boot diagnostics
 
 **Picotool shows "Program Information: none":**
+
 - Device is in BOOTSEL mode, not running application
 - Check that boot2 feature is enabled
 - Verify memory.x has correct boot block sections
 
 **LEDs not working:**
+
 - Verify data wire goes to DIN (input) end of strip
 - Check WS2811 vs WS2812 timing (WS2811 uses 400kHz, WS2812 uses 800kHz)
 - Try different color order (GRB vs RGB) - use `Grb` type in PioWs2812
@@ -199,11 +202,12 @@ println!("cargo:rustc-link-arg-bins=-Tdefmt.x");
 
 ## LED Modes
 
-| Mode       | Color  | Effect        | Use Case         |
-| ---------- | ------ | ------------- | ---------------- |
-| Off        | -      | -             | Disabled         |
-| Solid      | Green  | Constant      | Idle             |
-| Pulse      | Blue   | Breathing     | Teleop active    |
-| Pulse      | Cyan   | Breathing     | Autonomous       |
-| Flash      | Red    | Strobe 200ms  | E-Stop           |
-| Flash      | Orange | Strobe 500ms  | Fault            |
+| Mode  | Color  | Effect       | Use Case      |
+| ----- | ------ | ------------ | ------------- |
+| Off   | -      | -            | Disabled      |
+| Solid | Green  | Constant     | Idle          |
+| Pulse | Blue   | Breathing    | Teleop active |
+| Pulse | Cyan   | Breathing    | Autonomous    |
+| Flash | Red    | Strobe 200ms | E-Stop        |
+| Flash | Orange | Strobe 500ms | Fault         |
+

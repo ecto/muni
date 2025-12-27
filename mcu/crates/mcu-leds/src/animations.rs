@@ -2,6 +2,72 @@
 
 use smart_leds::RGB8;
 
+/// Wipe transition duration in milliseconds.
+pub const WIPE_DURATION_MS: u32 = 400;
+
+/// Calculate wipe transition progress.
+/// Returns (progress 0-255, position 0-N) where position is the wipe edge.
+pub fn wipe_progress(elapsed_ms: u32, duration_ms: u32, num_leds: usize) -> (u8, usize) {
+    if duration_ms == 0 {
+        return (255, num_leds);
+    }
+
+    let progress = ((elapsed_ms.min(duration_ms) * 255) / duration_ms) as u8;
+    let position = ((elapsed_ms.min(duration_ms) as usize * num_leds) / duration_ms as usize).min(num_leds);
+
+    (progress, position)
+}
+
+/// Apply wipe transition from old buffer to new color.
+/// Pixels before `position` get the new color, pixels after keep old color.
+pub fn apply_wipe<const N: usize>(
+    buffer: &mut [RGB8; N],
+    old_buffer: &[RGB8; N],
+    new_color: RGB8,
+    position: usize,
+) {
+    for i in 0..N {
+        if i < position {
+            buffer[i] = new_color;
+        } else {
+            buffer[i] = old_buffer[i];
+        }
+    }
+}
+
+/// Apply wipe with a soft edge (gradient at the transition point).
+pub fn apply_wipe_soft<const N: usize>(
+    buffer: &mut [RGB8; N],
+    old_buffer: &[RGB8; N],
+    new_color: RGB8,
+    position: usize,
+    edge_width: usize,
+) {
+    for i in 0..N {
+        if i + edge_width < position {
+            // Fully new color
+            buffer[i] = new_color;
+        } else if i >= position {
+            // Fully old color
+            buffer[i] = old_buffer[i];
+        } else {
+            // In the gradient zone
+            let blend = ((position - i) * 255 / edge_width) as u8;
+            buffer[i] = blend_colors(new_color, old_buffer[i], blend);
+        }
+    }
+}
+
+/// Blend two colors. blend=255 means full color_a, blend=0 means full color_b.
+pub fn blend_colors(color_a: RGB8, color_b: RGB8, blend: u8) -> RGB8 {
+    let inv = 255 - blend;
+    RGB8::new(
+        ((color_a.r as u16 * blend as u16 + color_b.r as u16 * inv as u16) / 255) as u8,
+        ((color_a.g as u16 * blend as u16 + color_b.g as u16 * inv as u16) / 255) as u8,
+        ((color_a.b as u16 * blend as u16 + color_b.b as u16 * inv as u16) / 255) as u8,
+    )
+}
+
 /// Calculate pulse brightness (0-255) based on elapsed time and period.
 /// Uses a sine-like curve for smooth breathing.
 pub fn pulse_phase(elapsed_ms: u32, period_ms: u32) -> u8 {
@@ -90,3 +156,4 @@ mod tests {
         assert!(flash_state(200, 200)); // Wraps
     }
 }
+

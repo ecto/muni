@@ -67,3 +67,4 @@ impl defmt::Format for Heartbeat {
         )
     }
 }
+

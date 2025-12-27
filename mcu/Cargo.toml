@@ -36,10 +36,15 @@ defmt = "1.0"
 defmt-rtt = "0.4"
 panic-probe = { version = "1.0", features = ["print-defmt"] }
 
+# USB CDC support
+embassy-usb = { version = "0.5.1", features = ["defmt"] }
+
 # Shared types (no_std compatible)
 heapless = "0.8"
+static_cell = "2"
 
 [profile.release]
 opt-level = "s"
 lto = true
 debug = true  # Keep debug info for defmt
+
