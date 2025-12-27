@@ -1,0 +1,22 @@
+[package]
+name = "mapper"
+version = "0.1.0"
+edition = "2021"
+description = "Session processing and map building service for Depot"
+
+[dependencies]
+tokio = { version = "1", features = ["rt-multi-thread", "sync", "time", "macros", "fs", "signal"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+notify = { version = "7", default-features = false, features = ["macos_kqueue"] }
+uuid = { version = "1", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+thiserror = "2"
+walkdir = "2"
+
+[profile.release]
+lto = true
+opt-level = "z"
+strip = true

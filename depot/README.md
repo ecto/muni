@@ -5,7 +5,9 @@ Depot is the base station infrastructure for the Muni robot fleet. It provides:
 - **Web operator** for browser-based teleop with 360° video
 - **Real-time metrics** via InfluxDB (battery, motors, GPS, mode)
 - **Fleet dashboards** via Grafana (fleet overview + per-rover detail)
-- **Session storage** via SFTP (rovers upload .rrd recordings)
+- **Session storage** via SFTP (rovers upload recordings)
+- **Map processing** via Mapper service (Gaussian splatting pipeline)
+- **Map serving** via Map API (browse and download 3D maps)
 - **Automatic retention** (30-day cleanup by default)
 
 ## Architecture
@@ -47,6 +49,7 @@ This starts all services with default development credentials.
 | InfluxDB  | http://localhost:8086 | admin / munipassword |
 | SFTP      | localhost:2222        | muni / SSH key auth  |
 | Discovery | http://localhost:4860 | None (internal)      |
+| Map API   | http://localhost:4870 | None (internal)      |
 
 ## Development
 
@@ -274,13 +277,15 @@ docker compose logs -f sftp
 
 ## Network Ports
 
-| Port | Protocol | Service  | Purpose               |
-| ---- | -------- | -------- | --------------------- |
-| 2222 | TCP      | SFTP     | Session file uploads  |
-| 3000 | TCP      | Grafana  | Web dashboards        |
-| 8080 | TCP      | Operator | Web teleop interface  |
-| 8086 | TCP      | InfluxDB | HTTP API + Web UI     |
-| 8089 | UDP      | InfluxDB | Line protocol metrics |
+| Port | Protocol | Service   | Purpose               |
+| ---- | -------- | --------- | --------------------- |
+| 2222 | TCP      | SFTP      | Session file uploads  |
+| 3000 | TCP      | Grafana   | Web dashboards        |
+| 4860 | TCP      | Discovery | Rover registration    |
+| 4870 | TCP      | Map API   | Map serving           |
+| 8080 | TCP      | Operator  | Web teleop interface  |
+| 8086 | TCP      | InfluxDB  | HTTP API + Web UI     |
+| 8089 | UDP      | InfluxDB  | Line protocol metrics |
 
 ## RTK Base Station
 

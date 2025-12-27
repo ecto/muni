@@ -3,6 +3,9 @@
 //! This crate provides session-based recording of robot telemetry for later playback
 //! and analysis. Data is stored in `.rrd` files that can be viewed with the Rerun Viewer.
 //!
+//! For mapping, additional data (LiDAR point clouds, camera frames) is stored alongside
+//! the telemetry in a structured session directory.
+//!
 //! # Architecture
 //!
 //! ```text
@@ -12,10 +15,15 @@
 //!    Recorder::log_*()
 //!         │
 //!         ▼
-//!    RecordingStream (async, buffered)
-//!         │
-//!         ▼
-//!    /var/log/bvr/sessions/{rover_id}_{timestamp}.rrd
+//!    /var/log/bvr/sessions/{timestamp}/
+//!         ├── metadata.json          <- Session metadata for mapper
+//!         ├── telemetry.rrd          <- Rerun telemetry file
+//!         ├── lidar/                 <- Point cloud frames (PCD format)
+//!         │   ├── 000000.pcd
+//!         │   └── timestamps.csv
+//!         └── camera/                <- Camera frames (JPEG)
+//!             ├── 000000.jpg
+//!             └── timestamps.csv
 //! ```
 //!
 //! # Usage
@@ -29,14 +37,27 @@
 //! recorder.log_pose(&pose)?;
 //! recorder.log_velocity(commanded, actual)?;
 //! recorder.log_motors(&currents, &temps)?;
+//!
+//! // For mapping data:
+//! recorder.log_lidar_pcd(&points)?;
+//! recorder.log_camera_frame(&jpeg_data)?;
+//!
+//! // At end of session:
+//! recorder.end_session();  // Writes metadata.json
 //! ```
 
+use chrono::{DateTime, Utc};
 use rerun::{RecordingStream, RecordingStreamBuilder};
+use serde::{Deserialize, Serialize};
+use std::fs::File;
+use std::io::{BufWriter, Write};
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU32, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 use thiserror::Error;
-use tracing::{debug, info};
+use tracing::{debug, info, warn};
 use types::{Mode, Pose, Twist};
+use uuid::Uuid;
 
 #[derive(Error, Debug)]
 pub enum RecordingError {
@@ -44,8 +65,69 @@ pub enum RecordingError {
     Rerun(#[from] rerun::RecordingStreamError),
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
+    #[error("JSON error: {0}")]
+    Json(#[from] serde_json::Error),
     #[error("Recording not active")]
     NotActive,
+}
+
+// =============================================================================
+// Session Metadata (shared with depot/mapper)
+// =============================================================================
+
+/// GPS bounding box for the session
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct GpsBounds {
+    pub min_lat: f64,
+    pub max_lat: f64,
+    pub min_lon: f64,
+    pub max_lon: f64,
+}
+
+impl GpsBounds {
+    /// Expand bounds to include a new point
+    pub fn expand(&mut self, lat: f64, lon: f64) {
+        if self.min_lat == 0.0 && self.max_lat == 0.0 {
+            // First point
+            self.min_lat = lat;
+            self.max_lat = lat;
+            self.min_lon = lon;
+            self.max_lon = lon;
+        } else {
+            self.min_lat = self.min_lat.min(lat);
+            self.max_lat = self.max_lat.max(lat);
+            self.min_lon = self.min_lon.min(lon);
+            self.max_lon = self.max_lon.max(lon);
+        }
+    }
+
+    /// Check if bounds are valid (have been expanded at least once)
+    pub fn is_valid(&self) -> bool {
+        self.min_lat != 0.0 || self.max_lat != 0.0 || self.min_lon != 0.0 || self.max_lon != 0.0
+    }
+}
+
+/// Session metadata written to metadata.json
+///
+/// This is read by the depot mapper service to process sessions.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SessionMetadata {
+    /// Unique session identifier
+    pub session_id: Uuid,
+    /// Rover identifier
+    pub rover_id: String,
+    /// Session start time
+    pub started_at: DateTime<Utc>,
+    /// Session end time (None if still recording)
+    pub ended_at: Option<DateTime<Utc>>,
+    /// GPS bounds covered by this session
+    pub gps_bounds: Option<GpsBounds>,
+    /// Number of LiDAR frames recorded
+    pub lidar_frames: u32,
+    /// Number of camera frames recorded
+    pub camera_frames: u32,
+    /// Name of the telemetry file
+    pub telemetry_file: String,
 }
 
 /// Configuration for the recorder.
@@ -57,8 +139,14 @@ pub struct Config {
     pub rover_id: String,
     /// Maximum storage in bytes before rotating old sessions.
     pub max_storage_bytes: u64,
-    /// Whether to include camera frames (higher bandwidth).
+    /// Whether to include camera frames for mapping.
     pub include_camera: bool,
+    /// Whether to include LiDAR point clouds for mapping.
+    pub include_lidar: bool,
+    /// LiDAR recording rate in Hz (point clouds are large, typically 2-10 Hz).
+    pub lidar_hz: f32,
+    /// Camera recording rate in Hz (for mapping, typically 1-2 Hz).
+    pub camera_hz: f32,
     /// Whether recording is enabled.
     pub enabled: bool,
 }
@@ -69,7 +157,10 @@ impl Default for Config {
             session_dir: PathBuf::from("/var/log/bvr/sessions"),
             rover_id: "bvr-01".to_string(),
             max_storage_bytes: 10 * 1024 * 1024 * 1024, // 10 GB
-            include_camera: false,
+            include_camera: true,
+            include_lidar: true,
+            lidar_hz: 10.0,  // 10 Hz for LiDAR
+            camera_hz: 2.0,  // 2 Hz for camera (mapping quality)
             enabled: true,
         }
     }
@@ -78,10 +169,30 @@ impl Default for Config {
 /// Telemetry recorder using Rerun.
 ///
 /// Handles session lifecycle, data logging, and storage management.
+/// Supports both telemetry (Rerun) and mapping data (LiDAR/camera files).
 pub struct Recorder {
     config: Config,
     stream: Option<RecordingStream>,
+    /// Root directory for this session
+    session_dir: Option<PathBuf>,
+    /// Path to telemetry.rrd file
     session_path: Option<PathBuf>,
+    /// Session metadata (written at end)
+    metadata: Option<SessionMetadata>,
+    /// GPS bounds accumulator
+    gps_bounds: GpsBounds,
+    /// LiDAR frame counter
+    lidar_frame_count: AtomicU32,
+    /// Camera frame counter
+    camera_frame_count: AtomicU32,
+    /// LiDAR timestamps file writer
+    lidar_timestamps: Option<BufWriter<File>>,
+    /// Camera timestamps file writer
+    camera_timestamps: Option<BufWriter<File>>,
+    /// Last LiDAR frame time (for rate limiting)
+    last_lidar_time: f64,
+    /// Last camera frame time (for rate limiting)
+    last_camera_time: f64,
 }
 
 impl Recorder {
@@ -92,7 +203,16 @@ impl Recorder {
             return Ok(Self {
                 config: config.clone(),
                 stream: None,
+                session_dir: None,
                 session_path: None,
+                metadata: None,
+                gps_bounds: GpsBounds::default(),
+                lidar_frame_count: AtomicU32::new(0),
+                camera_frame_count: AtomicU32::new(0),
+                lidar_timestamps: None,
+                camera_timestamps: None,
+                last_lidar_time: 0.0,
+                last_camera_time: 0.0,
             });
         }
 
@@ -102,27 +222,77 @@ impl Recorder {
         // Rotate old sessions if needed
         Self::rotate_sessions_if_needed(&config.session_dir, config.max_storage_bytes)?;
 
-        // Generate session filename
-        let timestamp = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_secs();
-        let session_name = format!("{}_{}", config.rover_id, timestamp);
-        let session_path = config.session_dir.join(format!("{}.rrd", session_name));
+        // Generate session directory name using ISO timestamp
+        let now = Utc::now();
+        let session_name = now.format("%Y-%m-%dT%H-%M-%S").to_string();
+        let session_dir = config.session_dir.join(&session_name);
+        std::fs::create_dir_all(&session_dir)?;
 
-        info!(path = %session_path.display(), "Starting recording session");
+        let session_id = Uuid::new_v4();
+        info!(
+            path = %session_dir.display(),
+            id = %session_id,
+            "Starting recording session"
+        );
 
-        // Create recording stream
-        let stream = RecordingStreamBuilder::new(session_name.clone())
+        // Create telemetry.rrd file
+        let telemetry_file = "telemetry.rrd".to_string();
+        let session_path = session_dir.join(&telemetry_file);
+        let stream = RecordingStreamBuilder::new(format!("{}-{}", config.rover_id, session_name))
             .save(&session_path)?;
 
-        // Log initial metadata
-        Self::log_session_metadata(&stream, config)?;
+        // Log initial metadata to Rerun
+        Self::log_session_metadata_rerun(&stream, config)?;
+
+        // Create LiDAR directory and timestamps file
+        let lidar_timestamps = if config.include_lidar {
+            let lidar_dir = session_dir.join("lidar");
+            std::fs::create_dir_all(&lidar_dir)?;
+            let timestamps_file = File::create(lidar_dir.join("timestamps.csv"))?;
+            let mut writer = BufWriter::new(timestamps_file);
+            writeln!(writer, "frame,timestamp_secs")?;
+            Some(writer)
+        } else {
+            None
+        };
+
+        // Create camera directory and timestamps file
+        let camera_timestamps = if config.include_camera {
+            let camera_dir = session_dir.join("camera");
+            std::fs::create_dir_all(&camera_dir)?;
+            let timestamps_file = File::create(camera_dir.join("timestamps.csv"))?;
+            let mut writer = BufWriter::new(timestamps_file);
+            writeln!(writer, "frame,timestamp_secs")?;
+            Some(writer)
+        } else {
+            None
+        };
+
+        // Initialize session metadata
+        let metadata = SessionMetadata {
+            session_id,
+            rover_id: config.rover_id.clone(),
+            started_at: now,
+            ended_at: None,
+            gps_bounds: None,
+            lidar_frames: 0,
+            camera_frames: 0,
+            telemetry_file,
+        };
 
         Ok(Self {
             config: config.clone(),
             stream: Some(stream),
+            session_dir: Some(session_dir),
             session_path: Some(session_path),
+            metadata: Some(metadata),
+            gps_bounds: GpsBounds::default(),
+            lidar_frame_count: AtomicU32::new(0),
+            camera_frame_count: AtomicU32::new(0),
+            lidar_timestamps,
+            camera_timestamps,
+            last_lidar_time: 0.0,
+            last_camera_time: 0.0,
         })
     }
 
@@ -134,8 +304,27 @@ impl Recorder {
                 ..Default::default()
             },
             stream: None,
+            session_dir: None,
             session_path: None,
+            metadata: None,
+            gps_bounds: GpsBounds::default(),
+            lidar_frame_count: AtomicU32::new(0),
+            camera_frame_count: AtomicU32::new(0),
+            lidar_timestamps: None,
+            camera_timestamps: None,
+            last_lidar_time: 0.0,
+            last_camera_time: 0.0,
         }
+    }
+
+    /// Get the session directory path.
+    pub fn session_dir(&self) -> Option<&Path> {
+        self.session_dir.as_deref()
+    }
+
+    /// Get the session ID.
+    pub fn session_id(&self) -> Option<Uuid> {
+        self.metadata.as_ref().map(|m| m.session_id)
     }
 
     /// Check if recording is active.
@@ -275,7 +464,7 @@ impl Recorder {
     }
 
     /// Log GPS coordinates.
-    pub fn log_gps(&self, lat: f64, lon: f64, accuracy: f32) -> Result<(), RecordingError> {
+    pub fn log_gps(&mut self, lat: f64, lon: f64, accuracy: f32) -> Result<(), RecordingError> {
         let Some(ref stream) = self.stream else {
             return Ok(());
         };
@@ -287,6 +476,95 @@ impl Recorder {
         stream.log("gps/longitude", &rerun::Scalar::new(lon))?;
         stream.log("gps/accuracy", &rerun::Scalar::new(accuracy as f64))?;
 
+        // Update GPS bounds for session metadata
+        if lat.abs() > 0.001 && lon.abs() > 0.001 {
+            self.gps_bounds.expand(lat, lon);
+        }
+
+        Ok(())
+    }
+
+    /// Log a LiDAR point cloud frame.
+    ///
+    /// Points should be in rover frame coordinates.
+    /// Rate limited based on config.lidar_hz.
+    pub fn log_lidar_points(
+        &mut self,
+        time_secs: f64,
+        points: &[[f32; 3]],
+    ) -> Result<(), RecordingError> {
+        if !self.config.include_lidar {
+            return Ok(());
+        }
+
+        let Some(ref session_dir) = self.session_dir else {
+            return Ok(());
+        };
+
+        // Rate limiting
+        let interval = 1.0 / self.config.lidar_hz as f64;
+        if time_secs - self.last_lidar_time < interval {
+            return Ok(());
+        }
+        self.last_lidar_time = time_secs;
+
+        let frame_num = self.lidar_frame_count.fetch_add(1, Ordering::Relaxed);
+
+        // Write PCD file
+        let pcd_path = session_dir.join("lidar").join(format!("{:06}.pcd", frame_num));
+        write_pcd_file(&pcd_path, points)?;
+
+        // Write timestamp
+        if let Some(ref mut writer) = self.lidar_timestamps {
+            writeln!(writer, "{},{:.6}", frame_num, time_secs)?;
+        }
+
+        // Also log to Rerun for visualization
+        if let Some(ref stream) = self.stream {
+            let rerun_points: Vec<[f32; 3]> = points.to_vec();
+            stream.log("lidar/points", &rerun::Points3D::new(rerun_points))?;
+        }
+
+        debug!(frame = frame_num, points = points.len(), "Logged LiDAR frame");
+        Ok(())
+    }
+
+    /// Log a camera frame for mapping.
+    ///
+    /// The JPEG data should be equirectangular format from the 360 camera.
+    /// Rate limited based on config.camera_hz.
+    pub fn log_camera_mapping_frame(
+        &mut self,
+        time_secs: f64,
+        jpeg_data: &[u8],
+    ) -> Result<(), RecordingError> {
+        if !self.config.include_camera {
+            return Ok(());
+        }
+
+        let Some(ref session_dir) = self.session_dir else {
+            return Ok(());
+        };
+
+        // Rate limiting
+        let interval = 1.0 / self.config.camera_hz as f64;
+        if time_secs - self.last_camera_time < interval {
+            return Ok(());
+        }
+        self.last_camera_time = time_secs;
+
+        let frame_num = self.camera_frame_count.fetch_add(1, Ordering::Relaxed);
+
+        // Write JPEG file
+        let jpg_path = session_dir.join("camera").join(format!("{:06}.jpg", frame_num));
+        std::fs::write(&jpg_path, jpeg_data)?;
+
+        // Write timestamp
+        if let Some(ref mut writer) = self.camera_timestamps {
+            writeln!(writer, "{},{:.6}", frame_num, time_secs)?;
+        }
+
+        debug!(frame = frame_num, size = jpeg_data.len(), "Logged camera frame");
         Ok(())
     }
 
@@ -376,15 +654,60 @@ impl Recorder {
     }
 
     /// End the current session.
+    ///
+    /// Writes the session metadata.json file for the mapper service.
     pub fn end_session(&mut self) {
-        if let Some(path) = self.session_path.take() {
+        // Flush timestamp files
+        if let Some(ref mut writer) = self.lidar_timestamps {
+            let _ = writer.flush();
+        }
+        if let Some(ref mut writer) = self.camera_timestamps {
+            let _ = writer.flush();
+        }
+
+        // Write session metadata
+        if let (Some(ref session_dir), Some(ref mut metadata)) = (&self.session_dir, &mut self.metadata) {
+            metadata.ended_at = Some(Utc::now());
+            metadata.lidar_frames = self.lidar_frame_count.load(Ordering::Relaxed);
+            metadata.camera_frames = self.camera_frame_count.load(Ordering::Relaxed);
+
+            if self.gps_bounds.is_valid() {
+                metadata.gps_bounds = Some(self.gps_bounds.clone());
+            }
+
+            let metadata_path = session_dir.join("metadata.json");
+            match serde_json::to_string_pretty(metadata) {
+                Ok(json) => {
+                    if let Err(e) = std::fs::write(&metadata_path, json) {
+                        warn!(error = %e, "Failed to write session metadata");
+                    } else {
+                        info!(
+                            path = %metadata_path.display(),
+                            lidar_frames = metadata.lidar_frames,
+                            camera_frames = metadata.camera_frames,
+                            "Wrote session metadata"
+                        );
+                    }
+                }
+                Err(e) => {
+                    warn!(error = %e, "Failed to serialize session metadata");
+                }
+            }
+        }
+
+        if let Some(ref path) = self.session_dir {
             info!(path = %path.display(), "Ending recording session");
         }
+
         self.stream = None;
+        self.session_dir = None;
+        self.session_path = None;
+        self.lidar_timestamps = None;
+        self.camera_timestamps = None;
     }
 
-    /// Log session metadata at start.
-    fn log_session_metadata(stream: &RecordingStream, config: &Config) -> Result<(), RecordingError> {
+    /// Log session metadata to Rerun at start.
+    fn log_session_metadata_rerun(stream: &RecordingStream, config: &Config) -> Result<(), RecordingError> {
         stream.log_static(
             "session/rover_id",
             &rerun::TextLog::new(config.rover_id.clone()),
@@ -458,6 +781,38 @@ pub enum EventLevel {
     Error,
 }
 
+// =============================================================================
+// Helper Functions
+// =============================================================================
+
+/// Write a point cloud to PCD format (ASCII for simplicity).
+///
+/// PCD is a simple format supported by PCL and most point cloud tools.
+fn write_pcd_file(path: &Path, points: &[[f32; 3]]) -> Result<(), std::io::Error> {
+    let mut file = BufWriter::new(File::create(path)?);
+
+    // PCD header
+    writeln!(file, "# .PCD v0.7 - Point Cloud Data")?;
+    writeln!(file, "VERSION 0.7")?;
+    writeln!(file, "FIELDS x y z")?;
+    writeln!(file, "SIZE 4 4 4")?;
+    writeln!(file, "TYPE F F F")?;
+    writeln!(file, "COUNT 1 1 1")?;
+    writeln!(file, "WIDTH {}", points.len())?;
+    writeln!(file, "HEIGHT 1")?;
+    writeln!(file, "VIEWPOINT 0 0 0 1 0 0 0")?;
+    writeln!(file, "POINTS {}", points.len())?;
+    writeln!(file, "DATA ascii")?;
+
+    // Point data
+    for point in points {
+        writeln!(file, "{:.6} {:.6} {:.6}", point[0], point[1], point[2])?;
+    }
+
+    file.flush()?;
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -470,6 +825,23 @@ mod tests {
         // All operations should be no-ops
         recorder.set_time(0.0);
         assert!(recorder.log_pose(&Pose::default()).is_ok());
+    }
+
+    #[test]
+    fn test_gps_bounds() {
+        let mut bounds = GpsBounds::default();
+        assert!(!bounds.is_valid());
+
+        bounds.expand(44.9778, -93.2650);
+        assert!(bounds.is_valid());
+        assert_eq!(bounds.min_lat, 44.9778);
+        assert_eq!(bounds.max_lat, 44.9778);
+
+        bounds.expand(44.9812, -93.2580);
+        assert_eq!(bounds.min_lat, 44.9778);
+        assert_eq!(bounds.max_lat, 44.9812);
+        assert_eq!(bounds.min_lon, -93.2650);
+        assert_eq!(bounds.max_lon, -93.2580);
     }
 }
 
