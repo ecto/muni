@@ -88,19 +88,150 @@ class Job:
         )
 
 
+@dataclass
+class Pose:
+    """A 3D pose with timestamp."""
+    timestamp: float
+    position: np.ndarray  # [x, y, z]
+    rotation: np.ndarray  # [qx, qy, qz, qw] quaternion
+
+
+def load_poses(session_path: Path) -> list[Pose]:
+    """
+    Load poses from poses.csv file.
+    
+    Format: timestamp_secs,x,y,z,qx,qy,qz,qw
+    """
+    poses_file = session_path / 'poses.csv'
+    poses = []
+    
+    if not poses_file.exists():
+        logger.warning(f"No poses.csv found at {poses_file}")
+        return poses
+    
+    with open(poses_file, 'r') as f:
+        next(f)  # Skip header
+        for line in f:
+            parts = line.strip().split(',')
+            if len(parts) >= 8:
+                try:
+                    poses.append(Pose(
+                        timestamp=float(parts[0]),
+                        position=np.array([float(parts[1]), float(parts[2]), float(parts[3])]),
+                        rotation=np.array([float(parts[4]), float(parts[5]), float(parts[6]), float(parts[7])])
+                    ))
+                except ValueError as e:
+                    logger.warning(f"Failed to parse pose line: {e}")
+    
+    logger.info(f"Loaded {len(poses)} poses from poses.csv")
+    return poses
+
+
+def interpolate_pose(poses: list[Pose], timestamp: float) -> Optional[Pose]:
+    """
+    Interpolate pose at a given timestamp using linear interpolation.
+    """
+    if not poses:
+        return None
+    
+    # Find bracketing poses
+    prev_pose = None
+    next_pose = None
+    
+    for pose in poses:
+        if pose.timestamp <= timestamp:
+            prev_pose = pose
+        elif pose.timestamp > timestamp and next_pose is None:
+            next_pose = pose
+            break
+    
+    if prev_pose is None:
+        return poses[0] if poses else None
+    if next_pose is None:
+        return prev_pose
+    
+    # Linear interpolation
+    dt = next_pose.timestamp - prev_pose.timestamp
+    if dt < 1e-6:
+        return prev_pose
+    
+    t = (timestamp - prev_pose.timestamp) / dt
+    t = np.clip(t, 0.0, 1.0)
+    
+    # Interpolate position
+    position = prev_pose.position * (1 - t) + next_pose.position * t
+    
+    # SLERP for quaternion (simplified: linear for small angles)
+    rotation = prev_pose.rotation * (1 - t) + next_pose.rotation * t
+    rotation = rotation / np.linalg.norm(rotation)  # Normalize
+    
+    return Pose(timestamp=timestamp, position=position, rotation=rotation)
+
+
+def quaternion_to_matrix(q: np.ndarray) -> np.ndarray:
+    """Convert quaternion [qx, qy, qz, qw] to 3x3 rotation matrix."""
+    qx, qy, qz, qw = q
+    
+    return np.array([
+        [1 - 2*qy*qy - 2*qz*qz, 2*qx*qy - 2*qz*qw, 2*qx*qz + 2*qy*qw],
+        [2*qx*qy + 2*qz*qw, 1 - 2*qx*qx - 2*qz*qz, 2*qy*qz - 2*qx*qw],
+        [2*qx*qz - 2*qy*qw, 2*qy*qz + 2*qx*qw, 1 - 2*qx*qx - 2*qy*qy]
+    ])
+
+
+def transform_points_to_world(points: np.ndarray, pose: Pose) -> np.ndarray:
+    """
+    Transform points from sensor frame to world frame using pose.
+    
+    Args:
+        points: (N, 3) array of points in sensor frame
+        pose: Pose with position and rotation
+    
+    Returns:
+        (N, 3) array of points in world frame
+    """
+    if len(points) == 0:
+        return points
+    
+    # Build rotation matrix from quaternion
+    R = quaternion_to_matrix(pose.rotation)
+    
+    # Transform: world_point = R @ sensor_point + position
+    world_points = (R @ points.T).T + pose.position
+    
+    return world_points
+
+
 def load_session_data(session_path: Path) -> tuple[np.ndarray, list[dict], list[Path]]:
     """
     Load session data for splatting.
     
     Returns:
-        points: (N, 3) array of LiDAR points
+        points: (N, 3) array of LiDAR points in world frame
         poses: List of camera poses with timestamps
         images: List of image paths
     """
     logger.info(f"Loading session from {session_path}")
     
-    # Load LiDAR points
+    # Load poses first
+    poses = load_poses(session_path)
+    
+    # Load LiDAR timestamps
     lidar_dir = session_path / 'lidar'
+    lidar_timestamps = {}
+    
+    timestamps_file = lidar_dir / 'timestamps.csv' if lidar_dir.exists() else None
+    if timestamps_file and timestamps_file.exists():
+        with open(timestamps_file, 'r') as f:
+            next(f)  # Skip header
+            for line in f:
+                parts = line.strip().split(',')
+                if len(parts) >= 2:
+                    frame_num = int(parts[0])
+                    timestamp = float(parts[1])
+                    lidar_timestamps[frame_num] = timestamp
+    
+    # Load LiDAR points with pose transformation
     points = []
     
     if lidar_dir.exists():
@@ -109,12 +240,28 @@ def load_session_data(session_path: Path) -> tuple[np.ndarray, list[dict], list[
         
         for pcd_file in pcd_files:
             frame_points = load_pcd(pcd_file)
-            if frame_points is not None:
-                points.append(frame_points)
+            if frame_points is None or len(frame_points) == 0:
+                continue
+            
+            # Get frame number from filename
+            try:
+                frame_num = int(pcd_file.stem)
+            except ValueError:
+                continue
+            
+            # Get timestamp and interpolate pose
+            timestamp = lidar_timestamps.get(frame_num)
+            if timestamp is not None and poses:
+                pose = interpolate_pose(poses, timestamp)
+                if pose is not None:
+                    # Transform points to world frame
+                    frame_points = transform_points_to_world(frame_points, pose)
+            
+            points.append(frame_points)
         
         if points:
             points = np.vstack(points)
-            logger.info(f"Loaded {len(points)} total points")
+            logger.info(f"Loaded {len(points)} total points (world frame)")
         else:
             points = np.zeros((0, 3))
     else:
@@ -131,27 +278,37 @@ def load_session_data(session_path: Path) -> tuple[np.ndarray, list[dict], list[
     else:
         logger.warning("No camera directory found")
     
-    # Load poses from telemetry (simplified: use timestamps.csv)
-    poses = []
-    timestamps_file = camera_dir / 'timestamps.csv' if camera_dir.exists() else None
+    # Build camera pose list from poses
+    camera_poses = []
+    camera_timestamps_file = camera_dir / 'timestamps.csv' if camera_dir.exists() else None
     
-    if timestamps_file and timestamps_file.exists():
-        with open(timestamps_file, 'r') as f:
+    if camera_timestamps_file and camera_timestamps_file.exists():
+        with open(camera_timestamps_file, 'r') as f:
             next(f)  # Skip header
             for line in f:
                 parts = line.strip().split(',')
                 if len(parts) >= 2:
                     frame_num = int(parts[0])
                     timestamp = float(parts[1])
-                    # For now, use identity poses (proper implementation would read from telemetry.rrd)
-                    poses.append({
-                        'frame': frame_num,
-                        'timestamp': timestamp,
-                        'position': [0.0, 0.0, 0.0],
-                        'rotation': [0.0, 0.0, 0.0, 1.0]  # quaternion
-                    })
+                    
+                    # Interpolate pose for this camera frame
+                    pose = interpolate_pose(poses, timestamp) if poses else None
+                    if pose is not None:
+                        camera_poses.append({
+                            'frame': frame_num,
+                            'timestamp': timestamp,
+                            'position': pose.position.tolist(),
+                            'rotation': pose.rotation.tolist()
+                        })
+                    else:
+                        camera_poses.append({
+                            'frame': frame_num,
+                            'timestamp': timestamp,
+                            'position': [0.0, 0.0, 0.0],
+                            'rotation': [0.0, 0.0, 0.0, 1.0]
+                        })
     
-    return points, poses, images
+    return points, camera_poses, images
 
 
 def load_pcd(path: Path) -> Optional[np.ndarray]:
@@ -172,6 +329,199 @@ def load_pcd(path: Path) -> Optional[np.ndarray]:
     except Exception as e:
         logger.warning(f"Failed to load PCD {path}: {e}")
         return None
+
+
+# =============================================================================
+# Point Cloud Preprocessing
+# =============================================================================
+
+def voxel_downsample(points: np.ndarray, voxel_size: float = 0.05) -> np.ndarray:
+    """
+    Downsample point cloud using voxel grid filter.
+    
+    Args:
+        points: (N, 3) array of points
+        voxel_size: Size of voxel grid cells in meters
+    
+    Returns:
+        Downsampled point cloud
+    """
+    if len(points) == 0:
+        return points
+    
+    # Quantize points to voxel grid
+    voxel_indices = np.floor(points / voxel_size).astype(np.int32)
+    
+    # Use unique voxels
+    _, unique_indices = np.unique(
+        voxel_indices.view(np.dtype((np.void, voxel_indices.dtype.itemsize * 3))),
+        return_index=True
+    )
+    
+    downsampled = points[unique_indices]
+    logger.info(f"Voxel downsample: {len(points)} -> {len(downsampled)} points (voxel_size={voxel_size}m)")
+    return downsampled
+
+
+def remove_statistical_outliers(
+    points: np.ndarray, 
+    k_neighbors: int = 20, 
+    std_ratio: float = 2.0
+) -> np.ndarray:
+    """
+    Remove statistical outliers based on mean distance to k nearest neighbors.
+    
+    Points with mean distance greater than (global_mean + std_ratio * global_std)
+    are considered outliers.
+    
+    Args:
+        points: (N, 3) array of points
+        k_neighbors: Number of neighbors to consider
+        std_ratio: Standard deviation multiplier for outlier threshold
+    
+    Returns:
+        Filtered point cloud
+    """
+    if len(points) < k_neighbors + 1:
+        return points
+    
+    try:
+        from scipy.spatial import cKDTree
+    except ImportError:
+        logger.warning("scipy not available, skipping outlier removal")
+        return points
+    
+    # Build KD-tree
+    tree = cKDTree(points)
+    
+    # Query k+1 neighbors (includes self)
+    distances, _ = tree.query(points, k=k_neighbors + 1)
+    
+    # Mean distance to neighbors (exclude self which is distance 0)
+    mean_distances = np.mean(distances[:, 1:], axis=1)
+    
+    # Compute threshold
+    global_mean = np.mean(mean_distances)
+    global_std = np.std(mean_distances)
+    threshold = global_mean + std_ratio * global_std
+    
+    # Filter
+    mask = mean_distances < threshold
+    filtered = points[mask]
+    
+    logger.info(f"Outlier removal: {len(points)} -> {len(filtered)} points "
+                f"(threshold={threshold:.4f}m)")
+    return filtered
+
+
+def filter_ground_plane(
+    points: np.ndarray, 
+    ground_threshold: float = 0.1,
+    ransac_iterations: int = 100
+) -> tuple[np.ndarray, np.ndarray]:
+    """
+    Separate ground plane from other points using RANSAC.
+    
+    Args:
+        points: (N, 3) array of points
+        ground_threshold: Distance threshold for inliers
+        ransac_iterations: Number of RANSAC iterations
+    
+    Returns:
+        Tuple of (non_ground_points, ground_points)
+    """
+    if len(points) < 3:
+        return points, np.zeros((0, 3), dtype=np.float32)
+    
+    best_inliers = None
+    best_inlier_count = 0
+    
+    for _ in range(ransac_iterations):
+        # Sample 3 random points
+        indices = np.random.choice(len(points), 3, replace=False)
+        sample = points[indices]
+        
+        # Fit plane: ax + by + cz + d = 0
+        v1 = sample[1] - sample[0]
+        v2 = sample[2] - sample[0]
+        normal = np.cross(v1, v2)
+        
+        norm = np.linalg.norm(normal)
+        if norm < 1e-6:
+            continue
+        normal = normal / norm
+        
+        # Check if plane is approximately horizontal (normal ~ [0, 0, 1])
+        if abs(normal[2]) < 0.8:
+            continue
+        
+        d = -np.dot(normal, sample[0])
+        
+        # Compute distances to plane
+        distances = np.abs(np.dot(points, normal) + d)
+        
+        # Count inliers
+        inlier_mask = distances < ground_threshold
+        inlier_count = np.sum(inlier_mask)
+        
+        if inlier_count > best_inlier_count:
+            best_inlier_count = inlier_count
+            best_inliers = inlier_mask
+    
+    if best_inliers is None:
+        logger.warning("No ground plane found")
+        return points, np.zeros((0, 3), dtype=np.float32)
+    
+    ground_points = points[best_inliers]
+    non_ground_points = points[~best_inliers]
+    
+    logger.info(f"Ground filtering: {len(ground_points)} ground, "
+                f"{len(non_ground_points)} non-ground points")
+    
+    return non_ground_points, ground_points
+
+
+def preprocess_point_cloud(
+    points: np.ndarray,
+    voxel_size: float = 0.05,
+    remove_outliers: bool = True,
+    filter_ground: bool = True
+) -> np.ndarray:
+    """
+    Full preprocessing pipeline for point cloud.
+    
+    Args:
+        points: Raw point cloud
+        voxel_size: Voxel size for downsampling
+        remove_outliers: Whether to remove statistical outliers
+        filter_ground: Whether to filter ground plane
+    
+    Returns:
+        Preprocessed point cloud
+    """
+    if len(points) == 0:
+        return points
+    
+    logger.info(f"Preprocessing {len(points)} points...")
+    
+    # Step 1: Voxel downsampling
+    points = voxel_downsample(points, voxel_size)
+    
+    # Step 2: Remove outliers
+    if remove_outliers and len(points) > 50:
+        points = remove_statistical_outliers(points)
+    
+    # Step 3: Ground filtering (optional, depends on use case)
+    if filter_ground and len(points) > 100:
+        non_ground, ground = filter_ground_plane(points)
+        # For splatting, we might want to keep ground
+        # but we can return both if needed
+        # For now, keep all points but log the separation
+        logger.info(f"Preprocessing complete: {len(points)} points")
+    else:
+        logger.info(f"Preprocessing complete: {len(points)} points")
+    
+    return points
 
 
 def run_gaussian_splatting(
@@ -197,11 +547,24 @@ def run_gaussian_splatting(
     stats = {
         'input_points': len(points),
         'input_images': len(images),
+        'input_poses': len(poses),
         'iterations': config.iterations,
         'status': 'pending'
     }
     
     try:
+        # Preprocess point cloud
+        if len(points) > 0:
+            original_count = len(points)
+            points = preprocess_point_cloud(
+                points,
+                voxel_size=0.05,  # 5cm voxels
+                remove_outliers=True,
+                filter_ground=False  # Keep ground for splatting
+            )
+            stats['preprocessed_points'] = len(points)
+            logger.info(f"Preprocessed: {original_count} -> {len(points)} points")
+        
         # Check if we have enough data
         if len(points) < 100:
             logger.warning("Insufficient points for splatting, creating point cloud only")
