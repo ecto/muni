@@ -2,6 +2,7 @@ import { Toast } from "@/components/ui/Toast";
 import { HomeScreen } from "@/components/screens/HomeScreen";
 import { TeleopScreen } from "@/components/screens/TeleopScreen";
 import { MapsScreen } from "@/components/screens/MapsScreen";
+import { SessionsScreen } from "@/components/screens/SessionsScreen";
 import { useOperatorStore } from "@/store";
 import { View } from "@/lib/types";
 
@@ -16,6 +17,9 @@ function App() {
         return <TeleopScreen />;
       case View.Maps:
         return <MapsScreen />;
+      case View.Sessions:
+      case View.SessionPlayback:
+        return <SessionsScreen />;
       default:
         return <HomeScreen />;
     }

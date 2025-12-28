@@ -347,7 +347,9 @@ async fn main() -> Result<()> {
             rover_id: rover_id.clone(),
             max_storage_bytes: 10 * 1024 * 1024 * 1024, // 10 GB
             include_camera: false,
+            include_lidar: false,
             enabled: true,
+            ..Default::default()
         };
         match Recorder::new(&recording_config) {
             Ok(r) => {

@@ -9,13 +9,16 @@
 //! - GET /rovers - List all known rovers (HTTP fallback)
 //! - GET /ws - WebSocket for live rover updates
 //! - GET /health - Health check
+//! - GET /api/sessions - List all recorded sessions
+//! - GET /api/sessions/:rover_id/:session_dir/session.rrd - Serve session file
 
 use axum::{
+    body::Body,
     extract::{
         ws::{Message, WebSocket, WebSocketUpgrade},
-        Path, State,
+        Path, Query, State,
     },
-    http::StatusCode,
+    http::{header, StatusCode},
     response::IntoResponse,
     routing::{get, post},
     Json, Router,
@@ -25,12 +28,14 @@ use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
     net::SocketAddr,
+    path::PathBuf,
     sync::Arc,
     time::{Duration, Instant},
 };
 use tokio::sync::{broadcast, RwLock};
+use tokio_util::io::ReaderStream;
 use tower_http::cors::CorsLayer;
-use tracing::{info, warn};
+use tracing::{debug, info, warn};
 
 /// Rover timeout - rovers go offline after this duration without heartbeat
 const ROVER_TIMEOUT: Duration = Duration::from_secs(10);
@@ -88,18 +93,66 @@ struct WsMessage {
     data: Vec<RoverInfo>,
 }
 
+// =============================================================================
+// Session Types (matching recording crate's SessionMetadata)
+// =============================================================================
+
+/// GPS bounding box for a session
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct GpsSessionBounds {
+    min_lat: f64,
+    max_lat: f64,
+    min_lon: f64,
+    max_lon: f64,
+}
+
+/// Session metadata (read from metadata.json)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct SessionMetadata {
+    session_id: String,
+    rover_id: String,
+    started_at: String,
+    ended_at: Option<String>,
+    #[serde(default)]
+    duration_secs: f64,
+    gps_bounds: Option<GpsSessionBounds>,
+    lidar_frames: u32,
+    camera_frames: u32,
+    #[serde(default)]
+    pose_samples: u32,
+    session_file: String,
+    /// Added by API: the directory name
+    #[serde(default)]
+    session_dir: String,
+}
+
+/// Query params for sessions list
+#[derive(Debug, Deserialize)]
+struct SessionsQuery {
+    rover_id: Option<String>,
+}
+
+/// Response for sessions list
+#[derive(Debug, Serialize)]
+struct SessionsResponse {
+    sessions: Vec<SessionMetadata>,
+}
+
 /// Shared application state
 struct AppState {
     rovers: RwLock<HashMap<String, RoverInfo>>,
     broadcast_tx: broadcast::Sender<()>,
+    /// Base directory for session data (contains rover subdirectories)
+    sessions_dir: PathBuf,
 }
 
 impl AppState {
-    fn new() -> Self {
+    fn new(sessions_dir: PathBuf) -> Self {
         let (broadcast_tx, _) = broadcast::channel(16);
         Self {
             rovers: RwLock::new(HashMap::new()),
             broadcast_tx,
+            sessions_dir,
         }
     }
 
@@ -136,7 +189,14 @@ async fn main() {
         )
         .init();
 
-    let state = Arc::new(AppState::new());
+    // Sessions directory (where synced rover data lives)
+    let sessions_dir = std::env::var("SESSIONS_DIR")
+        .map(PathBuf::from)
+        .unwrap_or_else(|_| PathBuf::from("/data/sessions"));
+
+    info!(path = %sessions_dir.display(), "Sessions directory");
+
+    let state = Arc::new(AppState::new(sessions_dir));
 
     // Spawn background task to check for stale rovers
     let state_clone = state.clone();
@@ -170,6 +230,12 @@ async fn main() {
         .route("/rovers", get(list_rovers))
         .route("/ws", get(ws_handler))
         .route("/health", get(health))
+        // Sessions API
+        .route("/api/sessions", get(list_sessions))
+        .route(
+            "/api/sessions/{rover_id}/{session_dir}/session.rrd",
+            get(serve_session_rrd),
+        )
         .layer(CorsLayer::permissive())
         .with_state(state);
 
@@ -346,4 +412,201 @@ async fn handle_ws(socket: WebSocket, state: SharedState) {
     }
 
     info!("Operator disconnected");
+}
+
+// =============================================================================
+// Sessions API
+// =============================================================================
+
+/// List all recorded sessions
+///
+/// Scans the sessions directory for all rovers and returns session metadata.
+/// Sessions are read from metadata.json files in each session directory.
+async fn list_sessions(
+    State(state): State<SharedState>,
+    Query(query): Query<SessionsQuery>,
+) -> impl IntoResponse {
+    let mut sessions: Vec<SessionMetadata> = Vec::new();
+
+    // Check if sessions directory exists
+    if !state.sessions_dir.exists() {
+        debug!(
+            path = %state.sessions_dir.display(),
+            "Sessions directory does not exist"
+        );
+        return Json(SessionsResponse { sessions });
+    }
+
+    // Iterate over rover directories
+    let rover_dirs = match std::fs::read_dir(&state.sessions_dir) {
+        Ok(dirs) => dirs,
+        Err(e) => {
+            warn!(error = %e, "Failed to read sessions directory");
+            return Json(SessionsResponse { sessions });
+        }
+    };
+
+    for rover_entry in rover_dirs.filter_map(|e| e.ok()) {
+        let rover_path = rover_entry.path();
+        if !rover_path.is_dir() {
+            continue;
+        }
+
+        let rover_id = rover_path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("")
+            .to_string();
+
+        // Filter by rover_id if specified
+        if let Some(ref filter_id) = query.rover_id {
+            if &rover_id != filter_id {
+                continue;
+            }
+        }
+
+        // Look for sessions directory under rover (synced structure: /data/sessions/{rover_id}/sessions/...)
+        let sessions_path = rover_path.join("sessions");
+        let search_path = if sessions_path.exists() {
+            sessions_path
+        } else {
+            rover_path.clone()
+        };
+
+        // Iterate over session directories
+        let session_dirs = match std::fs::read_dir(&search_path) {
+            Ok(dirs) => dirs,
+            Err(_) => continue,
+        };
+
+        for session_entry in session_dirs.filter_map(|e| e.ok()) {
+            let session_path = session_entry.path();
+            if !session_path.is_dir() {
+                continue;
+            }
+
+            let session_dir = session_path
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("")
+                .to_string();
+
+            // Read metadata.json
+            let metadata_path = session_path.join("metadata.json");
+            if !metadata_path.exists() {
+                continue;
+            }
+
+            match std::fs::read_to_string(&metadata_path) {
+                Ok(content) => match serde_json::from_str::<SessionMetadata>(&content) {
+                    Ok(mut metadata) => {
+                        metadata.session_dir = session_dir;
+                        sessions.push(metadata);
+                    }
+                    Err(e) => {
+                        debug!(
+                            path = %metadata_path.display(),
+                            error = %e,
+                            "Failed to parse session metadata"
+                        );
+                    }
+                },
+                Err(e) => {
+                    debug!(
+                        path = %metadata_path.display(),
+                        error = %e,
+                        "Failed to read session metadata"
+                    );
+                }
+            }
+        }
+    }
+
+    // Sort by start time, newest first
+    sessions.sort_by(|a, b| b.started_at.cmp(&a.started_at));
+
+    info!(count = sessions.len(), "Listed sessions");
+    Json(SessionsResponse { sessions })
+}
+
+/// Serve a session's RRD file
+///
+/// Streams the session.rrd file for viewing in Rerun.
+async fn serve_session_rrd(
+    State(state): State<SharedState>,
+    Path((rover_id, session_dir)): Path<(String, String)>,
+) -> impl IntoResponse {
+    // Build the path to the session file
+    // Try both direct and nested structures:
+    // - /data/sessions/{rover_id}/{session_dir}/session.rrd
+    // - /data/sessions/{rover_id}/sessions/{session_dir}/session.rrd
+    let direct_path = state
+        .sessions_dir
+        .join(&rover_id)
+        .join(&session_dir)
+        .join("session.rrd");
+    let nested_path = state
+        .sessions_dir
+        .join(&rover_id)
+        .join("sessions")
+        .join(&session_dir)
+        .join("session.rrd");
+
+    let rrd_path = if direct_path.exists() {
+        direct_path
+    } else if nested_path.exists() {
+        nested_path
+    } else {
+        warn!(
+            rover_id = %rover_id,
+            session_dir = %session_dir,
+            "Session RRD file not found"
+        );
+        return Err((StatusCode::NOT_FOUND, "Session not found"));
+    };
+
+    // Open the file
+    let file = match tokio::fs::File::open(&rrd_path).await {
+        Ok(f) => f,
+        Err(e) => {
+            warn!(
+                path = %rrd_path.display(),
+                error = %e,
+                "Failed to open session file"
+            );
+            return Err((StatusCode::INTERNAL_SERVER_ERROR, "Failed to read session"));
+        }
+    };
+
+    // Get file size for Content-Length
+    let metadata = match file.metadata().await {
+        Ok(m) => m,
+        Err(_) => {
+            return Err((StatusCode::INTERNAL_SERVER_ERROR, "Failed to read file metadata"));
+        }
+    };
+
+    let file_size = metadata.len();
+    info!(
+        path = %rrd_path.display(),
+        size = file_size,
+        "Serving session RRD"
+    );
+
+    // Stream the file
+    let stream = ReaderStream::new(file);
+    let body = Body::from_stream(stream);
+
+    Ok((
+        [
+            (header::CONTENT_TYPE, "application/octet-stream"),
+            (
+                header::CONTENT_DISPOSITION,
+                "attachment; filename=\"session.rrd\"",
+            ),
+            // Allow cross-origin requests for Rerun viewer
+            (header::ACCESS_CONTROL_ALLOW_ORIGIN, "*"),
+        ],
+        body,
+    ))
 }
