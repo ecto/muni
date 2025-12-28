@@ -5,6 +5,7 @@ import {
   type GamepadInput,
   type Pose,
   type RoverInfo,
+  type Session,
   InputSource,
   CameraMode,
   View,
@@ -62,6 +63,18 @@ interface OperatorState {
   setVideoConnected: (connected: boolean) => void;
   setVideoFps: (fps: number) => void;
   setVideoFrame: (frame: string | null, timestamp: number) => void;
+
+  // Sessions (historical playback)
+  sessions: Session[];
+  selectedSessionId: string | null;
+  sessionsLoading: boolean;
+  sessionsError: string | null;
+  sessionRoverFilter: string | null; // Filter sessions by rover ID
+  setSessions: (sessions: Session[]) => void;
+  selectSession: (sessionId: string | null) => void;
+  setSessionsLoading: (loading: boolean) => void;
+  setSessionsError: (error: string | null) => void;
+  setSessionRoverFilter: (roverId: string | null) => void;
 }
 
 const defaultTelemetry: Telemetry = {
@@ -165,4 +178,16 @@ export const useOperatorStore = create<OperatorState>((set) => ({
   setVideoFps: (fps) => set({ videoFps: fps }),
   setVideoFrame: (frame, timestamp) =>
     set({ videoFrame: frame, videoTimestamp: timestamp }),
+
+  // Sessions
+  sessions: [],
+  selectedSessionId: null,
+  sessionsLoading: false,
+  sessionsError: null,
+  sessionRoverFilter: null,
+  setSessions: (sessions) => set({ sessions, sessionsError: null }),
+  selectSession: (sessionId) => set({ selectedSessionId: sessionId }),
+  setSessionsLoading: (loading) => set({ sessionsLoading: loading }),
+  setSessionsError: (error) => set({ sessionsError: error }),
+  setSessionRoverFilter: (roverId) => set({ sessionRoverFilter: roverId }),
 }));

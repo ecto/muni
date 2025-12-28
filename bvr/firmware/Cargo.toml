@@ -4,7 +4,7 @@ members = ["crates/*", "bins/*"]
 
 [workspace.package]
 version = "0.1.0"
-edition = "2024"
+edition = "2021"
 license = "Proprietary"
 repository = "https://github.com/muni-robotics/muni"
 

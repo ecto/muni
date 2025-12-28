@@ -5,7 +5,8 @@ edition = "2021"
 description = "Rover discovery service for the Depot"
 
 [dependencies]
-tokio = { version = "1", features = ["rt-multi-thread", "sync", "time", "macros", "net"] }
+tokio = { version = "1", features = ["rt-multi-thread", "sync", "time", "macros", "net", "fs"] }
+tokio-util = { version = "0.7", features = ["io"] }
 axum = { version = "0.8", features = ["ws"] }
 axum-extra = { version = "0.10", features = ["typed-header"] }
 tower-http = { version = "0.6", features = ["cors"] }

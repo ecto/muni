@@ -13,6 +13,7 @@ import {
   Robot,
   GameController,
   MapTrifold,
+  VideoCamera,
 } from "@phosphor-icons/react";
 import { useRef, useEffect, useCallback, useState } from "react";
 import { useDiscovery } from "@/hooks/useDiscovery";
@@ -442,7 +443,15 @@ export function HomeScreen() {
           )}
         </div>
 
-        <div className="p-4 border-t border-border space-y-3">
+        <div className="p-4 border-t border-border space-y-2">
+          <Button
+            variant="outline"
+            className="w-full gap-2"
+            onClick={() => setView(View.Sessions)}
+          >
+            <VideoCamera className="h-4 w-4" weight="fill" />
+            Session History
+          </Button>
           <Button
             variant="outline"
             className="w-full gap-2"
@@ -451,7 +460,7 @@ export function HomeScreen() {
             <MapTrifold className="h-4 w-4" weight="fill" />
             Browse Maps
           </Button>
-          <div className="text-xs text-muted-foreground text-center">
+          <div className="text-xs text-muted-foreground text-center mt-2">
             Muni Robotics Operator Console
           </div>
         </div>

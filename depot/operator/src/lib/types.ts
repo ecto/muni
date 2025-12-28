@@ -79,9 +79,34 @@ export const View = {
   Home: "home",
   Teleop: "teleop",
   Maps: "maps",
+  Sessions: "sessions",
+  SessionPlayback: "session-playback",
 } as const;
 
 export type View = (typeof View)[keyof typeof View];
+
+// Session types (from recording crate's SessionMetadata)
+export interface GpsSessionBounds {
+  min_lat: number;
+  max_lat: number;
+  min_lon: number;
+  max_lon: number;
+}
+
+export interface Session {
+  session_id: string;
+  rover_id: string;
+  started_at: string; // ISO timestamp
+  ended_at: string | null;
+  duration_secs: number;
+  gps_bounds: GpsSessionBounds | null;
+  lidar_frames: number;
+  camera_frames: number;
+  pose_samples: number;
+  session_file: string; // "session.rrd"
+  // Computed/added by API
+  session_dir: string; // Directory name (timestamp format)
+}
 
 // Map types (from map-api service)
 export interface GpsBounds {

@@ -44,16 +44,13 @@ fi
 
 echo "$(date -Iseconds) Starting BVR sync for $ROVER_ID"
 
-# Sync session recordings (full session directories with telemetry, LiDAR, camera)
+# Sync session recordings (unified .rrd files with metadata.json)
 if [ -d "$SESSION_DIR" ]; then
     echo "Syncing sessions from $SESSION_DIR to $DESTINATION/$ROVER_ID/sessions/"
     rclone sync "$SESSION_DIR" "$DESTINATION/$ROVER_ID/sessions/" \
         --config "$RCLONE_CONFIG" \
         --min-age "$MIN_AGE" \
-        --include "*.rrd" \
-        --include "*.pcd" \
-        --include "*.jpg" \
-        --include "*.csv" \
+        --include "session.rrd" \
         --include "metadata.json" \
         --transfers 4 \
         --checkers 4 \
