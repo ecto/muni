@@ -125,4 +125,3 @@ max_linear_vel = 1.0
 max_angular_vel = 1.5
 # Goal waypoint [x, y] for testing (optional, can be set via command)
 # goal = [5.0, 0.0]
-
