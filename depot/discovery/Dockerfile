@@ -12,8 +12,9 @@ COPY Cargo.toml Cargo.lock* ./
 RUN mkdir src && echo "fn main() {}" > src/main.rs
 RUN cargo build --release 2>/dev/null || true
 
-# Copy actual source
+# Copy actual source and force rebuild by touching files
 COPY src ./src
+RUN touch src/main.rs
 
 # Build for release
 RUN cargo build --release
