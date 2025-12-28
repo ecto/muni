@@ -18,6 +18,7 @@
 //!    /var/log/bvr/sessions/{timestamp}/
 //!         ├── metadata.json          <- Session metadata for mapper
 //!         ├── telemetry.rrd          <- Rerun telemetry file
+//!         ├── poses.csv              <- Pose trajectory for mapping
 //!         ├── lidar/                 <- Point cloud frames (PCD format)
 //!         │   ├── 000000.pcd
 //!         │   └── timestamps.csv
@@ -126,6 +127,9 @@ pub struct SessionMetadata {
     pub lidar_frames: u32,
     /// Number of camera frames recorded
     pub camera_frames: u32,
+    /// Number of pose samples recorded
+    #[serde(default)]
+    pub pose_samples: u32,
     /// Name of the telemetry file
     pub telemetry_file: String,
 }
@@ -185,14 +189,20 @@ pub struct Recorder {
     lidar_frame_count: AtomicU32,
     /// Camera frame counter
     camera_frame_count: AtomicU32,
+    /// Pose sample counter
+    pose_count: AtomicU32,
     /// LiDAR timestamps file writer
     lidar_timestamps: Option<BufWriter<File>>,
     /// Camera timestamps file writer
     camera_timestamps: Option<BufWriter<File>>,
+    /// Poses file writer (for mapping pipeline)
+    poses_writer: Option<BufWriter<File>>,
     /// Last LiDAR frame time (for rate limiting)
     last_lidar_time: f64,
     /// Last camera frame time (for rate limiting)
     last_camera_time: f64,
+    /// Last pose log time (for rate limiting to 10Hz)
+    last_pose_time: f64,
 }
 
 impl Recorder {
@@ -209,10 +219,13 @@ impl Recorder {
                 gps_bounds: GpsBounds::default(),
                 lidar_frame_count: AtomicU32::new(0),
                 camera_frame_count: AtomicU32::new(0),
+                pose_count: AtomicU32::new(0),
                 lidar_timestamps: None,
                 camera_timestamps: None,
+                poses_writer: None,
                 last_lidar_time: 0.0,
                 last_camera_time: 0.0,
+                last_pose_time: 0.0,
             });
         }
 
@@ -268,6 +281,16 @@ impl Recorder {
             None
         };
 
+        // Create poses.csv file for mapping pipeline (records trajectory)
+        let poses_writer = if config.include_lidar || config.include_camera {
+            let poses_file = File::create(session_dir.join("poses.csv"))?;
+            let mut writer = BufWriter::new(poses_file);
+            writeln!(writer, "timestamp_secs,x,y,z,qx,qy,qz,qw")?;
+            Some(writer)
+        } else {
+            None
+        };
+
         // Initialize session metadata
         let metadata = SessionMetadata {
             session_id,
@@ -277,6 +300,7 @@ impl Recorder {
             gps_bounds: None,
             lidar_frames: 0,
             camera_frames: 0,
+            pose_samples: 0,
             telemetry_file,
         };
 
@@ -289,10 +313,13 @@ impl Recorder {
             gps_bounds: GpsBounds::default(),
             lidar_frame_count: AtomicU32::new(0),
             camera_frame_count: AtomicU32::new(0),
+            pose_count: AtomicU32::new(0),
             lidar_timestamps,
             camera_timestamps,
+            poses_writer,
             last_lidar_time: 0.0,
             last_camera_time: 0.0,
+            last_pose_time: 0.0,
         })
     }
 
@@ -310,10 +337,13 @@ impl Recorder {
             gps_bounds: GpsBounds::default(),
             lidar_frame_count: AtomicU32::new(0),
             camera_frame_count: AtomicU32::new(0),
+            pose_count: AtomicU32::new(0),
             lidar_timestamps: None,
             camera_timestamps: None,
+            poses_writer: None,
             last_lidar_time: 0.0,
             last_camera_time: 0.0,
+            last_pose_time: 0.0,
         }
     }
 
@@ -481,6 +511,55 @@ impl Recorder {
             self.gps_bounds.expand(lat, lon);
         }
 
+        Ok(())
+    }
+
+    /// Log rover pose for the mapping pipeline.
+    ///
+    /// Records pose to poses.csv at 10Hz for use by the splat worker.
+    /// The pose should be in the local odometry frame.
+    ///
+    /// # Arguments
+    /// * `time_secs` - Timestamp in seconds
+    /// * `pose` - Current rover pose (x, y, theta in local frame)
+    pub fn log_mapping_pose(
+        &mut self,
+        time_secs: f64,
+        pose: &Pose,
+    ) -> Result<(), RecordingError> {
+        let Some(ref mut writer) = self.poses_writer else {
+            return Ok(());
+        };
+
+        // Rate limit to 10Hz
+        const POSE_INTERVAL: f64 = 0.1;
+        if time_secs - self.last_pose_time < POSE_INTERVAL {
+            return Ok(());
+        }
+        self.last_pose_time = time_secs;
+
+        // Convert 2D pose to 3D pose with quaternion
+        // theta is rotation around Z axis
+        // Quaternion for Z rotation: [0, 0, sin(theta/2), cos(theta/2)]
+        let half_theta = pose.theta / 2.0;
+        let qz = half_theta.sin();
+        let qw = half_theta.cos();
+
+        // Write: timestamp, x, y, z, qx, qy, qz, qw
+        writeln!(
+            writer,
+            "{:.6},{:.6},{:.6},{:.6},{:.6},{:.6},{:.6},{:.6}",
+            time_secs,
+            pose.x,
+            pose.y,
+            0.0, // z (ground plane)
+            0.0, // qx
+            0.0, // qy
+            qz,  // qz
+            qw,  // qw
+        )?;
+
+        self.pose_count.fetch_add(1, Ordering::Relaxed);
         Ok(())
     }
 
@@ -664,12 +743,16 @@ impl Recorder {
         if let Some(ref mut writer) = self.camera_timestamps {
             let _ = writer.flush();
         }
+        if let Some(ref mut writer) = self.poses_writer {
+            let _ = writer.flush();
+        }
 
         // Write session metadata
         if let (Some(ref session_dir), Some(ref mut metadata)) = (&self.session_dir, &mut self.metadata) {
             metadata.ended_at = Some(Utc::now());
             metadata.lidar_frames = self.lidar_frame_count.load(Ordering::Relaxed);
             metadata.camera_frames = self.camera_frame_count.load(Ordering::Relaxed);
+            metadata.pose_samples = self.pose_count.load(Ordering::Relaxed);
 
             if self.gps_bounds.is_valid() {
                 metadata.gps_bounds = Some(self.gps_bounds.clone());
@@ -685,6 +768,7 @@ impl Recorder {
                             path = %metadata_path.display(),
                             lidar_frames = metadata.lidar_frames,
                             camera_frames = metadata.camera_frames,
+                            pose_samples = metadata.pose_samples,
                             "Wrote session metadata"
                         );
                     }
@@ -704,6 +788,7 @@ impl Recorder {
         self.session_path = None;
         self.lidar_timestamps = None;
         self.camera_timestamps = None;
+        self.poses_writer = None;
     }
 
     /// Log session metadata to Rerun at start.

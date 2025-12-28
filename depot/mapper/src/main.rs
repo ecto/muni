@@ -85,6 +85,9 @@ pub struct SessionMetadata {
     pub gps_bounds: Option<GpsBounds>,
     pub lidar_frames: u32,
     pub camera_frames: u32,
+    /// Number of pose samples recorded (for LiDAR alignment)
+    #[serde(default)]
+    pub pose_samples: u32,
     pub telemetry_file: String,
 }
 
@@ -117,6 +120,9 @@ pub struct Session {
     pub gps_bounds: Option<GpsBounds>,
     pub lidar_frames: u32,
     pub camera_frames: u32,
+    /// Number of pose samples for LiDAR alignment
+    #[serde(default)]
+    pub pose_samples: u32,
     pub status: SessionStatus,
     pub map_id: Option<Uuid>,
     pub discovered_at: DateTime<Utc>,
@@ -289,6 +295,10 @@ type SharedState = Arc<RwLock<MapperState>>;
 // Session Discovery
 // =============================================================================
 
+/// Minimum requirements for a session to be processable
+const MIN_LIDAR_FRAMES: u32 = 10;
+const MIN_POSE_SAMPLES: u32 = 5;
+
 /// Check if a session directory is complete and ready for processing
 fn validate_session(session_path: &Path) -> Result<SessionMetadata, MapperError> {
     let metadata_path = session_path.join("metadata.json");
@@ -316,6 +326,43 @@ fn validate_session(session_path: &Path) -> Result<SessionMetadata, MapperError>
         return Err(MapperError::IncompleteSession(
             "Session still in progress".into(),
         ));
+    }
+
+    // Validate LiDAR data quality
+    if metadata.lidar_frames > 0 {
+        // Check LiDAR directory exists
+        let lidar_dir = session_path.join("lidar");
+        if !lidar_dir.exists() {
+            return Err(MapperError::IncompleteSession(
+                "LiDAR frames indicated but lidar/ directory missing".into(),
+            ));
+        }
+
+        // Check poses file exists for LiDAR alignment
+        let poses_path = session_path.join("poses.csv");
+        if !poses_path.exists() {
+            warn!(
+                session = %metadata.session_id,
+                "No poses.csv found, LiDAR frames will use identity poses"
+            );
+        }
+
+        // Warn if not enough data for quality map
+        if metadata.lidar_frames < MIN_LIDAR_FRAMES {
+            warn!(
+                session = %metadata.session_id,
+                lidar_frames = metadata.lidar_frames,
+                "Low LiDAR frame count may result in sparse map"
+            );
+        }
+
+        if metadata.pose_samples < MIN_POSE_SAMPLES && metadata.pose_samples > 0 {
+            warn!(
+                session = %metadata.session_id,
+                pose_samples = metadata.pose_samples,
+                "Low pose sample count may result in poor LiDAR alignment"
+            );
+        }
     }
 
     Ok(metadata)
@@ -375,6 +422,7 @@ async fn process_new_session(
         gps_bounds: metadata.gps_bounds.clone(),
         lidar_frames: metadata.lidar_frames,
         camera_frames: metadata.camera_frames,
+        pose_samples: metadata.pose_samples,
         status: SessionStatus::Queued,
         map_id: None,
         discovered_at: Utc::now(),
@@ -387,6 +435,7 @@ async fn process_new_session(
         rover = %session.rover_id,
         lidar_frames = session.lidar_frames,
         camera_frames = session.camera_frames,
+        pose_samples = session.pose_samples,
         "Session queued for processing"
     );
 
