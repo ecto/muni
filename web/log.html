@@ -4,118 +4,50 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Engineering Log - Muni</title>
-  <style>
-    body {
-      font-family: "Times New Roman", Times, serif;
-      font-size: 16px;
-      font-weight: 400;
-      letter-spacing: 0;
-      max-width: 800px;
-      margin: 0 auto;
-      padding: 40px 20px;
-      line-height: 1.6;
-      color: #000;
-      background: #fff;
-      -webkit-font-smoothing: antialiased;
-      -moz-osx-font-smoothing: grayscale;
-    }
-    pre {
-      background: #f5f5f5;
-      padding: 12px;
-      overflow-x: auto;
-      font-size: 0.9em;
-    }
-    code {
-      background: #f5f5f5;
-      padding: 2px 4px;
-      font-size: 0.9em;
-    }
-    .entry {
-      margin-bottom: 48px;
-      padding-bottom: 48px;
-      border-bottom: 1px solid #ddd;
-    }
-    .entry:last-child {
-      border-bottom: none;
-    }
-    .date {
-      color: #666;
-      font-style: italic;
-      margin-bottom: 8px;
-    }
-  </style>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <center>
-    <br />
-    <i>The</i>
-    <h2 style="margin: 0;">Municipal Robotics</h2>
-    <i>Corporation of</i>
-    <h4 style="margin: 0;">Cleveland, Ohio</h4>
-    <br />
-    <a href="index.html">Info</a>
-    <a href="log.html">Log</a>
-    <a href="https://github.com/ecto/muni">Code</a>
-    <a href="https://github.com/ecto/muni/tree/main/docs">Documentation</a>
-    <a href="whitepaper.pdf">Whitepaper</a>
-    <a href="mailto:info@muni.works?subject=Muni%20is">Contact</a>
-  </center>
 
-  <br /><br />
-
-  <h2>Engineering Log</h2>
-
-  <p>Notes from building autonomous utility rovers in the open.</p>
-
+<div class="header">
+  <span>The</span>
+  <strong>MUNICIPAL ROBOTICS</strong>
+  <span>Corporation of</span>
+  <span>Cleveland, Ohio</span>
   <br />
+  <span>builds <i>autonomous</i> vehicles</span>
+  <b>to improve public spaces</b>
+</div>
 
-  <!-- ============================================================ -->
+<span class="nav"><a href="about.html">ABOUT</a> <a href="products.html">PRODUCTS</a> <a href="log.html">LOG</a> <a href="docs.html">DOCS</a> <a href="https://github.com/ecto/muni">CODE</a> <a href="whitepaper.pdf">PAPER</a> <a href="mailto:info@muni.works?subject=Muni">CONTACT</a></span>
 
-  <div class="entry">
-    <p class="date">December 28, 2025</p>
-    <h3>Attachment MCU Firmware</h3>
+<div class="section">
+<div class="section-title">ATTACHMENT MCU FIRMWARE</div>
+<pre><span class="entry-date">2025-12-28</span>
 
-    <p>
-      Good progress on the ESP32 firmware for tool attachments.
-      Got the OLED display working with a status UI and serial command interface.
-      LED strip driver is ready but needs a level shifter (in the mail).
-    </p>
+Good progress on the ESP32 firmware for tool attachments.
+Got the OLED display working with a status UI and serial
+command interface. LED strip driver is ready but needs a
+level shifter (in the mail).
 
-    <p>
-      Also consolidated session recording to single files, added a sessions browser to the operator UI,
-      and documented the sensor mast design.
-    </p>
-  </div>
+Also consolidated session recording to single files, added
+a sessions browser to the operator UI, and documented the
+sensor mast design.
+</pre>
+</div>
 
-  <!-- ============================================================ -->
+<div class="section">
+<div class="section-title">BVR0 COMPLETE</div>
+<pre><span class="entry-date">2025-12</span>
 
-  <div class="entry">
-    <p class="date">December 2025</p>
-    <h3>bvr0 Complete</h3>
+Engineering prototype finished. 4-wheel skid-steer rover
+with Jetson Orin NX, Livox Mid-360 LiDAR, Insta360 X4, and
+snow auger attachment. Teleoperated over LTE with 360-degree
+video streaming.
 
-    <p>
-      Engineering prototype finished. 4-wheel skid-steer rover with Jetson Orin NX,
-      Livox Mid-360 LiDAR, Insta360 X4, and snow auger attachment.
-      Teleoperated over LTE with 360-degree video streaming.
-    </p>
-
-    <p>
-      Total build cost: ~$5,000 in parts. Assembly time: ~40 hours.
-      All designs, firmware, and documentation published to GitHub.
-    </p>
-  </div>
-
-  <!-- ============================================================ -->
-
-  <br /><br />
-
-  <footer>
-    <p>
-      <center>
-        <a href="index.html">&larr; Back</a>
-      </center>
-    </p>
-  </footer>
+Total build cost: ~$5,000 in parts. Assembly time: ~40 hours.
+All designs, firmware, and documentation published to GitHub.
+</pre>
+</div>
 
 </body>
 </html>
