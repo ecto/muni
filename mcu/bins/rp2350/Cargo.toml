@@ -1,0 +1,40 @@
+[package]
+name = "mcu-rp2350"
+version.workspace = true
+edition.workspace = true
+description = "Generic attachment controller firmware for RP2350 MCUs"
+
+[dependencies]
+mcu-core = { path = "../../crates/mcu-core" }
+mcu-leds = { path = "../../crates/mcu-leds" }
+
+embassy-rp.workspace = true
+embassy-executor.workspace = true
+embassy-time.workspace = true
+embassy-sync.workspace = true
+embassy-futures.workspace = true
+embassy-usb.workspace = true
+
+cortex-m.workspace = true
+cortex-m-rt.workspace = true
+embedded-hal.workspace = true
+embedded-hal-async.workspace = true
+
+smart-leds.workspace = true
+
+fixed = "1.29"
+pio = "0.3"
+
+defmt.workspace = true
+defmt-rtt.workspace = true
+panic-probe.workspace = true
+
+heapless.workspace = true
+static_cell.workspace = true
+
+[features]
+default = []
+# Pre-configured device profiles
+config-led-controller = []
+config-brush = []
+
