@@ -1,6 +1,8 @@
 [workspace]
 resolver = "2"
 members = ["crates/*", "bins/*"]
+# ESP32-S3 uses ESP toolchain (xtensa) and must be built separately
+exclude = ["bins/esp32s3"]
 
 [workspace.package]
 version = "0.1.0"

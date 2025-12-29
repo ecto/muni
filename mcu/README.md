@@ -7,10 +7,11 @@ Embedded firmware for CAN-connected microcontrollers on the rover.
 ```
 mcu/
 ├── crates/
-│   ├── mcu-core/     # Shared: CAN protocol, watchdog, heartbeat
-│   └── mcu-leds/     # Driver: LED animations and control
+│   ├── mcu-core/          # Shared: CAN protocol, watchdog, heartbeat
+│   └── mcu-leds/          # Driver: LED animations and control
 └── bins/
-    └── rover-leds/   # Binary: Base rover LED controller (Pico 2 W)
+    ├── rp2350/            # Binary: Base rover LED controller (Pico 2 W)
+    └── esp32s3/           # Binary: Attachment controller (ESP32-S3)
 ```
 
 ## Hardware
@@ -43,6 +44,46 @@ DIN (green)   -->  GP0 (data output)
 ```
 
 **Important**: The data wire (green) must connect to the **input** end of the strip (marked with arrow or "DIN"). Data flows in one direction only.
+
+### Attachment Controller (heltec-attachment)
+
+- **MCU**: Heltec WiFi LoRa 32 V3 (ESP32-S3FN8)
+- **Display**: Onboard 0.96" 128x64 OLED (SSD1306, I2C)
+- **CAN**: ESP32-S3 native TWAI controller (no external chip needed)
+
+This is a generic attachment controller for CAN-connected tool attachments. The OLED display shows status, CAN statistics, and debug info.
+
+#### Pinout (Heltec V3)
+
+| GPIO | Function        | Notes                      |
+| ---- | --------------- | -------------------------- |
+| 17   | OLED SDA        | I2C data (fixed)           |
+| 18   | OLED SCL        | I2C clock (fixed)          |
+| 21   | OLED RST        | Display reset (fixed)      |
+| 36   | Vext            | OLED/peripheral power ctrl |
+| 35   | LED             | Onboard status LED         |
+| 0    | PRG Button      | Boot/user button           |
+| 4    | TWAI RX         | CAN receive (configurable) |
+| 5    | TWAI TX         | CAN transmit (configurable)|
+
+#### Features
+
+- `oled` (default): Enable OLED display support
+
+#### CAN Wiring
+
+Connect a CAN transceiver (e.g., SN65HVD230 or MCP2551) to GPIO4 (RX) and GPIO5 (TX):
+
+```
+ESP32-S3         CAN Transceiver       CAN Bus
+────────         ───────────────       ───────
+GPIO4 (RX)  <--  RXD
+GPIO5 (TX)  -->  TXD
+3.3V        -->  VCC
+GND         -->  GND
+                 CANH            <-->  CAN_H
+                 CANL            <-->  CAN_L
+```
 
 ## CAN Protocol
 
@@ -210,4 +251,68 @@ println!("cargo:rustc-link-arg-bins=-Tdefmt.x");
 | Pulse | Cyan   | Breathing    | Autonomous    |
 | Flash | Red    | Strobe 200ms | E-Stop        |
 | Flash | Orange | Strobe 500ms | Fault         |
+
+## ESP32-S3 / Heltec LoRa 32 V3 Notes
+
+### Prerequisites
+
+```bash
+# Install espup (ESP32 Rust toolchain manager)
+cargo install espup
+espup install
+
+# Source the environment (add to shell profile for persistence)
+source ~/export-esp.sh
+
+# Install espflash for flashing
+cargo install espflash
+```
+
+### Build
+
+```bash
+cd mcu/bins/heltec-attachment
+cargo build --release
+```
+
+### Flash
+
+```bash
+# Flash and open serial monitor
+espflash flash --monitor target/xtensa-esp32s3-none-elf/release/heltec-attachment
+
+# Or just flash
+espflash flash target/xtensa-esp32s3-none-elf/release/heltec-attachment
+```
+
+The board will automatically reset and start running after flashing.
+
+### Debugging
+
+Serial output uses `defmt` via `esp-println`. The `--monitor` flag with espflash shows logs:
+
+```bash
+espflash flash --monitor target/xtensa-esp32s3-none-elf/release/heltec-attachment
+```
+
+### Troubleshooting
+
+**"Permission denied" on /dev/ttyUSB0 or /dev/ttyACM0:**
+
+```bash
+sudo usermod -a -G dialout $USER
+# Log out and back in
+```
+
+**OLED not displaying:**
+
+- Check Vext is enabled (GPIO36 low)
+- Verify OLED reset sequence (GPIO21 low then high)
+- Confirm I2C address is 0x3C
+
+**CAN not working:**
+
+- Verify CAN transceiver is connected and powered
+- Check termination resistors (120Ω at each end of bus)
+- Confirm baud rate matches other nodes (500kbps default)
 
