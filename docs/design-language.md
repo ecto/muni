@@ -192,3 +192,145 @@ Trust through transparency.
 1. **People > task** — always yield; never nudge
 2. **Predictability wins** — fewer signals, clearer meanings, consistent choreography
 3. **Quiet competence** — no "cute"; be competent, boring, helpful
+
+---
+
+## Digital Design Language
+
+The web and print presence follows an "engineering terminal" aesthetic: precise, functional, readable. Think CAD title blocks, terminal output, and technical documentation.
+
+### Typography
+
+| Element     | Specification                          |
+| ----------- | -------------------------------------- |
+| Primary     | Berkeley Mono                          |
+| Fallback    | SF Mono, Courier New, system monospace |
+| Size        | 12px web, 10pt print, 1.5 line-height  |
+| Max width   | 80 characters                          |
+| Rendering   | Subpixel antialiasing where available  |
+
+**Font:** Berkeley Mono (licensed from [berkeleygraphics.com](https://berkeleygraphics.com/typefaces/berkeley-mono/))
+
+Monospace conveys precision and technical credibility. All text uses the same font: no mixing of sans-serif headers with monospace body. The terminal aesthetic carries across web, print, and UI.
+
+### Colors
+
+| Role          | Light Mode              | Dark Mode               |
+| ------------- | ----------------------- | ----------------------- |
+| Background    | `#fff` (pure white)     | `#000` (pure black)     |
+| Foreground    | `rgba(0,0,0,0.9)`       | `rgba(255,255,255,0.8)` |
+| Accent        | `rgba(0,0,0,0.8)`       | `rgba(255,255,255,0.8)` |
+| Muted         | `rgba(0,0,0,0.5)`       | `rgba(255,255,255,0.6)` |
+| Safety Orange | `#ff6600`               | `#ff6600`               |
+| Status Green  | `#22c55e`               | `#22c55e`               |
+
+High contrast, pure backgrounds. Foreground uses slight transparency for softer readability. Safety orange for CTAs and brand accent.
+
+### Layout Patterns
+
+**Boxes** (bordered containers with inverted title bar):
+- Reserved for important callouts: CTAs, safety info, key downloads
+- Inverted title bar draws attention
+- Use sparingly
+
+**Sections** (title with underline, no border):
+- Standard content containers
+- Subtle underline separates title from content
+- Primary layout unit
+
+**Pre-formatted text**:
+- All content uses `<pre>` for terminal-like rendering
+- Box-drawing characters (├─ └─ │) for hierarchies and trees
+- ASCII diagrams where appropriate
+
+### Navigation
+
+- Horizontal button row, centered
+- Inverted text (light on dark)
+- Hover: safety orange background
+- No underlines, no brackets
+
+### Status Indicators
+
+| Symbol | Meaning     | Color        |
+| ------ | ----------- | ------------ |
+| ■      | Complete    | Green        |
+| ◐      | In progress | Orange       |
+| ○      | Future      | Muted        |
+
+### Interaction States
+
+| State   | Treatment                           |
+| ------- | ----------------------------------- |
+| Default | Bold text, inherit color            |
+| Hover   | Inverted (foreground ↔ background)  |
+| CTA     | Safety orange background, black text|
+
+### Principles
+
+1. **Terminal aesthetic** — monospace everywhere, box-drawing characters, pre-formatted layout
+2. **High contrast** — pure black/white backgrounds, legible foregrounds
+3. **Sparse emphasis** — boxes only for important callouts, not decoration
+4. **Functional beauty** — the aesthetic emerges from precision, not ornamentation
+
+---
+
+## Print Design Language
+
+For PDFs and printed materials (Typst-generated), we use a more traditional technical documentation style while maintaining brand consistency.
+
+### One Thing Per Page
+
+Technical manuals follow a strict "one concept per page" rule. Each page answers exactly one question. If a reader flips to a page, they should immediately understand what that page is for and find everything they need without turning.
+
+**Page structure:**
+- Title at top (what is this page about?)
+- Primary diagram or content (the answer)
+- Supporting details below (context, specs, notes)
+
+**Prioritize by frequency of access:**
+1. **Emergency procedures** - first pages after cover (crisis access)
+2. **Daily checklists** - next (used every session)
+3. **Controls reference** - next (consulted during operation)
+4. **Build instructions** - middle (used once)
+5. **Troubleshooting** - end (consulted when needed)
+
+### Typography
+
+| Element   | Specification                     |
+| --------- | --------------------------------- |
+| Body      | Berkeley Mono, 9pt                |
+| Code      | Berkeley Mono, 9pt                |
+| Headings  | Bold, with orange left border     |
+| Leading   | 0.9em                             |
+| Alignment | Left-aligned (ragged right)       |
+
+All print documents use Berkeley Mono for consistent terminal aesthetic.
+
+### Colors (Print)
+
+| Role          | Hex       | Usage                    |
+| ------------- | --------- | ------------------------ |
+| Safety Orange | `#E86A33` | Accents, heading borders |
+| Cool Gray     | `#5C5C5C` | Secondary text           |
+| Light Gray    | `#F5F5F5` | Table backgrounds        |
+| Danger Red    | `#C41E3A` | Critical warnings        |
+| Note Blue     | `#2563EB` | Information callouts     |
+| Success Green | `#16A34A` | Completion indicators    |
+
+### Callout Hierarchy
+
+| Type    | Left Border | Background  | Use Case                  |
+| ------- | ----------- | ----------- | ------------------------- |
+| Danger  | Red         | Light red   | Life safety, damage risk  |
+| Warning | Orange      | Light orange| Caution, potential issues |
+| Note    | Blue        | Light blue  | Tips, information         |
+| Tip     | Green       | Light green | Best practices            |
+
+### Diagrams
+
+Technical diagrams use the cetz library with consistent styling:
+- Black strokes (1-1.5pt)
+- Light gray fills for components
+- Orange callout numbers
+- Dimension lines with measurements
