@@ -15,7 +15,8 @@
 
 #set page(
   paper: "us-letter",
-  margin: (x: 1.25in, y: 1in),
+  margin: (x: 0.5in, top: 0.7in, bottom: 0.7in),
+  columns: 2,
   numbering: "1",
   number-align: center,
   header: context {
@@ -38,8 +39,9 @@
   },
 )
 
-#set text(font: "Times New Roman", size: 10pt)
-#set par(justify: true, leading: 0.65em)
+// Berkeley Mono for terminal aesthetic
+#set text(font: ("Berkeley Mono", "SF Mono", "Courier"), size: 9pt)
+#set par(justify: false, leading: 0.9em, spacing: 1.5em)
 #set heading(numbering: "1.1")
 #show heading.where(level: 1): it => {
   v(1.5em)
@@ -51,58 +53,67 @@
   text(size: 12pt, weight: "bold", it)
   v(0.3em)
 }
-#show raw: set text(font: "Menlo", size: 9pt)
+#show raw: set text(font: ("Berkeley Mono", "Menlo"), size: 9pt)
 
-  #v(10em)
+// Figures and tables span both columns with bottom margin
+#set figure(placement: top, scope: "parent", gap: 1em)
+#show figure: set block(below: 2em)
 
-// Title page
-#align(center)[
-  #text(size: 24pt, weight: "bold")[
-    Robotic Systems \
-    for
-    Sidewalk Maintenance \
+// Muted figure captions
+#show figure.caption: it => {
+  text(size: 8pt, fill: rgb("#888888"))[
+    #text(weight: "bold")[#it.supplement #it.counter.display():]
+    #it.body
   ]
-  #v(0.1em)
-  #text(size: 14pt)[
-    Why aren't robots shoveling the snow?
+}
+
+// Title page (single column)
+#page(columns: 1)[
+  #v(8em)
+  #align(center)[
+    #text(size: 24pt, weight: "bold")[
+      Robotic Systems \
+      for
+      Sidewalk Maintenance \
+    ]
+    #v(0.1em)
+    #text(size: 14pt)[
+      Why aren't robots shoveling the snow?
+    ]
+    #v(0.1em)
+    #text(size: 11pt, fill: gray)[
+      Whitepaper, December 2025
+    ]
+    #v(0.1em)
+    #text(size: 12pt)[
+      *Municipal Robotics* \
+      Cleveland, Ohio \
+      #link("mailto:info@muni.works")[info\@muni.works]
+    ]
+    #v(0.1em)
+    #image("images/rover.jpg", width: 50%)
   ]
-  #v(0.1em)
-  #text(size: 11pt, fill: gray)[
-    Whitepaper, December 2025
-  ]
-  #v(0.1em)
-  #text(size: 12pt)[
-    *Municipal Robotics* \
-    Cleveland, Ohio \
-    #link("mailto:info@muni.works")[info\@muni.works]
-  ]
-  #v(0.1em)
-  #image("images/rover.jpg", width: 60%)
 ]
 
-#pagebreak()
+// Abstract (single column)
+#page(columns: 1)[
+  #heading(outlined: false, numbering: none)[Abstract]
 
-// Abstract
-#heading(outlined: false, numbering: none)[Abstract]
+  Sidewalk snow removal in the United States is mandated by law, underserved by equipment, and hemorrhaging labor. ADA compliance, municipal ordinance, and tort liability require cleared paths. The machines that clear roads cannot fit. The workers who could clear by hand are seasonal, expensive, and increasingly unavailable. Municipalities respond with overtime, contractors, and deferred maintenance. The gap persists.
 
-Sidewalk snow removal in the United States is mandated by law, underserved by equipment, and hemorrhaging labor. ADA compliance, municipal ordinance, and tort liability require cleared paths. The machines that clear roads cannot fit. The workers who could clear by hand are seasonal, expensive, and increasingly unavailable. Municipalities respond with overtime, contractors, and deferred maintenance. The gap persists.
+  This paper presents a robotic system designed to close it: a 600mm x 600mm rover platform with modular attachments for snow clearing, sweeping, and brine application, operated remotely over LTE by a single supervisor monitoring multiple units. Fleet coordination integrates with existing municipal GIS and work order systems. The platform is currently deployed in pilot configuration under direct human supervision.
 
-This paper presents a robotic system designed to close it: a 600mm x 600mm rover platform with modular attachments for snow clearing, sweeping, and brine application, operated remotely over LTE by a single supervisor monitoring multiple units. Fleet coordination integrates with existing municipal GIS and work order systems. The platform is currently deployed in pilot configuration under direct human supervision.
+  Under supervised autonomy (1:10 operator-to-unit ratio), five-year total cost of ownership drops approximately 70% versus manual labor and 50% versus contractors. At current 1:1 teleoperation, TCO reduction still exceeds 50% versus manual and 20% versus contract crews. These figures exclude avoided slip-and-fall liability and eliminated worker injury costs. Specifications reflect current hardware and software constraints.
+]
 
-Under supervised autonomy (1:10 operator-to-unit ratio), five-year total cost of ownership drops approximately 70% versus manual labor and 50% versus contractors. At current 1:1 teleoperation, TCO reduction still exceeds 50% versus manual and 20% versus contract crews. These figures exclude avoided slip-and-fall liability and eliminated worker injury costs. Specifications reflect current hardware and software constraints.
-
-#v(1em)
-
-#pagebreak()
-
-// Table of contents
-#outline(
-  title: [Contents],
-  indent: 1.5em,
-  depth: 2,
-)
-
-#pagebreak()
+// Table of contents (single column)
+#page(columns: 1)[
+  #outline(
+    title: [Contents],
+    indent: 1.5em,
+    depth: 2,
+  )
+]
 
 = Introduction
 

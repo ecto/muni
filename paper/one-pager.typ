@@ -7,7 +7,7 @@
 
 #set page(
   paper: "us-letter",
-  margin: (x: 0.75in, y: 0.6in),
+  margin: 0.4in,
   numbering: none,
 )
 

@@ -16,8 +16,8 @@
   footer: none,
 )
 
-#set text(font: "Times New Roman", size: 9pt)
-#set par(justify: true, leading: 0.5em)
+#set text(font: ("Berkeley Mono", "SF Mono", "Courier"), size: 8pt)
+#set par(justify: false, leading: 0.9em, spacing: 1em)
 
 // Header
 #grid(

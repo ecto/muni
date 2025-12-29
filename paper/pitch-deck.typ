@@ -7,12 +7,12 @@
 
 #set page(
   paper: "presentation-16-9",
-  margin: 0.75in,
+  margin: 0.5in,
   numbering: none,
 )
 
-// Larger size for presentation slides
-#set text(font: muni-font, size: 14pt, tracking: muni-tracking)
+// Presentation text size
+#set text(font: muni-font, size: 11pt, tracking: muni-tracking)
 #set par(justify: false, leading: muni-leading)  // Left-aligned for slides
 
 // =============================================================================
