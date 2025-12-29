@@ -1,0 +1,37 @@
+[package]
+name = "mcu-esp32s3"
+version = "0.1.0"
+edition = "2021"
+description = "Generic attachment controller firmware for ESP32-S3 MCUs"
+
+[dependencies]
+# ESP32-S3 HAL
+esp-hal = { version = "0.23", features = ["esp32s3", "unstable"] }
+esp-backtrace = { version = "0.15", features = ["esp32s3", "panic-handler", "println"], default-features = false }
+esp-println = { version = "0.13", features = ["esp32s3", "uart"], default-features = false }
+esp-alloc = { version = "0.5" }
+
+# OLED display (SSD1306)
+ssd1306 = "0.9"
+embedded-graphics = "0.8"
+embedded-hal-bus = "0.2"
+
+# Utilities
+heapless = "0.8"
+smart-leds = "0.4"
+nb = "1.1"
+embedded-io = "0.6"
+critical-section = "1.2"
+fugit = "0.3"
+
+[features]
+default = []
+
+[profile.dev]
+opt-level = 3
+debug = true
+
+[profile.release]
+opt-level = "s"
+lto = "fat"
+debug = true
