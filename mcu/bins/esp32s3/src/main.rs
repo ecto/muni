@@ -287,9 +287,9 @@ fn main() -> ! {
         }
 
         // Update LEDs if color changed
-        if led_color.r != last_led_color.r 
-            || led_color.g != last_led_color.g 
-            || led_color.b != last_led_color.b 
+        if led_color.r != last_led_color.r
+            || led_color.g != last_led_color.g
+            || led_color.b != last_led_color.b
         {
             ws2812::fill_leds(&mut led_pin, &delay, led_color, NUM_LEDS);
             last_led_color = led_color;

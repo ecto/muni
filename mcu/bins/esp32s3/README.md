@@ -19,17 +19,17 @@ Generic attachment controller firmware for ESP32-S3 based boards (Heltec LoRa 32
 
 ### Heltec V3 Pinout
 
-| GPIO | Function        | Notes                         |
-| ---- | --------------- | ----------------------------- |
-| 17   | OLED SDA        | I2C data                      |
-| 18   | OLED SCL        | I2C clock                     |
-| 21   | OLED RST        | Display reset                 |
-| 36   | Vext            | OLED power control (LOW = on) |
-| 35   | LED             | Onboard status LED            |
-| 0    | PRG Button      | Boot/user button              |
-| 4    | LED Strip Data  | WS2811/WS2812 (needs level shifter for 12V strips) |
-| 43   | UART TX         | Serial output (CP2102)        |
-| 44   | UART RX         | Serial input (CP2102)         |
+| GPIO | Function       | Notes                                              |
+| ---- | -------------- | -------------------------------------------------- |
+| 17   | OLED SDA       | I2C data                                           |
+| 18   | OLED SCL       | I2C clock                                          |
+| 21   | OLED RST       | Display reset                                      |
+| 36   | Vext           | OLED power control (LOW = on)                      |
+| 35   | LED            | Onboard status LED                                 |
+| 0    | PRG Button     | Boot/user button                                   |
+| 4    | LED Strip Data | WS2811/WS2812 (needs level shifter for 12V strips) |
+| 43   | UART TX        | Serial output (CP2102)                             |
+| 44   | UART RX        | Serial input (CP2102)                              |
 
 ## Serial Commands
 
@@ -39,14 +39,14 @@ Connect via screen or any serial terminal at 115200 baud:
 screen /dev/cu.usbserial-0001 115200
 ```
 
-| Command | Description |
-|---------|-------------|
-| `led r,g,b` | Set LED color (0-255 each) |
-| `led off` | Turn off LEDs |
-| `state idle` | Set display state to IDLE |
+| Command         | Description                  |
+| --------------- | ---------------------------- |
+| `led r,g,b`     | Set LED color (0-255 each)   |
+| `led off`       | Turn off LEDs                |
+| `state idle`    | Set display state to IDLE    |
 | `state running` | Set display state to RUNNING |
-| `state error` | Set display state to ERROR |
-| `help` | Show available commands |
+| `state error`   | Set display state to ERROR   |
+| `help`          | Show available commands      |
 
 Exit screen with `Ctrl+A` then `K` then `Y`.
 
@@ -86,6 +86,7 @@ espflash flash \
 ```
 
 To monitor serial output:
+
 ```bash
 espflash monitor
 ```
@@ -99,6 +100,7 @@ The ESP32 outputs 3.3V logic, but 12V WS2811 strips require 5V logic levels.
 ### Required Hardware
 
 **Level Shifter**: Use a bidirectional logic level converter (3.3V to 5V):
+
 - 4-channel I2C Logic Level Converter module (recommended)
 - 74HCT125
 - SN74AHCT125N
@@ -115,17 +117,17 @@ GPIO4 ──────────────────── LV1 ───
                            HV ──────────────────── 5V (from LED power)
 ```
 
-| From | To |
-|------|-----|
-| ESP32 3.3V | LV pin |
-| ESP32 GND | GND pin (either side) |
-| ESP32 GPIO4 | LV1 |
-| 5V power supply | HV pin |
-| HV1 | LED strip DIN |
+| From            | To                    |
+| --------------- | --------------------- |
+| ESP32 3.3V      | LV pin                |
+| ESP32 GND       | GND pin (either side) |
+| ESP32 GPIO4     | LV1                   |
+| 5V power supply | HV pin                |
+| HV1             | LED strip DIN         |
 
 ### Why Level Shifting is Required
 
-- WS2811 data input threshold: ~0.7 * VDD = 3.5V (for 5V power)
+- WS2811 data input threshold: ~0.7 \* VDD = 3.5V (for 5V power)
 - ESP32 GPIO output: 3.3V
 - 3.3V < 3.5V = unreliable detection
 
@@ -166,6 +168,7 @@ E (101) boot: Factory app partition is not bootable
 **Solution**: Use the included `bootloader.bin` (ESP-IDF v5.1-beta1) which doesn't have this check.
 
 To update the bootloader:
+
 ```bash
 curl -sL "https://github.com/esp-rs/espflash/raw/v3.0.0/espflash/resources/bootloaders/esp32s3-bootloader.bin" -o bootloader.bin
 ```
@@ -190,6 +193,7 @@ This forces download mode for flashing.
 - Clean rebuild: `cargo clean && cargo build --release`
 
 Verify with:
+
 ```bash
 xtensa-esp32s3-elf-readelf -h target/xtensa-esp32s3-none-elf/release/mcu-esp32s3
 # Entry point should be ~0x40378xxx, not 0x0
@@ -243,12 +247,12 @@ sudo usermod -a -G dialout $USER
 
 ## Files
 
-| File              | Purpose                                      |
-| ----------------- | -------------------------------------------- |
-| `bootloader.bin`  | ESP-IDF v5.1-beta1 bootloader (compatible)   |
-| `partitions.csv`  | Partition table (nvs, phy_init, factory)     |
-| `.cargo/config.toml` | Cargo build configuration with linker args |
-| `rust-toolchain.toml` | ESP Rust toolchain specification          |
+| File                  | Purpose                                    |
+| --------------------- | ------------------------------------------ |
+| `bootloader.bin`      | ESP-IDF v5.1-beta1 bootloader (compatible) |
+| `partitions.csv`      | Partition table (nvs, phy_init, factory)   |
+| `.cargo/config.toml`  | Cargo build configuration with linker args |
+| `rust-toolchain.toml` | ESP Rust toolchain specification           |
 
 ## Lessons Learned
 

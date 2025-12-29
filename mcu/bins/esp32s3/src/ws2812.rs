@@ -75,7 +75,7 @@ pub fn fill_leds(pin: &mut Output<'_>, delay: &Delay, color: RGB8, count: usize)
                 send_color(pin, delay, color, ColorOrder::Rgb);
             }
         });
-        
+
         pin.set_low();
         delay.delay_micros(100);
     }
