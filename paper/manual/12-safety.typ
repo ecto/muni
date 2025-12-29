@@ -1,0 +1,139 @@
+#import "../lib/template.typ": *
+#import "../lib/diagrams.typ": *
+
+// Safety Section
+// Hazard zones, Battery safety
+
+= Hazard Zones
+
+Areas requiring clearance during operation.
+
+#v(1em)
+
+#danger[
+  Stay clear of marked zones during operation. Serious injury possible.
+]
+
+#v(1em)
+
+#figure(
+  cetz.canvas({
+    import cetz.draw: *
+
+    // Rover top view
+    rect((-4, -3), (4, 3), stroke: 2pt + diagram-black, radius: 4pt)
+    content((0, 0), text(size: 10pt, weight: "bold")[BVR0])
+
+    // Wheels with hazard zones
+    for (x, y) in ((-4, 2.2), (4, 2.2), (-4, -2.2), (4, -2.2)) {
+      // Wheel
+      rect((x - 0.5, y - 0.8), (x + 0.5, y + 0.8), fill: diagram-black, radius: 2pt)
+      // Hazard zone circle
+      circle((x, y), radius: 1.3, stroke: 2pt + muni-danger, fill: none)
+    }
+
+    // Tool area hazard (front)
+    rect((-2.5, 3.3), (2.5, 4.8), stroke: 2pt + muni-danger, fill: rgb("#FEE2E2"), radius: 2pt)
+    content((0, 4.05), text(size: 9pt, fill: muni-danger, weight: "bold")[TOOL ZONE])
+
+    // Front indicator
+    motion-arrow((0, 3.1), (0, 3.3))
+
+    // Legend
+    circle((-3, -5), radius: 0.3, stroke: 2pt + muni-danger, fill: none)
+    content((-1, -5), text(size: 7pt)[Pinch/Crush hazard])
+    rect((1.5, -5.2), (2.5, -4.8), stroke: 2pt + muni-danger, fill: rgb("#FEE2E2"), radius: 2pt)
+    content((4, -5), text(size: 7pt)[Tool operation zone])
+  }),
+  caption: [Keep hands, feet, and loose clothing clear of marked zones.],
+)
+
+#v(1em)
+
+*Hazard Types:*
+
+#spec-table(
+  [*Zone*], [*Hazard*], [*Injury Type*],
+  [Wheel areas], [Rotating wheels, motor torque], [Crush, pinch, friction burn],
+  [Tool zone], [Rotating auger/blade], [Laceration, amputation],
+  [Underside], [50mm ground clearance], [Crush if rover tips],
+  [Battery area], [Electrical, thermal], [Shock, burns],
+)
+
+#pagebreak()
+
+// =============================================================================
+
+= Battery Safety
+
+Lithium battery handling and emergency procedures.
+
+#v(1em)
+
+#warning[
+  Li-ion batteries can catch fire if damaged, punctured, or short-circuited.
+]
+
+#v(1em)
+
+#figure(
+  cetz.canvas({
+    import cetz.draw: *
+
+    // Do's and Don'ts
+    let dos = (
+      ("15-25°C", "Store temp"),
+      ("50-60%", "Storage charge"),
+      ("Inspect", "Before each use"),
+    )
+    let donts = (
+      ("No water", "Keep dry"),
+      ("No puncture", "Protect case"),
+      ("No fire", "Never burn"),
+    )
+
+    content((-3.5, 3), text(size: 9pt, weight: "bold", fill: muni-success)[DO])
+    for (i, (icon, label)) in dos.enumerate() {
+      let y = 1.5 - i * 1.5
+      circle((-3.5, y), radius: 0.6, fill: rgb("#DCFCE7"), stroke: 1pt + muni-success)
+      content((-3.5, y), text(size: 7pt)[#icon])
+      content((-1.5, y), text(size: 7pt)[#label])
+    }
+
+    content((3.5, 3), text(size: 9pt, weight: "bold", fill: muni-danger)[DON'T])
+    for (i, (icon, label)) in donts.enumerate() {
+      let y = 1.5 - i * 1.5
+      circle((3.5, y), radius: 0.6, fill: rgb("#FEE2E2"), stroke: 1pt + muni-danger)
+      content((3.5, y), text(size: 7pt)[#icon])
+      content((5.5, y), text(size: 7pt)[#label])
+    }
+  }),
+  caption: none,
+)
+
+#v(1em)
+
+*Signs of Battery Damage:*
+- Swelling or bulging
+- Unusual heat
+- Hissing or venting
+- Visible damage to case
+- Reduced capacity
+
+#v(1em)
+
+*In Case of Battery Fire:*
+
++ *Evacuate* the immediate area
++ *Do not* use water to extinguish
++ Use *Class D fire extinguisher* or *dry sand*
++ Call fire department: *911*
++ Ventilate area (toxic fumes)
+
+#v(1em)
+
+#danger[
+  Never attempt to charge a damaged battery. Dispose at authorized recycling facility.
+]
+
+#pagebreak()
