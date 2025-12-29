@@ -6,26 +6,30 @@
 
 // =============================================================================
 // Brand Colors
+// See docs/design-language.md for full specification
 // =============================================================================
 
-#let muni-orange = rgb("#E86A33")      // Primary accent (safety orange)
+#let muni-orange = rgb("#ff6600")      // Primary accent (safety orange) - matches web
 #let muni-gray = rgb("#5C5C5C")        // Secondary (cool gray)
-#let muni-light-gray = rgb("#F5F5F5")  // Alternating rows
+#let muni-light-gray = rgb("#F5F5F5")  // Alternating rows, code backgrounds
 #let muni-bg = rgb("#FAFAFA")          // Warm white background
-#let muni-danger = rgb("#C41E3A")      // Critical warnings
-#let muni-note = rgb("#2563EB")        // Information
-#let muni-success = rgb("#16A34A")     // Success/complete
+#let muni-danger = rgb("#C41E3A")      // Critical warnings (life safety, damage risk)
+#let muni-note = rgb("#2563EB")        // Information callouts
+#let muni-success = rgb("#22c55e")     // Success/complete - matches web
 
 // =============================================================================
 // Brand Typography
+// See docs/design-language.md for full specification
+// Compile with: typst compile --font-path fonts/ <file>.typ
 // =============================================================================
 
-#let muni-font = "Times New Roman"
-#let muni-font-mono = ("SF Mono", "Courier New", "Courier")
-#let muni-font-size = 10pt
-#let muni-leading = 0.65em
+#let muni-font = "Berkeley Mono" // Primary font (terminal aesthetic)
+#let muni-font-mono = "Berkeley Mono" // Monospace (same as primary)
+#let muni-font-fallback = ("SF Mono", "Courier New", "Courier")
+#let muni-font-size = 9pt
+#let muni-leading = 0.9em
 #let muni-tracking = 0em
-#let muni-justify = true
+#let muni-justify = false
 
 // Configure zero for large numbers with comma grouping
 #set-num(group: (threshold: 4, separator: ","))
@@ -49,10 +53,12 @@
     author: "Municipal Robotics",
   )
 
-  // Page setup with improved header/footer
+  // Page setup with improved header/footer (landscape for manual, 2-column)
   set page(
     paper: "us-letter",
-    margin: (x: 1in, y: 1in),
+    flipped: true,
+    margin: (x: 0.5in, top: 0.6in, bottom: 0.6in),
+    columns: 2,
     numbering: "1",
     number-align: center,
     header: context {
@@ -75,39 +81,44 @@
     },
   )
 
-  // Typography (Times New Roman for formal documents)
-  set text(font: muni-font, size: muni-font-size, tracking: muni-tracking)
-  set par(justify: muni-justify, leading: muni-leading)
-  set heading(numbering: "1.1")
+  // Figures span both columns
+  set figure(scope: "parent", placement: auto)
 
-  // Level 1 headings: Orange left border
+  // Typography (Berkeley Mono for terminal aesthetic)
+  set text(font: (muni-font, ..muni-font-fallback), size: muni-font-size, tracking: muni-tracking)
+  set par(justify: muni-justify, leading: muni-leading, spacing: 1.2em)
+  // No heading numbers for cleaner section titles
+  set heading(numbering: none)
+
+  // Level 1 headings: Orange left border, spans both columns
   show heading.where(level: 1): it => {
-    v(1.5em)
-    block(
-      inset: (left: 12pt),
+    colbreak(weak: true)
+    place(scope: "parent", float: true, top, block(
+      width: 100%,
+      inset: (left: 12pt, y: 8pt),
       stroke: (left: 4pt + muni-orange),
     )[
-      #text(size: 18pt, weight: "bold")[#it]
-    ]
-    v(0.2em)
+      #text(size: 18pt, weight: "bold")[#it.body]
+    ])
+    v(2em)
   }
 
   // Level 2 headings
   show heading.where(level: 2): it => {
     v(1em)
-    text(size: 13pt, weight: "bold")[#it]
+    text(size: 12pt, weight: "bold")[#it.body]
     v(0.2em)
   }
 
   // Level 3 headings
   show heading.where(level: 3): it => {
     v(0.6em)
-    text(size: 11pt, weight: "bold")[#it]
+    text(size: 10pt, weight: "bold")[#it.body]
     v(0.1em)
   }
 
-  // Code blocks
-  show raw: set text(font: (muni-font-mono, "Courier New", "Courier"), size: 8pt)
+  // Code blocks (same font as body, slightly smaller)
+  show raw: set text(font: (muni-font-mono, ..muni-font-fallback), size: 9pt)
   show raw.where(block: true): it => {
     block(
       width: 100%,
@@ -119,7 +130,7 @@
 
   // Cover page
   page(
-    margin: (x: 1.5in, y: 1in),
+    margin: 0.5in,
     header: none,
     footer: none,
   )[
@@ -191,9 +202,11 @@
 
 // =============================================================================
 // Callout Boxes
+// Hierarchy: Danger > Warning > Note > Tip
+// Use sparingly - boxes draw attention, reserve for important callouts
 // =============================================================================
 
-// Danger box for critical safety notices
+// Danger box for critical safety notices (life safety, damage risk)
 #let danger(body) = {
   block(
     width: 100%,
@@ -253,9 +266,9 @@
 #let spec-table(..args) = {
   table(
     columns: (1fr, 1fr),
-    stroke: 0.5pt + muni-light-gray,
+    stroke: 0.5pt + rgb("#e0e0e0"),
     inset: 8pt,
-    fill: (_, row) => if row == 0 { muni-light-gray } else { white },
+    fill: (_, row) => if row == 0 { rgb("#f8f8f8") } else { white },
     ..args,
   )
 }
@@ -264,9 +277,9 @@
 #let bom-table(..args) = {
   table(
     columns: (2fr, auto, auto, auto),
-    stroke: 0.5pt + muni-light-gray,
+    stroke: 0.5pt + rgb("#e0e0e0"),
     inset: 8pt,
-    fill: (_, row) => if row == 0 { muni-light-gray } else { white },
+    fill: (_, row) => if row == 0 { rgb("#f8f8f8") } else { white },
     ..args.pos().enumerate().map(((i, cell)) => {
       if i < 4 { text(weight: "bold")[#cell] } else { cell }
     }),
@@ -345,10 +358,10 @@
 // Figures
 // =============================================================================
 
-// Styled figure with orange accent
+// Styled figure with muted caption
 #show figure.caption: it => {
-  text(size: 9pt, fill: muni-gray)[
-    #text(weight: "bold", fill: muni-orange)[#it.supplement #it.counter.display():]
+  text(size: 8pt, fill: rgb("#999999"))[
+    #text(weight: "bold")[#it.supplement #it.counter.display():]
     #it.body
   ]
 }

@@ -5,14 +5,15 @@
 
 // =============================================================================
 // COLOR PALETTE
+// See docs/design-language.md for full specification
 // =============================================================================
 
 #let diagram-black = rgb("#1a1a1a")
 #let diagram-gray = rgb("#666666")
 #let diagram-light = rgb("#e5e5e5")
-#let diagram-accent = rgb("#E86A33")  // Muni orange
-#let diagram-danger = rgb("#dc2626")
-#let diagram-success = rgb("#16a34a")
+#let diagram-accent = rgb("#ff6600")  // Muni safety orange (matches web)
+#let diagram-danger = rgb("#C41E3A")  // Critical warnings
+#let diagram-success = rgb("#22c55e") // Complete/success (matches web)
 
 // =============================================================================
 // ISOMETRIC PROJECTION

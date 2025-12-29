@@ -4,6 +4,10 @@
 DOCS = whitepaper.pdf bvr0-manual.pdf bvr0-datasheet.pdf
 INVESTOR_DOCS = pitch-deck.pdf one-pager.pdf
 
+# Font path for Berkeley Mono
+TYPST = typst compile --font-path fonts/
+TYPST_WATCH = typst watch --font-path fonts/
+
 all: $(DOCS) ../web/whitepaper.pdf ../web/bvr0-manual.pdf ../web/bvr0-datasheet.pdf
 
 # Investor documents
@@ -11,23 +15,23 @@ investor: $(INVESTOR_DOCS) ../web/pitch-deck.pdf
 
 # Whitepaper
 whitepaper.pdf: whitepaper.typ refs.bib lib/template.typ $(wildcard images/*)
-	typst compile whitepaper.typ
+	$(TYPST) whitepaper.typ
 
 # BVR0 Manual
-bvr0-manual.pdf: bvr0-manual.typ lib/template.typ $(wildcard images/*)
-	typst compile bvr0-manual.typ
+bvr0-manual.pdf: bvr0-manual.typ lib/template.typ lib/diagrams.typ $(wildcard images/*)
+	$(TYPST) bvr0-manual.typ
 
 # BVR0 Datasheet
 bvr0-datasheet.pdf: bvr0-datasheet.typ lib/template.typ
-	typst compile bvr0-datasheet.typ
+	$(TYPST) bvr0-datasheet.typ
 
 # Pitch Deck
 pitch-deck.pdf: pitch-deck.typ lib/template.typ
-	typst compile pitch-deck.typ
+	$(TYPST) pitch-deck.typ
 
 # One-Pager
 one-pager.pdf: one-pager.typ lib/template.typ
-	typst compile one-pager.typ
+	$(TYPST) one-pager.typ
 
 # Copy documents to web folder
 ../web/whitepaper.pdf: whitepaper.pdf
@@ -46,16 +50,16 @@ one-pager.pdf: one-pager.typ lib/template.typ
 watch: watch-whitepaper
 
 watch-whitepaper:
-	typst watch whitepaper.typ
+	$(TYPST_WATCH) whitepaper.typ
 
 watch-manual:
-	typst watch bvr0-manual.typ
+	$(TYPST_WATCH) bvr0-manual.typ
 
 watch-deck:
-	typst watch pitch-deck.typ
+	$(TYPST_WATCH) pitch-deck.typ
 
 watch-onepager:
-	typst watch one-pager.typ
+	$(TYPST_WATCH) one-pager.typ
 
 clean:
 	rm -f $(DOCS) $(INVESTOR_DOCS)
