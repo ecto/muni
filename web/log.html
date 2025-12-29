@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Engineering Log - Muni</title>
+  <style>
+    body {
+      font-family: "Times New Roman", Times, serif;
+      font-size: 16px;
+      font-weight: 400;
+      letter-spacing: 0;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 40px 20px;
+      line-height: 1.6;
+      color: #000;
+      background: #fff;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+    pre {
+      background: #f5f5f5;
+      padding: 12px;
+      overflow-x: auto;
+      font-size: 0.9em;
+    }
+    code {
+      background: #f5f5f5;
+      padding: 2px 4px;
+      font-size: 0.9em;
+    }
+    .entry {
+      margin-bottom: 48px;
+      padding-bottom: 48px;
+      border-bottom: 1px solid #ddd;
+    }
+    .entry:last-child {
+      border-bottom: none;
+    }
+    .date {
+      color: #666;
+      font-style: italic;
+      margin-bottom: 8px;
+    }
+  </style>
+</head>
+<body>
+  <center>
+    <br />
+    <i>The</i>
+    <h2 style="margin: 0;">Municipal Robotics</h2>
+    <i>Corporation of</i>
+    <h4 style="margin: 0;">Cleveland, Ohio</h4>
+    <br />
+    <a href="index.html">Info</a>
+    <a href="log.html">Log</a>
+    <a href="https://github.com/ecto/muni">Code</a>
+    <a href="https://github.com/ecto/muni/tree/main/docs">Documentation</a>
+    <a href="whitepaper.pdf">Whitepaper</a>
+    <a href="mailto:info@muni.works?subject=Muni%20is">Contact</a>
+  </center>
+
+  <br /><br />
+
+  <h2>Engineering Log</h2>
+
+  <p>Notes from building autonomous utility rovers in the open.</p>
+
+  <br />
+
+  <!-- ============================================================ -->
+
+  <div class="entry">
+    <p class="date">December 28, 2025</p>
+    <h3>Attachment MCU Firmware</h3>
+
+    <p>
+      Good progress on the ESP32 firmware for tool attachments.
+      Got the OLED display working with a status UI and serial command interface.
+      LED strip driver is ready but needs a level shifter (in the mail).
+    </p>
+
+    <p>
+      Also consolidated session recording to single files, added a sessions browser to the operator UI,
+      and documented the sensor mast design.
+    </p>
+  </div>
+
+  <!-- ============================================================ -->
+
+  <div class="entry">
+    <p class="date">December 2025</p>
+    <h3>bvr0 Complete</h3>
+
+    <p>
+      Engineering prototype finished. 4-wheel skid-steer rover with Jetson Orin NX,
+      Livox Mid-360 LiDAR, Insta360 X4, and snow auger attachment.
+      Teleoperated over LTE with 360-degree video streaming.
+    </p>
+
+    <p>
+      Total build cost: ~$5,000 in parts. Assembly time: ~40 hours.
+      All designs, firmware, and documentation published to GitHub.
+    </p>
+  </div>
+
+  <!-- ============================================================ -->
+
+  <br /><br />
+
+  <footer>
+    <p>
+      <center>
+        <a href="index.html">&larr; Back</a>
+      </center>
+    </p>
+  </footer>
+
+</body>
+</html>

@@ -55,16 +55,16 @@ This is a generic attachment controller for CAN-connected tool attachments. The 
 
 #### Pinout (Heltec V3)
 
-| GPIO | Function        | Notes                      |
-| ---- | --------------- | -------------------------- |
-| 17   | OLED SDA        | I2C data (fixed)           |
-| 18   | OLED SCL        | I2C clock (fixed)          |
-| 21   | OLED RST        | Display reset (fixed)      |
-| 36   | Vext            | OLED/peripheral power ctrl |
-| 35   | LED             | Onboard status LED         |
-| 0    | PRG Button      | Boot/user button           |
-| 4    | TWAI RX         | CAN receive (configurable) |
-| 5    | TWAI TX         | CAN transmit (configurable)|
+| GPIO | Function   | Notes                       |
+| ---- | ---------- | --------------------------- |
+| 17   | OLED SDA   | I2C data (fixed)            |
+| 18   | OLED SCL   | I2C clock (fixed)           |
+| 21   | OLED RST   | Display reset (fixed)       |
+| 36   | Vext       | OLED/peripheral power ctrl  |
+| 35   | LED        | Onboard status LED          |
+| 0    | PRG Button | Boot/user button            |
+| 4    | TWAI RX    | CAN receive (configurable)  |
+| 5    | TWAI TX    | CAN transmit (configurable) |
 
 #### Features
 
@@ -315,4 +315,3 @@ sudo usermod -a -G dialout $USER
 - Verify CAN transceiver is connected and powered
 - Check termination resistors (120Ω at each end of bus)
 - Confirm baud rate matches other nodes (500kbps default)
-
