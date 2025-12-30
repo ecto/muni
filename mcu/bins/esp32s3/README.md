@@ -9,8 +9,17 @@ Generic attachment controller firmware for ESP32-S3 based boards (Heltec LoRa 32
   - Status indicator with pulsing animation
   - State display (IDLE, RUNNING, ERROR)
   - Cycling info bar (activity, CAN health, device info)
-- **Serial Command Interface**: Control via USB serial
-- **WS2811 LED Driver**: Ready for addressable LED strips (requires level shifter)
+- **Dual Protocol Serial Interface**:
+  - Text commands for debugging
+  - SLCAN (CAN-over-serial) for bvrd integration
+- **Status LEDs** (feature: `status-bar`):
+  - 5 GPIO LEDs: Red (error), Yellow (warn), Green (idle), Blue (running), White (heartbeat)
+  - Configurable patterns per state
+- **Addressable LED Driver** (feature: `addressable-leds`):
+  - RMT-based for precise timing
+  - WS2811 (400kHz) and WS2812/SK6812 (800kHz) support
+  - RGB/GRB/BGR color order options
+  - RGB cycle mode for testing
 
 ## Supported Hardware
 
@@ -31,7 +40,23 @@ Generic attachment controller firmware for ESP32-S3 based boards (Heltec LoRa 32
 | 43   | UART TX        | Serial output (CP2102)                             |
 | 44   | UART RX        | Serial input (CP2102)                              |
 
-## Serial Commands
+### Status Bar LEDs (feature: `status-bar`)
+
+| GPIO | Color  | Meaning          |
+| ---- | ------ | ---------------- |
+| 19   | Red    | Error/fault      |
+| 20   | Yellow | Warning/attention|
+| 26   | Green  | Idle/ok          |
+| 48   | Blue   | Running/active   |
+| 47   | White  | Heartbeat        |
+
+Wire each LED: `GPIO → 330Ω resistor → LED anode (+) → LED cathode (-) → GND`
+
+## Communication Protocols
+
+The firmware supports two protocols over USB serial:
+
+### 1. Text Commands (Human/Debug)
 
 Connect via screen or any serial terminal at 115200 baud:
 
@@ -39,16 +64,137 @@ Connect via screen or any serial terminal at 115200 baud:
 screen /dev/cu.usbserial-0001 115200
 ```
 
-| Command         | Description                  |
-| --------------- | ---------------------------- |
-| `led r,g,b`     | Set LED color (0-255 each)   |
-| `led off`       | Turn off LEDs                |
-| `state idle`    | Set display state to IDLE    |
-| `state running` | Set display state to RUNNING |
-| `state error`   | Set display state to ERROR   |
-| `help`          | Show available commands      |
+| Command         | Description                     |
+| --------------- | ------------------------------- |
+| `led r,g,b`     | Set LED color (0-255 each)      |
+| `led off`       | Turn off LEDs                   |
+| `cycle`         | Toggle RGB rainbow cycle mode   |
+| `state idle`    | Set display state to IDLE       |
+| `state running` | Set display state to RUNNING    |
+| `state error`   | Set display state to ERROR      |
+| `rgb/grb/bgr`   | Set LED color order             |
+| `ws2811/ws2812` | Set LED timing (400kHz/800kHz)  |
+| `help`          | Show available commands         |
 
 Exit screen with `Ctrl+A` then `K` then `Y`.
+
+### 2. SLCAN (CAN-over-Serial for bvrd)
+
+The firmware implements SLCAN protocol for integration with bvrd. This allows unified CAN messaging whether using USB serial or hardware CAN.
+
+**SLCAN Commands:**
+
+| Command              | Description                        |
+| -------------------- | ---------------------------------- |
+| `O`                  | Open CAN channel (starts heartbeat)|
+| `C`                  | Close CAN channel                  |
+| `tIIILDD...`         | Send standard frame (11-bit ID)    |
+| `TIIIIIIIILDD...`    | Send extended frame (29-bit ID)    |
+| `V`                  | Query firmware version             |
+| `N`                  | Query serial number                |
+
+**Example:**
+```bash
+# Open channel
+echo -ne "O\r" > /dev/ttyUSB0
+
+# Query identity (ID 0x201, 0 data bytes)
+echo -ne "t2010\r" > /dev/ttyUSB0
+
+# Set LED to red (ID 0x203, cmd=0x10, r=255, g=0, b=0)
+echo -ne "t20341000FF00\r" > /dev/ttyUSB0
+```
+
+## CAN Protocol (Message IDs)
+
+Attachments use CAN IDs in the `0x200-0x2FF` range. Each attachment slot gets 16 IDs.
+
+### Attachment Slot 0 (Base ID 0x200)
+
+| ID     | Dir | Name      | Description                           |
+| ------ | --- | --------- | ------------------------------------- |
+| 0x200  | A→H | Heartbeat | Periodic status (1Hz when channel open) |
+| 0x201  | H→A | Identify  | Request attachment info               |
+| 0x202  | A→H | Identity  | Response with type/version/caps       |
+| 0x203  | H→A | Command   | Control command                       |
+| 0x204  | A→H | Ack       | Command acknowledgment                |
+| 0x205  | A→H | Sensor    | Sensor data broadcast                 |
+| 0x206  | H→A | Config    | Configuration update                  |
+| 0x207  | A→H | Error     | Error/fault report                    |
+
+A = Attachment, H = Host (bvrd/Jetson)
+
+### Heartbeat Frame (0x200)
+
+Sent every ~1 second when SLCAN channel is open:
+
+```
+Byte 0: State (0=Idle, 1=Running, 2=Error, 3=Warning)
+Byte 1: Uptime (seconds, low byte)
+Byte 2: Uptime (seconds, high byte)
+Byte 3: Flags (reserved)
+```
+
+### Identity Frame (0x202)
+
+Response to Identify request:
+
+```
+Byte 0: Attachment type (0x02 = LedStrip)
+Byte 1: Hardware revision
+Byte 2: Software version major
+Byte 3: Software version minor
+Byte 4: Capabilities (0x01=LED, 0x02=Sensor, 0x04=Actuator)
+```
+
+### Command Frame (0x203)
+
+| Cmd  | Name      | Args                  |
+| ---- | --------- | --------------------- |
+| 0x00 | Nop       | (none)                |
+| 0x01 | Enable    | (none)                |
+| 0x02 | Disable   | (none)                |
+| 0x03 | SetState  | arg0=state            |
+| 0x10 | SetLed    | arg0=R, arg1=G, arg2=B|
+| 0x11 | LedCycle  | arg0=0/1 (off/on)     |
+| 0x12 | LedTiming | arg0=0/1 (SK68/WS2811)|
+| 0x13 | LedOrder  | arg0=0/1/2 (RGB/GRB/BGR)|
+
+### Ack Frame (0x204)
+
+```
+Byte 0: Command that was acknowledged
+Byte 1: Result (0x00=Ok, 0x01=UnknownCmd, 0x02=InvalidArgs)
+```
+
+## Full-Stack Integration
+
+```
+┌─────────────┐     WebSocket      ┌─────────────┐
+│  Operator   │◄──────────────────►│   Depot     │
+│    App      │                    │  (Cloud)    │
+└─────────────┘                    └─────────────┘
+                                          ▲
+                                          │ gRPC/HTTP
+                                          ▼
+                                   ┌─────────────┐
+                                   │    bvrd     │
+                                   │  (Jetson)   │
+                                   └─────────────┘
+                                          ▲
+                                          │ USB Serial (SLCAN)
+                                          ▼
+                                   ┌─────────────┐
+                                   │ Attachment  │
+                                   │   (ESP32)   │
+                                   └─────────────┘
+```
+
+1. **Discovery**: bvrd detects USB device, sends `O` then `t2010` (Identify)
+2. **Registration**: Attachment responds with Identity frame (0x202)
+3. **Heartbeat**: Attachment sends periodic heartbeat (0x200)
+4. **Control**: Operator sends command through Depot → bvrd → SLCAN → Attachment
+5. **Status**: Attachment heartbeat flows back to Operator via Depot
 
 ## Prerequisites
 
