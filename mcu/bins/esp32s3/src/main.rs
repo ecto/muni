@@ -1,16 +1,25 @@
-//! ESP32-S3 firmware with animated OLED display and LED control
+//! ESP32-S3 Attachment Firmware
 //! For Heltec LoRa 32 V3 and compatible boards
 //!
-//! Serial Commands (over USB):
-//!   led <r>,<g>,<b>     - Set LED color (0-255 each) [addressable-leds]
-//!   led off             - Turn off LEDs
+//! Supports both human-readable commands and SLCAN (CAN-over-serial).
+//!
+//! ## Text Commands (for debugging):
+//!   led <r>,<g>,<b>     - Set LED color (0-255 each)
+//!   cycle               - Toggle RGB cycle mode
 //!   state <s>           - Set state (idle, running, error)
 //!   help                - Show commands
+//!
+//! ## SLCAN Commands (for bvrd integration):
+//!   t2001XX...          - Standard CAN frame to ID 0x200
+//!   O                   - Open CAN channel
+//!   V                   - Version query
 
 #![no_std]
 #![no_main]
 
 mod ui;
+mod can_protocol;
+mod slcan;
 #[cfg(feature = "addressable-leds")]
 mod ws2812;
 #[cfg(any(feature = "status-led", feature = "status-bar"))]
@@ -31,6 +40,8 @@ use heapless::String;
 use ssd1306::{prelude::*, I2CDisplayInterface, Ssd1306};
 
 use ui::{render, DeviceState, UiState};
+use can_protocol::{msg_id, Command, AckResult, AttachmentState};
+use slcan::{CanFrame, SlcanResult};
 
 #[cfg(feature = "addressable-leds")]
 use {
@@ -52,6 +63,159 @@ const NUM_LEDS: usize = 4;
 // Timing constants
 const FRAME_DELAY_MS: u32 = 33; // ~30 fps
 const PAGE_CYCLE_FRAMES: u32 = 90; // ~3 seconds per page
+const HEARTBEAT_INTERVAL_FRAMES: u32 = 30; // ~1 second at 30fps
+
+/// SLCAN channel state
+struct SlcanState {
+    open: bool,
+    uptime_sec: u32,
+}
+
+impl Default for SlcanState {
+    fn default() -> Self {
+        Self { open: false, uptime_sec: 0 }
+    }
+}
+
+/// Simple writer that prints to serial (for SLCAN responses)
+struct SerialWriter;
+
+impl core::fmt::Write for SerialWriter {
+    fn write_str(&mut self, s: &str) -> core::fmt::Result {
+        esp_println::print!("{}", s);
+        Ok(())
+    }
+}
+
+/// Handle incoming CAN frame and generate response
+fn handle_can_frame(
+    frame: &CanFrame,
+    slcan_state: &SlcanState,
+    attachment_state: &AttachmentState,
+    #[cfg(feature = "addressable-leds")] led_color: &mut RGB8,
+    #[cfg(feature = "addressable-leds")] led_cycling: &mut bool,
+    #[cfg(feature = "addressable-leds")] color_order: &mut ColorOrder,
+    #[cfg(feature = "addressable-leds")] timing: &mut LedTiming,
+    #[cfg(feature = "addressable-leds")] force_update: &mut bool,
+) -> Option<CanFrame> {
+    let id = frame.id as u16;
+
+    match id {
+        // Identity request
+        msg_id::IDENTIFY_REQ => {
+            let mut data = heapless::Vec::<u8, 8>::new();
+            let _ = data.push(can_protocol::ATTACHMENT_TYPE as u8);
+            let _ = data.push(can_protocol::HW_REV);
+            let _ = data.push(can_protocol::SW_MAJOR);
+            let _ = data.push(can_protocol::SW_MINOR);
+            let _ = data.push(can_protocol::CAPABILITIES);
+            let _ = data.push(0);
+            let _ = data.push(0);
+            let _ = data.push(0);
+            Some(CanFrame {
+                id: msg_id::IDENTITY as u32,
+                extended: false,
+                rtr: false,
+                data,
+            })
+        }
+
+        // Command
+        msg_id::COMMAND => {
+            if frame.data.is_empty() {
+                return Some(make_ack(Command::Nop as u8, AckResult::InvalidArgs));
+            }
+
+            let cmd_byte = frame.data[0];
+            let result = match Command::try_from(cmd_byte) {
+                Ok(Command::Nop) => AckResult::Ok,
+                Ok(Command::Enable) => AckResult::Ok, // TODO: implement
+                Ok(Command::Disable) => AckResult::Ok, // TODO: implement
+                Ok(Command::SetState) => {
+                    // arg0 = state
+                    AckResult::Ok
+                }
+                #[cfg(feature = "addressable-leds")]
+                Ok(Command::SetLed) => {
+                    if frame.data.len() >= 4 {
+                        *led_color = RGB8::new(frame.data[1], frame.data[2], frame.data[3]);
+                        *led_cycling = false;
+                        *force_update = true;
+                        AckResult::Ok
+                    } else {
+                        AckResult::InvalidArgs
+                    }
+                }
+                #[cfg(feature = "addressable-leds")]
+                Ok(Command::LedCycle) => {
+                    *led_cycling = frame.data.get(1).copied().unwrap_or(1) != 0;
+                    if !*led_cycling {
+                        *led_color = RGB8::new(0, 0, 0);
+                        *force_update = true;
+                    }
+                    AckResult::Ok
+                }
+                #[cfg(feature = "addressable-leds")]
+                Ok(Command::LedTiming) => {
+                    *timing = if frame.data.get(1).copied().unwrap_or(0) == 1 {
+                        LedTiming::Ws2811
+                    } else {
+                        LedTiming::Sk68xx
+                    };
+                    *force_update = true;
+                    AckResult::Ok
+                }
+                #[cfg(feature = "addressable-leds")]
+                Ok(Command::LedOrder) => {
+                    *color_order = match frame.data.get(1).copied().unwrap_or(1) {
+                        0 => ColorOrder::Rgb,
+                        2 => ColorOrder::Bgr,
+                        _ => ColorOrder::Grb,
+                    };
+                    *force_update = true;
+                    AckResult::Ok
+                }
+                #[cfg(not(feature = "addressable-leds"))]
+                Ok(Command::SetLed | Command::LedCycle | Command::LedTiming | Command::LedOrder) => {
+                    AckResult::UnknownCommand
+                }
+                Err(_) => AckResult::UnknownCommand,
+            };
+
+            Some(make_ack(cmd_byte, result))
+        }
+
+        _ => None, // Unknown message ID, ignore
+    }
+}
+
+/// Create an ACK frame
+fn make_ack(cmd: u8, result: AckResult) -> CanFrame {
+    let mut data = heapless::Vec::<u8, 8>::new();
+    let _ = data.push(cmd);
+    let _ = data.push(result as u8);
+    CanFrame {
+        id: msg_id::ACK as u32,
+        extended: false,
+        rtr: false,
+        data,
+    }
+}
+
+/// Create a heartbeat frame
+fn make_heartbeat(state: AttachmentState, uptime_sec: u32) -> CanFrame {
+    let mut data = heapless::Vec::<u8, 8>::new();
+    let _ = data.push(state as u8);
+    let _ = data.push((uptime_sec & 0xFF) as u8);
+    let _ = data.push(((uptime_sec >> 8) & 0xFF) as u8);
+    let _ = data.push(0); // flags
+    CanFrame {
+        id: msg_id::HEARTBEAT as u32,
+        extended: false,
+        rtr: false,
+        data,
+    }
+}
 
 /// Parse a serial command and update state
 fn parse_command(
@@ -377,6 +541,10 @@ fn main() -> ! {
     core::mem::forget(vext);
     core::mem::forget(oled_rst);
 
+    // SLCAN and attachment state
+    let mut slcan_state = SlcanState::default();
+    let mut attachment_state = AttachmentState::Idle;
+
     // Initialize UI state
     let mut ui_state = UiState {
         device_name: "ATTACHMENT",
@@ -392,6 +560,7 @@ fn main() -> ! {
 
     let mut frame_counter: u32 = 0;
     let mut last_second: u32 = 0;
+    let mut last_heartbeat_frame: u32 = 0;
 
     // Force initial render
     render(&mut display, &ui_state);
@@ -406,24 +575,81 @@ fn main() -> ! {
                     let ch = byte_buf[0] as char;
                     if ch == '\n' || ch == '\r' {
                         if !cmd_buf.is_empty() {
-                            parse_command(
-                                &cmd_buf,
-                                &mut ui_state,
-                                #[cfg(feature = "status-led")]
-                                &mut status_pattern,
-                                #[cfg(feature = "status-bar")]
-                                &mut bar_state,
-                                #[cfg(feature = "addressable-leds")]
-                                &mut led_color,
-                                #[cfg(feature = "addressable-leds")]
-                                &mut color_order,
-                                #[cfg(feature = "addressable-leds")]
-                                &mut timing,
-                                #[cfg(feature = "addressable-leds")]
-                                &mut force_update,
-                                #[cfg(feature = "addressable-leds")]
-                                &mut led_cycling,
-                            );
+                            // Check if this is an SLCAN command (starts with specific chars)
+                            let first_char = cmd_buf.chars().next().unwrap_or(' ');
+                            let is_slcan = matches!(first_char, 't' | 'T' | 'r' | 'R' | 'O' | 'C' | 'S' | 'V' | 'v' | 'N' | 'n' | 'Z');
+
+                            if is_slcan {
+                                // Handle SLCAN command
+                                let mut writer = SerialWriter;
+                                match slcan::parse(&cmd_buf) {
+                                    SlcanResult::Frame(frame) => {
+                                        // Process incoming CAN frame
+                                        if let Some(response) = handle_can_frame(
+                                            &frame,
+                                            &slcan_state,
+                                            &attachment_state,
+                                            #[cfg(feature = "addressable-leds")]
+                                            &mut led_color,
+                                            #[cfg(feature = "addressable-leds")]
+                                            &mut led_cycling,
+                                            #[cfg(feature = "addressable-leds")]
+                                            &mut color_order,
+                                            #[cfg(feature = "addressable-leds")]
+                                            &mut timing,
+                                            #[cfg(feature = "addressable-leds")]
+                                            &mut force_update,
+                                        ) {
+                                            slcan::send_frame(&mut writer, &response);
+                                        }
+                                        slcan::send_ok(&mut writer);
+                                    }
+                                    SlcanResult::Open => {
+                                        slcan_state.open = true;
+                                        slcan::send_ok(&mut writer);
+                                    }
+                                    SlcanResult::Close => {
+                                        slcan_state.open = false;
+                                        slcan::send_ok(&mut writer);
+                                    }
+                                    SlcanResult::SetBitrate(_) => {
+                                        // Bitrate is fixed for USB serial, just ACK
+                                        slcan::send_ok(&mut writer);
+                                    }
+                                    SlcanResult::Version => {
+                                        slcan::send_version(&mut writer, "V0100");
+                                    }
+                                    SlcanResult::SerialNumber => {
+                                        slcan::send_serial(&mut writer, "MUNI0001");
+                                    }
+                                    SlcanResult::Unknown | SlcanResult::Empty => {
+                                        slcan::send_ok(&mut writer);
+                                    }
+                                    SlcanResult::Error => {
+                                        slcan::send_error(&mut writer);
+                                    }
+                                }
+                            } else {
+                                // Handle text command
+                                parse_command(
+                                    &cmd_buf,
+                                    &mut ui_state,
+                                    #[cfg(feature = "status-led")]
+                                    &mut status_pattern,
+                                    #[cfg(feature = "status-bar")]
+                                    &mut bar_state,
+                                    #[cfg(feature = "addressable-leds")]
+                                    &mut led_color,
+                                    #[cfg(feature = "addressable-leds")]
+                                    &mut color_order,
+                                    #[cfg(feature = "addressable-leds")]
+                                    &mut timing,
+                                    #[cfg(feature = "addressable-leds")]
+                                    &mut force_update,
+                                    #[cfg(feature = "addressable-leds")]
+                                    &mut led_cycling,
+                                );
+                            }
                             cmd_buf.clear();
                         }
                     } else if ch.is_ascii() && !ch.is_control() {
@@ -440,7 +666,16 @@ fn main() -> ! {
         let current_second = frame_counter / 30;
         if current_second != last_second {
             ui_state.uptime_secs = current_second;
+            slcan_state.uptime_sec = current_second;
             last_second = current_second;
+        }
+
+        // Send SLCAN heartbeat (~1Hz when channel is open)
+        if slcan_state.open && frame_counter.wrapping_sub(last_heartbeat_frame) >= HEARTBEAT_INTERVAL_FRAMES {
+            let heartbeat = make_heartbeat(attachment_state, slcan_state.uptime_sec);
+            let mut writer = SerialWriter;
+            slcan::send_frame(&mut writer, &heartbeat);
+            last_heartbeat_frame = frame_counter;
         }
 
         // Cycle bottom bar page
