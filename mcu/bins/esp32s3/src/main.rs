@@ -63,6 +63,7 @@ fn parse_command(
     #[cfg(feature = "addressable-leds")] color_order: &mut ColorOrder,
     #[cfg(feature = "addressable-leds")] timing: &mut LedTiming,
     #[cfg(feature = "addressable-leds")] force_update: &mut bool,
+    #[cfg(feature = "addressable-leds")] led_cycling: &mut bool,
 ) {
     let cmd = cmd.trim();
 
@@ -173,6 +174,15 @@ fn parse_command(
             *timing = LedTiming::Ws2811;
             *force_update = true;
             println!("Timing: WS2811 (400kHz)");
+        } else if cmd == "cycle" {
+            *led_cycling = !*led_cycling;
+            if *led_cycling {
+                println!("LED: cycling ON");
+            } else {
+                *led_color = RGB8::new(0, 0, 0);
+                *force_update = true;
+                println!("LED: cycling OFF");
+            }
         }
     }
 
@@ -184,10 +194,30 @@ fn parse_command(
         #[cfg(feature = "addressable-leds")]
         {
             println!("  led r,g,b   - Set RGB color (0-255)");
+            println!("  cycle       - Toggle RGB cycle mode");
             println!("  rgb/grb/bgr - Color order");
             println!("  ws2812/ws2811 - Timing");
         }
         println!("  help        - Show this help");
+    }
+}
+
+/// Convert hue (0-359) to RGB color (full saturation, full value)
+#[cfg(feature = "addressable-leds")]
+fn hue_to_rgb(hue: u16) -> RGB8 {
+    let h = hue % 360;
+    let sector = h / 60;
+    let offset = (h % 60) as u8;
+    let rising = (offset as u16 * 255 / 60) as u8;
+    let falling = 255 - rising;
+
+    match sector {
+        0 => RGB8::new(255, rising, 0),      // Red -> Yellow
+        1 => RGB8::new(falling, 255, 0),     // Yellow -> Green
+        2 => RGB8::new(0, 255, rising),      // Green -> Cyan
+        3 => RGB8::new(0, falling, 255),     // Cyan -> Blue
+        4 => RGB8::new(rising, 0, 255),      // Blue -> Magenta
+        _ => RGB8::new(255, 0, falling),     // Magenta -> Red
     }
 }
 
@@ -340,6 +370,8 @@ fn main() -> ! {
     let mut timing = LedTiming::Sk68xx;
     #[cfg(feature = "addressable-leds")]
     let mut force_update = false;
+    #[cfg(feature = "addressable-leds")]
+    let mut led_cycling = false;
 
     // Keep power pins alive
     core::mem::forget(vext);
@@ -389,6 +421,8 @@ fn main() -> ! {
                                 &mut timing,
                                 #[cfg(feature = "addressable-leds")]
                                 &mut force_update,
+                                #[cfg(feature = "addressable-leds")]
+                                &mut led_cycling,
                             );
                             cmd_buf.clear();
                         }
@@ -431,6 +465,12 @@ fn main() -> ! {
         // Update addressable LEDs
         #[cfg(feature = "addressable-leds")]
         {
+            // RGB cycle mode: smooth hue rotation
+            if led_cycling {
+                let hue = (frame_counter * 3) % 360; // ~4 sec full cycle at 30fps
+                led_color = hue_to_rgb(hue as u16);
+            }
+
             if force_update
                 || led_color.r != last_led_color.r
                 || led_color.g != last_led_color.g

@@ -27,7 +27,7 @@ critical-section = "1.2"
 fugit = "0.3"
 
 [features]
-default = ["status-bar"]
+default = ["status-bar", "addressable-leds"]
 # Simple GPIO status LED (uses onboard LED on GPIO35)
 status-led = []
 # 5-LED status bar (GPIO2=red, GPIO19=yellow, GPIO20=green, GPIO26=blue, GPIO33=white)
