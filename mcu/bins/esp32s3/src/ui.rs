@@ -188,8 +188,8 @@ where
 
     // Status dot (pulses based on frame)
     let dot_on = match state.state {
-        DeviceState::Error => (state.frame / 8) % 2 == 0, // Fast blink for error
-        DeviceState::Disconnected => (state.frame / 16) % 2 == 0, // Slow blink
+        DeviceState::Error => (state.frame / 8).is_multiple_of(2), // Fast blink for error
+        DeviceState::Disconnected => (state.frame / 16).is_multiple_of(2), // Slow blink
         _ => {
             // Pulse effect: on most of the time, brief off
             let phase = state.frame % 32;

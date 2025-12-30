@@ -81,7 +81,7 @@ impl<'d> StatusLed<'d> {
                 // Double blink every ~2 seconds
                 let phase = self.frame % 60;
                 // Blink at frame 0-3 and 6-9
-                phase < 3 || (phase >= 6 && phase < 9)
+                phase < 3 || (6..9).contains(&phase)
             }
             StatusPattern::RapidFlash => {
                 // ~5Hz flash
@@ -186,7 +186,7 @@ impl<'d> StatusBar<'d> {
         let heartbeat = match self.state {
             BarState::Off => false,
             BarState::AllOn => true,
-            _ => self.frame % 60 == 0, // Single frame flash every 2 sec (~33ms on)
+            _ => self.frame.is_multiple_of(60), // Single frame flash every 2 sec (~33ms on)
         };
 
         match self.state {

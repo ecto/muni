@@ -410,7 +410,7 @@ fn main() -> ! {
         }
 
         // Cycle bottom bar page
-        if frame_counter % PAGE_CYCLE_FRAMES == 0 && frame_counter > 0 {
+        if frame_counter.is_multiple_of(PAGE_CYCLE_FRAMES) && frame_counter > 0 {
             ui_state.next_page();
         }
 
