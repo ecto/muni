@@ -16,6 +16,7 @@ Platform-level documentation for the Muni robotics system.
 - [RTK GPS](hardware/rtk.md) — Centimeter-accurate positioning
 - [Motors](hardware/motors.md) — Hub motor specifications
 - [Networking](hardware/networking.md) — LTE and local connectivity
+- [Firmware](hardware/firmware.md) — Flashing bvrd and attachments
 
 ## Morphology-Specific Docs
 
