@@ -16,16 +16,24 @@ ssd1306 = "0.9"
 embedded-graphics = "0.8"
 embedded-hal-bus = "0.2"
 
+# LED driver
+smart-leds = "0.4"
+
 # Utilities
 heapless = "0.8"
-smart-leds = "0.4"
 nb = "1.1"
 embedded-io = "0.6"
 critical-section = "1.2"
 fugit = "0.3"
 
 [features]
-default = []
+default = ["status-bar"]
+# Simple GPIO status LED (uses onboard LED on GPIO35)
+status-led = []
+# 5-LED status bar (GPIO2=red, GPIO19=yellow, GPIO20=green, GPIO26=blue, GPIO33=white)
+status-bar = []
+# WS2811/WS2812 addressable LED strip (requires level shifter for 12V strips)
+addressable-leds = []
 
 [profile.dev]
 opt-level = 3
