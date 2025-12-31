@@ -1,9 +1,13 @@
 [package]
-name = "bvr"
-description = "CLI tool for bvr debugging and control"
+name = "muni"
+description = "Muni robotics CLI: rover control, GPS configuration, and diagnostics"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+
+[[bin]]
+name = "muni"
+path = "src/main.rs"
 
 [dependencies]
 types = { workspace = true }
@@ -13,6 +17,14 @@ can = { workspace = true }
 tokio = { workspace = true }
 clap = { workspace = true }
 anyhow = { workspace = true }
+chrono = { workspace = true }
+
+# TUI for GPS monitor
+ratatui = "0.29"
+crossterm = "0.28"
+
+# Serial for GPS
+tokio-serial = "5.4"
 
 
 
