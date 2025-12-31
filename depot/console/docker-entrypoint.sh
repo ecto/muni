@@ -19,7 +19,7 @@ else
     # Actually, we need to modify the config to disable auth when no password is set
     # For now, create an empty file so nginx doesn't error
     touch "$HTPASSWD_FILE"
-    
+
     # Disable auth by modifying the config
     sed -i 's/auth_basic \$auth_basic_realm;/auth_basic off;/' /etc/nginx/conf.d/default.conf
 fi

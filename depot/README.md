@@ -74,14 +74,14 @@ The Console at http://localhost provides access to all functionality:
 
 External services (direct access):
 
-| Service   | URL                   | Default Credentials      |
-| --------- | --------------------- | ------------------------ |
+| Service   | URL                   | Default Credentials                   |
+| --------- | --------------------- | ------------------------------------- |
 | Console   | http://localhost      | See [Authentication](#authentication) |
-| Grafana   | http://localhost:3000 | admin / munipassword     |
-| InfluxDB  | http://localhost:8086 | admin / munipassword     |
-| SFTP      | localhost:2222        | bvr / SSH key auth       |
-| Discovery | http://localhost:4860 | None (internal)          |
-| Map API   | http://localhost:4870 | None (internal)          |
+| Grafana   | http://localhost:3000 | admin / munipassword                  |
+| InfluxDB  | http://localhost:8086 | admin / munipassword                  |
+| SFTP      | localhost:2222        | bvr / SSH key auth                    |
+| Discovery | http://localhost:4860 | None (internal)                       |
+| Map API   | http://localhost:4870 | None (internal)                       |
 
 ### GPU Support (for Gaussian Splatting)
 
