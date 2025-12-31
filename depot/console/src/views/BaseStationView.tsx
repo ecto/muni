@@ -67,23 +67,23 @@ export function BaseStationView() {
                 <p className="text-xs text-muted-foreground mb-1">Fix Quality</p>
                 <p
                   className={`font-mono text-sm ${
-                    fixQualityColors[status.fixQuality] ?? "text-muted-foreground"
+                    fixQualityColors[status.fixQuality ?? "no_fix"] ?? "text-muted-foreground"
                   }`}
                 >
-                  {status.fixQuality.replace("_", " ").toUpperCase()}
+                  {(status.fixQuality ?? "no_fix").replace("_", " ").toUpperCase()}
                 </p>
               </div>
               <div>
                 <p className="text-xs text-muted-foreground mb-1">Satellites</p>
                 <p className="font-mono text-sm">{status.satellites}</p>
               </div>
-              {status.hdop !== undefined && (
+              {status.hdop != null && (
                 <div>
                   <p className="text-xs text-muted-foreground mb-1">HDOP</p>
                   <p className="font-mono text-sm">{status.hdop.toFixed(2)}</p>
                 </div>
               )}
-              {status.clients !== undefined && (
+              {status.clients != null && (
                 <div>
                   <p className="text-xs text-muted-foreground mb-1">NTRIP Clients</p>
                   <p className="font-mono text-sm">{status.clients}</p>
@@ -94,7 +94,7 @@ export function BaseStationView() {
         </div>
 
         {/* Position */}
-        {status.connected && status.latitude !== undefined && (
+        {status.connected && status.latitude != null && (
           <div className="bg-card border border-border p-6">
             <div className="flex items-center gap-2 mb-4">
               <MapPin className="h-4 w-4 text-muted-foreground" />
@@ -137,7 +137,7 @@ export function BaseStationView() {
               </div>
               <div>
                 <p className="text-xs text-muted-foreground mb-1">Accuracy</p>
-                <p className="font-mono">{status.surveyIn.accuracy.toFixed(3)} m</p>
+                <p className="font-mono">{status.surveyIn.accuracy?.toFixed(3) ?? "—"} m</p>
               </div>
             </div>
           </div>
