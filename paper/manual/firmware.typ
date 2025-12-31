@@ -2,7 +2,223 @@
 #import "../lib/diagrams.typ": *
 
 // Firmware Section
-// Updating bvrd and attachment firmware
+// Initial setup, updating bvrd and attachment firmware
+
+= Initial Jetson Setup
+
+First-time setup for a new Jetson Orin NX.
+
+#v(1em)
+
+*1. Flash JetPack OS:*
+
+Download JetPack 6.0+ from NVIDIA. Flash using SDK Manager on Ubuntu host:
+
+```bash
+# On Ubuntu 20.04/22.04 host machine
+sudo apt install nvidia-sdk-manager
+sdkmanager  # GUI will launch
+```
+
+Select "Jetson Orin NX" and JetPack 6.0. Follow prompts to flash.
+
+#v(1em)
+
+*2. First Boot Configuration:*
+
+```bash
+# Set hostname
+sudo hostnamectl set-hostname bvr0
+
+# Create muni user (if not done during setup)
+sudo adduser muni
+sudo usermod -aG sudo,dialout,video muni
+
+# Enable SSH
+sudo systemctl enable ssh
+```
+
+#v(1em)
+
+*3. Install Dependencies:*
+
+```bash
+sudo apt update && sudo apt upgrade -y
+sudo apt install -y can-utils build-essential \
+    libclang-dev pkg-config libssl-dev
+
+# Install Rust
+curl --proto '=https' --tlsv1.2 -sSf \
+    https://sh.rustup.rs | sh
+source ~/.cargo/env
+```
+
+#pagebreak()
+
+// =============================================================================
+
+= CAN Bus Setup
+
+Configure the CAN interface for motor control.
+
+#v(1em)
+
+*1. Load CAN Modules:*
+
+```bash
+# Add to /etc/modules-load.d/can.conf
+echo "can" | sudo tee /etc/modules-load.d/can.conf
+echo "can_raw" | sudo tee -a /etc/modules-load.d/can.conf
+echo "slcan" | sudo tee -a /etc/modules-load.d/can.conf
+```
+
+#v(1em)
+
+*2. Create Startup Service:*
+
+Create `/etc/systemd/system/can.service`:
+
+```ini
+[Unit]
+Description=CAN Bus Interface
+After=network.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/sbin/ip link set can0 type can bitrate 500000
+ExecStart=/sbin/ip link set can0 up
+ExecStop=/sbin/ip link set can0 down
+
+[Install]
+WantedBy=multi-user.target
+```
+
+```bash
+sudo systemctl enable can.service
+sudo systemctl start can.service
+```
+
+#v(1em)
+
+*3. Verify CAN:*
+
+```bash
+# Should show can0 interface
+ip link show can0
+
+# Monitor CAN traffic (VESCs should send status)
+candump can0
+```
+
+#pagebreak()
+
+// =============================================================================
+
+= LiDAR Setup
+
+Configure the Livox Mid-360 LiDAR connection.
+
+#v(1em)
+
+*1. Network Configuration:*
+
+The Mid-360 uses a static IP. Configure the Jetson Ethernet:
+
+```bash
+# Add to /etc/netplan/01-lidar.yaml
+network:
+  version: 2
+  ethernets:
+    eth0:
+      addresses:
+        - 192.168.1.50/24
+      routes:
+        - to: 192.168.1.0/24
+          via: 192.168.1.1
+```
+
+```bash
+sudo netplan apply
+```
+
+#v(1em)
+
+*2. LiDAR Default Settings:*
+
+#spec-table(
+  [*Parameter*], [*Value*],
+  [LiDAR IP], [192.168.1.1xx (xx = last 2 of serial)],
+  [Host IP], [192.168.1.50],
+  [Data Port], [56000],
+  [Command Port], [56001],
+)
+
+#v(1em)
+
+*3. Test Connection:*
+
+```bash
+# Ping LiDAR (replace with your unit's IP)
+ping 192.168.1.100
+
+# Install Livox SDK2 for testing
+git clone https://github.com/Livox-SDK/Livox-SDK2
+cd Livox-SDK2 && mkdir build && cd build
+cmake .. && make -j4
+```
+
+#pagebreak()
+
+// =============================================================================
+
+= bvrd Installation
+
+Install the main rover daemon.
+
+#v(1em)
+
+*1. Clone Repository:*
+
+```bash
+cd /opt
+sudo mkdir muni && sudo chown muni:muni muni
+git clone https://github.com/muni-works/bvr.git
+cd bvr/firmware
+```
+
+#v(1em)
+
+*2. Build:*
+
+```bash
+cargo build --release
+sudo cp target/release/bvrd /opt/muni/bin/
+```
+
+#v(1em)
+
+*3. Install Service:*
+
+```bash
+sudo cp config/bvrd.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable bvrd
+sudo systemctl start bvrd
+```
+
+#v(1em)
+
+*4. Verify:*
+
+```bash
+sudo systemctl status bvrd
+journalctl -u bvrd -f
+```
+
+#pagebreak()
+
+// =============================================================================
 
 = Firmware Overview
 
