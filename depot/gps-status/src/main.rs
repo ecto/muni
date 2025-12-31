@@ -28,7 +28,7 @@ use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::sync::{broadcast, RwLock};
 use tokio_serial::SerialPortBuilderExt;
 use tower_http::cors::CorsLayer;
-use tracing::{debug, error, info, warn};
+use tracing::{debug, info, warn};
 
 /// GPS fix quality from NMEA GGA
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]

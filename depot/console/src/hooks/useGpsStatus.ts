@@ -8,6 +8,7 @@ import type { GpsStatus } from "@/lib/types";
 export function useGpsStatus() {
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const connectRef = useRef<() => void>(() => {});
   const { setGpsStatus } = useConsoleStore();
 
   const connect = useCallback(() => {
@@ -68,10 +69,16 @@ export function useGpsStatus() {
       wsRef.current = null;
       // Mark as disconnected
       setGpsStatus({ connected: false } as GpsStatus);
-      // Schedule reconnect
-      reconnectTimeoutRef.current = setTimeout(connect, 3000);
+      // Schedule reconnect using ref to avoid stale closure
+      reconnectTimeoutRef.current = setTimeout(() => {
+        connectRef.current();
+      }, 3000);
     };
   }, [setGpsStatus]);
+
+  useEffect(() => {
+    connectRef.current = connect;
+  }, [connect]);
 
   useEffect(() => {
     connect();
