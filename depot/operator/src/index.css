@@ -1,5 +1,17 @@
-/* Inter font - must be first */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+/* Berkeley Mono font */
+@font-face {
+  font-family: "Berkeley Mono";
+  src: url("/BerkeleyMono-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: "Berkeley Mono";
+  src: url("/BerkeleyMono-Bold.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+}
 
 @import "tailwindcss";
 @import "tw-animate-css";
@@ -7,7 +19,7 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-  --font-sans: "Inter", system-ui, sans-serif;
+  --font-sans: "Berkeley Mono", "SF Mono", "Courier New", monospace;
 
   /* No radius */
   --radius-sm: 0;
