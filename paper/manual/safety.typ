@@ -4,6 +4,32 @@
 // Safety Section
 // Hazard zones, Battery safety
 
+= Personal Protective Equipment
+
+Required PPE for assembly and maintenance.
+
+#v(1em)
+
+#spec-table(
+  [*Task*], [*Required PPE*],
+  [Cutting extrusions], [Safety glasses, work gloves],
+  [Soldering / wiring], [Safety glasses, fume extraction],
+  [Battery handling], [Insulated gloves, safety glasses],
+  [Motor testing], [Safety glasses, hearing protection],
+  [Operation], [None required (stay clear of rover)],
+)
+
+#v(1em)
+
+*Safe Operating Distance:*
+- Operator: minimum 2m from rover during teleop
+- Bystanders: minimum 5m from operating rover
+- During charging: check every 15 min, do not leave unattended
+
+#pagebreak()
+
+// =============================================================================
+
 = Hazard Zones
 
 Areas requiring clearance during operation.
@@ -124,16 +150,23 @@ Lithium battery handling and emergency procedures.
 
 *In Case of Battery Fire:*
 
-+ *Evacuate* the immediate area
-+ *Do not* use water to extinguish
-+ Use *Class D fire extinguisher* or *dry sand*
++ *Evacuate* the immediate area (minimum 10m / 30ft)
 + Call fire department: *911*
-+ Ventilate area (toxic fumes)
++ If small and contained: use *CO2* or *ABC dry chemical* extinguisher
++ If large or spreading: *do not attempt to extinguish* (let professionals handle)
++ Ventilate area (toxic fluoride fumes)
++ Water in *large quantities* can cool adjacent cells and prevent spread, but small amounts can make it worse
 
-#v(1em)
+#v(0.5em)
+
+#warning[
+  Li-ion fires re-ignite. Monitor for at least 1 hour after fire appears out. Do not move battery until cool.
+]
+
+#v(0.5em)
 
 #danger[
-  Never attempt to charge a damaged battery. Dispose at authorized recycling facility.
+  Never attempt to charge a damaged battery. Dispose at authorized battery recycling facility (Call2Recycle, Best Buy, etc.).
 ]
 
 #pagebreak()
