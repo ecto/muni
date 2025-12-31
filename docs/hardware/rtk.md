@@ -2,6 +2,25 @@
 
 Centimeter-accurate positioning for georeferenced mapping.
 
+## Quick Start
+
+```bash
+# Install the muni CLI
+cd bvr/firmware && cargo install --path bins/cli
+
+# Configure base station (with known coordinates)
+muni gps configure-base --port /dev/tty.usbmodem1101 \
+    --fixed-position 41.481956,-81.8053,213.5
+
+# Configure rover
+muni gps configure-rover --port /dev/ttyACM0
+
+# Monitor GPS status (works for both base and rover)
+muni gps monitor --port /dev/tty.usbmodem1101
+```
+
+Press `q`, `Esc`, or `Ctrl+C` to exit the monitor.
+
 ## Overview
 
 RTK (Real-Time Kinematic) GPS uses corrections from a base station to achieve
@@ -59,8 +78,13 @@ The low latency (5-20ms vs 50-150ms with LTE) improves fix acquisition time.
 | Component  | Model                                                                                                     | Price | Source   |
 | ---------- | --------------------------------------------------------------------------------------------------------- | ----- | -------- |
 | GPS Module | [SparkFun GPS-RTK2 (ZED-F9P)](https://www.amazon.com/SparkFun-GPS-RTK2-Board-ZED-F9P-Qwiic/dp/B07NBPNWNZ) | ~$220 | Amazon   |
-| Antenna    | SparkFun GNSS Multi-Band                                                                                  | ~$75  | SparkFun |
+| Antenna    | SparkFun GNSS Multi-Band L1/L2 (active)                                                                   | ~$75  | SparkFun |
 | SMA Cable  | RG174, 1m                                                                                                 | ~$10  | Amazon   |
+| U.FL-SMA   | U.FL to SMA pigtail (if using breakout)                                                                   | ~$8   | Amazon   |
+
+**Important:** The ZED-F9P requires a multi-band (L1+L2) active GNSS antenna. A standard WiFi
+antenna will not work: you'll see "NO FIX" with 0 satellites. The SparkFun board has a U.FL
+connector: use a U.FL to SMA pigtail to connect the antenna.
 
 ### Base Station (Depot)
 
@@ -79,6 +103,27 @@ Alternatively, integrate into the depot server directly via USB.
 
 ### Hardware Connection
 
+**Option 1: USB (Recommended for development)**
+
+```
+GNSS Antenna
+     │
+     │ U.FL → SMA pigtail → SMA cable
+     ▼
+┌─────────────┐
+│ SparkFun    │
+│ ZED-F9P     │
+│             │
+│ USB-C ──────┼──► Computer/Jetson USB
+│             │    /dev/ttyACM0 (Linux)
+│             │    /dev/tty.usbmodem* (macOS)
+└─────────────┘
+```
+
+USB provides power and data. Default baud: 38400.
+
+**Option 2: UART (Recommended for production)**
+
 ```
 GNSS Antenna
      │
@@ -94,6 +139,8 @@ GNSS Antenna
 │ GND ◄───────┼─── GND
 └─────────────┘
 ```
+
+For UART, configure the baud rate to 115200 for high-rate output.
 
 ### Software Integration
 
@@ -170,11 +217,21 @@ The base station must know its exact position. Options:
 For most applications, 24-hour self-survey is sufficient:
 
 ```bash
-# Configure ZED-F9P for survey-in mode
-# (via u-center or pyubx2)
-ubxtool -p CFG-TMODE-MODE,1        # Survey-in mode
-ubxtool -p CFG-TMODE-SVIN_MIN_DUR,86400  # 24 hours
-ubxtool -p CFG-TMODE-SVIN_ACC_LIMIT,100  # 10cm target
+# Configure ZED-F9P for survey-in mode (24hr, 10cm target)
+muni gps configure-base --port /dev/ttyACM0 \
+    --survey-duration 86400 \
+    --survey-accuracy 0.1
+
+# Monitor survey progress
+muni gps monitor --port /dev/ttyACM0
+```
+
+If you know the exact coordinates (from a previous survey or professional surveyor):
+
+```bash
+# Configure with fixed position (lat,lon,alt in meters)
+muni gps configure-base --port /dev/ttyACM0 \
+    --fixed-position 41.481956,-81.8053,213.5
 ```
 
 ### NTRIP Caster
@@ -292,28 +349,111 @@ RTK requires:
 ### No RTK Fix
 
 ```bash
-# Check satellite count
-ubxtool -p NAV-PVT | grep numSV
+# Monitor satellite count, fix quality, and HDOP
+muni gps monitor --port /dev/ttyACM0
 
-# Check correction age
-ubxtool -p NAV-PVT | grep diffAge
-
-# Verify NTRIP connection
+# Verify NTRIP caster is running
 curl -v http://depot:2101/
 ```
 
+The monitor TUI shows:
+
+- Fix quality (NO FIX, GPS, DGPS, RTK FLOAT, RTK FIXED)
+- Satellite counts per constellation (GPS, GLONASS, Galileo, BeiDou)
+- Signal strength bars for each satellite
+
 ### Frequent Fix Loss
 
-- Check antenna placement (obstructions?)
+- Check antenna placement (obstructions above 10° elevation?)
 - Verify correction stream continuity
+- Ensure multi-band active antenna (not a WiFi antenna!)
 - Consider longer cable or better antenna
 
 ### Base Station Issues
 
 ```bash
-# Check survey status
-ubxtool -p NAV-SVIN
-
-# Verify RTCM output
-ubxtool -p CFG-MSGOUT-RTCM*
+# Monitor base station: shows survey-in progress and RTCM output
+muni gps monitor --port /dev/ttyACM0
 ```
+
+The base station monitor shows:
+
+- Survey-in duration and accuracy
+- RTCM message counts and types being broadcast
+- Fixed position coordinates (after survey complete)
+
+### Configuration Not Persisting
+
+If the module reverts to NMEA output after power cycling:
+
+```bash
+# Reconfigure (settings are saved to flash)
+muni gps configure-base --port /dev/ttyACM0 --fixed-position LAT,LON,ALT
+
+# Power cycle the module, then verify
+muni gps monitor --port /dev/ttyACM0
+# Should show "BASE" mode, not "ROVER"
+```
+
+## CLI Reference
+
+### muni gps monitor
+
+Real-time TUI monitor for GNSS receivers. Auto-detects rover (NMEA) vs base (RTCM/UBX) mode.
+
+```bash
+muni gps monitor --port /dev/ttyACM0 [--baud 38400]
+```
+
+**Rover mode display:**
+
+- Position (lat/lon/alt)
+- Fix quality and satellite count
+- Per-constellation satellite signal bars
+- Raw NMEA log
+
+**Base station mode display:**
+
+- Survey-in progress (duration, accuracy, observations)
+- RTCM message statistics (type, count, bytes)
+- Fixed position coordinates
+
+**Controls:** `q`, `Esc`, or `Ctrl+C` to quit.
+
+### muni gps configure-base
+
+Configure ZED-F9P as an RTK base station.
+
+```bash
+# Survey-in mode (determines position over time)
+muni gps configure-base --port /dev/ttyACM0 \
+    --survey-duration 3600 \
+    --survey-accuracy 2.0
+
+# Fixed position mode (use known coordinates)
+muni gps configure-base --port /dev/ttyACM0 \
+    --fixed-position 41.481956,-81.8053,213.5
+```
+
+This command:
+
+- Disables NMEA output
+- Enables RTCM3 messages (1005, 1074, 1084, 1094, 1124, 1230)
+- Enables UBX-NAV-SVIN for survey status
+- Configures time mode (survey-in or fixed)
+- Saves configuration to flash (persists across power cycles)
+
+### muni gps configure-rover
+
+Configure ZED-F9P as an RTK rover.
+
+```bash
+muni gps configure-rover --port /dev/ttyACM0
+```
+
+This command:
+
+- Enables NMEA output (GGA, RMC, GSV, GSA, VTG)
+- Disables RTCM output
+- Disables time mode
+- Saves configuration to flash

@@ -50,7 +50,7 @@ Onboard software for the Base Vectoring Rover, targeting Jetson Orin NX.
 | Binary  | Purpose                        |
 | ------- | ------------------------------ |
 | `bvrd`  | Main daemon                    |
-| `bvr`   | Debug/control CLI              |
+| `muni`  | Unified CLI (rover + GPS)      |
 | `train` | RL training for nav policies   |
 
 ## Building
@@ -149,22 +149,47 @@ Runtime config lives in `config/bvr.toml`. See the file for all options.
 
 ## CLI Usage
 
+Install the CLI:
+
+```bash
+cargo install --path bins/cli
+```
+
+### Rover Commands
+
 ```bash
 # Scan CAN bus for VESCs
-bvr scan
+muni rover scan
 
 # Scan with custom interface/duration
-bvr scan --interface can0 --duration 3
+muni rover scan --interface can0 --duration 3
 
 # Send velocity command
-bvr drive --linear 0.5 --angular 0.0
+muni rover drive --linear 0.5 --angular 0.0
 
 # Emergency stop
-bvr estop
-
-# Monitor telemetry (TODO)
-bvr monitor
+muni rover estop
 ```
+
+### GPS Commands
+
+```bash
+# Monitor GPS status (auto-detects rover vs base mode)
+muni gps monitor --port /dev/ttyACM0
+
+# Configure ZED-F9P as base station (fixed position)
+muni gps configure-base --port /dev/ttyACM0 \
+    --fixed-position 41.481956,-81.8053,213.5
+
+# Configure ZED-F9P as base station (survey-in)
+muni gps configure-base --port /dev/ttyACM0 \
+    --survey-duration 3600 --survey-accuracy 2.0
+
+# Configure ZED-F9P as rover
+muni gps configure-rover --port /dev/ttyACM0
+```
+
+See [RTK GPS documentation](../docs/hardware/rtk.md) for full details.
 
 ## Development
 

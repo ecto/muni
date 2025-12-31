@@ -1102,9 +1102,9 @@ fn configure_base(
     for _ in 0..3 {
         match verify_port.read(&mut buf) {
             Ok(n) if n > 0 => {
-                let has_rtcm = buf[..n].iter().any(|&b| b == 0xD3);
+                let has_rtcm = buf[..n].contains(&0xD3);
                 let has_ubx = buf[..n].windows(2).any(|w| w[0] == 0xB5 && w[1] == 0x62);
-                let has_nmea = buf[..n].iter().any(|&b| b == b'$');
+                let has_nmea = buf[..n].contains(&b'$');
 
                 if has_rtcm {
                     println!("  [ok] RTCM output detected (base station mode active)");
