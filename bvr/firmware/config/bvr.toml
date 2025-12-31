@@ -50,6 +50,30 @@ battery_nominal_v = 48.0
 battery_low_v = 42.0
 battery_critical_v = 39.0
 
+[gps]
+# Enable GPS receiver
+enabled = true
+# Serial port for ZED-F9P (USB-C appears as ACM device on Jetson)
+port = "/dev/ttyACM0"
+# Baud rate (38400 default, 115200 for high-rate output)
+baud_rate = 38400
+# Update rate in Hz (ZED-F9P supports up to 25Hz, 10Hz recommended)
+update_rate_hz = 10
+
+[ntrip]
+# Enable NTRIP client for RTK corrections
+enabled = true
+# Base station NTRIP caster (depot server on mesh network)
+server = "192.168.1.129"
+port = 2101
+# Mountpoint name on the caster
+mountpoint = "ROVER"
+# Optional: username/password if caster requires auth
+# username = ""
+# password = ""
+# Reconnect delay on connection loss (seconds)
+reconnect_delay_secs = 5
+
 [logging]
 # Log level: trace, debug, info, warn, error
 level = "info"

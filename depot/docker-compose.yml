@@ -1,4 +1,24 @@
 services:
+  # Portal - unified entry point with reverse proxy
+  portal:
+    build:
+      context: ./portal
+      dockerfile: Dockerfile
+    container_name: depot-portal
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - operator
+      - grafana
+      - influxdb
+      - discovery
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O-", "http://localhost/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
   # Rover discovery service - rovers register here, operators query here
   discovery:
     build:
@@ -152,6 +172,25 @@ services:
               capabilities: [gpu]
     depends_on:
       - mapper
+
+  # NTRIP caster for RTK corrections
+  # Base station ZED-F9P connects via USB, broadcasts RTCM3 to rovers
+  ntrip:
+    image: ghcr.io/rtklibexplorer/str2str:latest
+    container_name: depot-ntrip
+    restart: unless-stopped
+    ports:
+      - "2101:2101"
+    devices:
+      - /dev/ttyUSB0:/dev/ttyUSB0
+    command: >
+      -in serial://ttyUSB0:115200:8:n:1
+      -out ntrips://:${NTRIP_PASSWORD:-muni}@:2101/ROVER
+    environment:
+      - NTRIP_PASSWORD=${NTRIP_PASSWORD:-muni}
+    # Only start if base station hardware is connected
+    profiles:
+      - rtk
 
   # Map API service - serves maps to operator app
   map-api:
