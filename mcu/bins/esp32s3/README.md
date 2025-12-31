@@ -42,13 +42,13 @@ Generic attachment controller firmware for ESP32-S3 based boards (Heltec LoRa 32
 
 ### Status Bar LEDs (feature: `status-bar`)
 
-| GPIO | Color  | Meaning          |
-| ---- | ------ | ---------------- |
-| 19   | Red    | Error/fault      |
-| 20   | Yellow | Warning/attention|
-| 26   | Green  | Idle/ok          |
-| 48   | Blue   | Running/active   |
-| 47   | White  | Heartbeat        |
+| GPIO | Color  | Meaning           |
+| ---- | ------ | ----------------- |
+| 19   | Red    | Error/fault       |
+| 20   | Yellow | Warning/attention |
+| 26   | Green  | Idle/ok           |
+| 48   | Blue   | Running/active    |
+| 47   | White  | Heartbeat         |
 
 Wire each LED: `GPIO → 330Ω resistor → LED anode (+) → LED cathode (-) → GND`
 
@@ -64,17 +64,17 @@ Connect via screen or any serial terminal at 115200 baud:
 screen /dev/cu.usbserial-0001 115200
 ```
 
-| Command         | Description                     |
-| --------------- | ------------------------------- |
-| `led r,g,b`     | Set LED color (0-255 each)      |
-| `led off`       | Turn off LEDs                   |
-| `cycle`         | Toggle RGB rainbow cycle mode   |
-| `state idle`    | Set display state to IDLE       |
-| `state running` | Set display state to RUNNING    |
-| `state error`   | Set display state to ERROR      |
-| `rgb/grb/bgr`   | Set LED color order             |
-| `ws2811/ws2812` | Set LED timing (400kHz/800kHz)  |
-| `help`          | Show available commands         |
+| Command         | Description                    |
+| --------------- | ------------------------------ |
+| `led r,g,b`     | Set LED color (0-255 each)     |
+| `led off`       | Turn off LEDs                  |
+| `cycle`         | Toggle RGB rainbow cycle mode  |
+| `state idle`    | Set display state to IDLE      |
+| `state running` | Set display state to RUNNING   |
+| `state error`   | Set display state to ERROR     |
+| `rgb/grb/bgr`   | Set LED color order            |
+| `ws2811/ws2812` | Set LED timing (400kHz/800kHz) |
+| `help`          | Show available commands        |
 
 Exit screen with `Ctrl+A` then `K` then `Y`.
 
@@ -84,16 +84,17 @@ The firmware implements SLCAN protocol for integration with bvrd. This allows un
 
 **SLCAN Commands:**
 
-| Command              | Description                        |
-| -------------------- | ---------------------------------- |
-| `O`                  | Open CAN channel (starts heartbeat)|
-| `C`                  | Close CAN channel                  |
-| `tIIILDD...`         | Send standard frame (11-bit ID)    |
-| `TIIIIIIIILDD...`    | Send extended frame (29-bit ID)    |
-| `V`                  | Query firmware version             |
-| `N`                  | Query serial number                |
+| Command           | Description                         |
+| ----------------- | ----------------------------------- |
+| `O`               | Open CAN channel (starts heartbeat) |
+| `C`               | Close CAN channel                   |
+| `tIIILDD...`      | Send standard frame (11-bit ID)     |
+| `TIIIIIIIILDD...` | Send extended frame (29-bit ID)     |
+| `V`               | Query firmware version              |
+| `N`               | Query serial number                 |
 
 **Example:**
+
 ```bash
 # Open channel
 echo -ne "O\r" > /dev/ttyUSB0
@@ -111,16 +112,16 @@ Attachments use CAN IDs in the `0x200-0x2FF` range. Each attachment slot gets 16
 
 ### Attachment Slot 0 (Base ID 0x200)
 
-| ID     | Dir | Name      | Description                           |
-| ------ | --- | --------- | ------------------------------------- |
-| 0x200  | A→H | Heartbeat | Periodic status (1Hz when channel open) |
-| 0x201  | H→A | Identify  | Request attachment info               |
-| 0x202  | A→H | Identity  | Response with type/version/caps       |
-| 0x203  | H→A | Command   | Control command                       |
-| 0x204  | A→H | Ack       | Command acknowledgment                |
-| 0x205  | A→H | Sensor    | Sensor data broadcast                 |
-| 0x206  | H→A | Config    | Configuration update                  |
-| 0x207  | A→H | Error     | Error/fault report                    |
+| ID    | Dir | Name      | Description                             |
+| ----- | --- | --------- | --------------------------------------- |
+| 0x200 | A→H | Heartbeat | Periodic status (1Hz when channel open) |
+| 0x201 | H→A | Identify  | Request attachment info                 |
+| 0x202 | A→H | Identity  | Response with type/version/caps         |
+| 0x203 | H→A | Command   | Control command                         |
+| 0x204 | A→H | Ack       | Command acknowledgment                  |
+| 0x205 | A→H | Sensor    | Sensor data broadcast                   |
+| 0x206 | H→A | Config    | Configuration update                    |
+| 0x207 | A→H | Error     | Error/fault report                      |
 
 A = Attachment, H = Host (bvrd/Jetson)
 
@@ -149,16 +150,16 @@ Byte 4: Capabilities (0x01=LED, 0x02=Sensor, 0x04=Actuator)
 
 ### Command Frame (0x203)
 
-| Cmd  | Name      | Args                  |
-| ---- | --------- | --------------------- |
-| 0x00 | Nop       | (none)                |
-| 0x01 | Enable    | (none)                |
-| 0x02 | Disable   | (none)                |
-| 0x03 | SetState  | arg0=state            |
-| 0x10 | SetLed    | arg0=R, arg1=G, arg2=B|
-| 0x11 | LedCycle  | arg0=0/1 (off/on)     |
-| 0x12 | LedTiming | arg0=0/1 (SK68/WS2811)|
-| 0x13 | LedOrder  | arg0=0/1/2 (RGB/GRB/BGR)|
+| Cmd  | Name      | Args                     |
+| ---- | --------- | ------------------------ |
+| 0x00 | Nop       | (none)                   |
+| 0x01 | Enable    | (none)                   |
+| 0x02 | Disable   | (none)                   |
+| 0x03 | SetState  | arg0=state               |
+| 0x10 | SetLed    | arg0=R, arg1=G, arg2=B   |
+| 0x11 | LedCycle  | arg0=0/1 (off/on)        |
+| 0x12 | LedTiming | arg0=0/1 (SK68/WS2811)   |
+| 0x13 | LedOrder  | arg0=0/1/2 (RGB/GRB/BGR) |
 
 ### Ack Frame (0x204)
 
