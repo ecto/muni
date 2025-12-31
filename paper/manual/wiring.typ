@@ -2,7 +2,167 @@
 #import "../lib/diagrams.typ": *
 
 // Wiring Section
-// CAN bus, Power, Signals, Cable management
+// System schematic, CAN bus, Power, Signals, Cable management
+
+= System Wiring Schematic
+
+Complete wiring diagram showing all major connections.
+
+#v(0.5em)
+
+#figure(
+  cetz.canvas({
+    import cetz.draw: *
+
+    // ========== POWER SECTION (left side) ==========
+    content((-6, 6), text(size: 8pt, weight: "bold", fill: diagram-accent)[POWER])
+
+    // Battery
+    battery-top((-6, 4.5), size: (1.8, 1))
+    content((-6, 4.5), text(size: 6pt, weight: "bold")[48V 20Ah])
+
+    // XT90 from battery
+    line((-6, 4), (-6, 3.2), stroke: 2pt + diagram-accent)
+    content((-5.2, 3.6), text(size: 5pt)[XT90])
+
+    // Fuse
+    rect((-6.4, 2.7), (-5.6, 3.2), fill: rgb("#fbbf24"), stroke: 1pt + diagram-black, radius: 2pt)
+    content((-6, 2.95), text(size: 5pt)[100A])
+
+    // E-Stop relay
+    line((-6, 2.7), (-6, 2.2), stroke: 2pt + diagram-accent)
+    rect((-6.5, 1.7), (-5.5, 2.2), fill: muni-danger, stroke: 1pt + diagram-black, radius: 2pt)
+    content((-6, 1.95), text(size: 5pt, fill: white)[E-STOP])
+
+    // E-Stop button connection
+    line((-5.5, 1.95), (-4.5, 1.95), stroke: 1pt + diagram-gray)
+    circle((-4.2, 1.95), radius: 0.25, fill: muni-danger, stroke: 1pt + diagram-black)
+
+    // Power bus
+    line((-6, 1.7), (-6, 1), stroke: 2pt + diagram-accent)
+    rect((-7, 0.7), (-2, 1), fill: diagram-accent, stroke: none, radius: 2pt)
+    content((-4.5, 0.85), text(size: 6pt, fill: white, weight: "bold")[48V BUS])
+
+    // VESCs from bus
+    for (i, x) in ((-6.5, -5.5, -4.5, -3.5)).enumerate() {
+      line((x, 0.7), (x, 0), stroke: 1.5pt + diagram-accent)
+      rect((x - 0.4, -0.6), (x + 0.4, 0), fill: diagram-light, stroke: 1pt + diagram-black, radius: 2pt)
+      content((x, -0.3), text(size: 5pt)[V#(i)])
+    }
+
+    // DC-DC from bus
+    line((-2.5, 0.7), (-2.5, 0), stroke: 1.5pt + diagram-accent)
+    rect((-3, -0.6), (-2, 0), fill: diagram-light, stroke: 1pt + diagram-black, radius: 2pt)
+    content((-2.5, -0.3), text(size: 5pt)[DC-DC])
+
+    // 12V rail from DC-DC
+    line((-2.5, -0.6), (-2.5, -1.2), stroke: 1.5pt + rgb("#3b82f6"))
+    rect((-3.5, -1.5), (-0.5, -1.2), fill: rgb("#3b82f6"), stroke: none, radius: 2pt)
+    content((-2, -1.35), text(size: 5pt, fill: white, weight: "bold")[12V])
+
+    // ========== MOTORS (bottom left) ==========
+    content((-6, -1.5), text(size: 7pt, weight: "bold")[Motors])
+    for (i, x) in ((-6.5, -5.5, -4.5, -3.5)).enumerate() {
+      // Phase wires down
+      line((x - 0.15, -0.6), (x - 0.15, -2), stroke: 1pt + rgb("#3b82f6"))
+      line((x, -0.6), (x, -2), stroke: 1pt + rgb("#22c55e"))
+      line((x + 0.15, -0.6), (x + 0.15, -2), stroke: 1pt + rgb("#eab308"))
+      // Motor
+      circle((x, -2.5), radius: 0.4, stroke: 1pt + diagram-black, fill: diagram-light)
+      content((x, -2.5), text(size: 4pt)[M#(i)])
+    }
+
+    // ========== COMPUTE SECTION (right side) ==========
+    content((3, 6), text(size: 8pt, weight: "bold", fill: rgb("#3b82f6"))[COMPUTE])
+
+    // Jetson
+    rect((1.5, 3.5), (4.5, 5), fill: diagram-light, stroke: 1.5pt + diagram-black, radius: 4pt)
+    content((3, 4.5), text(size: 8pt, weight: "bold")[Jetson])
+    content((3, 4), text(size: 6pt)[Orin NX])
+
+    // 12V power to Jetson
+    line((-0.5, -1.35), (0.5, -1.35), stroke: 1.5pt + rgb("#3b82f6"))
+    line((0.5, -1.35), (0.5, 4.25), stroke: 1.5pt + rgb("#3b82f6"))
+    line((0.5, 4.25), (1.5, 4.25), stroke: 1.5pt + rgb("#3b82f6"))
+    content((0.8, 1.5), text(size: 5pt, fill: rgb("#3b82f6"))[12V])
+
+    // GPIO to E-Stop
+    line((1.5, 3.7), (0, 3.7), stroke: 1pt + muni-danger)
+    line((0, 3.7), (0, 1.95), stroke: 1pt + muni-danger)
+    line((0, 1.95), (-4.2, 1.95), stroke: 1pt + muni-danger)
+    content((0.3, 2.8), text(size: 4pt, fill: muni-danger)[GPIO12])
+
+    // USB ports
+    content((5.2, 4.7), text(size: 5pt)[USB-CAN])
+    line((4.5, 4.7), (5.8, 4.7), stroke: 1pt + diagram-black)
+
+    content((5.2, 4.3), text(size: 5pt)[USB Hub])
+    line((4.5, 4.3), (5.8, 4.3), stroke: 1pt + diagram-black)
+
+    content((5.2, 3.9), text(size: 5pt)[Ethernet])
+    line((4.5, 3.9), (5.8, 3.9), stroke: 1pt + diagram-black)
+
+    // ========== CAN BUS ==========
+    content((3, 2.5), text(size: 7pt, weight: "bold")[CAN Bus])
+
+    // CAN adapter
+    rect((5.8, 4.5), (7, 4.9), fill: diagram-light, stroke: 1pt + diagram-black, radius: 2pt)
+    content((6.4, 4.7), text(size: 5pt)[CAN])
+
+    // CAN bus line
+    line((6.4, 4.5), (6.4, 1.5), stroke: 1.5pt + diagram-black)
+    line((6.4, 1.5), (-6.5, 1.5), stroke: 1.5pt + diagram-black)
+
+    // CAN connections to VESCs
+    for x in (-6.5, -5.5, -4.5, -3.5) {
+      line((x, 1.5), (x, 0), stroke: 1pt + diagram-black)
+    }
+
+    // Termination resistors
+    rect((6.2, 1.3), (6.6, 1.1), fill: white, stroke: 0.5pt + diagram-black)
+    content((6.4, 1.2), text(size: 4pt)[120Ω])
+    rect((-6.7, 1.3), (-6.3, 1.1), fill: white, stroke: 0.5pt + diagram-black)
+    content((-6.5, 1.2), text(size: 4pt)[120Ω])
+
+    // ========== SENSORS ==========
+    content((3, 0.5), text(size: 7pt, weight: "bold")[Sensors])
+
+    // USB Hub
+    rect((5.8, 4.1), (7, 4.5), fill: diagram-light, stroke: 1pt + diagram-black, radius: 2pt)
+    content((6.4, 4.3), text(size: 5pt)[Hub])
+
+    // Camera from hub
+    line((7, 4.3), (7.5, 4.3), stroke: 1pt + diagram-black)
+    line((7.5, 4.3), (7.5, 3.5), stroke: 1pt + diagram-black)
+    circle((7.5, 3.2), radius: 0.3, fill: diagram-light, stroke: 1pt + diagram-black)
+    content((7.5, 3.2), text(size: 4pt)[Cam])
+
+    // LTE from hub
+    line((7, 4.3), (7.5, 4.3), stroke: 1pt + diagram-black)
+    rect((7.2, 4.6), (7.8, 5), fill: diagram-light, stroke: 1pt + diagram-black, radius: 2pt)
+    content((7.5, 4.8), text(size: 4pt)[LTE])
+
+    // LiDAR via Ethernet
+    rect((5.8, 3.7), (7, 4.1), fill: diagram-light, stroke: 1pt + diagram-black, radius: 2pt)
+    content((6.4, 3.9), text(size: 5pt)[LiDAR])
+
+    // ========== LEGEND ==========
+    content((0, -4), text(size: 7pt, weight: "bold")[Legend])
+    line((-2, -4.5), (-1, -4.5), stroke: 2pt + diagram-accent)
+    content((0, -4.5), text(size: 5pt)[48V Power])
+    line((-2, -5), (-1, -5), stroke: 1.5pt + rgb("#3b82f6"))
+    content((0, -5), text(size: 5pt)[12V Power])
+    line((2, -4.5), (3, -4.5), stroke: 1.5pt + diagram-black)
+    content((4, -4.5), text(size: 5pt)[CAN Bus])
+    line((2, -5), (3, -5), stroke: 1pt + diagram-gray)
+    content((4, -5), text(size: 5pt)[Signal/USB])
+  }),
+  caption: [Complete system wiring. Power flows left, compute/sensors right.],
+)
+
+#pagebreak()
+
+// =============================================================================
 
 = CAN Bus Wiring
 
