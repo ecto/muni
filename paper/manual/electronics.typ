@@ -208,6 +208,76 @@ Mount the Jetson Orin NX compute module.
 
 // =============================================================================
 
+= GPIO Pinout
+
+Jetson GPIO connections for E-Stop and status LEDs.
+
+#v(1em)
+
+#figure(
+  cetz.canvas({
+    import cetz.draw: *
+
+    // 40-pin header representation
+    content((0, 4), text(size: 8pt, weight: "bold")[40-Pin Header (partial)])
+
+    // Pin rows
+    for i in range(10) {
+      let y = 3 - i * 0.5
+      // Left column (odd pins)
+      circle((-0.5, y), radius: 0.15, fill: diagram-light, stroke: 0.5pt + diagram-black)
+      content((-1.2, y), text(size: 5pt)[#(i * 2 + 1)])
+      // Right column (even pins)
+      circle((0.5, y), radius: 0.15, fill: diagram-light, stroke: 0.5pt + diagram-black)
+      content((1.2, y), text(size: 5pt)[#(i * 2 + 2)])
+    }
+
+    // Highlight used pins
+    // Pin 32 (GPIO12) - E-Stop
+    circle((0.5, 3 - 7.5 * 0.5), radius: 0.15, fill: muni-danger, stroke: none)
+    line((0.65, 3 - 7.5 * 0.5), (2.5, 3 - 7.5 * 0.5), stroke: 1pt + muni-danger)
+    content((4, 3 - 7.5 * 0.5), text(size: 6pt, fill: muni-danger)[E-Stop Relay])
+
+    // Pin 6 (GND)
+    circle((0.5, 3 - 2.5 * 0.5), radius: 0.15, fill: diagram-black, stroke: none)
+    line((0.65, 3 - 2.5 * 0.5), (2.5, 3 - 2.5 * 0.5), stroke: 1pt + diagram-black)
+    content((3.5, 3 - 2.5 * 0.5), text(size: 6pt)[GND])
+
+    // Pin 1 (3.3V)
+    circle((-0.5, 3), radius: 0.15, fill: muni-orange, stroke: none)
+    line((-0.65, 3), (-2.5, 3), stroke: 1pt + muni-orange)
+    content((-3.5, 3), text(size: 6pt)[3.3V])
+  }),
+  caption: [GPIO header. Only pins used by BVR0 are highlighted.],
+)
+
+#v(1em)
+
+*GPIO Assignments:*
+
+#spec-table(
+  [*Pin*], [*GPIO*], [*Function*], [*Direction*], [*Notes*],
+  [32], [GPIO12], [E-Stop Relay], [Output], [High = relay closed = power on],
+  [6], [GND], [Relay ground], [--], [Common ground],
+  [1], [3.3V], [Status LED], [Power], [Optional status indicator],
+)
+
+#v(1em)
+
+*E-Stop Relay Wiring:*
+
+```
+Jetson Pin 32 (GPIO12) ──┬── Relay coil (+)
+                         │
+Relay coil (-) ──────────┴── Jetson Pin 6 (GND)
+```
+
+The relay is a normally-open (NO) type. When GPIO12 is LOW (default at boot), the relay is open and power is cut to motors. Software must explicitly set GPIO12 HIGH to enable motor power.
+
+#pagebreak()
+
+// =============================================================================
+
 = USB-CAN Adapter
 
 Connect the Jetson to the CAN bus network.
