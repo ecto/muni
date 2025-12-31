@@ -48,14 +48,31 @@ The Console replaces the previous separate Portal and Operator applications.
 - 100+ GB storage for session files
 - Network accessible from rovers
 
-### Start Services
+### Development (Quick)
 
 ```bash
 cd depot
 docker compose up -d
 ```
 
-This starts all services with default development credentials.
+This starts all services with default (insecure) credentials.
+
+### Production Setup
+
+For production deployments, use the provisioning script:
+
+```bash
+./scripts/provision.sh lakewood  # or your depot name
+docker compose up -d
+```
+
+This generates secure, unique credentials for all services.
+
+See **[SETUP.md](SETUP.md)** for the complete setup guide including:
+- Credential management
+- Tailscale configuration
+- Rover fleet onboarding
+- Customer depot handoff
 
 ### Access
 
