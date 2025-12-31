@@ -1,0 +1,192 @@
+@font-face {
+  font-family: "Berkeley Mono";
+  src: url("BerkeleyMono-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: "Berkeley Mono";
+  src: url("BerkeleyMono-Bold.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+}
+
+:root {
+  --fl-orange: #ff6600;
+  --green: #22c55e;
+  --red: #ef4444;
+  --fg: #ddd;
+  --bg: #000000;
+  --accent: #ffbf00;
+  --hover: #ff6600;
+  --muted: #666666;
+  --card-bg: #111;
+  --card-border: #333;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --fg: #000000;
+    --bg: #ffffff;
+    --accent: #000000;
+    --hover: #ff6600;
+    --muted: #999999;
+    --card-bg: #f5f5f5;
+    --card-border: #ddd;
+  }
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: "Berkeley Mono", "SF Mono", "Courier New", monospace;
+  font-size: 12px;
+  font-weight: 400;
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 32px 16px;
+  min-height: 100vh;
+  line-height: 1.5;
+  color: var(--fg);
+  background: var(--bg);
+  -webkit-font-smoothing: subpixel-antialiased;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.header {
+  text-align: center;
+  margin-bottom: 48px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.header strong {
+  font-size: 16px;
+  letter-spacing: 2px;
+}
+
+.header span {
+  color: var(--muted);
+}
+
+.services {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 48px;
+}
+
+.service-card {
+  display: block;
+  border: 1px solid var(--card-border);
+  background: var(--card-bg);
+  padding: 16px;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.service-card:hover {
+  border-color: var(--hover);
+  background: var(--hover);
+  color: #000;
+}
+
+.service-card:hover .service-desc {
+  color: #000;
+}
+
+.service-card:hover .status-dot {
+  border-color: #000;
+}
+
+.service-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.service-name {
+  font-weight: bold;
+  font-size: 14px;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 1px solid var(--muted);
+  background: transparent;
+}
+
+.status-dot.online {
+  background: var(--green);
+  border-color: var(--green);
+}
+
+.status-dot.offline {
+  background: var(--red);
+  border-color: var(--red);
+}
+
+.service-desc {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.fleet-summary {
+  margin-bottom: 48px;
+}
+
+.section-title {
+  font-weight: bold;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--muted);
+  padding-bottom: 4px;
+}
+
+#fleet-status {
+  font-family: inherit;
+  font-size: inherit;
+  line-height: 1.8;
+}
+
+#fleet-status .online {
+  color: var(--green);
+}
+
+#fleet-status .offline {
+  color: var(--muted);
+}
+
+.footer {
+  text-align: center;
+  font-size: 11px;
+}
+
+.footer a {
+  margin-left: 8px;
+  padding: 2px 6px;
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+}
+
+.footer a:hover {
+  background: var(--hover);
+  border-color: var(--hover);
+  color: #000;
+}
+
+.muted {
+  color: var(--muted);
+}
