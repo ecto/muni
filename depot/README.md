@@ -69,6 +69,7 @@ docker compose up -d
 This generates secure, unique credentials for all services.
 
 See **[SETUP.md](SETUP.md)** for the complete setup guide including:
+
 - Credential management
 - Tailscale configuration
 - Rover fleet onboarding

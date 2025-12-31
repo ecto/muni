@@ -41,6 +41,7 @@ Run the provisioning script to generate unique, secure credentials:
 ```
 
 This creates a `.env` file with:
+
 - Console password (for web UI access)
 - InfluxDB admin password and API token
 - Grafana admin password
@@ -82,6 +83,7 @@ tailscale status
 ```
 
 With Tailscale Serve:
+
 - Access via `https://depot-lakewood.<tailnet>.ts.net`
 - Authentication is automatic (Tailscale identity)
 - No password needed for your team
@@ -240,7 +242,7 @@ Edit `docker-compose.yml` if your device path differs:
 ```yaml
 gps-status:
   devices:
-    - /dev/ttyACM0:/dev/ttyACM0  # Adjust as needed
+    - /dev/ttyACM0:/dev/ttyACM0 # Adjust as needed
 ```
 
 ### 3. Start RTK Services
@@ -260,6 +262,7 @@ curl http://localhost:4880/status
 ### 5. Survey-In
 
 The base station needs to determine its precise position. This happens automatically:
+
 - Takes 5-15 minutes with good sky view
 - Console shows survey progress
 - Once complete, RTCM corrections are broadcast
@@ -278,12 +281,12 @@ For depots operated by customers (not Muni):
 
 ### Access Model
 
-| Access Level | Who | How |
-|--------------|-----|-----|
-| Console (teleop) | Customer operators | Password auth |
+| Access Level         | Who                 | How               |
+| -------------------- | ------------------- | ----------------- |
+| Console (teleop)     | Customer operators  | Password auth     |
 | Grafana (dashboards) | Customer (optional) | Separate password |
-| SSH (support) | Muni support | Tailscale or VPN |
-| InfluxDB API | Muni analytics | API token |
+| SSH (support)        | Muni support        | Tailscale or VPN  |
+| InfluxDB API         | Muni analytics      | API token         |
 
 ### Remote Support Options
 
@@ -398,18 +401,18 @@ sftp -P 2222 -i path/to/key bvr@localhost
 
 ## Quick Reference
 
-| Service | URL | Default Port |
-|---------|-----|--------------|
-| Console | http://localhost/ | 80 |
-| Grafana | http://localhost/grafana/ | (proxied) |
-| InfluxDB | http://localhost:8086 | 8086 |
-| Discovery API | http://localhost:4860 | 4860 |
-| SFTP | sftp://localhost:2222 | 2222 |
-| NTRIP | ntrip://localhost:2101 | 2101 |
+| Service       | URL                       | Default Port |
+| ------------- | ------------------------- | ------------ |
+| Console       | http://localhost/         | 80           |
+| Grafana       | http://localhost/grafana/ | (proxied)    |
+| InfluxDB      | http://localhost:8086     | 8086         |
+| Discovery API | http://localhost:4860     | 4860         |
+| SFTP          | sftp://localhost:2222     | 2222         |
+| NTRIP         | ntrip://localhost:2101    | 2101         |
 
-| File | Purpose |
-|------|---------|
-| `.env` | All credentials and config |
-| `sftp/authorized_keys/` | Rover SSH public keys |
-| `sftp/ssh_host_keys/` | SFTP server keys |
-| `grafana/dashboards/` | Dashboard definitions |
+| File                    | Purpose                    |
+| ----------------------- | -------------------------- |
+| `.env`                  | All credentials and config |
+| `sftp/authorized_keys/` | Rover SSH public keys      |
+| `sftp/ssh_host_keys/`   | SFTP server keys           |
+| `grafana/dashboards/`   | Dashboard definitions      |
