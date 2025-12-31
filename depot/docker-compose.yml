@@ -1,15 +1,15 @@
 services:
-  # Portal - unified entry point with reverse proxy
-  portal:
+  # Console - unified web interface for fleet operations
+  # Replaces both portal and operator
+  console:
     build:
-      context: ./portal
+      context: ./console
       dockerfile: Dockerfile
-    container_name: depot-portal
+    container_name: depot-console
     restart: unless-stopped
     ports:
       - "80:80"
     depends_on:
-      - operator
       - grafana
       - influxdb
       - discovery
@@ -34,29 +34,6 @@ services:
     healthcheck:
       test: ["CMD", "wget", "-q", "-O-", "http://localhost:4860/health"]
       interval: 10s
-      timeout: 3s
-      retries: 3
-
-  # Web-based operator interface for teleop
-  operator:
-    build:
-      context: ./operator
-      dockerfile: Dockerfile
-    container_name: depot-operator
-    restart: unless-stopped
-    ports:
-      - "8080:80"
-    healthcheck:
-      test:
-        [
-          "CMD",
-          "wget",
-          "--no-verbose",
-          "--tries=1",
-          "--spider",
-          "http://localhost/",
-        ]
-      interval: 30s
       timeout: 3s
       retries: 3
 
@@ -100,7 +77,7 @@ services:
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-munipassword}
       - GF_USERS_ALLOW_SIGN_UP=false
       - GF_AUTH_ANONYMOUS_ENABLED=false
-      # Serve from /grafana/ subpath behind portal proxy
+      # Serve from /grafana/ subpath behind console proxy
       - GF_SERVER_ROOT_URL=%(protocol)s://%(domain)s/grafana/
       - GF_SERVER_SERVE_FROM_SUB_PATH=true
       # InfluxDB connection for provisioning
@@ -176,6 +153,31 @@ services:
     depends_on:
       - mapper
 
+  # GPS status service - reads ZED-F9P status for base station monitoring
+  gps-status:
+    build:
+      context: ./gps-status
+      dockerfile: Dockerfile
+    container_name: depot-gps-status
+    restart: unless-stopped
+    ports:
+      - "4880:4880"
+    devices:
+      - /dev/ttyACM0:/dev/ttyACM0
+    environment:
+      - PORT=4880
+      - GPS_SERIAL_PORT=/dev/ttyACM0
+      - GPS_BAUD_RATE=115200
+      - RUST_LOG=gps_status=info
+    # Only start if base station hardware is connected
+    profiles:
+      - rtk
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O-", "http://localhost:4880/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
   # NTRIP caster for RTK corrections
   # Base station ZED-F9P connects via USB, broadcasts RTCM3 to rovers
   ntrip:
@@ -195,7 +197,7 @@ services:
     profiles:
       - rtk
 
-  # Map API service - serves maps to operator app
+  # Map API service - serves maps to console app
   map-api:
     build:
       context: ./map-api

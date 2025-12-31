@@ -2,28 +2,43 @@
 
 Depot is the base station infrastructure for the Muni robot fleet. It provides:
 
-- **Web operator** for browser-based teleop with 360° video
+- **Console** for unified fleet operations, teleop, and infrastructure monitoring
 - **Real-time metrics** via InfluxDB (battery, motors, GPS, mode)
 - **Fleet dashboards** via Grafana (fleet overview + per-rover detail)
 - **Session storage** via SFTP (rovers upload recordings)
 - **Map processing** via Mapper service (orchestrates splatting jobs)
 - **Gaussian splatting** via Splat Worker (GPU-accelerated 3D reconstruction)
 - **Map serving** via Map API (browse and download 3D maps)
+- **RTK corrections** via NTRIP caster (centimeter-accurate GPS)
 - **Automatic retention** (30-day cleanup by default)
 
 ## Architecture
 
 ```
 Rovers                          Depot
-┌─────────┐                     ┌─────────────────────────────┐
-│ rover-01│──HTTP register────▶│  Discovery (:4860)          │
-│ rover-02│──UDP metrics──────▶│  InfluxDB (:8086, :8089)    │
-│ rover-0N│──rclone SFTP──────▶│  SFTP (:2222)               │
-│         │◀─WebSocket─────────│  Operator (:8080)           │
-└─────────┘                     │  Grafana (:3000)            │
-                                │  Portal (:80) ◀── Operators │
-                                └─────────────────────────────┘
+┌─────────┐                     ┌─────────────────────────────────────┐
+│ rover-01│──HTTP register────▶│  Discovery (:4860)                  │
+│ rover-02│──UDP metrics──────▶│  InfluxDB (:8086, :8089)            │
+│ rover-0N│──rclone SFTP──────▶│  SFTP (:2222)                       │
+│         │◀─WebSocket─────────│  Console (:80) ◀─── Operators       │
+│         │◀─RTCM corrections──│  NTRIP (:2101) [optional]           │
+└─────────┘                     │  Grafana (:3000)                    │
+                                └─────────────────────────────────────┘
 ```
+
+## Console
+
+The Console is a unified React application that provides:
+
+- **Dashboard**: Fleet overview, service health, alerts
+- **Base Station**: GPS module status, RTK survey progress, NTRIP clients
+- **Services**: Infrastructure health monitoring
+- **Fleet**: Rover list, status, and quick access to teleop
+- **Teleop**: 3D visualization, video feed, gamepad control
+- **Sessions**: Recorded telemetry browser and playback
+- **Maps**: 3D Gaussian splat viewer
+
+The Console replaces the previous separate Portal and Operator applications.
 
 ## Quick Start
 
@@ -33,7 +48,7 @@ Rovers                          Depot
 - 100+ GB storage for session files
 - Network accessible from rovers
 
-### Quick Start
+### Start Services
 
 ```bash
 cd depot
@@ -41,6 +56,32 @@ docker compose up -d
 ```
 
 This starts all services with default development credentials.
+
+### Access
+
+The Console at http://localhost provides access to all functionality:
+
+| Path                | Description           |
+| ------------------- | --------------------- |
+| `/`                 | Dashboard (overview)  |
+| `/base-station`     | GPS/RTK status        |
+| `/services`         | Infrastructure health |
+| `/fleet`            | Rover list            |
+| `/fleet/:id`        | Rover detail          |
+| `/fleet/:id/teleop` | Teleop interface      |
+| `/sessions`         | Session browser       |
+| `/maps`             | 3D map viewer         |
+
+External services (direct access):
+
+| Service   | URL                   | Default Credentials  |
+| --------- | --------------------- | -------------------- |
+| Console   | http://localhost      | None (public)        |
+| Grafana   | http://localhost:3000 | admin / munipassword |
+| InfluxDB  | http://localhost:8086 | admin / munipassword |
+| SFTP      | localhost:2222        | bvr / SSH key auth   |
+| Discovery | http://localhost:4860 | None (internal)      |
+| Map API   | http://localhost:4870 | None (internal)      |
 
 ### GPU Support (for Gaussian Splatting)
 
@@ -51,57 +92,51 @@ To enable the splat-worker for GPU-accelerated 3D reconstruction:
 docker compose --profile gpu up -d
 ```
 
-This starts the splat-worker service which:
+### RTK Base Station
 
-- Watches for splatting jobs from the mapper
-- Processes LiDAR + camera data into Gaussian splats
-- Outputs PLY files viewable in the operator app
+To enable RTK corrections (requires ZED-F9P connected via USB):
 
-### Access
+```bash
+# Start with RTK profile
+docker compose --profile rtk up -d
+```
 
-The **Portal** at http://localhost provides a unified entry point to all services:
-
-| Path         | Service  | Description                  |
-| ------------ | -------- | ---------------------------- |
-| `/`          | Portal   | Landing page with status     |
-| `/operator/` | Operator | Teleop interface, fleet view |
-| `/grafana/`  | Grafana  | Metrics dashboards           |
-
-InfluxDB is available at `:8086` (no subpath support).
-
-Default credentials: `admin` / `munipassword` (Grafana and InfluxDB)
-
-**Direct access** (for development or debugging):
-
-| Service   | URL                   | Default Credentials  |
-| --------- | --------------------- | -------------------- |
-| Portal    | http://localhost      | None (public)        |
-| Operator  | http://localhost:8080 | None (public)        |
-| Grafana   | http://localhost:3000 | admin / munipassword |
-| InfluxDB  | http://localhost:8086 | admin / munipassword |
-| SFTP      | localhost:2222        | muni / SSH key auth  |
-| Discovery | http://localhost:4860 | None (internal)      |
-| Map API   | http://localhost:4870 | None (internal)      |
+See [RTK documentation](../docs/hardware/rtk.md) for hardware setup.
 
 ## Development
 
-For developing the operator web app with hot-reload (no container rebuilds):
+For developing the Console with hot-reload:
 
 ```bash
-# Terminal 1: Start backend services (discovery, influxdb, grafana)
-docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+# Terminal 1: Start backend services
+docker compose up -d discovery influxdb grafana
 
-# Terminal 2: Run operator with hot-reload
-cd operator
+# Terminal 2: Run console with hot-reload
+cd console
 npm install
 npm run dev
 ```
 
-The operator dev server runs on http://localhost:5173 with:
+The console dev server runs on http://localhost:5173 with:
 
 - Hot module replacement (instant updates)
 - Auto-refresh on file changes
 - Source maps for debugging
+- Proxy to backend services
+
+### Directory Structure
+
+```
+depot/
+├── console/          # React web application (Console)
+├── discovery/        # Rover registration service (Rust)
+├── map-api/          # Map serving API (Rust)
+├── mapper/           # Map processing orchestrator (Rust)
+├── splat-worker/     # GPU splatting worker (Python)
+├── grafana/          # Grafana provisioning
+├── sftp/             # SFTP server config
+└── scripts/          # Maintenance scripts
+```
 
 ### Simulating Rovers
 
@@ -118,11 +153,6 @@ curl -X POST http://localhost:4860/heartbeat/bvr-01 \
   -H "Content-Type: application/json" \
   -d '{"battery_voltage":48.5,"mode":1,"pose":{"x":10,"y":5,"theta":0.5}}'
 ```
-
-### Production Setup
-
-For production, use `./scripts/setup.sh` to generate secure credentials,
-or create a `.env` file with custom values (see Configuration below).
 
 ## Configuration
 
@@ -145,6 +175,9 @@ GRAFANA_ADMIN_PASSWORD=<secure-password>
 # Storage
 SESSIONS_PATH=/data/muni-sessions
 RETENTION_DAYS=30
+
+# RTK (optional)
+NTRIP_PASSWORD=<secure-password>
 ```
 
 ### Adding Rover SSH Keys
@@ -159,26 +192,24 @@ cp /path/to/bvr-01.pub sftp/authorized_keys/
 docker compose restart sftp
 ```
 
-On the rover side, configure rclone with the corresponding private key.
-
 ## Rover Configuration
 
 Configuration varies by morphology. See the morphology-specific docs:
 
 - **BVR**: See [bvr/docs/](../bvr/docs/) for BVR-specific configuration
 
-### Metrics Push (General)
+### Metrics Push
 
-Rovers push metrics via UDP to InfluxDB. Example config:
+Rovers push metrics via UDP to InfluxDB:
 
 ```toml
 [metrics]
 enabled = true
-endpoint = "depot.local:8089"  # or IP address
+endpoint = "depot.local:8089"
 interval_hz = 1
 ```
 
-### Session Sync (General)
+### Session Sync
 
 Configure rclone on each rover for session upload:
 
@@ -187,32 +218,9 @@ Configure rclone on each rover for session upload:
 type = sftp
 host = depot.local
 port = 2222
-user = muni
+user = bvr
 key_file = /etc/muni/id_ed25519
 ```
-
-## Dashboards
-
-### Fleet Overview
-
-The Fleet Overview dashboard shows:
-
-- Rover status table (online/offline, last seen)
-- Battery levels bar chart
-- Motor temperatures (max per rover)
-- GPS map (if available)
-- Alert indicators (offline, low battery, high temp)
-
-### Rover Detail
-
-Select a rover from the dropdown to see:
-
-- Current mode, battery, current
-- Battery voltage over time
-- Motor temperatures over time
-- Velocity (commanded vs actual)
-- Motor currents
-- Mode timeline
 
 ## Maintenance
 
@@ -224,27 +232,6 @@ Sessions older than `RETENTION_DAYS` are automatically cleaned up. Run manually:
 ./scripts/cleanup.sh
 ```
 
-Or set up a cron job:
-
-```bash
-# Run daily at 3am
-0 3 * * * /opt/depot/scripts/cleanup.sh >> /var/log/depot-cleanup.log 2>&1
-```
-
-### Backup
-
-Important data to back up:
-
-- `.env` (credentials)
-- `sftp/authorized_keys/` (rover SSH keys)
-- Docker volumes (influxdb-data, grafana-data)
-
-```bash
-# Backup volumes
-docker run --rm -v depot_influxdb-data:/data -v $(pwd):/backup alpine \
-    tar czf /backup/influxdb-backup.tar.gz /data
-```
-
 ### Viewing Logs
 
 ```bash
@@ -252,209 +239,23 @@ docker run --rm -v depot_influxdb-data:/data -v $(pwd):/backup alpine \
 docker compose logs -f
 
 # Specific service
+docker compose logs -f console
+docker compose logs -f discovery
 docker compose logs -f influxdb
-docker compose logs -f grafana
-docker compose logs -f sftp
-```
-
-## Troubleshooting
-
-### No metrics appearing in Grafana
-
-1. Check rover is sending metrics:
-
-   ```bash
-   # On depot, listen for UDP packets
-   tcpdump -i any port 8089 -A
-   ```
-
-2. Verify InfluxDB UDP listener is working:
-
-   ```bash
-   docker compose logs influxdb | grep -i udp
-   ```
-
-3. Check Grafana data source is configured correctly
-
-### Rovers can't connect via SFTP
-
-1. Check SFTP container is running:
-
-   ```bash
-   docker compose ps sftp
-   ```
-
-2. Verify rover's public key is in `sftp/authorized_keys/`
-
-3. Test connection from rover:
-   ```bash
-   sftp -P 2222 -i /path/to/key muni@depot.local
-   ```
-
-### High disk usage
-
-1. Check session storage:
-
-   ```bash
-   du -sh /data/muni-sessions/*
-   ```
-
-2. Run cleanup manually:
-
-   ```bash
-   ./scripts/cleanup.sh
-   ```
-
-3. Reduce `RETENTION_DAYS` in `.env`
-
-## Mapping Pipeline
-
-The depot includes a complete 3D mapping pipeline:
-
-```
-Rover                    Depot
-  │                        │
-  │ Session upload ────────► SFTP (sessions-data)
-  │ (LiDAR + camera)       │
-  │                        │ Mapper watches
-  │                        │    ↓
-  │                        │ Validates session
-  │                        │    ↓
-  │                        │ Queues splat job
-  │                        │    ↓
-  │                        │ Splat Worker (GPU)
-  │                        │    ↓
-  │                        │ Gaussian splat → maps-data
-  │                        │    ↓
-  │                        │ Map API serves
-  │                        │    ↓
-  │                        │ Operator app views 3D
-```
-
-### Session Format
-
-Sessions uploaded by rovers should have this structure:
-
-```
-sessions/{rover_id}/{timestamp}/
-├── metadata.json          # Session metadata
-├── telemetry.rrd          # Rerun telemetry file
-├── lidar/                 # Point cloud frames
-│   ├── 000000.pcd
-│   └── timestamps.csv
-└── camera/                # Camera frames
-    ├── 000000.jpg
-    └── timestamps.csv
-```
-
-### Map Output
-
-Processed maps are stored as:
-
-```
-maps/{map-name}/
-├── manifest.json          # Map metadata
-├── splat.ply              # Gaussian splat (viewable in app)
-├── result.json            # Processing stats
-└── (optional)
-    ├── pointcloud.laz     # Georeferenced point cloud
-    └── mesh.glb           # Reconstructed mesh
 ```
 
 ## Network Ports
 
-| Port | Protocol | Service   | Purpose               |
-| ---- | -------- | --------- | --------------------- |
-| 2222 | TCP      | SFTP      | Session file uploads  |
-| 3000 | TCP      | Grafana   | Web dashboards        |
-| 4860 | TCP      | Discovery | Rover registration    |
-| 4870 | TCP      | Map API   | Map serving           |
-| 8080 | TCP      | Operator  | Web teleop interface  |
-| 8086 | TCP      | InfluxDB  | HTTP API + Web UI     |
-| 8089 | UDP      | InfluxDB  | Line protocol metrics |
-
-## RTK Base Station
-
-For centimeter-accurate georeferenced mapping, the depot can host an RTK GPS
-base station that broadcasts corrections to rovers.
-
-### Hardware
-
-| Component  | Model            | Notes                   |
-| ---------- | ---------------- | ----------------------- |
-| GPS Module | SparkFun ZED-F9P | USB to depot server     |
-| Antenna    | Tallysman TW4721 | Roof-mounted, clear sky |
-| Cable      | LMR-400, 25ft    | Low-loss for roof run   |
-
-Total: ~$360 (module + antenna + cable)
-
-### Architecture
-
-```
-Roof
-  │
-  ▼ GNSS Antenna
-  │
-  │ SMA/LMR-400
-  ▼
-┌─────────────┐
-│ ZED-F9P     │──USB──▶ Depot Server
-│ (Base Mode) │
-└─────────────┘
-       │
-       ▼ RTCM3 corrections
-┌─────────────┐
-│ NTRIP       │◀──TCP:2101── Rovers
-│ Caster      │
-└─────────────┘
-```
-
-### Docker Setup
-
-Add to `docker-compose.yml`:
-
-```yaml
-ntrip-caster:
-  image: ghcr.io/rtcm/rtkbase:latest
-  container_name: ntrip
-  restart: unless-stopped
-  ports:
-    - "2101:2101"
-  devices:
-    - /dev/ttyUSB0:/dev/ttyUSB0
-  volumes:
-    - ntrip-config:/config
-```
-
-### Rover Configuration
-
-On each rover, configure NTRIP client. Example for BVR (`bvr.toml`):
-
-```toml
-[gps]
-ntrip_enabled = true
-ntrip_server = "depot.local"
-ntrip_port = 2101
-ntrip_mountpoint = "ROVER"
-```
-
-### Survey Procedure
-
-The base station must be surveyed to determine its precise location:
-
-1. **Configure for survey-in mode** (24 hours recommended)
-2. **Wait for position to converge** (10cm accuracy target)
-3. **Save fixed coordinates** to config
-
-See morphology-specific docs for detailed RTK setup instructions.
-
-### Network Ports
-
-Add to the ports table:
-
-| Port | Protocol | Service | Purpose                   |
-| ---- | -------- | ------- | ------------------------- |
-| 2101 | TCP      | NTRIP   | RTK corrections broadcast |
+| Port | Protocol | Service   | Purpose                   |
+| ---- | -------- | --------- | ------------------------- |
+| 80   | TCP      | Console   | Web interface             |
+| 2101 | TCP      | NTRIP     | RTK corrections broadcast |
+| 2222 | TCP      | SFTP      | Session file uploads      |
+| 3000 | TCP      | Grafana   | Metrics dashboards        |
+| 4860 | TCP      | Discovery | Rover registration        |
+| 4870 | TCP      | Map API   | Map serving               |
+| 8086 | TCP      | InfluxDB  | HTTP API + Web UI         |
+| 8089 | UDP      | InfluxDB  | Line protocol metrics     |
 
 ## Security Considerations
 
@@ -462,3 +263,4 @@ Add to the ports table:
 - Grafana and InfluxDB use password auth (set strong passwords in .env)
 - Consider placing behind a reverse proxy with TLS for production
 - Use a VPN (WireGuard/Tailscale) for rovers connecting over public internet
+- Future: Console will support authentication for operator access
