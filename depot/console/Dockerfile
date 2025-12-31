@@ -12,7 +12,19 @@ RUN npm run build
 
 # Production stage
 FROM nginx:alpine
+
+# Install openssl for password hashing
+RUN apk add --no-cache openssl
+
+# Copy built files and config
 COPY --from=builder /app/dist /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY docker-entrypoint.sh /docker-entrypoint.sh
+
+# Make entrypoint executable
+RUN chmod +x /docker-entrypoint.sh
+
 EXPOSE 80
+
+ENTRYPOINT ["/docker-entrypoint.sh"]
 CMD ["nginx", "-g", "daemon off;"]

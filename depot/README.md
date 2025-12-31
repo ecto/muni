@@ -74,14 +74,14 @@ The Console at http://localhost provides access to all functionality:
 
 External services (direct access):
 
-| Service   | URL                   | Default Credentials  |
-| --------- | --------------------- | -------------------- |
-| Console   | http://localhost      | None (public)        |
-| Grafana   | http://localhost:3000 | admin / munipassword |
-| InfluxDB  | http://localhost:8086 | admin / munipassword |
-| SFTP      | localhost:2222        | bvr / SSH key auth   |
-| Discovery | http://localhost:4860 | None (internal)      |
-| Map API   | http://localhost:4870 | None (internal)      |
+| Service   | URL                   | Default Credentials      |
+| --------- | --------------------- | ------------------------ |
+| Console   | http://localhost      | See [Authentication](#authentication) |
+| Grafana   | http://localhost:3000 | admin / munipassword     |
+| InfluxDB  | http://localhost:8086 | admin / munipassword     |
+| SFTP      | localhost:2222        | bvr / SSH key auth       |
+| Discovery | http://localhost:4860 | None (internal)          |
+| Map API   | http://localhost:4870 | None (internal)          |
 
 ### GPU Support (for Gaussian Splatting)
 
@@ -102,6 +102,54 @@ docker compose --profile rtk up -d
 ```
 
 See [RTK documentation](../docs/hardware/rtk.md) for hardware setup.
+
+## Authentication
+
+The Console supports two authentication methods:
+
+### Password Authentication
+
+Set `CONSOLE_PASSWORD` to enable password protection:
+
+```bash
+# Via environment variable
+CONSOLE_PASSWORD=your-secure-password docker compose up -d
+
+# Or in .env file
+echo "CONSOLE_PASSWORD=your-secure-password" >> .env
+docker compose up -d
+```
+
+Default username is `admin`. Override with `CONSOLE_USERNAME`:
+
+```bash
+CONSOLE_USERNAME=operator CONSOLE_PASSWORD=secret docker compose up -d
+```
+
+### Tailscale Authentication
+
+When accessing the Console through [Tailscale Serve](https://tailscale.com/kb/1312/serve) or [Tailscale Funnel](https://tailscale.com/kb/1223/funnel), authentication is automatic using your Tailscale identity.
+
+```bash
+# Expose Console via Tailscale (HTTPS, authenticated)
+tailscale serve https / http://localhost:80
+
+# Or expose publicly via Funnel (still requires Tailscale login)
+tailscale funnel https / http://localhost:80
+```
+
+The Console automatically detects Tailscale headers and bypasses password auth when Tailscale identity is present.
+
+### No Authentication (Development)
+
+By default, if `CONSOLE_PASSWORD` is not set, authentication is disabled:
+
+```bash
+# No auth - for local development only
+docker compose up -d
+```
+
+⚠️ **Warning**: Do not expose the Console to the internet without authentication enabled.
 
 ## Development
 
@@ -161,6 +209,10 @@ curl -X POST http://localhost:4860/heartbeat/bvr-01 \
 Copy `.env.example` to `.env` and customize:
 
 ```bash
+# Console Authentication
+CONSOLE_PASSWORD=<secure-password>
+CONSOLE_USERNAME=admin
+
 # InfluxDB
 INFLUXDB_ADMIN_USER=admin
 INFLUXDB_ADMIN_PASSWORD=<secure-password>
@@ -259,8 +311,9 @@ docker compose logs -f influxdb
 
 ## Security Considerations
 
-- SFTP uses key-based authentication only (no passwords)
-- Grafana and InfluxDB use password auth (set strong passwords in .env)
-- Consider placing behind a reverse proxy with TLS for production
-- Use a VPN (WireGuard/Tailscale) for rovers connecting over public internet
-- Future: Console will support authentication for operator access
+- **Console**: Supports password auth or Tailscale identity (set `CONSOLE_PASSWORD` for production)
+- **SFTP**: Uses key-based authentication only (no passwords)
+- **Grafana/InfluxDB**: Use password auth (set strong passwords in .env)
+- **TLS**: Use Tailscale Serve/Funnel for automatic HTTPS, or place behind a reverse proxy
+- **Network**: Use Tailscale for rovers connecting over public internet (provides auth + encryption)
+- **Internal APIs**: Discovery, Map API, and GPS Status are proxied through Console and not exposed directly

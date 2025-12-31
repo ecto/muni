@@ -9,6 +9,11 @@ services:
     restart: unless-stopped
     ports:
       - "80:80"
+    environment:
+      # Authentication: set password to enable, leave empty to disable
+      # When accessed via Tailscale Serve/Funnel, Tailscale identity is used instead
+      - CONSOLE_PASSWORD=${CONSOLE_PASSWORD:-}
+      - CONSOLE_USERNAME=${CONSOLE_USERNAME:-admin}
     depends_on:
       - grafana
       - influxdb
