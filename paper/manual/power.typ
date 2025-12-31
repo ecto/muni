@@ -51,17 +51,27 @@ Secure mounting for the 48V battery pack.
   column-gutter: 2em,
   [
     *Tray Construction:*
-    - 3mm aluminum sheet
-    - Bent edges for rigidity
-    - Foam padding underneath battery
-    - Holes for cable routing
+    - Material: 2mm 6061-T6 aluminum
+    - Flat size: 220mm × 160mm
+    - Bend: 15mm lip on all 4 sides (90°)
+    - Final inside: 190mm × 130mm × 15mm deep
+    - 10mm EVA foam padding (bottom)
+    - 2× 10mm cable routing holes
+
+    #v(0.3em)
+    *CAD File:* `bvr/cad/battery-tray.dxf`
   ],
   [
     *Retention Requirements:*
     - Secure in all axes
     - Quick-release for service
     - Must hold during tip-over
-    - Vibration dampening (foam/rubber)
+    - Vibration dampening (10mm EVA foam)
+
+    *Strap:*
+    - 25mm nylon webbing
+    - Cam buckle (not ratchet)
+    - Route over battery, through frame slots
   ]
 )
 

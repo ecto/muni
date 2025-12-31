@@ -14,59 +14,79 @@ Each hub motor requires a mounting bracket to attach to the chassis frame.
   cetz.canvas({
     import cetz.draw: *
 
-    // Bracket top view
-    content((-4, 3), text(size: 8pt, weight: "bold")[TOP VIEW])
+    // Bracket top view with full dimensions
+    content((-4, 4), text(size: 8pt, weight: "bold")[TOP VIEW (1:2 scale)])
 
-    rect((-5.5, 0), (-2.5, 2), fill: diagram-light, stroke: 1.5pt + diagram-black, radius: 2pt)
+    rect((-5.5, 0), (-2.5, 2.5), fill: diagram-light, stroke: 1.5pt + diagram-black, radius: 2pt)
 
-    // Frame mounting holes (slots for adjustment)
-    rect((-5.2, 1.6), (-4.8, 1.8), fill: white, stroke: 1pt + diagram-black)
-    rect((-3.2, 1.6), (-2.8, 1.8), fill: white, stroke: 1pt + diagram-black)
-    content((-4, 2.3), text(size: 5pt)[M5 slots])
+    // Frame mounting slots (5.2mm wide × 15mm long)
+    rect((-5.3, 2), (-4.7, 2.3), fill: white, stroke: 1pt + diagram-black)
+    rect((-3.3, 2), (-2.7, 2.3), fill: white, stroke: 1pt + diagram-black)
 
-    // Motor mounting holes
-    let motor_pattern = 30  // mm between holes
-    for (dx, dy) in ((-0.4, -0.4), (0.4, -0.4), (-0.4, 0.4), (0.4, 0.4)) {
-      circle((-4 + dx, 0.8 + dy), radius: 0.12, fill: white, stroke: 1pt + muni-orange)
+    // Motor mounting holes (42mm square pattern for hoverboard motors)
+    for (dx, dy) in ((-0.5, -0.5), (0.5, -0.5), (-0.5, 0.5), (0.5, 0.5)) {
+      circle((-4 + dx, 1 + dy), radius: 0.12, fill: white, stroke: 1pt + muni-orange)
     }
-    content((-4, 0.2), text(size: 5pt)[M4 holes])
 
-    // Dimensions
-    dim-h(2.5, -5.5, -2.5, "80", offset: 0.3)
-    dim-v(-2.3, 0, 2, "50", offset: 0.3)
+    // All dimensions
+    dim-h(3.2, -5.5, -2.5, "80", offset: 0.3)
+    dim-v(-2.3, 0, 2.5, "60", offset: 0.3)
+    dim-h(-0.3, -4.5, -3.5, "42", offset: 0.3)
+    dim-v(-2.6, 0.5, 1.5, "42", offset: 0.2)
+    dim-h(2.7, -5.3, -4.7, "5.2×15 slot", offset: 0.2)
+    content((-4, 3.3), text(size: 5pt)[Holes: 4.2mm (M4 clearance)])
 
     // Bracket side view
-    content((4, 3), text(size: 8pt, weight: "bold")[SIDE VIEW])
+    content((4, 4), text(size: 8pt, weight: "bold")[SIDE VIEW])
 
-    rect((2.5, 0), (5.5, 0.3), fill: diagram-light, stroke: 1.5pt + diagram-black)
-    rect((3.5, 0.3), (4.5, 2), fill: diagram-light, stroke: 1.5pt + diagram-black)
+    // Base flange
+    rect((2, 0), (6, 0.4), fill: diagram-light, stroke: 1.5pt + diagram-black)
+    // Vertical
+    rect((3.5, 0.4), (4.5, 2.4), fill: diagram-light, stroke: 1.5pt + diagram-black)
 
-    // Angle indicator
-    content((5.8, 1), text(size: 6pt)[L-bracket])
-    dim-v(5.7, 0, 2, "50", offset: 0.2)
+    // Dimensions
+    dim-h(-0.5, 2, 6, "80", offset: 0.3)
+    dim-v(6.2, 0, 0.4, "3", offset: 0.2)
+    dim-v(6.2, 0.4, 2.4, "50", offset: 0.2)
+    dim-h(2.8, 3.5, 4.5, "20", offset: 0.2)
+
+    // Bend line
+    line((3.5, 0.4), (4.5, 0.4), stroke: 0.5pt + muni-orange)
+    content((4, 0.7), text(size: 4pt, fill: muni-orange)[90° bend])
   }),
-  caption: [Motor bracket with slotted holes for alignment adjustment.],
+  caption: [Motor bracket dimensions. Material: 3mm 6061-T6 aluminum.],
 )
 
-#v(1em)
+#v(0.5em)
 
 #grid(
   columns: (1fr, 1fr),
   column-gutter: 2em,
   [
     *Bracket Specifications:*
-    - Material: 3mm aluminum or steel
-    - Frame holes: M5, slotted 10mm for adjustment
-    - Motor holes: M4, match motor bolt pattern
-    - L-bracket design for rigidity
+    - Material: 3mm 6061-T6 aluminum
+    - Overall: 80mm × 60mm flat, 50mm vertical
+    - Frame slots: 5.2mm × 15mm (M5 adjustment)
+    - Motor holes: 42mm × 42mm square pattern
+    - Drill: 4.2mm (M4 clearance)
+    - Bend: 90° along 80mm edge
   ],
   [
-    *Sourcing Options:*
-    - Custom CNC cut (recommended)
-    - 3D printed (PLA not recommended, use PETG/ABS)
-    - Off-the-shelf motor mounts (verify hole pattern)
+    *CAD Files:*
+    Available at `bvr/cad/`:
+    - `motor-bracket.dxf` (flat pattern)
+    - `motor-bracket.step` (3D model)
+    - `electronics-plate.dxf`
+    - `battery-tray.dxf`
+
+    #v(0.3em)
+    #text(size: 7pt, fill: gray)[SendCutSend accepts DXF directly.]
   ]
 )
+
+#note[
+  The 42mm hole pattern fits standard 6.5" hoverboard hub motors. Verify your motor's bolt pattern before cutting.
+]
 
 #pagebreak()
 

@@ -85,9 +85,12 @@ The electronics plate holds the Jetson, VESCs, DC-DC converter, and fuse.
   ],
   [
     *Plate Material:*
-    - 3mm aluminum sheet (recommended)
+    - 6mm (1/4") 6061-T6 aluminum (recommended)
     - Or: 5mm acrylic (lighter, less heat dissipation)
     - Or: 3mm FR4/G10 (good insulator)
+
+    #v(0.3em)
+    *CAD File:* `bvr/cad/electronics-plate.dxf`
   ]
 )
 
