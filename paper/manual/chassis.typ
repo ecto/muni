@@ -6,7 +6,7 @@
 
 = Cutting Extrusions
 
-Cut 8 pieces of 2020 aluminum extrusion to 600mm length.
+Cut aluminum extrusions to length per the cut list below.
 
 #v(1em)
 
@@ -53,15 +53,16 @@ Cut 8 pieces of 2020 aluminum extrusion to 600mm length.
     + Deburr all cut edges with file or deburring tool
   ],
   [
-    *Cut List:*
+    *Cut List (BVR0 standard):*
     #spec-table(
       [*Qty*], [*Length*], [*Purpose*],
       [4], [600mm], [Base frame],
       [4], [600mm], [Top frame],
+      [4], [250mm], [Vertical posts],
     )
 
-    #v(0.5em)
-    #text(size: 7pt, fill: gray)[Optional: cut 4× 200mm for vertical posts if using shorter design.]
+    #v(0.3em)
+    #text(size: 7pt, fill: gray)[Total: 5.8m of 2020 extrusion needed.]
   ]
 )
 
@@ -218,12 +219,55 @@ Add 4 vertical posts at the corners to create the frame height.
 
 #v(1em)
 
-*Height Options:*
+*Height Calculation:*
+
+#figure(
+  cetz.canvas({
+    import cetz.draw: *
+
+    // Ground line
+    line((-3, 0), (3, 0), stroke: 1pt + diagram-gray)
+    content((3.5, 0), text(size: 5pt)[Ground])
+
+    // Wheel
+    circle((0, 0.8), radius: 0.8, stroke: 1pt + diagram-black, fill: diagram-light)
+    content((0, 0.8), text(size: 5pt)[Wheel])
+
+    // Ground clearance
+    dim-v(-1.5, 0, 0.5, "50", offset: 0.3)
+    content((-2.5, 0.25), text(size: 5pt)[Clearance])
+
+    // Base frame
+    rect((-0.5, 1.4), (0.5, 1.6), fill: diagram-light, stroke: 1pt + diagram-black)
+    content((1.2, 1.5), text(size: 5pt)[Base])
+
+    // Vertical post
+    rect((-0.1, 1.6), (0.1, 4.1), fill: diagram-light, stroke: 1pt + diagram-black)
+    dim-v(0.8, 1.6, 4.1, "250", offset: 0.3)
+
+    // Top frame
+    rect((-0.5, 4.1), (0.5, 4.3), fill: diagram-light, stroke: 1pt + diagram-black)
+
+    // Mast
+    rect((-0.05, 4.3), (0.05, 6.3), fill: diagram-light, stroke: 1pt + diagram-black)
+    dim-v(0.8, 4.3, 6.3, "350", offset: 0.3)
+    content((1.5, 5.3), text(size: 5pt)[Mast])
+
+    // Camera
+    circle((0, 6.5), radius: 0.2, fill: diagram-black)
+
+    // Total height
+    dim-v(-2.5, 0, 6.5, "700", offset: 0.3)
+  }),
+  caption: none,
+)
+
 #spec-table(
-  [*Post Length*], [*Total Height*], [*Use Case*],
-  [200mm], [~400mm], [Low profile, indoor],
-  [300mm], [~500mm], [Standard outdoor],
-  [400mm], [~600mm], [Tall sensor mast],
+  [*Component*], [*Height*], [*Cumulative*],
+  [Wheel radius], [80mm], [80mm],
+  [Ground clearance], [50mm], [--],
+  [Base to top frame], [250mm posts + 40mm], [370mm],
+  [Sensor mast], [330mm], [700mm],
 )
 
 #pagebreak()
