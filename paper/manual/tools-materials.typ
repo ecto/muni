@@ -138,10 +138,90 @@
       [*Total*], [*\$4,150*],
     )
 
-    #v(0.5em)
+    #v(0.3em)
     #text(size: 7pt, fill: gray)[All parts commercially available.]
+
+    #v(0.5em)
+    #text(size: 7pt)[
+      Full BOM with links: \
+      `docs/hardware/bom.md`
+    ]
   ]
 )
+
+#v(1em)
+
+*Where to Buy:*
+
+#spec-table(
+  [*Category*], [*Primary Source*], [*Notes*],
+  [Extrusions], [Amazon, Misumi], [2020 V-slot or T-slot],
+  [Motors], [AliExpress], [Search "hoverboard hub motor 350W"],
+  [VESCs], [Flipsky], [VESC 6.6 or 6.7],
+  [Jetson], [NVIDIA, Arrow, Seeed], [Orin NX 16GB + carrier],
+  [LiDAR], [Livox / DJI Store], [Mid-360, ~1 week ship],
+  [Camera], [Amazon, B&H], [Insta360 X4],
+  [Custom cuts], [SendCutSend], [Upload DXF, 3-5 day turnaround],
+)
+
+#pagebreak()
+
+// =============================================================================
+
+= Custom Fabricated Parts
+
+These parts require custom fabrication (CNC cutting or laser cutting).
+
+#v(1em)
+
+#figure(
+  cetz.canvas({
+    import cetz.draw: *
+
+    // Motor bracket
+    rect((-5.5, 0), (-2.5, 2), fill: diagram-light, stroke: 1.5pt + diagram-black, radius: 2pt)
+    content((-4, 1), text(size: 7pt)[Bracket])
+    content((-4, 2.5), text(size: 6pt, weight: "bold")[Motor Bracket ×4])
+
+    // Electronics plate
+    rect((-1, 0), (2, 1.5), fill: diagram-light, stroke: 1.5pt + diagram-black, radius: 2pt)
+    content((0.5, 0.75), text(size: 7pt)[Plate])
+    content((0.5, 2), text(size: 6pt, weight: "bold")[Electronics Plate ×1])
+
+    // Battery tray
+    rect((3.5, 0.2), (6, 1.3), fill: diagram-light, stroke: 1.5pt + diagram-black, radius: 2pt)
+    line((3.5, 0.2), (3.5, 0), stroke: 1pt + diagram-black)
+    line((6, 0.2), (6, 0), stroke: 1pt + diagram-black)
+    content((4.75, 0.75), text(size: 7pt)[Tray])
+    content((4.75, 2), text(size: 6pt, weight: "bold")[Battery Tray ×1])
+  }),
+  caption: none,
+)
+
+#v(1em)
+
+*What You'll Receive from SendCutSend:*
+
+#spec-table(
+  [*Part*], [*Material*], [*Finish*], [*Notes*],
+  [Motor Bracket (×4)], [3mm 6061-T6 AL], [Raw / deburred], [Requires 90° bend],
+  [Electronics Plate], [6mm 6061-T6 AL], [Raw / deburred], [Ready to drill],
+  [Battery Tray], [2mm 6061-T6 AL], [Raw / deburred], [Requires 4× 90° bends],
+)
+
+#v(1em)
+
+*Bending Notes:*
+- SendCutSend offers bending service (+\$5-10 per part)
+- Or bend yourself with a sheet metal brake
+- Motor brackets: single 90° bend along 80mm edge
+- Battery tray: 4× 90° bends (15mm lips on all sides)
+
+#v(1em)
+
+#note[
+  Order 1-2 extra motor brackets. First attempt at alignment may require adjustment slots to be widened.
+]
 
 #pagebreak()
 
