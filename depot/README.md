@@ -21,6 +21,7 @@ Rovers                          Depot
 │ rover-0N│──rclone SFTP──────▶│  SFTP (:2222)               │
 │         │◀─WebSocket─────────│  Operator (:8080)           │
 └─────────┘                     │  Grafana (:3000)            │
+                                │  Portal (:80) ◀── Operators │
                                 └─────────────────────────────┘
 ```
 
@@ -51,14 +52,30 @@ docker compose --profile gpu up -d
 ```
 
 This starts the splat-worker service which:
+
 - Watches for splatting jobs from the mapper
 - Processes LiDAR + camera data into Gaussian splats
 - Outputs PLY files viewable in the operator app
 
 ### Access
 
+The **Portal** at http://localhost provides a unified entry point to all services:
+
+| Path         | Service  | Description                  |
+| ------------ | -------- | ---------------------------- |
+| `/`          | Portal   | Landing page with status     |
+| `/operator/` | Operator | Teleop interface, fleet view |
+| `/grafana/`  | Grafana  | Metrics dashboards           |
+
+InfluxDB is available at `:8086` (no subpath support).
+
+Default credentials: `admin` / `munipassword` (Grafana and InfluxDB)
+
+**Direct access** (for development or debugging):
+
 | Service   | URL                   | Default Credentials  |
 | --------- | --------------------- | -------------------- |
+| Portal    | http://localhost      | None (public)        |
 | Operator  | http://localhost:8080 | None (public)        |
 | Grafana   | http://localhost:3000 | admin / munipassword |
 | InfluxDB  | http://localhost:8086 | admin / munipassword |
@@ -346,15 +363,15 @@ maps/{map-name}/
 
 ## Network Ports
 
-| Port | Protocol | Service      | Purpose               |
-| ---- | -------- | ------------ | --------------------- |
-| 2222 | TCP      | SFTP         | Session file uploads  |
-| 3000 | TCP      | Grafana      | Web dashboards        |
-| 4860 | TCP      | Discovery    | Rover registration    |
-| 4870 | TCP      | Map API      | Map serving           |
-| 8080 | TCP      | Operator     | Web teleop interface  |
-| 8086 | TCP      | InfluxDB     | HTTP API + Web UI     |
-| 8089 | UDP      | InfluxDB     | Line protocol metrics |
+| Port | Protocol | Service   | Purpose               |
+| ---- | -------- | --------- | --------------------- |
+| 2222 | TCP      | SFTP      | Session file uploads  |
+| 3000 | TCP      | Grafana   | Web dashboards        |
+| 4860 | TCP      | Discovery | Rover registration    |
+| 4870 | TCP      | Map API   | Map serving           |
+| 8080 | TCP      | Operator  | Web teleop interface  |
+| 8086 | TCP      | InfluxDB  | HTTP API + Web UI     |
+| 8089 | UDP      | InfluxDB  | Line protocol metrics |
 
 ## RTK Base Station
 
