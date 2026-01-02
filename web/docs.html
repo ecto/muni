@@ -3,37 +3,41 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Documentation - Muni</title>
+  <title>Documentation - Municipal Robotics</title>
   <link rel="stylesheet" href="style.css">
 </head>
-<body>
+<body class="page">
 
-<div class="header">
-  <span>The</span>
-  <strong>MUNICIPAL ROBOTICS</strong>
-  <span>Corporation of</span>
-  <span>Cleveland, Ohio</span>
-  <br />
-  <span>builds <i>autonomous</i> vehicles</span>
-  <b>to improve public spaces</b>
-</div>
+<div class="container">
 
-<span class="nav"><a href="about.html">ABOUT</a> <a href="products.html">PRODUCTS</a> <a href="log.html">LOG</a> <a href="docs.html">DOCS</a> <a href="https://github.com/ecto/muni">CODE</a> <a href="whitepaper.pdf">PAPER</a> <a href="mailto:info@muni.works?subject=Muni">CONTACT</a></span>
+  <header class="site-header">
+    <a href="index.html" class="brand-link">
+      <strong>MUNICIPAL ROBOTICS</strong>
+    </a>
+    <p class="subtitle">Autonomous sidewalk maintenance</p>
+  </header>
 
-<div class="box">
-<div class="box-title">TECHNICAL MANUALS</div>
-<div class="box-content">
-<pre>
-<a href="bvr0-manual.pdf">BVR0 Technical Manual</a>     Assembly, wiring, operation, safety
-<a href="bvr0-datasheet.pdf">BVR0 Datasheet</a>            Specifications at a glance
-</pre>
-</div>
-</div>
+  <nav class="nav-bar">
+    <a href="about.html">ABOUT</a>
+    <a href="products.html">PRODUCTS</a>
+    <a href="investors.html">INVESTORS</a>
+    <a href="docs.html">DOCS</a>
+  </nav>
 
-<div class="section">
-<div class="section-title">ARCHITECTURE</div>
-<pre>
-┌─────────────────────────────────────────────────────────────────┐
+  <main class="content">
+
+    <section class="card highlight">
+      <div class="card-title">TECHNICAL MANUALS</div>
+      <div class="card-body">
+<pre><a href="bvr0-manual.pdf">BVR0 Technical Manual</a>     Assembly, wiring, operation, safety
+<a href="bvr0-datasheet.pdf">BVR0 Datasheet</a>            Specifications at a glance</pre>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-title">ARCHITECTURE</div>
+      <div class="card-body">
+<pre>┌─────────────────────────────────────────────────────────────────┐
 │                         Operator Station                         │
 │  ┌────────────┐  ┌────────────┐  ┌────────────────────────────┐ │
 │  │ Video View │  │ Xbox Ctrl  │  │ Telemetry                  │ │
@@ -64,14 +68,14 @@
 │  ┌────┴────┐ ┌──┴───┐  ┌────┴────┐ ┌────┴───┐ ┌───┴────┐       │
 │  │ Motor   │ │ Motor│  │ Motor   │ │ Motor  │ │ Auger  │       │
 │  └─────────┘ └──────┘  └─────────┘ └────────┘ └────────┘       │
-└─────────────────────────────────────────────────────────────────┘
-</pre>
-</div>
+└─────────────────────────────────────────────────────────────────┘</pre>
+      </div>
+    </section>
 
-<div class="section">
-<div class="section-title">SOFTWARE</div>
-<pre>
-<b>Crates</b>
+    <section class="card">
+      <div class="card-title">SOFTWARE</div>
+      <div class="card-body">
+<pre><strong>Crates</strong>
 ├─ types       Shared types (Twist, Mode, etc.)
 ├─ can         CAN bus + VESC protocol
 ├─ control     Differential drive mixer, rate limiter, watchdog
@@ -84,16 +88,16 @@
 ├─ gps         GPS receiver (NMEA parsing)
 └─ camera      Camera capture and video streaming
 
-<b>Binaries</b>
+<strong>Binaries</strong>
 ├─ bvrd        Main daemon (runs on Jetson)
-└─ cli         Debug/control CLI tool
-</pre>
-</div>
+└─ cli         Debug/control CLI tool</pre>
+      </div>
+    </section>
 
-<div class="section">
-<div class="section-title">HARDWARE REFERENCE</div>
-<pre>
-<b>Specifications</b>
+    <section class="card">
+      <div class="card-title">HARDWARE REFERENCE</div>
+      <div class="card-body">
+<pre><strong>Specifications</strong>
 ├─ Compute       Jetson Orin NX
 ├─ Chassis       24×24" 2020 aluminum extrusion
 ├─ Motors        4× hoverboard hub motors (350W each)
@@ -101,29 +105,39 @@
 ├─ Power         48V main, 12V accessory rail
 └─ Connectivity  LTE + WiFi mesh
 
-<b>Guides</b>
+<strong>Guides</strong>
 ├─ <a href="https://github.com/ecto/muni/blob/main/docs/hardware/bom.md">Bill of Materials</a>
 ├─ <a href="https://github.com/ecto/muni/blob/main/docs/hardware/motors.md">Motor Configuration</a>
 ├─ <a href="https://github.com/ecto/muni/blob/main/docs/hardware/networking.md">Networking Setup</a>
-└─ <a href="https://github.com/ecto/muni/blob/main/docs/hardware/rtk.md">RTK GPS</a>
-</pre>
-</div>
+└─ <a href="https://github.com/ecto/muni/blob/main/docs/hardware/rtk.md">RTK GPS</a></pre>
+      </div>
+    </section>
 
-<div class="box">
-<div class="box-title">SAFETY</div>
-<div class="box-content">
-<pre>
-<b>Watchdog</b>      No command for 250ms → safe stop
-<b>E-Stop</b>        Immediate stop, requires explicit release
-<b>Rate Limit</b>    Acceleration capped to prevent tip-over
-<b>Voltage</b>       Low battery → reduced power → shutdown
+    <section class="card highlight">
+      <div class="card-title">SAFETY</div>
+      <div class="card-body">
+<pre><strong>Watchdog</strong>      No command for 250ms → safe stop
+<strong>E-Stop</strong>        Immediate stop, requires explicit release
+<strong>Rate Limit</strong>    Acceleration capped to prevent tip-over
+<strong>Voltage</strong>       Low battery → reduced power → shutdown
 
 Three independent E-Stop paths:
 ├─ Physical button on rover
 ├─ Software command (spacebar)
-└─ Connection loss timeout
-</pre>
-</div>
+└─ Connection loss timeout</pre>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="footer-card">
+    <span>Cleveland, Ohio</span>
+    <span class="sep">·</span>
+    <a href="mailto:info@muni.works">info@muni.works</a>
+    <span class="sep">·</span>
+    <a href="https://github.com/ecto/muni">Open source</a>
+  </footer>
+
 </div>
 
 </body>

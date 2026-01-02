@@ -3,25 +3,32 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Products - Muni</title>
+  <title>Products - Municipal Robotics</title>
   <link rel="stylesheet" href="style.css">
 </head>
-<body>
+<body class="page">
 
-<div class="header">
-  <span>The</span>
-  <strong>MUNICIPAL ROBOTICS</strong>
-  <span>Corporation of</span>
-  <span>Cleveland, Ohio</span>
-  <br />
-  <span>builds <i>autonomous</i> vehicles</span>
-  <b>to improve public spaces</b>
-</div>
+<div class="container">
 
-<span class="nav"><a href="about.html">ABOUT</a> <a href="products.html">PRODUCTS</a> <a href="log.html">LOG</a> <a href="docs.html">DOCS</a> <a href="https://github.com/ecto/muni">CODE</a> <a href="whitepaper.pdf">PAPER</a> <a href="mailto:info@muni.works?subject=Muni">CONTACT</a></span>
+  <header class="site-header">
+    <a href="index.html" class="brand-link">
+      <strong>MUNICIPAL ROBOTICS</strong>
+    </a>
+    <p class="subtitle">Autonomous sidewalk maintenance</p>
+  </header>
 
-<div class="section">
-<div class="section-title">BVR (BASE VECTORING ROVER)</div>
+  <nav class="nav-bar">
+    <a href="about.html">ABOUT</a>
+    <a href="products.html">PRODUCTS</a>
+    <a href="investors.html">INVESTORS</a>
+    <a href="docs.html">DOCS</a>
+  </nav>
+
+  <main class="content">
+
+    <section class="card">
+      <div class="card-title">BVR (BASE VECTORING ROVER)</div>
+      <div class="card-body">
 <pre>The BVR is our foundational mobile platform: a 4-wheel skid-steer
 rover designed for sidewalk-scale work.
 
@@ -36,16 +43,17 @@ Drivetrain          4x hub motors       4x direct drive
 Power               48V 20Ah (~1kWh)    48V 40Ah (~2kWh)
 Battery life        ~2-3 hours          ~4-8 hours
 Connectivity        LTE                 LTE + RTK GPS
-Tools               Snow auger          Auger, spreader, plow
-Cost                ~$5,000 (parts)     <b>$18,000</b>
+Tools               Coming soon         Auger, spreader, plow
+Cost                ~$5,000 (parts)     <strong>$18,000</strong>
 Assembly            ~40 hours           ~8 hours
 Docs                <a href="bvr0-manual.pdf">Manual</a> <a href="bvr0-datasheet.pdf">Datasheet</a>     <i>Coming soon</i>
-                    <a href="https://github.com/ecto/muni/tree/main/bvr/docs/hardware">Build your own</a>      <a class="cta" href="mailto:info@muni.works?subject=bvr1%20inquiry">Pre-order</a>
-</pre>
-</div>
+                    <a href="https://github.com/ecto/muni/tree/main/bvr/docs/hardware">Build your own</a>      <a class="cta" href="mailto:info@muni.works?subject=bvr1%20inquiry">Pre-order</a></pre>
+      </div>
+    </section>
 
-<div class="section">
-<div class="section-title">DEPOT (BASE STATION)</div>
+    <section class="card">
+      <div class="card-title">DEPOT (BASE STATION)</div>
+      <div class="card-body">
 <pre>Depot is the infrastructure that ties the fleet together:
 browser-based teleop, real-time dashboards, and session recording.
 
@@ -58,13 +66,14 @@ Dashboards          Grafana             Pre-configured      Hosted
 Storage             SFTP, 30-day        1TB SSD             Cloud
 RTK base            Optional (~$390)    Included            NTRIP
 Deployment          Docker Compose      Power + Ethernet    Managed
-Cost                Free (OSS)          <b>$6,000</b>              TBD/month
-                    <a href="https://github.com/ecto/muni/tree/main/depot">Get started</a>         <a class="cta" href="mailto:info@muni.works?subject=Depot%20Rack">Pre-order</a>         <a href="mailto:info@muni.works?subject=Managed%20Depot">Contact us</a>
-</pre>
-</div>
+Cost                Free (OSS)          <strong>$6,000</strong>              TBD/month
+                    <a href="https://github.com/ecto/muni/tree/main/depot">Get started</a>         <a class="cta" href="mailto:info@muni.works?subject=Depot%20Rack">Pre-order</a>         <a href="mailto:info@muni.works?subject=Managed%20Depot">Contact us</a></pre>
+      </div>
+    </section>
 
-<div class="section">
-<div class="section-title">PACKAGES</div>
+    <section class="card">
+      <div class="card-title">PACKAGES</div>
+      <div class="card-body">
 <pre>Fully configured fleet packages: rovers, base station, training,
 and support. Everything you need to clean your sidewalks.
 
@@ -74,52 +83,52 @@ Fleet               2 rovers    10 rovers   25 rovers   50 rovers
 Base                10" Rack    10" Rack    Rack x2     Redundant
 Training            Remote 4h   On-site 1d  On-site 2d  On-site 1wk
 Support             Email       Email+phone Priority    Dedicated
-Price               <b>$50k</b>        <b>$220k</b>       <b>$500k</b>       <b>$950k</b>
+Price               <strong>$50k</strong>        <strong>$220k</strong>       <strong>$500k</strong>       <strong>$950k</strong>
 
-<a class="cta" href="mailto:info@muni.works?subject=Fleet%20inquiry">Get a quote</a>
-</pre>
-</div>
+<a class="cta" href="mailto:info@muni.works?subject=Fleet%20inquiry">Get a quote</a></pre>
+      </div>
+    </section>
 
-<div class="section">
-<div class="section-title">FAQ</div>
-<pre>
-<b>Is this fully autonomous?</b>
+    <section class="card">
+      <div class="card-title">FAQ</div>
+      <div class="card-body">
+<pre><strong>Is this fully autonomous?</strong>
 Not yet. BVR is designed for teleoperation first, autonomy second.
 An operator controls the rover remotely via Xbox controller with
 live 360-degree video. The rover has safety systems (LiDAR-based
 obstacle detection) that will stop it automatically, but a human
 is always in the loop.
 
-<b>How does teleoperation work?</b>
+<strong>How does teleoperation work?</strong>
 The operator uses an Xbox controller connected to a web-based
 interface. Commands are sent over LTE to the rover, which streams
 back 360-degree H.265 video. Total latency is typically 100-250ms.
 
-<b>What's the video latency like?</b>
+<strong>What's the video latency like?</strong>
 End-to-end latency is typically 100-250ms. If latency exceeds
 500ms, the system warns the operator and reduces max speed. If
 connection is lost for 250ms, the rover coasts to a safe stop.
 
-<b>What sensors does it have?</b>
+<strong>What sensors does it have?</strong>
 Livox Mid-360 LiDAR (360° x 59° FOV, 200k pts/sec) for safety and
 mapping, plus Insta360 X4 for 360-degree video. No ML in the
 safety path, just geometry.
 
-<b>How does safety work?</b>
+<strong>How does safety work?</strong>
 The LiDAR continuously scans for obstacles. If anything enters the
 1.5m safety radius, the rover triggers an immediate E-stop. This is
 pure geometry, no ML. At 1 m/s, stops within 22cm of detection.
 
-<b>How long does the battery last?</b>
+<strong>How long does the battery last?</strong>
 bvr0: 48V 20Ah (~1kWh), 2-3 hours. bvr1: 48V 40Ah (~2kWh), 4+ hours
 with quick-swap battery packs for extended operation.
 
-<b>Can it operate in snow?</b>
+<strong>Can it operate in snow?</strong>
 Yes, that's what it's built for. The Livox Mid-360 uses 905nm
 wavelength which handles light to moderate snow well. The LiDAR
 measures the snow surface, not what's underneath.
 
-<b>What tools are supported?</b>
+<strong>What tools are supported?</strong>
 Hot-swappable via CAN bus. Each tool has its own MCU that
 announces itself when connected.
   ├─ Snow auger
@@ -127,29 +136,41 @@ announces itself when connected.
   ├─ Plow blade
   └─ Mower deck (coming soon)
 
-<b>Is everything open source?</b>
+<strong>Is everything open source?</strong>
 Yes. All firmware, hardware designs, and documentation are on
 <a href="https://github.com/ecto/muni">GitHub</a> under permissive licenses. Build your own for ~$5,000.
 
-<b>What's the difference between bvr0 and bvr1?</b>
+<strong>What's the difference between bvr0 and bvr1?</strong>
 bvr0: engineering prototype, hand-built, ~40h assembly, for R&D.
 bvr1: production rover, pre-assembled in ~8h, for deployment.
 
-<b>Do I need RTK GPS?</b>
+<strong>Do I need RTK GPS?</strong>
 Not required for basic operation. RTK provides cm-accurate
 positioning for georeferenced mapping and future autonomy.
 
-<b>What's the warranty?</b>
+<strong>What's the warranty?</strong>
 bvr1: 1 year parts and labor. bvr0 DIY: 90 days parts only.
 Software updates are free forever (open source).
 
-<b>What's the total cost of ownership?</b>
+<strong>What's the total cost of ownership?</strong>
 LTE data ............ ~$30-50/month per rover
 Electricity ......... ~$0.50/day per rover
 Operator time ....... 1 operator per 10+ rovers
 Maintenance ......... ~$500/year per rover
-Expected lifespan ... 5+ years
-</pre>
+Expected lifespan ... 5+ years</pre>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="footer-card">
+    <span>Cleveland, Ohio</span>
+    <span class="sep">·</span>
+    <a href="mailto:info@muni.works">info@muni.works</a>
+    <span class="sep">·</span>
+    <a href="https://github.com/ecto/muni">Open source</a>
+  </footer>
+
 </div>
 
 </body>

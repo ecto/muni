@@ -3,55 +3,81 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>About - Muni</title>
+  <title>About - Municipal Robotics</title>
   <link rel="stylesheet" href="style.css">
 </head>
-<body>
+<body class="page">
 
-<div class="header">
-  <span>The</span>
-  <strong>MUNICIPAL ROBOTICS</strong>
-  <span>Corporation of</span>
-  <span>Cleveland, Ohio</span>
-  <br />
-  <span>builds <i>autonomous</i> vehicles</span>
-  <b>to improve public spaces</b>
-</div>
+<div class="container">
 
-<span class="nav"><a href="about.html">ABOUT</a> <a href="products.html">PRODUCTS</a> <a href="log.html">LOG</a> <a href="docs.html">DOCS</a> <a href="https://github.com/ecto/muni">CODE</a> <a href="whitepaper.pdf">PAPER</a> <a href="mailto:info@muni.works?subject=Muni">CONTACT</a></span>
+  <header class="site-header">
+    <a href="index.html" class="brand-link">
+      <strong>MUNICIPAL ROBOTICS</strong>
+    </a>
+    <p class="subtitle">Autonomous sidewalk maintenance</p>
+  </header>
 
-<div class="section">
+  <nav class="nav-bar">
+    <a href="about.html">ABOUT</a>
+    <a href="products.html">PRODUCTS</a>
+    <a href="investors.html">INVESTORS</a>
+    <a href="docs.html">DOCS</a>
+  </nav>
+
+  <main class="content">
+
+    <section class="card">
+      <div class="card-title">WHY WE BUILD</div>
+      <div class="card-body">
 <pre>We watched people (parents with strollers, elderly neighbors,
 kids walking to school) forced into the street because there
-was no safe path on the sidewalk. Sidewalks are public
-infrastructure. They deserve the same attention we give to roads.
+was no safe path on the sidewalk.
 
-So we asked a simple question: why are we still clearing sidewalks
-by hand? Why isn't there a better way? We're building that future
-in the open, one rover at a time.
+Sidewalks are public infrastructure. They deserve the same
+attention we give to roads.
 
-<b>muni</b> was founded in 2025 in Cleveland, Ohio. We're a small team
-of engineers who believe public spaces should work for everyone.
-</pre>
-</div>
+So we asked a simple question: why are we still clearing
+sidewalks by hand? Why isn't there a better way?
 
-<div class="section">
-<div class="section-title">TIMELINE</div>
-<pre>
-  2025-12  <span class="status-complete">■</span> bvr0 engineering prototype complete
+We're building that future in the open, one rover at a time.</pre>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-title">THE COMPANY</div>
+      <div class="card-body">
+<pre><strong>Municipal Robotics</strong> was founded in 2025 in Cleveland, Ohio.
+
+We're a small team of engineers who believe public spaces
+should work for everyone. We build in the Midwest because
+that's where winters are real and the problem is acute.
+
+Everything we build is open source. Check the code, build
+your own, or buy from us. We don't hide behind patents.</pre>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-title">TIMELINE</div>
+      <div class="card-body">
+<pre>  2025-12  <span class="status-complete">■</span> bvr0 engineering prototype complete
+           │   Base platform proving out architecture
            │
-  2026-01  <span class="status-dev">◐</span> bvr1 development begins
+  2026-01  <span class="status-dev">◐</span> F.Inc Artifact program (San Francisco)
+           │   bvr1 R&D, supervised autonomy, production unit
            │
   2026-Q3  ○ bvr1 shipping to pilot partners
+           │   10 production units, Midwest municipalities
            │
-  2027     ○ Autonomous operation beta
-</pre>
-</div>
+  2027     ○ Full autonomy beta
+               1:10 operator ratio, minimal intervention</pre>
+      </div>
+    </section>
 
-<div class="box">
-  <div class="box-title">PILOT PROGRAM</div>
-  <div class="box-content">
-<pre>We're looking for 3-5 municipal partners in the Midwest to deploy
+    <section class="card highlight" id="pilot">
+      <div class="card-title">PILOT PROGRAM</div>
+      <div class="card-body">
+<pre>We're looking for 3-5 partners in the Midwest to deploy
 bvr1 fleets in winter 2026. Pilot partners get:
 
   ├─ Discounted hardware pricing
@@ -59,13 +85,40 @@ bvr1 fleets in winter 2026. Pilot partners get:
   ├─ Direct engineering support
   └─ Input on product roadmap
 
-Ideal partners: cities with 10-50 miles of sidewalk, existing
-public works team, willingness to iterate. Also: university
-robotics teams and research labs.
+<strong>Ideal partners:</strong>
+  • Cities with 10-50 miles of sidewalk
+  • Existing public works team
+  • Willingness to iterate and provide feedback
+  • Universities and research labs also welcome
 
-<a class="cta" href="mailto:info@muni.works?subject=Pilot%20Program%20Application">Apply for the pilot program</a>
-</pre>
-  </div>
+<a class="cta" href="mailto:info@muni.works?subject=Pilot%20Program%20Application">Apply for the pilot program →</a></pre>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-title">TEAM</div>
+      <div class="card-body">
+<pre><strong>Cam Pedersen</strong>, Founder
+Autonomous vehicle scheduling at Uber. CTO and co-founder
+at DitchCarbon.
+
+Built bvr0 from scratch in Cleveland: mechanical design,
+electrical, firmware, teleoperation software.
+
+<a href="mailto:info@muni.works">info@muni.works</a></pre>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="footer-card">
+    <span>Cleveland, Ohio</span>
+    <span class="sep">·</span>
+    <a href="mailto:info@muni.works">info@muni.works</a>
+    <span class="sep">·</span>
+    <a href="https://github.com/ecto/muni">Open source</a>
+  </footer>
+
 </div>
 
 </body>

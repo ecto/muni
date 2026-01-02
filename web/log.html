@@ -3,25 +3,32 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Engineering Log - Muni</title>
+  <title>Engineering Log - Municipal Robotics</title>
   <link rel="stylesheet" href="style.css">
 </head>
-<body>
+<body class="page">
 
-<div class="header">
-  <span>The</span>
-  <strong>MUNICIPAL ROBOTICS</strong>
-  <span>Corporation of</span>
-  <span>Cleveland, Ohio</span>
-  <br />
-  <span>builds <i>autonomous</i> vehicles</span>
-  <b>to improve public spaces</b>
-</div>
+<div class="container">
 
-<span class="nav"><a href="about.html">ABOUT</a> <a href="products.html">PRODUCTS</a> <a href="log.html">LOG</a> <a href="docs.html">DOCS</a> <a href="https://github.com/ecto/muni">CODE</a> <a href="whitepaper.pdf">PAPER</a> <a href="mailto:info@muni.works?subject=Muni">CONTACT</a></span>
+  <header class="site-header">
+    <a href="index.html" class="brand-link">
+      <strong>MUNICIPAL ROBOTICS</strong>
+    </a>
+    <p class="subtitle">Autonomous sidewalk maintenance</p>
+  </header>
 
-<div class="section">
-<div class="section-title">ATTACHMENT MCU FIRMWARE</div>
+  <nav class="nav-bar">
+    <a href="about.html">ABOUT</a>
+    <a href="products.html">PRODUCTS</a>
+    <a href="investors.html">INVESTORS</a>
+    <a href="docs.html">DOCS</a>
+  </nav>
+
+  <main class="content">
+
+    <section class="card">
+      <div class="card-title">ATTACHMENT MCU FIRMWARE</div>
+      <div class="card-body">
 <pre><span class="entry-date">2025-12-28</span>
 
 Good progress on the ESP32 firmware for tool attachments.
@@ -31,22 +38,35 @@ level shifter (in the mail).
 
 Also consolidated session recording to single files, added
 a sessions browser to the operator UI, and documented the
-sensor mast design.
-</pre>
-</div>
+sensor mast design.</pre>
+      </div>
+    </section>
 
-<div class="section">
-<div class="section-title">BVR0 COMPLETE</div>
+    <section class="card">
+      <div class="card-title">BVR0 COMPLETE</div>
+      <div class="card-body">
 <pre><span class="entry-date">2025-12</span>
 
-Engineering prototype finished. 4-wheel skid-steer rover
-with Jetson Orin NX, Livox Mid-360 LiDAR, Insta360 X4, and
-snow auger attachment. Teleoperated over LTE with 360-degree
-video streaming.
+Base platform engineering prototype finished. 4-wheel
+skid-steer rover with Jetson Orin NX, proving out the
+mechanical and electrical architecture. bvr1 R&D and
+supervised autonomy coming in Artifact residency.
 
 Total build cost: ~$5,000 in parts. Assembly time: ~40 hours.
-All designs, firmware, and documentation published to GitHub.
-</pre>
+All designs, firmware, and documentation published to GitHub.</pre>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="footer-card">
+    <span>Cleveland, Ohio</span>
+    <span class="sep">·</span>
+    <a href="mailto:info@muni.works">info@muni.works</a>
+    <span class="sep">·</span>
+    <a href="https://github.com/ecto/muni">Open source</a>
+  </footer>
+
 </div>
 
 </body>
