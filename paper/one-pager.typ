@@ -53,7 +53,7 @@
     // Solution
     #text(size: 11pt, weight: "bold", fill: muni-orange)[Solution]
 
-    *BVR (Base Vectoring Rover):* Electric, sidewalk-sized rover with modular tools (auger, plow, spreader, mower). LiDAR safety system stops on any obstacle. One operator monitors 10+ rovers remotely.
+    *BVR (Base Vectoring Rover):* Electric, sidewalk-sized rover with modular tools. LiDAR safety stops on any obstacle. One operator monitors 10+ rovers. Currently in development: bvr1 production units shipping Summer 2026.
 
     #v(0.12in)
 
@@ -87,9 +87,9 @@
     // Traction
     #text(size: 11pt, weight: "bold", fill: muni-orange)[Traction]
 
-    - bvr0 prototype complete (Dec 2025)
+    - bvr0 prototype: drivetrain, teleop, GPS, depot (Dec 2025)
+    - F.Inc Artifact residency: bvr1 R&D, autonomy (Jan 2026)
     - bvr1 production units shipping Summer 2026
-    - Seeking 3-5 Midwest municipal pilots
     - 100% open source (builds trust, community)
   ],
 

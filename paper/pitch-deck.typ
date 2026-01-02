@@ -107,15 +107,15 @@
     [
       #text(size: 20pt, weight: "bold")[BVR: Base Vectoring Rover]
 
-      Autonomous electric rover designed for sidewalk-scale work.
+      Electric rover designed for sidewalk-scale work. bvr1 in development.
 
       #v(0.2in)
 
       - *Sidewalk-sized:* 24" wide, fits anywhere pedestrians walk
       - *Electric:* Zero emissions, quiet operation
-      - *Modular tools:* Snow auger, plow, spreader, mower
+      - *Modular tools:* Auger, plow, spreader, mower
       - *Safe by design:* LiDAR stops on any obstacle
-      - *Remote operation:* One operator monitors 10+ rovers
+      - *Teleoperated:* One operator monitors 10+ rovers
 
       #v(0.3in)
 
@@ -144,7 +144,7 @@
         #v(4pt)
         #text(size: 11pt, weight: "bold")[BVR0 Prototype]
         #v(2pt)
-        #text(size: 10pt, fill: gray)[Operational December 2024]
+        #text(size: 10pt, fill: gray)[Operational December 2025]
       ],
       [
         #image("images/bvr0-disassembled.jpg", height: 1.6in)
@@ -170,8 +170,8 @@
       inset: 12pt,
     )[
       #text(size: 12pt)[
-        #text(fill: muni-orange, weight: "bold")[Solved:] Depot-rover communication #sym.dot Remote teleoperation #sym.dot Winter operation \
-        #text(fill: muni-orange, weight: "bold")[Now:] BVR1 productionization #sym.dot Autonomous navigation
+        #text(fill: muni-orange, weight: "bold")[Proven:] Drivetrain #sym.dot Teleoperation #sym.dot GPS #sym.dot MCU firmware #sym.dot Depot deployment \
+        #text(fill: muni-orange, weight: "bold")[Now (Artifact):] BVR1 R&D #sym.dot Supervised autonomy #sym.dot Production unit
       ]
     ]
   ]
@@ -426,7 +426,8 @@
     fill: (_, row) => if row == 0 { muni-light-gray } else { white },
 
     [*When*], [*Milestone*], [*Capability*],
-    [Dec 2025], [bvr0 prototype complete], [Teleop with safety stop],
+    [Dec 2025], [bvr0 prototype complete], [Drivetrain, teleop, GPS, depot],
+    [Jan 2026], [Artifact residency], [bvr1 R&D, autonomy, production unit],
     [Q1 2026], [Pre-seed close], [Hire team, scale production],
     [Q2 2026], [bvr1 production], [First pilot units built],
     [Q3 2026], [Pilot deployments], [3-5 municipal partners],

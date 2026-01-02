@@ -89,4 +89,4 @@ Custom single-column layout with:
 
 ## Status
 
-Rev 1.0 — December 2024
+Rev 1.2 — December 2025
