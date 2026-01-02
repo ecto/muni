@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="-60 -60 880 400" fill="none">
-  <!-- muni logo - uniform stroke width -->
+  <!-- muni logo (for dark backgrounds) -->
 
-  <g stroke="black" stroke-width="40" stroke-linecap="round" stroke-linejoin="round" fill="none">
+  <g stroke="#ff6600" stroke-width="40" stroke-linecap="round" stroke-linejoin="round" fill="none">
     <!-- 'm' left stem -->
     <path d="M 20 240 L 20 100 C 20 50, 80 50, 100 50 C 140 50, 160 70, 160 100"/>
 
@@ -18,5 +18,5 @@
   </g>
 
   <!-- Dot on 'i' -->
-  <circle cx="740" cy="30" r="28" fill="black"/>
+  <circle cx="740" cy="30" r="28" fill="#ff6600"/>
 </svg>
