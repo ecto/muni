@@ -30,6 +30,16 @@
     <section class="card">
       <div class="card-title">THE PROBLEM</div>
       <div class="card-body">
+        <div class="problem-images">
+          <figure class="problem-image">
+            <img src="slip-fall.jpg" alt="Person slipping on icy sidewalk">
+            <figcaption>1M+ injuries/year</figcaption>
+          </figure>
+          <figure class="problem-image">
+            <img src="pedestrian-road.jpg" alt="Pedestrian forced to walk in road">
+            <figcaption>Forced into traffic</figcaption>
+          </figure>
+        </div>
         <div class="problem-stats">
           <div class="problem-stat">
             <span class="problem-value">1M+</span>
@@ -51,48 +61,89 @@
     <section class="card">
       <div class="card-title">THE SOLUTION</div>
       <div class="card-body">
-        <div class="solution-grid">
-          <div class="solution-item">
-            <img src="bvr0.png" alt="BVR0 rover" class="solution-image">
+        <div class="solution-images">
+          <figure class="solution-image-fig">
+            <img src="bvr1.png" alt="BVR1 production rover">
+            <figcaption>bvr1 production</figcaption>
+          </figure>
+          <figure class="solution-image-fig">
+            <img src="bvr0-disassembled.jpg" alt="BVR0 disassembled showing modular design">
+            <figcaption>Field-repairable</figcaption>
+          </figure>
+        </div>
+        <div class="solution-points">
+          <p>
+            <strong>10x cost reduction.</strong> One operator monitors ten rovers.
+            Sidewalks cleared in hours, not days.
+          </p>
+          <p>
+            <strong>Sidewalk-scale.</strong> Modular tools for year-round use:
+            snow clearing in winter, mowing in summer.
+          </p>
+          <p>
+            <strong>Open source.</strong> Geometry-based safety (no ML in the critical path).
+            Field-repairable with off-the-shelf parts.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-title">WHY IT WORKS</div>
+      <div class="card-body">
+        <div class="hero-stat">
+          <span class="hero-value">&lt;1 season</span>
+          <span class="hero-label">payback for customers</span>
+        </div>
+        <p class="hero-explain">
+          An $18k rover replaces $50k+/year in labor costs.
+          One operator monitors ten rovers. The math is obvious.
+        </p>
+        <div class="economics-grid">
+          <div class="econ-item">
+            <span class="econ-value">1:10</span>
+            <span class="econ-label">operator ratio</span>
           </div>
-          <div class="solution-item">
-            <p>
-              Teleoperated rovers clear sidewalks with one operator monitoring a fleet of ten.
-              That's <strong>10x cost reduction</strong> over manual labor.
-            </p>
-            <p>
-              Sidewalk-scale robots (not trucks). Modular tools for year-round use:
-              snow clearing in winter, mowing in summer.
-            </p>
-            <p>
-              Geometry-based safety (no ML in the critical path).
-              Open source hardware and software.
-            </p>
+          <div class="econ-item">
+            <span class="econ-value">$36k</span>
+            <span class="econ-label">5-year LTV</span>
+          </div>
+          <div class="econ-item">
+            <span class="econ-value">65%</span>
+            <span class="econ-label">hardware margin</span>
+          </div>
+          <div class="econ-item">
+            <span class="econ-value">$300/mo</span>
+            <span class="econ-label">recurring software</span>
           </div>
         </div>
       </div>
     </section>
 
     <section class="card">
-      <div class="card-title">UNIT ECONOMICS</div>
-      <div class="card-body">
-<pre>Hardware (bvr1)           <strong>$18,000</strong>    65% gross margin
-Software subscription     <strong>$300/mo</strong>    $3,600/year
-────────────────────────────────────────────────────
-5-year LTV per rover      <strong>$36,000</strong>
-Operator ratio            <strong>1:10</strong>       One human, ten rovers
-Payback for customer      <strong>&lt;1 season</strong>  vs. manual labor costs</pre>
-      </div>
-    </section>
-
-    <section class="card">
       <div class="card-title">MARKET</div>
       <div class="card-body">
-<pre>Total addressable         <strong>$14B+</strong>
-├─ Municipal sidewalks    60M+ miles in the US
-├─ University campuses    4,000+ institutions
-├─ Commercial properties  HOAs, malls, office parks
-└─ Expanding to mowing    Year-round platform</pre>
+        <div class="hero-stat">
+          <span class="hero-value">$14B+</span>
+          <span class="hero-label">total addressable market</span>
+        </div>
+        <div class="market-wedge">
+          <div class="wedge-item wedge-now">
+            <span class="wedge-label">Now</span>
+            <span class="wedge-segment">Municipal sidewalks</span>
+            <span class="wedge-detail">60M+ miles, highest liability</span>
+          </div>
+          <div class="wedge-item wedge-next">
+            <span class="wedge-label">Next</span>
+            <span class="wedge-segment">Universities + Commercial</span>
+            <span class="wedge-detail">4,000+ campuses, office parks, HOAs</span>
+          </div>
+          <div class="wedge-item wedge-future">
+            <span class="wedge-label">Then</span>
+            <span class="wedge-segment">Year-round platform</span>
+            <span class="wedge-detail">Mowing, leaf clearing, line painting</span>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -119,7 +170,7 @@ Payback for customer      <strong>&lt;1 season</strong>  vs. manual labor costs<
         <div class="team-grid">
           <img src="cam.png" alt="Cam Pedersen" class="team-photo">
           <div class="team-bio">
-            <strong>Cam Pedersen</strong>, Founder
+            <strong>Cam Pedersen, Founder</strong>
             <p>
               Autonomous vehicle scheduling at Uber. CTO and co-founder at DitchCarbon.
               Built this rover from scratch in Cleveland.
@@ -128,6 +179,13 @@ Payback for customer      <strong>&lt;1 season</strong>  vs. manual labor costs<
               Why Cleveland? Real winters. Real municipalities. Lower burn rate than SF.
               We go where the problem is.
             </p>
+			<p>
+				<a href="mailto:info@muni.works" target="_blank">info@muni.works</a>
+				<a href="https://www.linkedin.com/in/cam-pedersen/" target="_blank">LinkedIn</a>
+				<a href="https://github.com/ecto" target="_blank">GitHub</a>
+				<a href="https://www.x.com/campedersen" target="_blank">X</a>
+				<a href="https://www.youtube.com/@cam_pedersen/" target="_blank">YouTube</a>
+			</p>
           </div>
         </div>
       </div>

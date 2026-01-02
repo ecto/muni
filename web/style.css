@@ -75,6 +75,7 @@ a {
 a:hover {
   background: var(--orange);
   color: #000;
+  text-decoration: none;
 }
 
 pre {
@@ -128,11 +129,12 @@ img {
 
 .brand-link {
   text-decoration: none;
-  display: block;
+  display: inline-block;
 }
 
 .brand-link:hover {
-  background: transparent;
+  background: var(--orange);
+  color: #000;
 }
 
 .brand-link strong {
@@ -182,7 +184,7 @@ img {
 .card {
   background: var(--card-bg);
   border: 1px solid var(--border);
-  margin-bottom: 16px;
+  margin-bottom: 32px;
 }
 
 .card.highlight {
@@ -194,7 +196,7 @@ img {
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.1em;
-  background: var(--fg);
+  background: var(--fg-muted);
   color: var(--bg);
 }
 
@@ -246,6 +248,64 @@ img {
   background: transparent;
 }
 
+/* Rover Gallery */
+.rover-gallery {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.rover-thumb {
+  text-decoration: none;
+  text-align: center;
+  display: block;
+}
+
+.rover-thumb:hover {
+  background: transparent;
+}
+
+.rover-thumb img {
+  width: 120px;
+  height: auto;
+  border: 1px solid var(--border);
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+
+.rover-thumb:hover img {
+  border-color: var(--orange);
+}
+
+.rover-thumb.rover-featured img {
+  width: 160px;
+  border-color: var(--orange);
+}
+
+.rover-label {
+  display: block;
+  font-size: 10px;
+  color: var(--fg-muted);
+  margin-top: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.rover-label em {
+  font-style: normal;
+  color: var(--fg-muted);
+  opacity: 0.7;
+}
+
+.rover-thumb.rover-featured .rover-label {
+  color: var(--orange);
+}
+
+.rover-thumb.rover-featured .rover-label em {
+  color: var(--orange);
+  opacity: 0.8;
+}
+
 .stat-row {
   display: flex;
   justify-content: center;
@@ -276,13 +336,51 @@ img {
 .pitch-card {
   background: var(--card-bg);
   border: 1px solid var(--border);
-  padding: 16px 20px;
+  padding: 20px;
   margin-bottom: 16px;
   text-align: center;
 }
 
-.pitch-card p {
-  margin-bottom: 12px;
+.pitch-headline {
+  font-size: 14px;
+  margin-bottom: 16px;
+  line-height: 1.5;
+}
+
+.feature-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.feature {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  text-decoration: none;
+  transition: border-color 0.15s ease;
+}
+
+.feature:hover {
+  border-color: var(--orange);
+  background: var(--bg);
+}
+
+.feature-icon {
+  font-size: 14px;
+  color: var(--orange);
+  flex-shrink: 0;
+}
+
+.feature-text {
+  font-size: 10px;
+  color: var(--fg);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 500;
 }
 
 .specs-link {
@@ -371,6 +469,38 @@ img {
   padding: 20px;
 }
 
+.problem-images {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.problem-image {
+  flex: 1;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.problem-image img {
+  width: 100%;
+  max-width: 100%;
+  height: 180px;
+  object-fit: cover;
+  border: 1px solid var(--border);
+  filter: grayscale(30%);
+}
+
+.problem-image figcaption {
+  font-size: 9px;
+  color: var(--fg-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-top: 4px;
+  text-align: center;
+}
+
 .problem-stats {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
@@ -399,22 +529,160 @@ img {
   margin-top: 4px;
 }
 
-.solution-grid {
-  display: grid;
-  grid-template-columns: 120px 1fr;
-  gap: 16px;
-  align-items: start;
+.solution-images {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
 }
 
-@media (max-width: 400px) {
-  .solution-grid {
-    grid-template-columns: 1fr;
-  }
+.solution-image-fig {
+  flex: 1;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
-.solution-image {
+.solution-image-fig img {
   width: 100%;
+  max-width: 100%;
+  height: 180px;
+  object-fit: cover;
+  border: 1px solid var(--orange);
+}
+
+.solution-image-fig figcaption {
+  font-size: 9px;
+  color: var(--orange);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-top: 4px;
+  text-align: center;
+}
+
+.solution-points p {
+  margin-bottom: 8px;
+}
+
+.solution-points p:last-child {
+  margin-bottom: 0;
+}
+
+.solution-points strong {
+  color: var(--orange);
+}
+
+/* Hero Stats */
+.hero-stat {
+  text-align: center;
+  padding: 24px 0;
+}
+
+.hero-value {
+  display: block;
+  font-size: 48px;
+  font-weight: 700;
+  color: var(--orange);
+  line-height: 1;
+}
+
+.hero-label {
+  display: block;
+  font-size: 11px;
+  color: var(--fg-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-top: 8px;
+}
+
+.hero-explain {
+  text-align: center;
+  color: var(--fg);
+  margin-bottom: 20px;
+  font-size: 13px;
+}
+
+/* Economics Grid */
+.economics-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.econ-item {
+  text-align: center;
+  padding: 12px 8px;
+  background: var(--bg);
   border: 1px solid var(--border);
+}
+
+.econ-value {
+  display: block;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--fg);
+}
+
+.econ-label {
+  display: block;
+  font-size: 8px;
+  color: var(--fg-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-top: 4px;
+}
+
+/* Market Wedge */
+.market-wedge {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.wedge-item {
+  display: grid;
+  grid-template-columns: 50px 1fr;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  align-items: center;
+}
+
+.wedge-label {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.wedge-now .wedge-label { color: var(--orange); }
+.wedge-next .wedge-label { color: var(--fg-muted); }
+.wedge-future .wedge-label { color: var(--fg-muted); opacity: 0.6; }
+
+.wedge-segment {
+  font-weight: 700;
+  font-size: 12px;
+}
+
+.wedge-detail {
+  grid-column: 2;
+  font-size: 10px;
+  color: var(--fg-muted);
+}
+
+.wedge-now {
+  border-color: var(--orange);
+  background: rgba(255, 102, 0, 0.05);
+}
+
+@media (max-width: 480px) {
+  .economics-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .hero-value {
+    font-size: 36px;
+  }
 }
 
 .team-grid {
