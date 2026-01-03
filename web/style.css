@@ -133,13 +133,30 @@ img {
 }
 
 .brand-link:hover {
-  background: var(--orange);
-  color: #000;
+  background: transparent;
 }
 
-.brand-link strong {
+.brand-logo {
+  width: 100px;
+  height: auto;
+  display: block;
+  margin: 0 auto 8px;
+  transition: filter 0.15s ease;
+}
+
+.brand-link:hover .brand-logo {
+  filter: brightness(1.2);
+}
+
+.brand-name {
+  display: block;
   font-size: 14px;
   letter-spacing: 0.1em;
+  text-align: center;
+}
+
+.brand-link:hover .brand-name {
+  color: var(--orange);
 }
 
 .subtitle {
@@ -178,35 +195,33 @@ img {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   CARDS
+   SECTIONS (formerly cards)
    ═══════════════════════════════════════════════════════════════════════════ */
 
 .card {
-  background: var(--card-bg);
-  border: 1px solid var(--border);
-  margin-bottom: 32px;
+  margin-bottom: 64px;
 }
 
 .card.highlight {
   border-color: var(--orange);
+  /* Keep highlight styling for important sections */
 }
 
 .card-title {
-  padding: 6px 12px;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
-  letter-spacing: 0.1em;
-  background: var(--fg-muted);
-  color: var(--bg);
+  letter-spacing: 0.15em;
+  color: var(--orange);
+  margin-bottom: 20px;
+  padding-bottom: 8px;
 }
 
 .card.highlight .card-title {
-  background: var(--orange);
-  color: #000;
+  color: var(--orange);
 }
 
 .card-body {
-  padding: 16px;
+  /* No padding needed without borders */
 }
 
 .card-body p {
@@ -222,11 +237,9 @@ img {
    ═══════════════════════════════════════════════════════════════════════════ */
 
 .hero-card {
-  background: var(--card-bg);
-  border: 1px solid var(--border);
-  padding: 24px;
+  padding: 24px 0;
   text-align: center;
-  margin-bottom: 16px;
+  margin-bottom: 24px;
 }
 
 .hero-image {
@@ -334,17 +347,21 @@ img {
 }
 
 .pitch-card {
-  background: var(--card-bg);
-  border: 1px solid var(--border);
-  padding: 20px;
-  margin-bottom: 16px;
+  padding: 24px 0;
+  margin-bottom: 24px;
   text-align: center;
 }
 
 .pitch-headline {
-  font-size: 14px;
-  margin-bottom: 16px;
+  font-size: 16px;
+  margin-bottom: 8px;
   line-height: 1.5;
+}
+
+.pitch-subtitle {
+  font-size: 12px;
+  color: var(--fg-muted);
+  margin-bottom: 20px;
 }
 
 .feature-grid {
@@ -464,10 +481,6 @@ img {
 /* ═══════════════════════════════════════════════════════════════════════════
    INVESTOR PAGE SPECIFICS
    ═══════════════════════════════════════════════════════════════════════════ */
-
-.investor-content .card-body {
-  padding: 20px;
-}
 
 .problem-images {
   display: flex;
