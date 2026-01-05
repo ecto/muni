@@ -49,3 +49,6 @@ business_plan.md
 
 # Depot SSH host keys (sensitive)
 depot/sftp/ssh_host_keys/
+
+# Claude Code local settings (exclude, but track .claude/skills/)
+.claude/settings.local.json
