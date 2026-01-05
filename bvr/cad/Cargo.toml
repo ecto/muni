@@ -13,3 +13,7 @@ anyhow = "1"
 [[bin]]
 name = "motor-mount"
 path = "src/bin/motor_mount.rs"
+
+[[bin]]
+name = "generate-all"
+path = "src/bin/generate_all.rs"
