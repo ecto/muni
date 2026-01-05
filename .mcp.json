@@ -1,0 +1,32 @@
+{
+  "$schema": "https://raw.githubusercontent.com/anthropics/claude-code/main/.mcp.schema.json",
+  "mcpServers": {
+    "social": {
+      "command": "npx",
+      "args": ["-y", "@anthropic/mcp-social"],
+      "env": {
+        "X_API_KEY": "${X_API_KEY}",
+        "X_API_SECRET": "${X_API_SECRET}",
+        "X_ACCESS_TOKEN": "${X_ACCESS_TOKEN}",
+        "X_ACCESS_SECRET": "${X_ACCESS_SECRET}",
+        "LINKEDIN_ACCESS_TOKEN": "${LINKEDIN_ACCESS_TOKEN}"
+      },
+      "disabled": true
+    }
+  },
+  "socialAccounts": {
+    "x": {
+      "handle": "@municipalrobots",
+      "url": "https://x.com/municipalrobots"
+    },
+    "linkedin": {
+      "name": "Municipal Robotics",
+      "url": "https://www.linkedin.com/company/municipal-robotics"
+    },
+    "github": {
+      "org": "ecto",
+      "repo": "muni",
+      "url": "https://github.com/ecto/muni"
+    }
+  }
+}
