@@ -1,0 +1,15 @@
+[package]
+name = "bvr-cad"
+version = "0.1.0"
+edition = "2021"
+description = "Parametric CAD for BVR rover parts"
+
+[dependencies]
+manifold-rs = "0.6"
+nalgebra = "0.33"
+thiserror = "2"
+anyhow = "1"
+
+[[bin]]
+name = "motor-mount"
+path = "src/bin/motor_mount.rs"
