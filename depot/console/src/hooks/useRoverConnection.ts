@@ -14,8 +14,38 @@ const COMMAND_INTERVAL_MS = 10; // 100Hz: higher rate for lower latency and pack
 const HEARTBEAT_INTERVAL_MS = 100;
 const RECONNECT_DELAY_MS = 2000;
 
+// Velocity limits
+const SPEED_NORMAL = 2.0; // m/s in normal mode
+const SPEED_BOOST = 5.0; // m/s in boost mode
+const MAX_ANGULAR_VEL = 1.5; // rad/s
+const TOOL_DEADZONE = 0.01; // Minimum tool axis value to trigger command
+
 // Track page visibility for safety: stop commands when tab is hidden
 let isPageVisible = typeof document !== "undefined" ? !document.hidden : true;
+
+interface InputState {
+  linear: number;
+  angular: number;
+  boost: boolean;
+  estop: boolean;
+  toolAxis: number;
+  actionA: boolean;
+  actionB: boolean;
+}
+
+/** Calculate velocity commands from input state */
+function calculateVelocities(input: InputState): { linear: number; angular: number } {
+  const speedMultiplier = input.boost ? SPEED_BOOST : SPEED_NORMAL;
+  return {
+    linear: input.linear * speedMultiplier,
+    angular: input.angular * MAX_ANGULAR_VEL,
+  };
+}
+
+/** Check if tool input is active (above deadzone) */
+function hasToolInput(input: InputState): boolean {
+  return Math.abs(input.toolAxis) > TOOL_DEADZONE || input.actionA || input.actionB;
+}
 
 export function useRoverConnection() {
   const { roverAddress, setConnected, setLatency, updateTelemetry } =
@@ -65,45 +95,34 @@ export function useRoverConnection() {
         ws.send(encodeTwist(0, 0, false));
         ws.send(encodeHeartbeat());
 
-        // Start sending commands at 50Hz
+        // Start sending commands at 100Hz
         commandIntervalRef.current = setInterval(() => {
-          if (ws.readyState === WebSocket.OPEN) {
-            // Safety: if page is not visible, send zero velocity and skip
-            // This prevents stale commands when browser throttles the tab
-            if (!isPageVisible) {
-              ws.send(encodeTwist(0, 0, false));
-              return;
-            }
+          if (ws.readyState !== WebSocket.OPEN) return;
 
-            const state = useConsoleStore.getState();
-            const { input } = state;
-
-            // Send E-Stop immediately if pressed
-            if (input.estop) {
-              ws.send(encodeEStop());
-              return;
-            }
-
-            // Send twist command
-            // Normal mode: conservative speed. Boost mode: full power!
-            const speedMult = input.boost ? 5.0 : 2.0;
-            const linear = input.linear * speedMult;
-            const angular = input.angular * 1.5; // Max 1.5 rad/s
-            ws.send(encodeTwist(linear, angular, input.boost));
-
-            // Send tool command if any tool input
-            if (
-              Math.abs(input.toolAxis) > 0.01 ||
-              input.actionA ||
-              input.actionB
-            ) {
-              ws.send(
-                encodeTool(input.toolAxis, 0, input.actionA, input.actionB)
-              );
-            }
-
-            lastSendTimeRef.current = performance.now();
+          // Safety: send zero velocity when page hidden to prevent stale commands
+          if (!isPageVisible) {
+            ws.send(encodeTwist(0, 0, false));
+            return;
           }
+
+          const { input } = useConsoleStore.getState();
+
+          // E-Stop takes priority over all other commands
+          if (input.estop) {
+            ws.send(encodeEStop());
+            return;
+          }
+
+          // Send velocity command
+          const { linear, angular } = calculateVelocities(input);
+          ws.send(encodeTwist(linear, angular, input.boost));
+
+          // Send tool command if active
+          if (hasToolInput(input)) {
+            ws.send(encodeTool(input.toolAxis, 0, input.actionA, input.actionB));
+          }
+
+          lastSendTimeRef.current = performance.now();
         }, COMMAND_INTERVAL_MS);
 
         // Heartbeat at 10Hz
