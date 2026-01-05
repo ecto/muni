@@ -169,3 +169,140 @@ impl LedStatus {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_led_mode_repr() {
+        assert_eq!(LedMode::Off as u8, 0x00);
+        assert_eq!(LedMode::Solid as u8, 0x01);
+        assert_eq!(LedMode::Pulse as u8, 0x02);
+        assert_eq!(LedMode::Chase as u8, 0x03);
+        assert_eq!(LedMode::Flash as u8, 0x04);
+        assert_eq!(LedMode::StateLinked as u8, 0x10);
+    }
+
+    #[test]
+    fn test_led_command_off() {
+        let cmd = LedCommand::off();
+        assert_eq!(cmd.mode, LedMode::Off);
+        assert_eq!(cmd.r, 0);
+        assert_eq!(cmd.g, 0);
+        assert_eq!(cmd.b, 0);
+        assert_eq!(cmd.brightness, 0);
+        assert_eq!(cmd.period_ms, 0);
+    }
+
+    #[test]
+    fn test_led_command_solid() {
+        let cmd = LedCommand::solid(255, 128, 64, 200);
+        assert_eq!(cmd.mode, LedMode::Solid);
+        assert_eq!(cmd.r, 255);
+        assert_eq!(cmd.g, 128);
+        assert_eq!(cmd.b, 64);
+        assert_eq!(cmd.brightness, 200);
+        assert_eq!(cmd.period_ms, 0);
+    }
+
+    #[test]
+    fn test_led_command_pulse() {
+        let cmd = LedCommand::pulse(100, 150, 200, 180, 1500);
+        assert_eq!(cmd.mode, LedMode::Pulse);
+        assert_eq!(cmd.r, 100);
+        assert_eq!(cmd.g, 150);
+        assert_eq!(cmd.b, 200);
+        assert_eq!(cmd.brightness, 180);
+        assert_eq!(cmd.period_ms, 1500);
+    }
+
+    #[test]
+    fn test_led_command_flash() {
+        let cmd = LedCommand::flash(255, 0, 0, 255, 200);
+        assert_eq!(cmd.mode, LedMode::Flash);
+        assert_eq!(cmd.r, 255);
+        assert_eq!(cmd.g, 0);
+        assert_eq!(cmd.b, 0);
+        assert_eq!(cmd.brightness, 255);
+        assert_eq!(cmd.period_ms, 200);
+    }
+
+    #[test]
+    fn test_led_command_to_frame() {
+        let cmd = LedCommand::pulse(100, 150, 200, 180, 0x1234);
+        let frame = cmd.to_frame();
+
+        assert_eq!(frame.id, can_id::LED_CMD);
+        assert!(frame.extended);
+        assert_eq!(frame.data.len(), 8);
+        assert_eq!(frame.data[0], LedMode::Pulse as u8);
+        assert_eq!(frame.data[1], 100); // R
+        assert_eq!(frame.data[2], 150); // G
+        assert_eq!(frame.data[3], 200); // B
+        assert_eq!(frame.data[4], 180); // Brightness
+        // Period in little-endian
+        assert_eq!(frame.data[5], 0x34);
+        assert_eq!(frame.data[6], 0x12);
+        assert_eq!(frame.data[7], 0); // Reserved
+    }
+
+    #[test]
+    fn test_state_commands() {
+        // Verify state commands have expected modes
+        assert_eq!(LedCommand::state_disabled().mode, LedMode::Off);
+        assert_eq!(LedCommand::state_idle().mode, LedMode::Solid);
+        assert_eq!(LedCommand::state_teleop().mode, LedMode::Pulse);
+        assert_eq!(LedCommand::state_autonomous().mode, LedMode::Pulse);
+        assert_eq!(LedCommand::state_estop().mode, LedMode::Flash);
+        assert_eq!(LedCommand::state_fault().mode, LedMode::Flash);
+    }
+
+    #[test]
+    fn test_state_estop_is_red() {
+        let cmd = LedCommand::state_estop();
+        assert_eq!(cmd.r, 255);
+        assert_eq!(cmd.g, 0);
+        assert_eq!(cmd.b, 0);
+    }
+
+    #[test]
+    fn test_state_idle_is_green() {
+        let cmd = LedCommand::state_idle();
+        assert_eq!(cmd.r, 0);
+        assert_eq!(cmd.g, 255);
+        assert_eq!(cmd.b, 0);
+    }
+
+    #[test]
+    fn test_led_status_from_bytes() {
+        let data = [0x00, 42];
+        let status = LedStatus::from_bytes(&data).unwrap();
+        assert_eq!(status.status, 0);
+        assert_eq!(status.uptime_secs, 42);
+        assert!(status.is_ok());
+    }
+
+    #[test]
+    fn test_led_status_fault() {
+        let data = [0x01, 100];
+        let status = LedStatus::from_bytes(&data).unwrap();
+        assert_eq!(status.status, 1);
+        assert!(!status.is_ok());
+    }
+
+    #[test]
+    fn test_led_status_short_data() {
+        let data = [0x00];
+        assert!(LedStatus::from_bytes(&data).is_none());
+
+        let empty: [u8; 0] = [];
+        assert!(LedStatus::from_bytes(&empty).is_none());
+    }
+
+    #[test]
+    fn test_can_ids() {
+        assert_eq!(can_id::LED_CMD, 0x0B00);
+        assert_eq!(can_id::LED_STATUS, 0x0B01);
+    }
+}
+

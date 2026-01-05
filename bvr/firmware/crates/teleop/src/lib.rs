@@ -253,5 +253,186 @@ pub async fn send_estop(addr: &str) -> Result<(), TeleopError> {
     Ok(())
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use types::{Mode, Pose, PowerStatus, Twist};
+
+    #[test]
+    fn test_parse_twist_command() {
+        let mut buf = vec![0x01]; // Twist message type
+        buf.extend_from_slice(&1.5_f64.to_le_bytes()); // linear
+        buf.extend_from_slice(&0.5_f64.to_le_bytes()); // angular
+
+        let cmd = Server::parse_command(&buf);
+        assert!(cmd.is_some());
+        if let Some(Command::Twist(twist)) = cmd {
+            assert!((twist.linear - 1.5).abs() < 0.001);
+            assert!((twist.angular - 0.5).abs() < 0.001);
+            assert!(!twist.boost);
+        } else {
+            panic!("Expected Twist command");
+        }
+    }
+
+    #[test]
+    fn test_parse_twist_command_with_boost() {
+        let mut buf = vec![0x01];
+        buf.extend_from_slice(&2.0_f64.to_le_bytes());
+        buf.extend_from_slice(&1.0_f64.to_le_bytes());
+        buf.push(1); // boost = true
+
+        let cmd = Server::parse_command(&buf);
+        if let Some(Command::Twist(twist)) = cmd {
+            assert!(twist.boost);
+        } else {
+            panic!("Expected Twist command with boost");
+        }
+    }
+
+    #[test]
+    fn test_parse_estop_command() {
+        let buf = [0x02];
+        let cmd = Server::parse_command(&buf);
+        assert!(matches!(cmd, Some(Command::EStop)));
+    }
+
+    #[test]
+    fn test_parse_heartbeat_command() {
+        let buf = [0x03];
+        let cmd = Server::parse_command(&buf);
+        assert!(matches!(cmd, Some(Command::Heartbeat)));
+    }
+
+    #[test]
+    fn test_parse_estop_release_command() {
+        let buf = [0x06];
+        let cmd = Server::parse_command(&buf);
+        assert!(matches!(cmd, Some(Command::EStopRelease)));
+    }
+
+    #[test]
+    fn test_parse_set_mode_command() {
+        // Test each mode
+        for (mode_byte, expected_mode) in [
+            (0u8, Mode::Disabled),
+            (1, Mode::Idle),
+            (2, Mode::Teleop),
+            (3, Mode::Autonomous),
+        ] {
+            let buf = [0x04, mode_byte];
+            let cmd = Server::parse_command(&buf);
+            if let Some(Command::SetMode(mode)) = cmd {
+                assert_eq!(mode, expected_mode);
+            } else {
+                panic!("Expected SetMode command for mode byte {}", mode_byte);
+            }
+        }
+    }
+
+    #[test]
+    fn test_parse_set_mode_invalid() {
+        let buf = [0x04, 99]; // Invalid mode
+        let cmd = Server::parse_command(&buf);
+        assert!(cmd.is_none());
+    }
+
+    #[test]
+    fn test_parse_tool_command() {
+        let mut buf = vec![0x05];
+        buf.extend_from_slice(&0.75_f32.to_le_bytes()); // axis
+        buf.extend_from_slice(&(-0.5_f32).to_le_bytes()); // motor
+        buf.push(1); // action_a = true
+        buf.push(0); // action_b = false
+
+        let cmd = Server::parse_command(&buf);
+        if let Some(Command::Tool(tool_cmd)) = cmd {
+            assert!((tool_cmd.axis - 0.75).abs() < 0.001);
+            assert!((tool_cmd.motor - (-0.5)).abs() < 0.001);
+            assert!(tool_cmd.action_a);
+            assert!(!tool_cmd.action_b);
+        } else {
+            panic!("Expected Tool command");
+        }
+    }
+
+    #[test]
+    fn test_parse_empty_data() {
+        let buf: [u8; 0] = [];
+        let cmd = Server::parse_command(&buf);
+        assert!(cmd.is_none());
+    }
+
+    #[test]
+    fn test_parse_unknown_command_type() {
+        let buf = [0xFF];
+        let cmd = Server::parse_command(&buf);
+        assert!(cmd.is_none());
+    }
+
+    #[test]
+    fn test_parse_twist_too_short() {
+        // Only 10 bytes instead of 17
+        let buf = [0x01, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        let cmd = Server::parse_command(&buf);
+        assert!(cmd.is_none());
+    }
+
+    #[test]
+    fn test_serialize_telemetry() {
+        let telemetry = Telemetry {
+            timestamp_ms: 12345,
+            mode: Mode::Teleop,
+            pose: Pose { x: 1.0, y: 2.0, theta: 0.5 },
+            power: PowerStatus {
+                battery_voltage: 48.0,
+                system_current: 10.0,
+            },
+            velocity: Twist {
+                linear: 0.5,
+                angular: 0.1,
+                boost: false,
+            },
+            motor_temps: [30.0, 31.0, 32.0, 33.0],
+            motor_currents: [5.0, 5.5, 6.0, 6.5],
+            active_tool: None,
+            tool_status: None,
+        };
+
+        let data = Server::serialize_telemetry(&telemetry);
+        assert!(data.is_some());
+        let data = data.unwrap();
+
+        // Verify message type
+        assert_eq!(data[0], 0x10);
+        // Verify mode
+        assert_eq!(data[1], Mode::Teleop as u8);
+
+        // Verify pose (x, y, theta) - each f64 is 8 bytes
+        let x = f64::from_le_bytes(data[2..10].try_into().unwrap());
+        let y = f64::from_le_bytes(data[10..18].try_into().unwrap());
+        let theta = f64::from_le_bytes(data[18..26].try_into().unwrap());
+        assert!((x - 1.0).abs() < 0.001);
+        assert!((y - 2.0).abs() < 0.001);
+        assert!((theta - 0.5).abs() < 0.001);
+
+        // Verify battery voltage
+        let voltage = f64::from_le_bytes(data[26..34].try_into().unwrap());
+        assert!((voltage - 48.0).abs() < 0.001);
+
+        // Verify timestamp
+        let ts = u64::from_le_bytes(data[34..42].try_into().unwrap());
+        assert_eq!(ts, 12345);
+    }
+
+    #[test]
+    fn test_config_default() {
+        let config = Config::default();
+        assert_eq!(config.listen_port, 4840);
+        assert_eq!(config.heartbeat_interval.as_millis(), 20);
+        assert_eq!(config.connection_timeout.as_secs(), 1);
+    }
+}
+
 
 

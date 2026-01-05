@@ -112,5 +112,167 @@ impl StatusPayload {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_can_id_make() {
+        // Slot 0, discovery message
+        assert_eq!(can_id::make(0, can_id::MSG_DISCOVERY), 0x0A00);
+
+        // Slot 1, command message
+        assert_eq!(can_id::make(1, can_id::MSG_COMMAND), 0x0A11);
+
+        // Slot 2, status message
+        assert_eq!(can_id::make(2, can_id::MSG_STATUS), 0x0A22);
+
+        // Slot 15 (max), command
+        assert_eq!(can_id::make(15, can_id::MSG_COMMAND), 0x0AF1);
+    }
+
+    #[test]
+    fn test_can_id_parse() {
+        // Valid tool IDs
+        assert_eq!(can_id::parse(0x0A00), Some((0, 0))); // Slot 0, discovery
+        assert_eq!(can_id::parse(0x0A11), Some((1, 1))); // Slot 1, command
+        assert_eq!(can_id::parse(0x0A22), Some((2, 2))); // Slot 2, status
+        assert_eq!(can_id::parse(0x0AF1), Some((15, 1))); // Slot 15, command
+
+        // Invalid - wrong base
+        assert_eq!(can_id::parse(0x0B00), None); // Peripheral range
+        assert_eq!(can_id::parse(0x0900), None);
+        assert_eq!(can_id::parse(0x0000), None);
+    }
+
+    #[test]
+    fn test_can_id_roundtrip() {
+        for slot in 0..16u8 {
+            for msg_type in [can_id::MSG_DISCOVERY, can_id::MSG_COMMAND, can_id::MSG_STATUS] {
+                let id = can_id::make(slot, msg_type);
+                let parsed = can_id::parse(id);
+                assert_eq!(parsed, Some((slot, msg_type)));
+            }
+        }
+    }
+
+    #[test]
+    fn test_build_command() {
+        let frame = build_command(1, 0.5, -0.75);
+
+        // Check CAN ID
+        assert_eq!(frame.id, can_id::make(1, can_id::MSG_COMMAND));
+        assert!(frame.extended);
+
+        // Check data format
+        assert_eq!(frame.data[0], 0); // Command type
+
+        // Axis: 0.5 * 32767 = 16383
+        let axis = i16::from_le_bytes([frame.data[1], frame.data[2]]);
+        assert_eq!(axis, 16383);
+
+        // Motor: -0.75 * 32767 = -24575
+        let motor = i16::from_le_bytes([frame.data[3], frame.data[4]]);
+        assert_eq!(motor, -24575);
+    }
+
+    #[test]
+    fn test_build_command_clamping() {
+        // Values beyond -1.0 to 1.0 should be clamped
+        let frame = build_command(0, 2.0, -2.0);
+
+        let axis = i16::from_le_bytes([frame.data[1], frame.data[2]]);
+        let motor = i16::from_le_bytes([frame.data[3], frame.data[4]]);
+
+        // 1.0 * 32767 = 32767
+        assert_eq!(axis, 32767);
+        // -1.0 * 32767 = -32767
+        assert_eq!(motor, -32767);
+    }
+
+    #[test]
+    fn test_build_command_zero() {
+        let frame = build_command(0, 0.0, 0.0);
+
+        let axis = i16::from_le_bytes([frame.data[1], frame.data[2]]);
+        let motor = i16::from_le_bytes([frame.data[3], frame.data[4]]);
+
+        assert_eq!(axis, 0);
+        assert_eq!(motor, 0);
+    }
+
+    #[test]
+    fn test_discovery_payload_parse() {
+        let data = [
+            1u8,  // tool_type: SnowAuger
+            2,    // protocol_version
+            0x03, 0x00, // capabilities: AXIS_CONTROL | MOTOR_CONTROL (little-endian)
+            0x78, 0x56, 0x34, 0x12, // serial: 0x12345678 (little-endian)
+        ];
+
+        let payload = DiscoveryPayload::parse(&data).unwrap();
+        assert_eq!(payload.tool_type, 1);
+        assert_eq!(payload.protocol_version, 2);
+        assert_eq!(payload.capabilities, 0x0003);
+        assert_eq!(payload.serial, 0x12345678);
+    }
+
+    #[test]
+    fn test_discovery_payload_parse_short_data() {
+        let data = [1, 2, 3, 4, 5, 6, 7]; // 7 bytes, need 8
+        assert!(DiscoveryPayload::parse(&data).is_none());
+    }
+
+    #[test]
+    fn test_status_payload_parse() {
+        let data = [
+            128u8,      // position: 128 (middle)
+            0xE8, 0x03, // motor_rpm: 1000 (little-endian)
+            0xD0, 0x07, // current_ma: 2000mA (little-endian)
+            0x01,       // faults: some fault
+        ];
+
+        let payload = StatusPayload::parse(&data).unwrap();
+        assert_eq!(payload.position, 128);
+        assert_eq!(payload.motor_rpm, 1000);
+        assert_eq!(payload.current_ma, 2000);
+        assert_eq!(payload.faults, 1);
+    }
+
+    #[test]
+    fn test_status_payload_parse_short_data() {
+        let data = [1, 2, 3, 4, 5]; // 5 bytes, need 6
+        assert!(StatusPayload::parse(&data).is_none());
+    }
+
+    #[test]
+    fn test_status_payload_position_normalized() {
+        let mut payload = StatusPayload::default();
+
+        payload.position = 0;
+        assert!((payload.position_normalized() - 0.0).abs() < 0.001);
+
+        payload.position = 255;
+        assert!((payload.position_normalized() - 1.0).abs() < 0.001);
+
+        payload.position = 128;
+        assert!((payload.position_normalized() - 0.502).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_status_payload_current_amps() {
+        let mut payload = StatusPayload::default();
+
+        payload.current_ma = 0;
+        assert_eq!(payload.current_amps(), 0.0);
+
+        payload.current_ma = 1000;
+        assert!((payload.current_amps() - 1.0).abs() < 0.001);
+
+        payload.current_ma = 2500;
+        assert!((payload.current_amps() - 2.5).abs() < 0.001);
+    }
+}
+
 
 

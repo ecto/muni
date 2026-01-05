@@ -181,6 +181,210 @@ mod tests {
         sm.transition(Event::TeleopCommand);
         assert_eq!(sm.mode(), Mode::Teleop);
     }
+
+    #[test]
+    fn test_command_timeout_in_teleop() {
+        let mut sm = StateMachine::new();
+        sm.transition(Event::Enable);
+        sm.transition(Event::TeleopCommand);
+        assert_eq!(sm.mode(), Mode::Teleop);
+
+        sm.transition(Event::CommandTimeout);
+        assert_eq!(sm.mode(), Mode::Idle);
+    }
+
+    #[test]
+    fn test_command_timeout_in_autonomous() {
+        let mut sm = StateMachine::new();
+        sm.transition(Event::Enable);
+        sm.transition(Event::AutonomousRequest);
+        assert_eq!(sm.mode(), Mode::Autonomous);
+
+        sm.transition(Event::CommandTimeout);
+        assert_eq!(sm.mode(), Mode::Idle);
+    }
+
+    #[test]
+    fn test_autonomous_end() {
+        let mut sm = StateMachine::new();
+        sm.transition(Event::Enable);
+        sm.transition(Event::AutonomousRequest);
+        assert_eq!(sm.mode(), Mode::Autonomous);
+
+        sm.transition(Event::AutonomousEnd);
+        assert_eq!(sm.mode(), Mode::Idle);
+    }
+
+    #[test]
+    fn test_disable_from_any_active_mode() {
+        // From Idle
+        let mut sm = StateMachine::new();
+        sm.transition(Event::Enable);
+        sm.transition(Event::Disable);
+        assert_eq!(sm.mode(), Mode::Disabled);
+
+        // From Teleop
+        let mut sm = StateMachine::new();
+        sm.transition(Event::Enable);
+        sm.transition(Event::TeleopCommand);
+        sm.transition(Event::Disable);
+        assert_eq!(sm.mode(), Mode::Disabled);
+
+        // From Autonomous
+        let mut sm = StateMachine::new();
+        sm.transition(Event::Enable);
+        sm.transition(Event::AutonomousRequest);
+        sm.transition(Event::Disable);
+        assert_eq!(sm.mode(), Mode::Disabled);
+    }
+
+    #[test]
+    fn test_estop_from_all_active_modes() {
+        // From Idle
+        let mut sm = StateMachine::new();
+        sm.transition(Event::Enable);
+        sm.transition(Event::EStop);
+        assert_eq!(sm.mode(), Mode::EStop);
+
+        // From Teleop
+        let mut sm = StateMachine::new();
+        sm.transition(Event::Enable);
+        sm.transition(Event::TeleopCommand);
+        sm.transition(Event::EStop);
+        assert_eq!(sm.mode(), Mode::EStop);
+
+        // From Autonomous
+        let mut sm = StateMachine::new();
+        sm.transition(Event::Enable);
+        sm.transition(Event::AutonomousRequest);
+        sm.transition(Event::EStop);
+        assert_eq!(sm.mode(), Mode::EStop);
+    }
+
+    #[test]
+    fn test_fault_from_any_mode() {
+        let modes_to_test = [
+            Mode::Disabled,
+            Mode::Idle,
+            Mode::Teleop,
+            Mode::Autonomous,
+            Mode::EStop,
+        ];
+
+        for start_mode in modes_to_test {
+            let mut sm = StateMachine::new();
+            // Manually reach the target mode
+            match start_mode {
+                Mode::Disabled => {}
+                Mode::Idle => {
+                    sm.transition(Event::Enable);
+                }
+                Mode::Teleop => {
+                    sm.transition(Event::Enable);
+                    sm.transition(Event::TeleopCommand);
+                }
+                Mode::Autonomous => {
+                    sm.transition(Event::Enable);
+                    sm.transition(Event::AutonomousRequest);
+                }
+                Mode::EStop => {
+                    sm.transition(Event::Enable);
+                    sm.transition(Event::EStop);
+                }
+                Mode::Fault => {}
+            }
+
+            sm.transition(Event::Fault);
+            assert_eq!(sm.mode(), Mode::Fault, "Fault should be reachable from {:?}", start_mode);
+        }
+    }
+
+    #[test]
+    fn test_fault_clear_goes_to_disabled() {
+        let mut sm = StateMachine::new();
+        sm.transition(Event::Enable);
+        sm.transition(Event::Fault);
+        assert_eq!(sm.mode(), Mode::Fault);
+
+        sm.transition(Event::FaultClear);
+        assert_eq!(sm.mode(), Mode::Disabled);
+    }
+
+    #[test]
+    fn test_force_estop() {
+        let mut sm = StateMachine::new();
+        sm.transition(Event::Enable);
+        sm.transition(Event::TeleopCommand);
+        assert_eq!(sm.mode(), Mode::Teleop);
+
+        sm.force_estop();
+        assert_eq!(sm.mode(), Mode::EStop);
+    }
+
+    #[test]
+    fn test_force_estop_idempotent() {
+        let mut sm = StateMachine::new();
+        sm.transition(Event::Enable);
+        sm.transition(Event::EStop);
+        assert_eq!(sm.mode(), Mode::EStop);
+
+        // Calling force_estop when already in EStop should be fine
+        sm.force_estop();
+        assert_eq!(sm.mode(), Mode::EStop);
+    }
+
+    #[test]
+    fn test_is_driving() {
+        let mut sm = StateMachine::new();
+        assert!(!sm.is_driving());
+
+        sm.transition(Event::Enable);
+        assert!(!sm.is_driving()); // Idle
+
+        sm.transition(Event::TeleopCommand);
+        assert!(sm.is_driving()); // Teleop
+
+        sm.transition(Event::AutonomousRequest);
+        assert!(sm.is_driving()); // Autonomous
+
+        sm.transition(Event::EStop);
+        assert!(!sm.is_driving()); // EStop
+    }
+
+    #[test]
+    fn test_is_safe() {
+        let mut sm = StateMachine::new();
+        assert!(sm.is_safe()); // Disabled
+
+        sm.transition(Event::Enable);
+        assert!(sm.is_safe()); // Idle
+
+        sm.transition(Event::TeleopCommand);
+        assert!(!sm.is_safe()); // Teleop
+
+        sm.transition(Event::EStop);
+        assert!(sm.is_safe()); // EStop
+    }
+
+    #[test]
+    fn test_no_transition_invalid_events() {
+        // Can't teleop from disabled
+        let mut sm = StateMachine::new();
+        sm.transition(Event::TeleopCommand);
+        assert_eq!(sm.mode(), Mode::Disabled);
+
+        // Can't release estop from idle
+        let mut sm = StateMachine::new();
+        sm.transition(Event::Enable);
+        sm.transition(Event::EStopRelease);
+        assert_eq!(sm.mode(), Mode::Idle);
+    }
+
+    #[test]
+    fn test_default_impl() {
+        let sm = StateMachine::default();
+        assert_eq!(sm.mode(), Mode::Disabled);
+    }
 }
 
 

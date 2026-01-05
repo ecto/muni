@@ -191,6 +191,200 @@ impl Vesc {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::Frame;
+
+    #[test]
+    fn test_make_id_rpm_command() {
+        let vesc = Vesc::new(1);
+        let id = vesc.make_id(CommandId::SetRpm);
+        // SetRpm = 3, so ID = (3 << 8) | 1 = 0x0301
+        assert_eq!(id, 0x0301);
+    }
+
+    #[test]
+    fn test_make_id_duty_command() {
+        let vesc = Vesc::new(4);
+        let id = vesc.make_id(CommandId::SetDuty);
+        // SetDuty = 0, so ID = (0 << 8) | 4 = 0x0004
+        assert_eq!(id, 0x0004);
+    }
+
+    #[test]
+    fn test_build_rpm_frame() {
+        let vesc = Vesc::new(2);
+        let frame = vesc.build_rpm_frame(1000);
+
+        assert_eq!(frame.id, 0x0302); // SetRpm(3) << 8 | 2
+        assert!(frame.extended);
+        assert_eq!(frame.data, 1000_i32.to_be_bytes().to_vec());
+    }
+
+    #[test]
+    fn test_build_rpm_frame_negative() {
+        let vesc = Vesc::new(1);
+        let frame = vesc.build_rpm_frame(-5000);
+
+        assert_eq!(frame.data, (-5000_i32).to_be_bytes().to_vec());
+    }
+
+    #[test]
+    fn test_build_duty_frame_clamped() {
+        let vesc = Vesc::new(1);
+
+        // Test normal range
+        let frame = vesc.build_duty_frame(0.5);
+        let expected = (0.5 * 100_000.0) as i32;
+        assert_eq!(frame.data, expected.to_be_bytes().to_vec());
+
+        // Test clamping above 1.0
+        let frame = vesc.build_duty_frame(2.0);
+        let expected = 100_000_i32; // Clamped to 1.0 * 100_000
+        assert_eq!(frame.data, expected.to_be_bytes().to_vec());
+
+        // Test clamping below -1.0
+        let frame = vesc.build_duty_frame(-1.5);
+        let expected = -100_000_i32; // Clamped to -1.0 * 100_000
+        assert_eq!(frame.data, expected.to_be_bytes().to_vec());
+    }
+
+    #[test]
+    fn test_build_current_frame() {
+        let vesc = Vesc::new(3);
+        let frame = vesc.build_current_frame(10.5);
+
+        assert_eq!(frame.id, 0x0103); // SetCurrent(1) << 8 | 3
+        // 10.5 amps = 10500 mA
+        let expected = 10500_i32;
+        assert_eq!(frame.data, expected.to_be_bytes().to_vec());
+    }
+
+    #[test]
+    fn test_parse_status1() {
+        let mut vesc = Vesc::new(1);
+
+        // Build a STATUS1 frame
+        // ERPM: 3000, Current: 15.5A (155 * 10), Duty: 0.500 (500)
+        let mut data = [0u8; 8];
+        data[0..4].copy_from_slice(&3000_i32.to_be_bytes());
+        data[4..6].copy_from_slice(&155_i16.to_be_bytes()); // 15.5A
+        data[6..8].copy_from_slice(&500_i16.to_be_bytes()); // 0.500 duty
+
+        let frame = Frame {
+            id: (9 << 8) | 1, // STATUS1 for VESC ID 1
+            extended: true,
+            data: data.to_vec(),
+        };
+
+        assert!(vesc.process_frame(&frame));
+        assert_eq!(vesc.state.status.erpm, 3000);
+        assert!((vesc.state.status.current - 15.5).abs() < 0.01);
+        assert!((vesc.state.status.duty - 0.5).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_parse_status4() {
+        let mut vesc = Vesc::new(2);
+
+        // Build a STATUS4 frame
+        // FET temp: 45.0C (450), Motor temp: 55.0C (550), Current in: 8.5A (85)
+        let mut data = [0u8; 8];
+        data[0..2].copy_from_slice(&450_i16.to_be_bytes()); // 45.0C
+        data[2..4].copy_from_slice(&550_i16.to_be_bytes()); // 55.0C
+        data[4..6].copy_from_slice(&85_i16.to_be_bytes()); // 8.5A
+
+        let frame = Frame {
+            id: (16 << 8) | 2, // STATUS4 for VESC ID 2
+            extended: true,
+            data: data.to_vec(),
+        };
+
+        assert!(vesc.process_frame(&frame));
+        assert!((vesc.state.status4.temp_fet - 45.0).abs() < 0.01);
+        assert!((vesc.state.status4.temp_motor - 55.0).abs() < 0.01);
+        assert!((vesc.state.status4.current_in - 8.5).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_parse_status5() {
+        let mut vesc = Vesc::new(3);
+
+        // Build a STATUS5 frame
+        // Tachometer: 12345, Voltage: 48.5V (485)
+        let mut data = [0u8; 8];
+        data[0..4].copy_from_slice(&12345_i32.to_be_bytes());
+        data[4..6].copy_from_slice(&485_i16.to_be_bytes()); // 48.5V
+
+        let frame = Frame {
+            id: (27 << 8) | 3, // STATUS5 for VESC ID 3
+            extended: true,
+            data: data.to_vec(),
+        };
+
+        assert!(vesc.process_frame(&frame));
+        assert_eq!(vesc.state.status5.tachometer, 12345);
+        assert!((vesc.state.status5.voltage_in - 48.5).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_process_frame_wrong_vesc_id() {
+        let mut vesc = Vesc::new(1);
+
+        let frame = Frame {
+            id: (9 << 8) | 2, // STATUS1 for VESC ID 2 (not ours)
+            extended: true,
+            data: vec![0; 8],
+        };
+
+        assert!(!vesc.process_frame(&frame));
+    }
+
+    #[test]
+    fn test_process_frame_standard_id_ignored() {
+        let mut vesc = Vesc::new(1);
+
+        let frame = Frame {
+            id: (9 << 8) | 1,
+            extended: false, // Standard frame, not extended
+            data: vec![0; 8],
+        };
+
+        assert!(!vesc.process_frame(&frame));
+    }
+
+    #[test]
+    fn test_process_frame_unknown_command_ignored() {
+        let mut vesc = Vesc::new(1);
+
+        let frame = Frame {
+            id: (99 << 8) | 1, // Unknown command type
+            extended: true,
+            data: vec![0; 8],
+        };
+
+        assert!(!vesc.process_frame(&frame));
+    }
+
+    #[test]
+    fn test_parse_status_short_data_ignored() {
+        let mut vesc = Vesc::new(1);
+
+        // STATUS1 with only 4 bytes (should need 8)
+        let frame = Frame {
+            id: (9 << 8) | 1,
+            extended: true,
+            data: vec![0; 4],
+        };
+
+        // Should return true (frame was for us) but not crash
+        assert!(vesc.process_frame(&frame));
+        // Values should remain at defaults (0)
+        assert_eq!(vesc.state.status.erpm, 0);
+    }
+}
+
 /// Drivetrain: manages 4 VESCs for the wheels.
 pub struct Drivetrain {
     pub front_left: Vesc,
