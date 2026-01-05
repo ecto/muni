@@ -151,15 +151,15 @@ impl MotorMount {
         base.difference(&holes)
     }
 
-    /// Create frame mounting holes for a tab
+    /// Create frame mounting holes for a tab (holes along Y axis)
     fn create_tab_holes(&self, segments: u32) -> Part {
         let cfg = &self.config;
 
-        // Two holes spaced along the tab
+        // Two holes spaced along the tab length (Y direction)
         let hole1 = centered_cylinder("frame_hole1", cfg.frame_bolt_diameter / 2.0, cfg.plate_thickness * 2.0, segments)
-            .translate(-cfg.frame_bolt_spacing / 2.0, 0.0, 0.0);
+            .translate(0.0, -cfg.frame_bolt_spacing / 2.0, 0.0);
         let hole2 = centered_cylinder("frame_hole2", cfg.frame_bolt_diameter / 2.0, cfg.plate_thickness * 2.0, segments)
-            .translate(cfg.frame_bolt_spacing / 2.0, 0.0, 0.0);
+            .translate(0.0, cfg.frame_bolt_spacing / 2.0, 0.0);
 
         hole1.union(&hole2)
     }
@@ -194,14 +194,14 @@ impl MotorMount {
         let cfg = &self.config;
         let segments = 64;
 
-        // Single tab
+        // Single tab: width (X) × length (Y) × thickness (Z)
         let tab = centered_cube("tab", cfg.tab_width, cfg.tab_length, cfg.plate_thickness);
 
-        // Mounting holes
+        // Mounting holes spaced along Y (tab length), not X (tab width)
         let hole1 = centered_cylinder("hole1", cfg.frame_bolt_diameter / 2.0, cfg.plate_thickness * 2.0, segments)
-            .translate(-cfg.frame_bolt_spacing / 2.0, 0.0, 0.0);
+            .translate(0.0, -cfg.frame_bolt_spacing / 2.0, 0.0);
         let hole2 = centered_cylinder("hole2", cfg.frame_bolt_diameter / 2.0, cfg.plate_thickness * 2.0, segments)
-            .translate(cfg.frame_bolt_spacing / 2.0, 0.0, 0.0);
+            .translate(0.0, cfg.frame_bolt_spacing / 2.0, 0.0);
         let holes = hole1.union(&hole2);
 
         tab.difference(&holes)
