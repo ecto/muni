@@ -12,6 +12,14 @@
   <meta property="og:type" content="website">
   <meta name="twitter:card" content="summary_large_image">
   <link rel="stylesheet" href="style.css">
+  <script>
+    !function(t,e){var o,n,p,r;e.__SV||(window.posthog && window.posthog.__loaded)||(window.posthog=e,e._i=[],e.init=function(i,s,a){function g(t,e){var o=e.split(".");2==o.length&&(t=t[o[0]],e=o[1]),t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}}(p=t.createElement("script")).type="text/javascript",p.crossOrigin="anonymous",p.async=!0,p.src=s.api_host.replace(".i.posthog.com","-assets.i.posthog.com")+"/static/array.js",(r=t.getElementsByTagName("script")[0]).parentNode.insertBefore(p,r);var u=e;for(void 0!==a?u=e[a]=[]:a="posthog",u.people=u.people||[],u.toString=function(t){var e="posthog";return"posthog"!==a&&(e+="."+a),t||(e+=" (stub)"),e},u.people.toString=function(){return u.toString(1)+".people (stub)"},o="init ts ns yi rs os Qr es capture Hi calculateEventProperties hs register register_once register_for_session unregister unregister_for_session fs getFeatureFlag getFeatureFlagPayload isFeatureEnabled reloadFeatureFlags updateFlags updateEarlyAccessFeatureEnrollment getEarlyAccessFeatures on onFeatureFlags onSurveysLoaded onSessionId getSurveys getActiveMatchingSurveys renderSurvey displaySurvey cancelPendingSurvey canRenderSurvey canRenderSurveyAsync identify setPersonProperties group resetGroups setPersonPropertiesForFlags resetPersonPropertiesForFlags setGroupPropertiesForFlags resetGroupPropertiesForFlags reset get_distinct_id getGroups get_session_id get_session_replay_url alias set_config startSessionRecording stopSessionRecording sessionRecordingStarted captureException startExceptionAutocapture stopExceptionAutocapture loadToolbar get_property getSessionProperty vs us createPersonProfile cs Yr ps opt_in_capturing opt_out_capturing has_opted_in_capturing has_opted_out_capturing get_explicit_consent_status is_capturing clear_opt_in_out_capturing ls debug O ds getPageViewId captureTraceFeedback captureTraceMetric Vr".split(" "),n=0;n<o.length;n++)g(u,o[n]);e._i.push([i,s,a])},e.__SV=1)}(document,window.posthog||[]);
+    posthog.init('phc_bJjV6mPT2NQSRZT1NciRlpUl5OdVgkH7AlJhdIY8ajT', {
+        api_host: 'https://us.i.posthog.com',
+        defaults: '2025-11-30',
+        person_profiles: 'identified_only'
+    })
+  </script>
 </head>
 <body class="home">
 
@@ -40,6 +48,7 @@
     <a href="docs.html">DOCS</a>
   </nav>
 
+  <!-- HERO -->
   <section class="hero-card">
     <div class="rover-gallery">
       <a href="bvr0.png" class="rover-thumb">
@@ -54,7 +63,7 @@
 
     <div class="stat-row">
       <div class="stat">
-        <span class="stat-value">10×</span>
+        <span class="stat-value">70%</span>
         <span class="stat-label">cost reduction</span>
       </div>
       <div class="stat">
@@ -62,43 +71,277 @@
         <span class="stat-label">operator ratio</span>
       </div>
       <div class="stat">
-        <span class="stat-value">$14B</span>
-        <span class="stat-label">market</span>
+        <span class="stat-value">11mo</span>
+        <span class="stat-label">payback</span>
       </div>
     </div>
   </section>
 
+  <!-- PITCH -->
   <section class="pitch-card">
     <p class="pitch-headline">
-      Sidewalks maintained by sunrise. Like magic.
+      Clear 50 miles of sidewalk from your office.
     </p>
     <p class="pitch-subtitle">
-      One operator monitors ten rovers. Sidewalks cleared in hours, not days.
+      Remote-controlled rovers. One operator monitors ten units.<br>
+      70% cheaper than manual crews. 11-month payback.
     </p>
     <div class="feature-grid">
-      <a href="products.html" class="feature">
-        <span class="feature-icon">◎</span>
-        <span class="feature-text">4-wheel skid-steer</span>
+      <a href="products.html#how-it-works" class="feature">
+        <span class="feature-icon">🎮</span>
+        <span class="feature-text">Drive with Xbox controller</span>
       </a>
-      <a href="products.html" class="feature">
-        <span class="feature-icon">◈</span>
-        <span class="feature-text">Jetson Orin NX</span>
+      <a href="products.html#bvr1" class="feature">
+        <span class="feature-icon">🛡️</span>
+        <span class="feature-text">LiDAR safety system</span>
       </a>
-      <a href="products.html" class="feature">
-        <span class="feature-icon">◉</span>
-        <span class="feature-text">Teleoperated and autonomous</span>
+      <a href="products.html#bvr1" class="feature">
+        <span class="feature-icon">❄️</span>
+        <span class="feature-text">Works in active snow</span>
       </a>
-      <a href="products.html" class="feature">
-        <span class="feature-icon">◇</span>
-        <span class="feature-text">Modular attachments</span>
+      <a href="products.html#open-source" class="feature">
+        <span class="feature-icon">📖</span>
+        <span class="feature-text">Fully open source</span>
       </a>
     </div>
   </section>
 
+  <!-- CTA ROW -->
   <section class="cta-row">
-    <a href="investors.html" class="cta-primary">Investors →</a>
-    <a href="about.html#pilot" class="cta-secondary">Pilot Program →</a>
-    <a href="https://github.com/ecto/muni/blob/main/docs/hardware/bom.md" class="cta-secondary">Build Your Own →</a>
+    <a href="products.html#get-started" class="cta-primary">Reserve yours ($500) →</a>
+    <a href="products.html" class="cta-secondary">See the economics →</a>
+  </section>
+
+  <!-- PROOF SECTION -->
+  <section class="card">
+    <div class="card-title">WHY NOW</div>
+    <div class="card-body">
+<pre>Three technologies converged to make this possible:
+
+<strong>1. Hardware inflection point</strong>
+   • E-bike drivetrain: $500 (was $5,000 in 2018)
+   • Jetson Orin NX: 100 TOPS for $500 (was $5k+)
+   • Livox LiDAR: $1,000 (was $20,000+)
+   Complete rover: <strong>$18,000</strong> (was $100k+ five years ago)
+
+<strong>2. Proven autonomous navigation</strong>
+   • Starship: 12M+ autonomous sidewalk miles
+   • Waymo: 96M+ driverless miles, 79% fewer crashes
+   • The perception stack exists and works
+
+<strong>3. Municipal cost crisis</strong>
+   • Minneapolis: $40M/year for full municipal clearing
+   • 78% of cities use property mandates (70% don't enforce)
+   • Labor shortages + injury liability + equity gaps
+   • <strong>No cost-effective alternative has existed. Until now.</strong>
+
+<a href="investors.html" class="specs-link">Read the whitepaper →</a>
+</pre>
+    </div>
+  </section>
+
+  <!-- THE PROBLEM (EMOTIONAL) -->
+  <section class="card">
+    <div class="card-title">THE PROBLEM</div>
+    <div class="card-body">
+<pre>Uncleared sidewalks kill people and cost millions.
+
+<strong>Safety:</strong>
+  • 65% of pedestrian fatalities occur without clear sidewalks
+  • Uncleared paths force pedestrians onto roads
+  • Elderly and disabled trapped at home during winter
+
+<strong>Liability:</strong>
+  • $1B reserved annually for slip-and-fall claims
+  • Average claim: $19,776
+  • 58% of municipalities sued for sidewalk accidents
+
+<strong>Economics:</strong>
+  • Manual crews: $960/day for 4 workers
+  • Contractors: Per-event billing, no verification
+  • Property mandates: Equity gaps, no enforcement
+
+All three treat this as an episodic labor problem.
+<strong>It's a continuous coverage problem.</strong>
+</pre>
+    </div>
+  </section>
+
+  <!-- THE SOLUTION (HOW IT WORKS) -->
+  <section class="card">
+    <div class="card-title">HOW IT WORKS</div>
+    <div class="card-body">
+<pre><strong>Simple as a video game. Safer than a human crew.</strong>
+
+1. Operator opens browser, connects to rover
+2. Drives with Xbox controller (live 360° video)
+3. LiDAR creates 1.5m safety bubble (auto-stops)
+4. Rover clears at 1 m/s (~2 mph)
+5. Session recorded for audit trail
+
+<strong>One operator monitors 10 rovers:</strong>
+  • Switch between units with keyboard shortcuts
+  • Supervise autonomous segments
+  • Intervene only when needed
+
+<strong>No cloud dependency:</strong>
+  • Rovers operate on LTE or local network
+  • Local safety systems (work without network)
+  • Data syncs when connectivity restored
+  • SCADA-like model, proven for decades
+
+<strong>Progression:</strong>
+  Now:    1:1 teleoperation (build reliability data)
+  Soon:   1:2 assisted (common routes autopilot)
+  Next:   1:10 supervised (operator monitors fleet)
+  Future: 1:50+ (full autonomy with human oversight)
+
+Each transition requires one full season of proven reliability.
+</pre>
+    </div>
+  </section>
+
+  <!-- THE ECONOMICS (GROUNDED IN WHITEPAPER) -->
+  <section class="card">
+    <div class="card-title">THE ECONOMICS</div>
+    <div class="card-body">
+<pre><strong>5-year total cost of ownership (50 miles, 1:10 ratio):</strong>
+
+Manual labor:      $1.67M  (seasonal crews + equipment)
+Contractors:       $0.98M  (per-event billing)
+<strong>Muni rovers:       $0.51M  (70% cheaper than manual)</strong>
+
+<strong>Breakdown:</strong>
+
+  Hardware:        $270,000  (15 rovers @ $18k)
+  Software:        $54,000   ($300/mo per rover, or self-host free)
+  Operator:        $150,000  (1 operator @ $30k/season × 5 years)
+  Maintenance:     $37,500   ($500/year per rover)
+                   ────────
+  5-year total:    $511,500
+
+<strong>Payback period: 11 months</strong>
+
+Annual savings vs manual:    $232,000
+Annual savings vs contractor: $94,000
+
+<strong>Not included:</strong>
+  ✓ Avoided slip-and-fall liability
+  ✓ Eliminated worker injury costs
+  ✓ Consistent audit trail (311 complaint defense)
+  ✓ Equity (coverage doesn't depend on property owner ability)
+
+<a href="products.html#packages" class="specs-link">See fleet packages →</a>
+</pre>
+    </div>
+  </section>
+
+  <!-- WHO IT'S FOR -->
+  <section class="card">
+    <div class="card-title">WHO IT'S FOR</div>
+    <div class="card-body">
+<pre><strong>Municipalities</strong>
+  • 50+ miles of sidewalk network
+  • Property mandates failing (inconsistent coverage)
+  • Labor shortages during snow events
+  • Slip-and-fall liability exposure
+
+<strong>Universities</strong>
+  • Campus pedestrian infrastructure
+  • 24/7 operations during snow season
+  • Student safety requirements
+  • Predictable ROI (multi-year planning)
+
+<strong>Airports</strong>
+  • Outdoor pedestrian paths
+  • ADA compliance critical
+  • High liability for slip-and-fall
+  • Existing autonomous vehicle acceptance
+
+<strong>Large facilities</strong>
+  • Corporate campuses
+  • Hospital complexes
+  • Industrial parks
+  • Distribution centers
+
+<strong>What they have in common:</strong>
+  • Miles of sidewalk to maintain
+  • Seasonal labor challenges
+  • Audit trail requirements
+  • Multi-year budget cycles
+
+<a href="mailto:info@muni.works?subject=Pilot%20program" class="specs-link">Join the pilot program →</a>
+</pre>
+    </div>
+  </section>
+
+  <!-- WHY MUNI (DIFFERENTIATORS) -->
+  <section class="card">
+    <div class="card-title">WHY MUNI</div>
+    <div class="card-body">
+<pre><strong>Teleoperation-first autonomy</strong>
+Unlike competitors who promise full autonomy from day one,
+we build trust gradually. Operators drive manually first,
+creating high-definition maps and understanding edge cases.
+Autonomy increases only after proven reliability.
+
+<strong>Service model, not equipment sales</strong>
+Toro sells you an RT-1000. You own the asset and the risk.
+We can operate as a managed service: you pay for cleared
+miles, not units. We're accountable for outcomes.
+
+<strong>Compact form factor (600mm)</strong>
+Large competitors (RT-1000, Snowbotix) can't fit on narrow
+urban sidewalks. ADA minimum width is 36 inches (914mm).
+Our 600mm platform navigates where others can't.
+
+<strong>Open source (no vendor lock-in)</strong>
+  • All firmware on GitHub (MIT/Apache 2.0)
+  • CAD files, schematics, BOM published
+  • Self-host depot software free
+  • Build your own for $5,000
+  • 15+ year asset lifetime (field-serviceable)
+
+<strong>Integration-first architecture</strong>
+Works with your existing GIS, work order, and 311 systems.
+No rip-and-replace. Telemetry feeds your dashboards.
+
+<strong>Real deployments</strong>
+Operating in Cleveland, OH under pilot configuration.
+Not vaporware. Specifications reflect actual hardware.
+
+<a href="about.html" class="specs-link">Read the full story →</a>
+</pre>
+    </div>
+  </section>
+
+  <!-- SCARCITY + URGENCY -->
+  <section class="card highlight">
+    <div class="card-title">LIMITED AVAILABILITY</div>
+    <div class="card-body">
+<pre><strong>First batch: 100 units only</strong>
+
+Preorders opening soon. $500 deposit (fully refundable
+until production begins Q2 2026).
+
+Why limit to 100 units?
+  • Controlled rollout builds reliability data
+  • Direct customer support during first season
+  • Iterate on feedback before scaling
+  • Prove economics at municipal scale
+
+<strong>Reserve your spot:</strong>
+
+<script async data-uid="cb7ad78925" src="https://municipal-robotics.kit.com/cb7ad78925/index.js"></script>
+
+<strong>Not ready to buy?</strong>
+  • <a href="https://github.com/ecto/muni/tree/main/bvr/docs/hardware">Build BVR0 yourself</a> (~$5,000 in parts)
+  • <a href="investors.html">Read the whitepaper</a> (full technical details)
+  • <a href="mailto:info@muni.works?subject=Pilot%20program">Join the pilot program</a> (test before you buy)
+
+Questions? <a href="mailto:info@muni.works">info@muni.works</a>
+</pre>
+    </div>
   </section>
 
   <footer class="footer-card">

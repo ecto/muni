@@ -3,14 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Engineering Log - Municipal Robotics</title>
-  <meta name="description" content="Engineering updates and progress from Municipal Robotics.">
-  <meta property="og:title" content="Engineering Log - Municipal Robotics">
-  <meta property="og:description" content="Engineering updates and progress from Municipal Robotics.">
-  <meta property="og:image" content="https://muni.works/og.png">
-  <meta property="og:url" content="https://muni.works/log.html">
-  <meta property="og:type" content="website">
-  <meta name="twitter:card" content="summary_large_image">
+  <title>Order Confirmed - Municipal Robotics</title>
+  <meta name="description" content="Your Muni preorder is confirmed.">
   <link rel="stylesheet" href="style.css">
   <script>
     !function(t,e){var o,n,p,r;e.__SV||(window.posthog && window.posthog.__loaded)||(window.posthog=e,e._i=[],e.init=function(i,s,a){function g(t,e){var o=e.split(".");2==o.length&&(t=t[o[0]],e=o[1]),t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}}(p=t.createElement("script")).type="text/javascript",p.crossOrigin="anonymous",p.async=!0,p.src=s.api_host.replace(".i.posthog.com","-assets.i.posthog.com")+"/static/array.js",(r=t.getElementsByTagName("script")[0]).parentNode.insertBefore(p,r);var u=e;for(void 0!==a?u=e[a]=[]:a="posthog",u.people=u.people||[],u.toString=function(t){var e="posthog";return"posthog"!==a&&(e+="."+a),t||(e+=" (stub)"),e},u.people.toString=function(){return u.toString(1)+".people (stub)"},o="init ts ns yi rs os Qr es capture Hi calculateEventProperties hs register register_once register_for_session unregister unregister_for_session fs getFeatureFlag getFeatureFlagPayload isFeatureEnabled reloadFeatureFlags updateFlags updateEarlyAccessFeatureEnrollment getEarlyAccessFeatures on onFeatureFlags onSurveysLoaded onSessionId getSurveys getActiveMatchingSurveys renderSurvey displaySurvey cancelPendingSurvey canRenderSurvey canRenderSurveyAsync identify setPersonProperties group resetGroups setPersonPropertiesForFlags resetPersonPropertiesForFlags setGroupPropertiesForFlags resetGroupPropertiesForFlags reset get_distinct_id getGroups get_session_id get_session_replay_url alias set_config startSessionRecording stopSessionRecording sessionRecordingStarted captureException startExceptionAutocapture stopExceptionAutocapture loadToolbar get_property getSessionProperty vs us createPersonProfile cs Yr ps opt_in_capturing opt_out_capturing has_opted_in_capturing has_opted_out_capturing get_explicit_consent_status is_capturing clear_opt_in_out_capturing ls debug O ds getPageViewId captureTraceFeedback captureTraceMetric Vr".split(" "),n=0;n<o.length;n++)g(u,o[n]);e._i.push([i,s,a])},e.__SV=1)}(document,window.posthog||[]);
@@ -22,7 +16,6 @@
   </script>
 </head>
 <body class="page">
-
 <div class="container">
 
   <header class="site-header">
@@ -38,46 +31,41 @@
       </svg>
       <strong class="brand-name">MUNICIPAL ROBOTICS</strong>
     </a>
-    <p class="subtitle">Autonomous sidewalk maintenance</p>
   </header>
-
-  <nav class="nav-bar">
-    <a href="about.html">ABOUT</a>
-    <a href="products.html">PRODUCTS</a>
-    <a href="investors.html">INVESTORS</a>
-    <a href="docs.html">DOCS</a>
-  </nav>
 
   <main class="content">
 
-    <section class="card">
-      <div class="card-title">ATTACHMENT MCU FIRMWARE</div>
+    <section class="card success-highlight">
+      <div class="card-title">✓ RESERVATION CONFIRMED</div>
       <div class="card-body">
-<pre><span class="entry-date">2025-12-28</span>
+<pre>Your $500 deposit has been received and your order is secured.
 
-Good progress on the ESP32 firmware for tool attachments.
-Got the OLED display working with a status UI and serial
-command interface. LED strip driver is ready but needs a
-level shifter (in the mail).
+<strong>What happens next:</strong>
 
-Also consolidated session recording to single files, added
-a sessions browser to the operator UI, and documented the
-sensor mast design.</pre>
+1. You'll receive an email receipt from Stripe immediately
+2. Our team will contact you within 48 hours via email
+3. We'll discuss deployment timeline and configuration
+4. Balance payment due before shipment (Q2-Q3 2026)
+
+<strong>Refund policy:</strong>
+Full refund available until production begins (Q2 2026).
+Email <a href="mailto:info@muni.works">info@muni.works</a> to request refund.
+</pre>
       </div>
     </section>
 
     <section class="card">
-      <div class="card-title">BVR0 COMPLETE</div>
+      <div class="card-title">WHILE YOU WAIT</div>
       <div class="card-body">
-<pre><span class="entry-date">2025-12</span>
+<pre>Join the community and explore the platform:
 
-Base platform engineering prototype finished. 4-wheel
-skid-steer rover with Jetson Orin NX, proving out the
-mechanical and electrical architecture. bvr1 R&D and
-supervised autonomy coming in Artifact residency.
+  ◎ <a href="https://github.com/ecto/muni">Browse the source code on GitHub</a>
+  ◇ <a href="docs.html">Read technical documentation</a>
+  ◈ <a href="https://github.com/ecto/muni/tree/main/bvr/docs/hardware">Review BVR0 build guide</a>
+  ◉ <a href="mailto:info@muni.works?subject=Pilot%20program">Ask about pilot programs</a>
 
-Total build cost: ~$5,000 in parts. Assembly time: ~40 hours.
-All designs, firmware, and documentation published to GitHub.</pre>
+Questions? Email <a href="mailto:info@muni.works">info@muni.works</a>
+</pre>
       </div>
     </section>
 
@@ -96,6 +84,5 @@ All designs, firmware, and documentation published to GitHub.</pre>
   </footer>
 
 </div>
-
 </body>
 </html>
