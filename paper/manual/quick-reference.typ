@@ -5,6 +5,10 @@
 // Emergency Stop, Pre-Flight Checklist, Controls
 // These are the pages operators flip to most often.
 
+= Quick Reference
+
+These three pages are the ones you'll use daily. Memorize the e-stop methods. Run the pre-flight checklist every time. Keep the controls layout in your head. Everything else in this manual is for building and fixing. This section is for operating.
+
 = Emergency Stop
 
 #danger[
@@ -68,7 +72,7 @@
 
 = Pre-Flight Checklist
 
-Use this checklist before every operation session.
+#procedure([Daily inspection before operation], time: "2 min", difficulty: 1)
 
 #v(1em)
 
@@ -127,11 +131,19 @@ Use this checklist before every operation session.
   If any check fails, do not operate. Resolve the issue first.
 ]
 
+#v(0.5em)
+
+#lesson[
+  We once operated with a loose wheel bolt. 10 minutes in, the wheel nearly came off mid-turn. The 2-minute checklist beats a 2-hour field repair.
+]
+
 #pagebreak()
 
 // =============================================================================
 
 = Controls
+
+#procedure([Controller mapping reference], time: "1 min read", difficulty: 1)
 
 #figure(
   cetz.canvas({

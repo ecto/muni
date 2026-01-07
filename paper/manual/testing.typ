@@ -4,9 +4,17 @@
 // Testing Section
 // Pre-power checks, VESC config, First power-up, Motor testing
 
+= Testing
+
+This is the moment of truth. You've built the mechanical system, wired the electronics, and configured the software. Now you find out if it all works together.
+
+Go slow. The pre-power checks exist because we've made every mistake in this section at least once. A reversed connector, a missed termination resistor, a VESC with the wrong ID, these are easy to fix *before* you apply power and much harder after.
+
+The first power-up should be anticlimactic. If you smell burning, hear crackling, or see smoke: power off immediately. Something is wrong, and continuing will make it worse.
+
 = Pre-Power Checks
 
-Before applying power, verify all connections are correct.
+#procedure([Verify connections before first power-on], time: "10 min", difficulty: 2)
 
 #v(1em)
 
@@ -52,13 +60,19 @@ Before applying power, verify all connections are correct.
   If any continuity test shows a short (beep) between power and ground, DO NOT APPLY POWER. Find and fix the short first.
 ]
 
+#v(0.5em)
+
+#lesson[
+  A reversed XT60 connector on the DC-DC input fried a \$35 converter instantly. The 30-second continuity check would have caught it.
+]
+
 #pagebreak()
 
 // =============================================================================
 
 = First Power-Up
 
-Initial power-on sequence with safety precautions.
+#procedure([Initial power-on sequence], time: "5 min", difficulty: 2)
 
 #v(1em)
 
@@ -130,11 +144,18 @@ Initial power-on sequence with safety precautions.
 
 = VESC Configuration
 
-Configure motor controllers using VESC Tool.
+#procedure([Configure motor controllers], time: "15 min per VESC", difficulty: 3)
 
-#v(1em)
+#grid(
+  columns: (1fr, auto),
+  column-gutter: 1em,
+  [
+    Configure motor controllers using VESC Tool.
 
-*Connection:*
+    *Connection:*
+  ],
+  video-link("https://muni.works/docs/vesc", [VESC Setup Walkthrough]),
+)
 + Connect laptop to VESC via USB
 + Open VESC Tool
 + Select serial port, click Connect
@@ -169,13 +190,19 @@ Configure motor controllers using VESC Tool.
   Left and right motors spin opposite directions for forward motion in skid-steer.
 ]
 
+#v(0.5em)
+
+#pitfall[
+  Swapping VESC IDs 0↔1 or 2↔3 makes the rover spin in circles instead of driving straight. The CAN ID diagram on the Quick Reference Card saves debugging time.
+]
+
 #pagebreak()
 
 // =============================================================================
 
 = Motor Testing
 
-Verify all motors respond correctly before road testing.
+#procedure([Verify motor response], time: "10 min", difficulty: 2)
 
 #v(1em)
 
@@ -236,5 +263,11 @@ If a motor spins wrong direction, swap any two phase wires on that motor.
   [No unusual sounds or vibration],
   [VESCs not overheating],
 )
+
+#v(0.5em)
+
+#lesson[
+  The first road test had the rover on flat ground. It took off at 2 m/s and hit a wall. Always test on blocks first, with throttle at minimum.
+]
 
 #pagebreak()

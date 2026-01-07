@@ -4,9 +4,15 @@
 // Operation Section
 // Startup, Shutdown, Tool attachment
 
+= Operation
+
+Operating the rover is straightforward once it's built and tested. The startup sequence takes about 3 minutes. Shutdown takes 1 minute. Most of that time is waiting for the Jetson to boot.
+
+The key habit is consistency. Use the same startup sequence every time. Check the same indicators. Park in the same spot. Consistent routines catch problems early, when they're small and easy to fix.
+
 = Startup Procedure
 
-Standard startup sequence for daily operation.
+#procedure([Power on and connect], time: "3 min", difficulty: 1)
 
 #v(1em)
 
@@ -63,7 +69,7 @@ Standard startup sequence for daily operation.
 
 = Shutdown Procedure
 
-Safe shutdown sequence after operation.
+#procedure([Safe power-off sequence], time: "1 min", difficulty: 1)
 
 #v(1em)
 
@@ -114,13 +120,19 @@ Safe shutdown sequence after operation.
   Never disconnect battery while Jetson is running. This can corrupt the filesystem.
 ]
 
+#v(0.5em)
+
+#lesson[
+  One field test ended with a dead battery mid-session. The Jetson filesystem corrupted and needed a full reflash. Now we monitor voltage religiously and shut down at 42V.
+]
+
 #pagebreak()
 
 // =============================================================================
 
 = Tool Attachment
 
-Attach and detach modular tool attachments.
+#procedure([Attach modular tools], time: "2 min", difficulty: 1)
 
 #v(1em)
 

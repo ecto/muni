@@ -4,9 +4,17 @@
 // Power System Section
 // Battery, Fuse, DC-DC, Distribution
 
+= Power System
+
+The rover runs on 48V nominal (13S lithium). This voltage is high enough to be efficient (less current means thinner wires and less heat) but low enough to avoid the regulatory complexity of "high voltage" systems.
+
+The power path is simple: battery → fuse → e-stop relay → distribution bus → loads. Every component can be isolated, and the e-stop cuts power to everything downstream instantly.
+
+Respect the battery. A 48V 20Ah pack stores nearly 1 kWh of energy. That's enough to weld metal if shorted, or start a fire if punctured. The safety section covers handling in detail.
+
 = Battery Tray
 
-Secure mounting for the 48V battery pack.
+#procedure([Fabricate and install battery tray], time: "30 min", difficulty: 2)
 
 #v(1em)
 
@@ -87,7 +95,7 @@ Secure mounting for the 48V battery pack.
 
 = Fuse and E-Stop
 
-Install overcurrent protection and emergency disconnect.
+#procedure([Wire safety disconnect], time: "20 min", difficulty: 2)
 
 #v(1em)
 
@@ -156,13 +164,19 @@ Install overcurrent protection and emergency disconnect.
 - Ring terminals with heat shrink
 - Keep runs short between fuse and relay
 
+#v(0.5em)
+
+#pitfall[
+  Using a 200A fuse "for safety margin" defeats the purpose. The fuse protects the wire, not the load. 10 AWG wire needs a 100A fuse. Check wire gauge charts.
+]
+
 #pagebreak()
 
 // =============================================================================
 
 = DC-DC Converter
 
-Step down 48V main power to 12V for electronics.
+#procedure([Install voltage regulator], time: "10 min", difficulty: 1)
 
 #v(1em)
 
@@ -230,7 +244,7 @@ Step down 48V main power to 12V for electronics.
 
 = Power Distribution
 
-Main power bus connects battery to all high-current loads.
+#procedure([Wire power bus], time: "45 min", difficulty: 3)
 
 #v(1em)
 

@@ -4,9 +4,17 @@
 // Sensor Mast Section
 // Pole assembly, LiDAR, Camera
 
+= Sensor Mast
+
+The sensor mast is the rover's eyes. It elevates the LiDAR and 360° camera above the chassis to get an unobstructed view of the world.
+
+Height matters. Too low and the sensors see mostly wheels. Too high and the mast becomes a sail in the wind and a lever arm for tip-overs. We settled on 700mm total height (from ground to camera) as a good compromise for sidewalk-scale operation.
+
+The mast is intentionally simple: a tube, a clamp, and some brackets. If it gets bent (it will), you can straighten it or replace it in minutes.
+
 = Sensor Mast Assembly
 
-The sensor mast elevates LiDAR and camera for optimal field of view.
+#procedure([Build sensor pole], time: "20 min", difficulty: 1)
 
 #v(1em)
 
@@ -77,7 +85,7 @@ The sensor mast elevates LiDAR and camera for optimal field of view.
 
 = LiDAR Mounting
 
-Mount the Livox Mid-360 LiDAR on the sensor mast.
+#procedure([Mount LiDAR sensor], time: "15 min", difficulty: 2)
 
 #v(1em)
 
@@ -150,7 +158,7 @@ Mount the Livox Mid-360 LiDAR on the sensor mast.
 
 = Camera Mounting
 
-Mount the Insta360 X4 camera at the top of the sensor mast.
+#procedure([Mount 360° camera], time: "10 min", difficulty: 1)
 
 #v(1em)
 

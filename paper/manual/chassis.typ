@@ -4,9 +4,15 @@
 // Chassis Assembly Section
 // Cutting extrusions, Base frame, Verticals, Top frame, Squareness
 
+= Chassis Assembly
+
+The chassis is the skeleton of the rover. It's built from 2020 aluminum extrusion, the same stuff used in 3D printer frames and CNC machines. The T-slot design means you can mount anything anywhere, and if you mess up a hole, just slide the T-nut to a new position.
+
+The frame goes together like adult LEGO. No welding, no precision machining. If you can use a saw and a hex key, you can build this chassis.
+
 = Cutting Extrusions
 
-Cut aluminum extrusions to length per the cut list below.
+#procedure([Cut aluminum stock to length], time: "20 min", difficulty: 1)
 
 #v(1em)
 
@@ -72,13 +78,19 @@ Cut aluminum extrusions to length per the cut list below.
   Aluminum chips are sharp. Wear safety glasses. Clean chips from T-slots before assembly.
 ]
 
+#v(0.5em)
+
+#pitfall[
+  Cutting too fast causes burrs that jam T-nuts. Slow cuts with a fine-tooth blade save deburring time.
+]
+
 #pagebreak()
 
 // =============================================================================
 
 = Base Frame Assembly
 
-Assemble the 4-sided base frame using corner brackets.
+#procedure([Assemble the base frame square], time: "15 min", difficulty: 2)
 
 #v(1em)
 
@@ -141,13 +153,19 @@ Assemble the 4-sided base frame using corner brackets.
   Leave extra T-nuts in channels for later mounting. Easier now than adding drop-in nuts later.
 ]
 
+#v(0.5em)
+
+#lesson[
+  The first build had exactly enough T-nuts. Adding the electronics plate later meant disassembling half the frame. Now we pre-load 30% more than the BOM says.
+]
+
 #pagebreak()
 
 // =============================================================================
 
 = Vertical Posts
 
-Add 4 vertical posts at the corners to create the frame height.
+#procedure([Install corner vertical posts], time: "10 min", difficulty: 1)
 
 #v(1em)
 
@@ -276,7 +294,7 @@ Add 4 vertical posts at the corners to create the frame height.
 
 = Top Frame
 
-Complete the box structure with the top frame.
+#procedure([Complete the box frame], time: "15 min", difficulty: 2)
 
 #v(1em)
 
@@ -337,7 +355,7 @@ Complete the box structure with the top frame.
 
 = Squareness Check
 
-Verify the completed frame is square and rigid.
+#procedure([Verify frame geometry], time: "5 min", difficulty: 1)
 
 #v(1em)
 
@@ -404,5 +422,11 @@ Verify the completed frame is square and rigid.
   [All T-slots clear of debris],
   [Extra T-nuts in channels for later use],
 )
+
+#v(0.5em)
+
+#tip[
+  Take a photo of the diagonal measurements. Useful reference if the frame gets knocked out of square later.
+]
 
 #pagebreak()

@@ -4,9 +4,17 @@
 // Wiring Section
 // System schematic, CAN bus, Power, Signals, Cable management
 
+= Wiring
+
+Wiring is where builds go wrong. A loose connection causes intermittent failures. A reversed polarity destroys components. A pinched wire works fine until it doesn't.
+
+Take your time here. Label every wire. Double-check polarity before applying power. Use the correct gauge wire for the current it carries. The extra hour spent on clean wiring saves days of debugging later.
+
+The schematic on the next page shows the complete system. Study it before you start, and refer back to it often.
+
 = System Wiring Schematic
 
-Complete wiring diagram showing all major connections.
+#procedure([Reference: complete wiring diagram], time: "reference", difficulty: 3)
 
 #v(0.5em)
 
@@ -166,7 +174,7 @@ Complete wiring diagram showing all major connections.
 
 = CAN Bus Wiring
 
-Daisy-chain all CAN devices together.
+#procedure([Wire CAN bus network], time: "30 min", difficulty: 2)
 
 #v(1em)
 
@@ -236,7 +244,7 @@ Daisy-chain all CAN devices together.
 
 = Motor Phase Wiring
 
-Connect VESC outputs to hub motor phase wires.
+#procedure([Connect motor phase wires], time: "15 min per motor", difficulty: 2)
 
 #v(1em)
 
@@ -301,13 +309,19 @@ Connect VESC outputs to hub motor phase wires.
   Add 50mm extra for service loops. Too tight = strain on connectors.
 ]
 
+#v(0.5em)
+
+#pitfall[
+  Phase wire order doesn't matter for direction (any two can be swapped). But inconsistent colors across all 4 motors makes troubleshooting a nightmare. Pick a convention and stick to it.
+]
+
 #pagebreak()
 
 // =============================================================================
 
 = Signal Wiring
 
-Connect low-voltage signals: USB, GPIO, sensors.
+#procedure([Route USB and signal cables], time: "20 min", difficulty: 1)
 
 #v(1em)
 
@@ -361,7 +375,7 @@ Connect low-voltage signals: USB, GPIO, sensors.
 
 = Cable Management
 
-Organize and secure all wiring for reliability and serviceability.
+#procedure([Secure and organize all wiring], time: "30 min", difficulty: 1)
 
 #v(1em)
 
@@ -427,5 +441,11 @@ Organize and secure all wiring for reliability and serviceability.
   [Service loops at key points],
   [Labels on power cables],
 )
+
+#v(0.5em)
+
+#lesson[
+  Beautiful cable management is great until you need to replace a VESC. Leave enough slack to pull components 10cm out for service without disconnecting everything upstream.
+]
 
 #pagebreak()

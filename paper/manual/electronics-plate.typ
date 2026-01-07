@@ -4,9 +4,15 @@
 // Electronics Plate Section
 // Layout, Drilling, Mounting
 
+= Electronics Plate
+
+All the brains live on one removable plate. The Jetson compute module, four VESC motor controllers, DC-DC converter, and fusing all mount here. When something goes wrong (and eventually it will), you can unbolt four screws, slide the plate out, and work on it at a bench.
+
+The layout is designed for airflow and serviceability. VESCs go near the edges where they can radiate heat. The Jetson sits in the middle with space around it for convection. Connectors face outward so you can plug and unplug without removing the plate.
+
 = Electronics Plate Layout
 
-The electronics plate holds the Jetson, VESCs, DC-DC converter, and fuse.
+#procedure([Reference: plate fabrication], time: "outsource or 1 hr", difficulty: 2)
 
 #v(1em)
 
@@ -100,7 +106,7 @@ The electronics plate holds the Jetson, VESCs, DC-DC converter, and fuse.
 
 = Drilling Guide
 
-Hole positions for mounting electronics to the plate.
+#procedure([Drill mounting holes], time: "30 min", difficulty: 2)
 
 #v(1em)
 
@@ -175,7 +181,7 @@ Hole positions for mounting electronics to the plate.
 
 = Plate Mounting
 
-Attach the electronics plate to the chassis frame.
+#procedure([Mount plate to frame], time: "15 min", difficulty: 1)
 
 #v(1em)
 

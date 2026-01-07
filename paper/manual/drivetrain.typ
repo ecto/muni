@@ -4,9 +4,17 @@
 // Drivetrain Section
 // Motor brackets, Hub motors, Wheel alignment
 
+= Drivetrain
+
+The BVR0 uses skid-steer drive: four independent hub motors, one in each wheel. To turn, the left and right sides spin at different speeds (or opposite directions). It's the same principle as a tank or a Roomba.
+
+Hub motors eliminate chains, belts, gearboxes, and axles. The motor *is* the wheel. This means fewer parts, less maintenance, and no drivetrain to align. The tradeoff is that hub motors are heavier than outrunner motors with belt drive, but for a utility rover that's not a problem.
+
+The motors we use are 350W hoverboard motors. They're mass-produced, cheap (around \$85 each), and rated for exactly the kind of abuse a sidewalk rover will see.
+
 = Motor Bracket Design
 
-Each hub motor requires a mounting bracket to attach to the chassis frame.
+#procedure([Reference: bracket fabrication], time: "outsource or 1 hr", difficulty: 2)
 
 #v(1em)
 
@@ -94,7 +102,7 @@ Each hub motor requires a mounting bracket to attach to the chassis frame.
 
 = Motor Bracket Mounting
 
-Attach motor brackets to the chassis at each corner.
+#procedure([Mount brackets to frame], time: "15 min", difficulty: 1)
 
 #v(1em)
 
@@ -167,7 +175,7 @@ Attach motor brackets to the chassis at each corner.
 
 = Hub Motor Installation
 
-Mount hub motors to the brackets and connect phase wires.
+#procedure([Install hub motors], time: "30 min", difficulty: 2)
 
 #v(1em)
 
@@ -232,13 +240,19 @@ Mount hub motors to the brackets and connect phase wires.
   Do not pinch phase wires between motor and bracket. This can cause shorts.
 ]
 
+#v(0.5em)
+
+#lesson[
+  The first motor install was tight. Really tight. We cross-threaded an M4 bolt and stripped the motor housing. Now we hand-thread every bolt first before using a driver.
+]
+
 #pagebreak()
 
 // =============================================================================
 
 = Wheel Alignment
 
-Verify all wheels are parallel and the rover tracks straight.
+#procedure([Check and adjust wheel alignment], time: "15 min", difficulty: 2)
 
 #v(1em)
 

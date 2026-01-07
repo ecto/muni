@@ -4,9 +4,15 @@
 // Safety Section
 // Hazard zones, Battery safety
 
+= Safety
+
+The BVR0 is a machine, and machines can hurt you. The hazards are real: spinning wheels that don't care about fingers, a battery that can catch fire, a 30kg robot that can pin you against a wall.
+
+None of this is meant to scare you. These hazards are manageable with basic awareness and respect for the machine. The safety protocols in this section come from experience (some of it painful). Follow them.
+
 = Personal Protective Equipment
 
-Required PPE for assembly and maintenance.
+#procedure([PPE requirements by task], time: "reference", difficulty: 1)
 
 #v(1em)
 
@@ -32,7 +38,7 @@ Required PPE for assembly and maintenance.
 
 = Hazard Zones
 
-Areas requiring clearance during operation.
+#procedure([Know the danger zones], time: "reference", difficulty: 1)
 
 #v(1em)
 
@@ -92,7 +98,7 @@ Areas requiring clearance during operation.
 
 = Battery Safety
 
-Lithium battery handling and emergency procedures.
+#procedure([Handle lithium batteries safely], time: "reference", difficulty: 2)
 
 #v(1em)
 

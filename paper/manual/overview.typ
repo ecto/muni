@@ -6,6 +6,10 @@
 
 = Overview
 
+The BVR0 is the first rover in the Muni fleet. It's intentionally simple: a rigid aluminum frame, four hub motors, and enough compute to handle autonomy. No suspension, no steering linkages, no complex mechanisms. Everything that can break has been removed.
+
+The design philosophy is "municipal-grade": it needs to survive Cleveland winters, sidewalk salt, and the occasional collision with a park bench. The 2020 aluminum extrusion frame can be rebuilt with hardware store parts. The hub motors are the same units used in hoverboards and e-scooters (proven, cheap, replaceable). The electronics are mounted on a single plate that slides out for service.
+
 #figure(
   cetz.canvas({
     import cetz.draw: *
@@ -94,6 +98,8 @@
 // =============================================================================
 
 = Specifications
+
+These are the target specifications for a standard BVR0 build. Your rover may vary slightly depending on component sourcing and local modifications.
 
 #grid(
   columns: (1fr, 1fr),

@@ -4,9 +4,19 @@
 // Firmware Section
 // Initial setup, updating bvrd and attachment firmware
 
+= Firmware
+
+The rover runs two firmware stacks: `bvrd` on the Jetson (the main brain), and embedded firmware on tool attachments (ESP32-based).
+
+Most operators never need to touch firmware. It comes pre-flashed on shipped units, and updates are pushed over-the-air. This section is for those building from scratch or doing development work.
+
+If you're comfortable with Linux command lines and embedded toolchains, this will be familiar. If not, follow the steps exactly, and don't skip the verification steps.
+
 = Initial Jetson Setup
 
-First-time setup for a new Jetson Orin NX.
+#procedure([Flash and configure Jetson], time: "45 min", difficulty: 3)
+
+#video-link("https://muni.works/docs/jetson-setup", [Full Setup Walkthrough])
 
 #v(1em)
 
@@ -59,7 +69,7 @@ source ~/.cargo/env
 
 = CAN Bus Setup
 
-Configure the CAN interface for motor control.
+#procedure([Configure CAN interface], time: "10 min", difficulty: 2)
 
 #v(1em)
 
@@ -117,7 +127,7 @@ candump can0
 
 = LiDAR Setup
 
-Configure the Livox Mid-360 LiDAR connection.
+#procedure([Configure LiDAR network], time: "15 min", difficulty: 2)
 
 #v(1em)
 
@@ -174,7 +184,7 @@ cmake .. && make -j4
 
 = bvrd Installation
 
-Install the main rover daemon.
+#procedure([Install rover daemon], time: "15 min", difficulty: 2)
 
 #v(1em)
 
@@ -280,7 +290,7 @@ The rover uses two main firmware components.
 
 = Updating bvrd
 
-Update the main rover daemon on the Jetson.
+#procedure([Deploy firmware updates], time: "5 min", difficulty: 1)
 
 #v(1em)
 
@@ -324,7 +334,7 @@ journalctl -u bvrd -f
 
 = Updating Attachment Firmware
 
-Flash new firmware to ESP32-based attachments.
+#procedure([Flash ESP32 attachments], time: "10 min", difficulty: 2)
 
 #v(1em)
 

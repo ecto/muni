@@ -4,9 +4,15 @@
 // Electronics Section
 // VESCs, Jetson, CAN adapter
 
+= Electronics
+
+The electronics are the nervous system: motor controllers that translate commands into wheel motion, a compute module that runs the autonomy stack, and a CAN bus that ties everything together.
+
+We use VESC motor controllers because they're open-source, powerful, and have a decade of real-world use in electric skateboards and robotics. The Jetson Orin NX handles perception and planning. It's overkill for teleoperation, but essential for autonomous operation.
+
 = VESC Mounting
 
-Mount the four VESC motor controllers on the electronics plate.
+#procedure([Mount motor controllers], time: "20 min", difficulty: 2)
 
 #v(1em)
 
@@ -69,13 +75,19 @@ Mount the four VESC motor controllers on the electronics plate.
 - XT60 connectors recommended
 - Keep power wires short
 
+#v(0.5em)
+
+#pitfall[
+  VESCs generate serious heat under load. Without standoffs for airflow, thermal throttling kicks in after 3 minutes of hard driving.
+]
+
 #pagebreak()
 
 // =============================================================================
 
 = VESC Configuration
 
-Configure each VESC with unique CAN ID and motor parameters.
+#procedure([Set CAN IDs and motor parameters], time: "10 min per VESC", difficulty: 2)
 
 #v(1em)
 
@@ -138,7 +150,7 @@ Configure each VESC with unique CAN ID and motor parameters.
 
 = Jetson Mounting
 
-Mount the Jetson Orin NX compute module.
+#procedure([Install compute module], time: "15 min", difficulty: 2)
 
 #v(1em)
 
@@ -204,13 +216,17 @@ Mount the Jetson Orin NX compute module.
 - bvrd daemon (auto-start on boot)
 - Insta360 SDK for camera
 
+#v(0.5em)
+
+#video-link("https://muni.works/docs/jetson", [Jetson Setup Guide])
+
 #pagebreak()
 
 // =============================================================================
 
 = GPIO Pinout
 
-Jetson GPIO connections for E-Stop and status LEDs.
+#procedure([Wire E-Stop relay], time: "10 min", difficulty: 2)
 
 #v(1em)
 
@@ -274,13 +290,19 @@ Relay coil (-) ──────────┴── Jetson Pin 6 (GND)
 
 The relay is a normally-open (NO) type. When GPIO12 is LOW (default at boot), the relay is open and power is cut to motors. Software must explicitly set GPIO12 HIGH to enable motor power.
 
+#v(0.5em)
+
+#lesson[
+  The first prototype used a normally-closed relay. Boot glitch meant motors got power before software loaded. Now we always use normally-open for fail-safe.
+]
+
 #pagebreak()
 
 // =============================================================================
 
 = USB-CAN Adapter
 
-Connect the Jetson to the CAN bus network.
+#procedure([Connect CAN bus interface], time: "5 min", difficulty: 1)
 
 #v(1em)
 
@@ -334,5 +356,11 @@ candump can0
 - If adapter is at end of CAN bus: enable 120Ω termination
 - If adapter is in middle of chain: disable termination
 - Total bus should have exactly 2 termination resistors
+
+#v(0.5em)
+
+#pitfall[
+  Three termination resistors = 40Ω total = signal reflections = random VESC dropouts. Use a multimeter to verify 60Ω across CAN_H/CAN_L (two 120Ω in parallel).
+]
 
 #pagebreak()

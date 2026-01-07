@@ -4,9 +4,15 @@
 // Maintenance Section
 // Schedule, Troubleshooting, Storage
 
+= Maintenance
+
+A well-maintained rover is a reliable rover. The maintenance tasks are simple: clean it, inspect it, keep the bolts tight and the battery healthy.
+
+The schedule below is based on real-world operation in Cleveland conditions (salt, snow, mud, temperature swings). If you operate in a milder environment, you can extend the intervals. If you're running daily in harsh conditions, shorten them.
+
 = Maintenance Schedule
 
-Preventive maintenance keeps the rover reliable.
+#procedure([Preventive maintenance overview], time: "varies", difficulty: 1)
 
 #v(1em)
 
@@ -75,7 +81,7 @@ Preventive maintenance keeps the rover reliable.
 
 = Troubleshooting
 
-Common issues and solutions.
+#procedure([Diagnose common issues], time: "varies", difficulty: 2)
 
 #v(1em)
 
@@ -111,13 +117,17 @@ bvr motor test <id>
 journalctl -u bvrd -n 100
 ```
 
+#v(0.5em)
+
+#video-link("https://muni.works/docs/troubleshooting", [Troubleshooting Walkthrough])
+
 #pagebreak()
 
 // =============================================================================
 
 = Storage
 
-Proper storage extends component life.
+#procedure([Store rover properly], time: "5 min", difficulty: 1)
 
 #v(1em)
 
