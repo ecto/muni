@@ -1095,6 +1095,7 @@ async fn main() -> Result<()> {
             gps_latitude: gps_state.coord.as_ref().map(|c| c.lat).unwrap_or(0.0),
             gps_longitude: gps_state.coord.as_ref().map(|c| c.lon).unwrap_or(0.0),
             gps_accuracy: gps_state.coord.as_ref().map(|c| c.accuracy).unwrap_or(0.0),
+            ..Default::default()
         };
         drop(gps_state);
         let _ = metrics_tx.send(metrics_snapshot);

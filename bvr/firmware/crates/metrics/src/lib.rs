@@ -303,6 +303,7 @@ mod tests {
             gps_latitude: 37.7749,
             gps_longitude: -122.4194,
             gps_accuracy: 2.5,
+            ..Default::default()
         };
 
         // Just verify it doesn't panic
