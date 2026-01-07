@@ -53,72 +53,67 @@
     author: "Municipal Robotics",
   )
 
-  // Page setup with improved header/footer (landscape for manual, 2-column)
+  // Page setup: Portrait, single-column, generous margins
+  // Right margin extra wide for handwritten notes in print
   set page(
     paper: "us-letter",
-    flipped: true,
-    margin: (x: 0.5in, top: 0.6in, bottom: 0.6in),
-    columns: 2,
+    margin: (left: 0.75in, right: 1.25in, top: 0.75in, bottom: 0.75in),
     numbering: "1",
-    number-align: center,
+    number-align: right,
     header: context {
       if counter(page).get().first() > 2 [
-        #set text(size: 9pt, fill: gray)
-        #title
-        #h(1fr)
-        Municipal Robotics
+        #set text(size: 8pt, fill: gray)
+        #title #h(1fr) Rev #revision
       ]
     },
     footer: context {
       if counter(page).get().first() > 2 [
         #set text(size: 8pt, fill: muni-gray)
-        Rev #revision
+        Municipal Robotics
         #h(1fr)
         #counter(page).display()
-        #h(1fr)
-        #date
       ]
     },
   )
 
-  // Figures span both columns
-  set figure(scope: "parent", placement: auto)
+  // Figures: inline, not floating
+  set figure(placement: none)
 
   // Typography (Berkeley Mono for terminal aesthetic)
-  set text(font: (muni-font, ..muni-font-fallback), size: muni-font-size, tracking: muni-tracking)
-  set par(justify: muni-justify, leading: muni-leading, spacing: 1.2em)
+  set text(font: (muni-font, ..muni-font-fallback), size: 9pt, tracking: muni-tracking)
+  set par(justify: muni-justify, leading: 0.8em, spacing: 1em)
   // No heading numbers for cleaner section titles
   set heading(numbering: none)
 
-  // Level 1 headings: Orange left border, spans both columns
+  // Level 1 headings: Orange left border
   show heading.where(level: 1): it => {
-    colbreak(weak: true)
-    place(scope: "parent", float: true, top, block(
+    v(1em)
+    block(
       width: 100%,
-      inset: (left: 12pt, y: 8pt),
-      stroke: (left: 4pt + muni-orange),
+      inset: (left: 10pt, y: 8pt),
+      stroke: (left: 3pt + muni-orange),
     )[
-      #text(size: 18pt, weight: "bold")[#it.body]
-    ])
-    v(2em)
+      #text(size: 14pt, weight: "bold")[#it.body]
+    ]
+    v(0.5em)
   }
 
   // Level 2 headings
   show heading.where(level: 2): it => {
-    v(1em)
-    text(size: 12pt, weight: "bold")[#it.body]
+    v(0.8em)
+    text(size: 11pt, weight: "bold")[#it.body]
     v(0.2em)
   }
 
   // Level 3 headings
   show heading.where(level: 3): it => {
-    v(0.6em)
-    text(size: 10pt, weight: "bold")[#it.body]
+    v(0.5em)
+    text(size: 9pt, weight: "bold")[#it.body]
     v(0.1em)
   }
 
-  // Code blocks (same font as body, slightly smaller)
-  show raw: set text(font: (muni-font-mono, ..muni-font-fallback), size: 9pt)
+  // Code blocks
+  show raw: set text(font: (muni-font-mono, ..muni-font-fallback), size: 8pt)
   show raw.where(block: true): it => {
     block(
       width: 100%,
@@ -130,50 +125,50 @@
 
   // Cover page
   page(
-    margin: 0.5in,
+    margin: 1in,
     header: none,
     footer: none,
   )[
     #align(center)[
-      #v(1.5in)
+      #v(0.3in)
 
       // Document type (subtle)
-      #text(size: 11pt, fill: gray)[
-        #doc-type
+      #text(size: 9pt, fill: gray, tracking: 0.1em)[
+        #upper(doc-type)
       ]
 
-      #v(0.5in)
+      #v(0.2in)
 
-      // Main title (large, bold)
-      #text(size: 36pt, weight: "bold")[
+      // Main title
+      #text(size: 32pt, weight: "bold")[
         #title
       ]
 
       #if subtitle != none [
-        #v(0.3em)
-        #text(size: 16pt)[#subtitle]
+        #v(0.2em)
+        #text(size: 12pt, fill: muni-gray)[#subtitle]
       ]
 
-      #v(0.5in)
+      #v(0.4in)
 
       // Cover image
       #if cover-image != none [
-        #image(cover-image, width: 80%)
+        #image(cover-image)
       ]
 
       #v(1fr)
 
       // Revision and date
-      #text(size: 11pt, fill: gray)[
+      #text(size: 9pt, fill: gray)[
         Revision #revision
         #h(2em)
         #date
       ]
 
-      #v(0.5in)
+      #v(0.2in)
 
       // Company info
-      #text(size: 11pt)[
+      #text(size: 9pt)[
         *Municipal Robotics* \
         Cleveland, Ohio \
         #link("https://muni.works")[muni.works]
@@ -186,8 +181,8 @@
     header: none,
     footer: none,
   )[
-    #v(0.5in)
-    #text(size: 18pt, weight: "bold")[Contents]
+    #v(0.3in)
+    #text(size: 14pt, weight: "bold")[Contents]
     #v(1em)
     #outline(
       title: none,
@@ -211,11 +206,13 @@
   block(
     width: 100%,
     fill: rgb("#FEF2F2"),
-    stroke: (left: 4pt + muni-danger),
-    inset: (left: 16pt, right: 12pt, y: 12pt),
-    radius: (right: 4pt),
+    stroke: (left: 3pt + muni-danger),
+    inset: (left: 10pt, right: 8pt, y: 8pt),
+    radius: (right: 3pt),
   )[
-    #text(weight: "bold", fill: muni-danger)[⚠ DANGER ] #body
+    #text(size: 8pt)[
+      #text(weight: "bold", fill: muni-danger)[⚠ DANGER ] #body
+    ]
   ]
 }
 
@@ -224,11 +221,13 @@
   block(
     width: 100%,
     fill: rgb("#FFF7ED"),
-    stroke: (left: 4pt + muni-orange),
-    inset: (left: 16pt, right: 12pt, y: 12pt),
-    radius: (right: 4pt),
+    stroke: (left: 3pt + muni-orange),
+    inset: (left: 10pt, right: 8pt, y: 8pt),
+    radius: (right: 3pt),
   )[
-    #text(weight: "bold", fill: muni-orange)[⚠ WARNING ] #body
+    #text(size: 8pt)[
+      #text(weight: "bold", fill: muni-orange)[⚠ WARNING ] #body
+    ]
   ]
 }
 
@@ -237,11 +236,13 @@
   block(
     width: 100%,
     fill: rgb("#EFF6FF"),
-    stroke: (left: 4pt + muni-note),
-    inset: (left: 16pt, right: 12pt, y: 12pt),
-    radius: (right: 4pt),
+    stroke: (left: 3pt + muni-note),
+    inset: (left: 10pt, right: 8pt, y: 8pt),
+    radius: (right: 3pt),
   )[
-    #text(weight: "bold", fill: muni-note)[ℹ NOTE ] #body
+    #text(size: 8pt)[
+      #text(weight: "bold", fill: muni-note)[ℹ NOTE ] #body
+    ]
   ]
 }
 
@@ -250,11 +251,13 @@
   block(
     width: 100%,
     fill: rgb("#F0FDF4"),
-    stroke: (left: 4pt + muni-success),
-    inset: (left: 16pt, right: 12pt, y: 12pt),
-    radius: (right: 4pt),
+    stroke: (left: 3pt + muni-success),
+    inset: (left: 10pt, right: 8pt, y: 8pt),
+    radius: (right: 3pt),
   )[
-    #text(weight: "bold", fill: muni-success)[✓ TIP ] #body
+    #text(size: 8pt)[
+      #text(weight: "bold", fill: muni-success)[✓ TIP ] #body
+    ]
   ]
 }
 
@@ -264,10 +267,11 @@
 
 // Specification table (two columns, clean styling)
 #let spec-table(..args) = {
+  set text(size: 8pt)
   table(
     columns: (1fr, 1fr),
     stroke: 0.5pt + rgb("#e0e0e0"),
-    inset: 8pt,
+    inset: 5pt,
     fill: (_, row) => if row == 0 { rgb("#f8f8f8") } else { white },
     ..args,
   )
@@ -275,10 +279,11 @@
 
 // BOM table (4 columns: Part, Qty, Unit, Total)
 #let bom-table(..args) = {
+  set text(size: 8pt)
   table(
     columns: (2fr, auto, auto, auto),
     stroke: 0.5pt + rgb("#e0e0e0"),
-    inset: 8pt,
+    inset: 5pt,
     fill: (_, row) => if row == 0 { rgb("#f8f8f8") } else { white },
     ..args.pos().enumerate().map(((i, cell)) => {
       if i < 4 { text(weight: "bold")[#cell] } else { cell }
@@ -294,30 +299,30 @@
 #let checkbox(checked: false, body) = {
   let box-style = if checked {
     box(
-      width: 14pt,
-      height: 14pt,
+      width: 10pt,
+      height: 10pt,
       fill: muni-orange,
-      radius: 3pt,
+      radius: 2pt,
       align(center + horizon)[
-        #text(fill: white, size: 10pt, weight: "bold")[✓]
+        #text(fill: white, size: 7pt, weight: "bold")[✓]
       ]
     )
   } else {
     box(
-      width: 14pt,
-      height: 14pt,
-      stroke: 1.5pt + muni-gray,
-      radius: 3pt,
+      width: 10pt,
+      height: 10pt,
+      stroke: 1pt + muni-gray,
+      radius: 2pt,
     )
   }
 
   grid(
     columns: (auto, 1fr),
-    column-gutter: 8pt,
-    row-gutter: 6pt,
+    column-gutter: 6pt,
+    row-gutter: 4pt,
     align: horizon,
     box-style,
-    body,
+    text(size: 8pt)[#body],
   )
 }
 
@@ -326,12 +331,12 @@
   block(
     width: 100%,
     fill: muni-light-gray,
-    inset: 12pt,
-    radius: 4pt,
+    inset: 8pt,
+    radius: 3pt,
   )[
     #stack(
       dir: ttb,
-      spacing: 8pt,
+      spacing: 5pt,
       ..items.pos().map(item => checkbox(checked: false, item))
     )
   ]
@@ -344,12 +349,12 @@
 // Numbered step marker (orange circle with white number)
 #let step(number) = {
   box(
-    width: 24pt,
-    height: 24pt,
+    width: 18pt,
+    height: 18pt,
     fill: muni-orange,
-    radius: 12pt,
+    radius: 9pt,
     align(center + horizon)[
-      #text(fill: white, size: 12pt, weight: "bold")[#number]
+      #text(fill: white, size: 9pt, weight: "bold")[#number]
     ]
   )
 }
@@ -364,4 +369,177 @@
     #text(weight: "bold")[#it.supplement #it.counter.display():]
     #it.body
   ]
+}
+
+// =============================================================================
+// Procedure Headers with Time & Difficulty
+// =============================================================================
+
+// Difficulty indicator (1-3 dots)
+#let difficulty-dots(level) = {
+  stack(
+    dir: ltr,
+    spacing: 2pt,
+    ..range(3).map(i => circle(
+      radius: 3pt,
+      fill: if i < level { muni-orange } else { rgb("#E5E5E5") },
+      stroke: none,
+    ))
+  )
+}
+
+// Procedure header with time estimate and difficulty
+#let procedure(title, time: none, difficulty: none) = {
+  v(0.3em)
+  block(
+    width: 100%,
+    inset: (y: 4pt),
+    stroke: (bottom: 0.5pt + rgb("#E5E5E5")),
+  )[
+    #grid(
+      columns: (1fr, auto, auto),
+      column-gutter: 8pt,
+      align: (left, center, center),
+      text(size: 9pt, fill: muni-gray)[#title],
+      if time != none { text(size: 7pt, fill: muni-gray)[~#time] },
+      if difficulty != none { difficulty-dots(difficulty) },
+    )
+  ]
+  v(0.2em)
+}
+
+// =============================================================================
+// Lessons Learned & Experience Callouts
+// =============================================================================
+
+// "We learned this the hard way" callout
+#let lesson(body) = {
+  block(
+    width: 100%,
+    fill: rgb("#FEFCE8"),
+    stroke: (left: 2pt + rgb("#CA8A04")),
+    inset: (left: 10pt, right: 8pt, y: 6pt),
+    radius: (right: 3pt),
+  )[
+    #text(size: 7pt, style: "italic", fill: rgb("#854D0E"))[
+      "We learned this the hard way:" #body
+    ]
+  ]
+}
+
+// Common mistake / pitfall warning
+#let pitfall(body) = {
+  block(
+    width: 100%,
+    fill: rgb("#FEF3C7"),
+    stroke: (left: 2pt + rgb("#D97706")),
+    inset: (left: 10pt, right: 8pt, y: 6pt),
+    radius: (right: 3pt),
+  )[
+    #text(size: 7pt)[
+      #text(weight: "bold", fill: rgb("#92400E"))[⚡ COMMON MISTAKE ] #body
+    ]
+  ]
+}
+
+// =============================================================================
+// Video Links
+// =============================================================================
+
+// Video link (inline, compact)
+#let video-link(url, caption) = {
+  box(
+    inset: 6pt,
+    radius: 3pt,
+    fill: muni-light-gray,
+    stroke: 0.5pt + rgb("#E5E5E5"),
+  )[
+    #text(size: 7pt, fill: muni-orange)[▶]
+    #h(4pt)
+    #link(url)[#text(size: 7pt)[#caption]]
+  ]
+}
+
+// =============================================================================
+// Before/After Comparison
+// =============================================================================
+
+#let before-after(before-content, after-content, caption: none) = {
+  figure(
+    grid(
+      columns: (1fr, 1fr),
+      column-gutter: 1em,
+      box(
+        width: 100%,
+        stroke: 1pt + rgb("#E5E5E5"),
+        inset: 8pt,
+        radius: 4pt,
+      )[
+        #align(center)[
+          #text(size: 6pt, fill: muni-gray, weight: "bold")[BEFORE]
+        ]
+        #v(0.3em)
+        #before-content
+      ],
+      box(
+        width: 100%,
+        stroke: 1pt + muni-success,
+        inset: 8pt,
+        radius: 4pt,
+      )[
+        #align(center)[
+          #text(size: 6pt, fill: muni-success, weight: "bold")[AFTER]
+        ]
+        #v(0.3em)
+        #after-content
+      ],
+    ),
+    caption: caption,
+  )
+}
+
+// =============================================================================
+// Hardware Reference (1:1 Scale)
+// =============================================================================
+
+// 1:1 scale indicator box
+#let scale-indicator() = {
+  box(
+    inset: 6pt,
+    radius: 4pt,
+    stroke: 1pt + muni-orange,
+    fill: rgb("#FFF7ED"),
+  )[
+    #text(size: 7pt, fill: muni-orange, weight: "bold")[1:1 SCALE]
+    #text(size: 6pt, fill: muni-gray)[ — Print at 100%]
+  ]
+}
+
+// =============================================================================
+// Version History Table
+// =============================================================================
+
+#let version-history(..revisions) = {
+  table(
+    columns: (auto, auto, 1fr),
+    stroke: 0.5pt + rgb("#e0e0e0"),
+    inset: 8pt,
+    fill: (_, row) => if row == 0 { rgb("#f8f8f8") } else { white },
+    [*Rev*], [*Date*], [*Changes*],
+    ..revisions.pos().flatten(),
+  )
+}
+
+// =============================================================================
+// Glossary Entry
+// =============================================================================
+
+#let glossary-entry(term, definition) = {
+  grid(
+    columns: (auto, 1fr),
+    column-gutter: 1em,
+    text(weight: "bold")[#term],
+    text(size: 9pt)[#definition],
+  )
+  v(0.3em)
 }
