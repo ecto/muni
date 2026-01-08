@@ -89,52 +89,64 @@ The mast is intentionally simple: a tube, a clamp, and some brackets. If it gets
 
 #v(1em)
 
-#figure(
-  cetz.canvas({
-    import cetz.draw: *
+#grid(
+  columns: (1fr, 1fr),
+  column-gutter: 2em,
+  [
+    #figure(
+      cetz.canvas({
+        import cetz.draw: *
 
-    // LiDAR top view
-    content((0, 3.5), text(size: 8pt, weight: "bold")[TOP VIEW])
-    circle((0, 1), radius: 1.5, fill: diagram-light, stroke: 1.5pt + diagram-black)
-    content((0, 1), text(size: 8pt)[Mid-360])
+        // TOP VIEW
+        content((0, 4), text(size: 8pt, weight: "bold")[TOP VIEW])
 
-    // FOV indicator
-    line((0, 1), (2.5, 2.5), stroke: 0.5pt + muni-orange)
-    line((0, 1), (2.5, -0.5), stroke: 0.5pt + muni-orange)
-    arc((0, 1), start: 30deg, stop: -30deg, radius: 2, stroke: 1pt + muni-orange)
-    content((3, 1), text(size: 6pt, fill: muni-orange)[360° FOV])
+        // LiDAR body (circle)
+        circle((0, 1.5), radius: 1.8, fill: diagram-light, stroke: 1.5pt + diagram-black)
+        content((0, 1.5), text(size: 8pt, weight: "bold")[Mid-360])
 
-    // Mounting holes
-    for angle in (45deg, 135deg, 225deg, 315deg) {
-      let x = 1.2 * calc.cos(angle)
-      let y = 1 + 1.2 * calc.sin(angle)
-      circle((x, y), radius: 0.1, fill: white, stroke: 0.5pt + diagram-black)
-    }
+        // Mounting holes (4 corners)
+        for (dx, dy) in ((1, 1), (-1, 1), (-1, -1), (1, -1)) {
+          circle((dx * 0.9, 1.5 + dy * 0.9), radius: 0.12, fill: white, stroke: 0.5pt + diagram-black)
+        }
 
-    // Front indicator
-    motion-arrow((0, 2.5), (0, 3))
-    content((0.5, 2.75), text(size: 5pt)[Front])
+        // Front indicator
+        motion-arrow((0, 3.3), (0, 3.9))
+        content((0.6, 3.6), text(size: 5pt)[Front])
 
-    // Side view
-    content((6, 3.5), text(size: 8pt, weight: "bold")[SIDE VIEW])
+        // 360° FOV indicator (dashed circle)
+        circle((0, 1.5), radius: 2.6, stroke: (paint: muni-orange, dash: "dashed", thickness: 1pt))
+        content((0, -1.6), text(size: 6pt, fill: muni-orange)[360° FOV])
+      }),
+      caption: [Top view: full 360° sensing],
+    )
+  ],
+  [
+    #figure(
+      cetz.canvas({
+        import cetz.draw: *
 
-    // LiDAR body
-    rect((4.5, 0.5), (7.5, 1.5), fill: diagram-light, stroke: 1.5pt + diagram-black, radius: 2pt)
-    content((6, 1), text(size: 7pt)[Mid-360])
+        // SIDE VIEW
+        content((0, 4), text(size: 8pt, weight: "bold")[SIDE VIEW])
 
-    // Connector
-    rect((7.5, 0.7), (8, 1.3), fill: diagram-gray, stroke: 0.5pt + diagram-black)
-    content((8.5, 1), text(size: 5pt)[Cable])
+        // LiDAR body
+        rect((-2, 2), (2, 3.2), fill: diagram-light, stroke: 1.5pt + diagram-black, radius: 2pt)
+        content((0, 2.6), text(size: 8pt, weight: "bold")[Mid-360])
 
-    // Mount bracket
-    rect((5, 0), (7, 0.5), fill: diagram-gray, stroke: 1pt + diagram-black)
-    content((6, 0.25), text(size: 5pt)[Bracket])
+        // Connector
+        rect((2, 2.3), (2.7, 2.9), fill: diagram-gray, stroke: 0.5pt + diagram-black)
+        content((3.3, 2.6), text(size: 5pt)[Cable])
 
-    // Pole
-    rect((5.85, -1.5), (6.15, 0), fill: diagram-light, stroke: 1pt + diagram-black)
-    content((6, -1.8), text(size: 6pt)[Pole])
-  }),
-  caption: [LiDAR mounted level with 360° horizontal FOV. Cable routes down pole.],
+        // Mount bracket
+        rect((-1.3, 1.3), (1.3, 2), fill: diagram-gray, stroke: 1pt + diagram-black)
+        content((0, 1.65), text(size: 5pt)[Bracket])
+
+        // Pole
+        rect((-0.3, -0.8), (0.3, 1.3), fill: diagram-light, stroke: 1pt + diagram-black)
+        content((0, -1.2), text(size: 6pt)[Pole])
+      }),
+      caption: [Side view: cable routes down],
+    )
+  ],
 )
 
 #v(1em)

@@ -947,10 +947,12 @@
   rect((x - s * 0.1, y - s * 0.8), (x + s * 0.1, y + s * 0.3),
        fill: diagram-light, stroke: 0.75pt + diagram-black, radius: 1pt)
 
-  // Head (open-end wrench)
-  line((x - s * 0.25, y + s * 0.5), (x - s * 0.1, y + s * 0.3), stroke: 1.5pt + diagram-black)
-  line((x + s * 0.25, y + s * 0.5), (x + s * 0.1, y + s * 0.3), stroke: 1.5pt + diagram-black)
-  arc((x, y + s * 0.5), start: 180deg, stop: 0deg, radius: s * 0.25, stroke: 1.5pt + diagram-black)
+  // Head (open-end wrench) - jawsopening upward
+  line((x - s * 0.25, y + s * 0.7), (x - s * 0.15, y + s * 0.3), stroke: 1.5pt + diagram-black)
+  line((x + s * 0.25, y + s * 0.7), (x + s * 0.15, y + s * 0.3), stroke: 1.5pt + diagram-black)
+  // Connect jaws to handle
+  line((x - s * 0.15, y + s * 0.3), (x - s * 0.1, y + s * 0.3), stroke: 1.5pt + diagram-black)
+  line((x + s * 0.15, y + s * 0.3), (x + s * 0.1, y + s * 0.3), stroke: 1.5pt + diagram-black)
 }
 
 // Tool icon: Multimeter
