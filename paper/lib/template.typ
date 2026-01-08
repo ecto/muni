@@ -81,7 +81,7 @@
 
   // Typography (Berkeley Mono for terminal aesthetic)
   set text(font: (muni-font, ..muni-font-fallback), size: 9pt, tracking: muni-tracking)
-  set par(justify: muni-justify, leading: 0.8em, spacing: 1em)
+  set par(justify: muni-justify, leading: 0.8em, spacing: 1.4em)
   // No heading numbers for cleaner section titles
   set heading(numbering: none)
 
@@ -130,30 +130,30 @@
     footer: none,
   )[
     #align(center)[
-      #v(0.3in)
+      #v(0.2in)
 
       // Document type (subtle)
       #text(size: 9pt, fill: gray, tracking: 0.1em)[
         #upper(doc-type)
       ]
 
-      #v(0.2in)
+      #v(0.15in)
 
       // Main title
-      #text(size: 32pt, weight: "bold")[
+      #text(size: 28pt, weight: "bold")[
         #title
       ]
 
       #if subtitle != none [
         #v(0.2em)
-        #text(size: 12pt, fill: muni-gray)[#subtitle]
+        #text(size: 11pt, fill: muni-gray)[#subtitle]
       ]
 
-      #v(0.4in)
+      #v(0.3in)
 
-      // Cover image
+      // Cover image (constrained width)
       #if cover-image != none [
-        #image(cover-image)
+        #image(cover-image, width: 65%)
       ]
 
       #v(1fr)
@@ -165,7 +165,7 @@
         #date
       ]
 
-      #v(0.2in)
+      #v(0.15in)
 
       // Company info
       #text(size: 9pt)[
