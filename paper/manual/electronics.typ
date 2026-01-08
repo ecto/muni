@@ -203,10 +203,10 @@ We use VESC motor controllers because they're open-source, powerful, and have a 
 
 #spec-table(
   [*Port*], [*Connection*],
-  [USB 3.0 #1], [USB-CAN adapter],
-  [USB 3.0 #2], [USB hub (camera, LTE)],
+  [CAN pins], [CAN transceiver module],
+  [USB 3.0], [USB hub (camera, LTE)],
   [12V DC], [From DC-DC converter],
-  [GPIO], [E-Stop relay control],
+  [GPIO], [Not used (e-stop is hardwired)],
 )
 
 #v(1em)
@@ -218,7 +218,26 @@ We use VESC motor controllers because they're open-source, powerful, and have a 
 
 #v(0.5em)
 
-#video-link("https://muni.works/docs/jetson", [Jetson Setup Guide])
+*Jetson Setup:*
+
+```bash
+# Flash JetPack 6.0 using SDK Manager on host PC
+# After boot, install dependencies:
+sudo apt update && sudo apt install -y can-utils
+pip install pyserial
+
+# Clone firmware repo
+git clone https://github.com/muni-works/muni
+cd muni/bvr/firmware
+
+# Build and install bvrd
+cargo build --release
+sudo cp target/release/bvrd /usr/local/bin/
+sudo cp config/bvrd.service /etc/systemd/system/
+sudo systemctl enable bvrd
+```
+
+Full setup instructions at #link("https://github.com/muni-works/muni/blob/main/bvr/firmware/README.md")[github.com/muni-works/muni].
 
 #pagebreak()
 
@@ -226,123 +245,149 @@ We use VESC motor controllers because they're open-source, powerful, and have a 
 
 = GPIO Pinout
 
-#procedure([Wire E-Stop relay], time: "10 min", difficulty: 2)
+#procedure([Reference: GPIO connections], time: "5 min", difficulty: 1)
 
 #v(1em)
+
+BVR0 uses minimal GPIO: just the CAN interface on the carrier board. The E-stop is wired directly in the power path (not relay-controlled). BVR1 adds GPIO-controlled e-stop relay and watchdog.
 
 #figure(
   cetz.canvas({
     import cetz.draw: *
 
-    // 40-pin header representation
-    content((0, 4), text(size: 8pt, weight: "bold")[40-Pin Header (partial)])
+    // 40-pin header representation (pins 1-20)
+    content((0, 4), text(size: 8pt, weight: "bold")[40-Pin Header (pins 1-20)])
 
-    // Pin rows
+    // Pin rows (10 rows = pins 1-20)
     for i in range(10) {
       let y = 3 - i * 0.5
-      // Left column (odd pins)
+      // Left column (odd pins: 1, 3, 5, ...)
       circle((-0.5, y), radius: 0.15, fill: diagram-light, stroke: 0.5pt + diagram-black)
       content((-1.2, y), text(size: 5pt)[#(i * 2 + 1)])
-      // Right column (even pins)
+      // Right column (even pins: 2, 4, 6, ...)
       circle((0.5, y), radius: 0.15, fill: diagram-light, stroke: 0.5pt + diagram-black)
       content((1.2, y), text(size: 5pt)[#(i * 2 + 2)])
     }
 
-    // Highlight used pins
-    // Pin 32 (GPIO12) - E-Stop
-    circle((0.5, 3 - 7.5 * 0.5), radius: 0.15, fill: muni-danger, stroke: none)
-    line((0.65, 3 - 7.5 * 0.5), (2.5, 3 - 7.5 * 0.5), stroke: 1pt + muni-danger)
-    content((4, 3 - 7.5 * 0.5), text(size: 6pt, fill: muni-danger)[E-Stop Relay])
-
-    // Pin 6 (GND)
-    circle((0.5, 3 - 2.5 * 0.5), radius: 0.15, fill: diagram-black, stroke: none)
-    line((0.65, 3 - 2.5 * 0.5), (2.5, 3 - 2.5 * 0.5), stroke: 1pt + diagram-black)
-    content((3.5, 3 - 2.5 * 0.5), text(size: 6pt)[GND])
-
-    // Pin 1 (3.3V)
+    // Pin 1 (3.3V) - row 0
     circle((-0.5, 3), radius: 0.15, fill: muni-orange, stroke: none)
     line((-0.65, 3), (-2.5, 3), stroke: 1pt + muni-orange)
-    content((-3.5, 3), text(size: 6pt)[3.3V])
+    content((-3.2, 3), text(size: 6pt, fill: muni-orange)[3.3V])
+
+    // Pin 6 (GND) - row 2 (pins 5-6), y = 3 - 2*0.5 = 2.0
+    circle((0.5, 2), radius: 0.15, fill: diagram-black, stroke: none)
+    line((0.65, 2), (2.5, 2), stroke: 1pt + diagram-black)
+    content((3.2, 2), text(size: 6pt)[GND])
+
+    // Pin 2 (5V) - row 0
+    circle((0.5, 3), radius: 0.15, fill: muni-danger, stroke: none)
+    line((0.65, 3), (2.5, 3), stroke: 1pt + muni-danger)
+    content((3.2, 3), text(size: 6pt, fill: muni-danger)[5V])
+
+    // Note about unused pins
+    content((0, -2.5), text(size: 6pt, fill: diagram-gray)[BVR0: No GPIO used. CAN via carrier board.])
   }),
-  caption: [GPIO header. Only pins used by BVR0 are highlighted.],
+  caption: [GPIO header reference. BVR0 uses carrier board CAN, not GPIO.],
 )
 
 #v(1em)
 
-*GPIO Assignments:*
+*BVR0 GPIO Usage:*
+
+BVR0 doesn't use any GPIO pins directly. The CAN bus is provided by the carrier board's dedicated CAN controller (not bit-banged GPIO).
 
 #spec-table(
-  [*Pin*], [*GPIO*], [*Function*], [*Direction*], [*Notes*],
-  [32], [GPIO12], [E-Stop Relay], [Output], [High = relay closed = power on],
-  [6], [GND], [Relay ground], [--], [Common ground],
-  [1], [3.3V], [Status LED], [Power], [Optional status indicator],
+  [*Pin*], [*Function*], [*BVR0*], [*BVR1*],
+  [1], [3.3V], [Unused], [Status LED],
+  [2], [5V], [Unused], [Unused],
+  [6], [GND], [Unused], [E-Stop ground],
+  [32], [GPIO12], [Unused], [E-Stop relay],
 )
 
 #v(1em)
 
-*E-Stop Relay Wiring:*
-
-```
-Jetson Pin 32 (GPIO12) ──┬── Relay coil (+)
-                         │
-Relay coil (-) ──────────┴── Jetson Pin 6 (GND)
-```
-
-The relay is a normally-open (NO) type. When GPIO12 is LOW (default at boot), the relay is open and power is cut to motors. Software must explicitly set GPIO12 HIGH to enable motor power.
-
-#v(0.5em)
-
-#lesson[
-  The first prototype used a normally-closed relay. Boot glitch meant motors got power before software loaded. Now we always use normally-open for fail-safe.
+#note[
+  BVR1 adds e-stop relay on GPIO12. See BVR1 manual for wiring details. The relay is normally-open: GPIO LOW = motors disabled (fail-safe).
 ]
 
 #pagebreak()
 
 // =============================================================================
 
-= USB-CAN Adapter
+= CAN Transceiver
 
-#procedure([Connect CAN bus interface], time: "5 min", difficulty: 1)
+#procedure([Connect CAN bus interface], time: "10 min", difficulty: 1)
 
 #v(1em)
+
+The Jetson carrier board (Seeed reComputer J401 or similar) has CAN controller pins exposed. A CAN transceiver module converts these logic-level signals to the differential CAN bus.
 
 #figure(
   cetz.canvas({
     import cetz.draw: *
 
-    // USB-CAN adapter
-    rect((-2, -0.8), (2, 0.8), fill: diagram-light, stroke: 1.5pt + diagram-black, radius: 4pt)
-    content((0, 0), text(size: 9pt, weight: "bold")[USB-CAN])
+    // Jetson carrier board
+    rect((-5, -1), (-1.5, 1.5), fill: diagram-light, stroke: 1.5pt + diagram-black, radius: 4pt)
+    content((-3.25, 0.8), text(size: 7pt, weight: "bold")[Jetson Carrier])
+    content((-3.25, 0.2), text(size: 6pt)[reComputer J401])
 
-    // USB side
-    line((-2, 0), (-3.5, 0), stroke: 1.5pt + diagram-black)
-    rect((-4, -0.3), (-3.5, 0.3), fill: diagram-gray, stroke: 1pt + diagram-black, radius: 1pt)
-    content((-4.8, 0), text(size: 6pt)[USB])
+    // CAN controller pins
+    circle((-1.8, -0.2), radius: 0.1, fill: diagram-black)
+    circle((-1.8, -0.5), radius: 0.1, fill: diagram-black)
+    content((-2.5, -0.2), text(size: 5pt)[CAN_TX])
+    content((-2.5, -0.5), text(size: 5pt)[CAN_RX])
 
-    // CAN side
-    line((2, 0.3), (3.5, 0.3), stroke: 1pt + diagram-black)
-    line((2, -0.3), (3.5, -0.3), stroke: 1pt + diagram-black)
-    content((4.2, 0.3), text(size: 6pt)[CAN_H])
-    content((4.2, -0.3), text(size: 6pt)[CAN_L])
+    // Transceiver module
+    rect((0.5, -1), (3, 1), fill: diagram-light, stroke: 1.5pt + diagram-black, radius: 4pt)
+    content((1.75, 0.3), text(size: 7pt, weight: "bold")[CAN])
+    content((1.75, -0.3), text(size: 6pt)[Transceiver])
 
-    // Termination switch
-    rect((0.5, -1.5), (1.5, -1), fill: diagram-light, stroke: 0.5pt + diagram-black, radius: 2pt)
-    content((1, -1.25), text(size: 5pt)[120Ω])
-    content((1, -1.8), text(size: 5pt, fill: diagram-gray)[Term. switch])
+    // Logic side wires
+    line((-1.7, -0.2), (0.5, -0.2), stroke: 1pt + diagram-black)
+    line((-1.7, -0.5), (0.5, -0.5), stroke: 1pt + diagram-black)
+
+    // CAN bus side
+    line((3, 0.3), (4.5, 0.3), stroke: 1.5pt + rgb("#22c55e"))
+    line((3, -0.3), (4.5, -0.3), stroke: 1.5pt + rgb("#22c55e"))
+    content((5.2, 0.3), text(size: 6pt, fill: rgb("#22c55e"))[CAN_H])
+    content((5.2, -0.3), text(size: 6pt, fill: rgb("#22c55e"))[CAN_L])
+
+    // Power
+    line((-1.8, 0.8), (0.5, 0.8), stroke: 1pt + muni-danger)
+    content((-2.3, 0.8), text(size: 5pt, fill: muni-danger)[3.3V])
+
+    // GND
+    line((-1.8, -0.8), (0.5, -0.8), stroke: 1pt + diagram-black)
+    content((-2.3, -0.8), text(size: 5pt)[GND])
+
+    // Termination resistor on module
+    rect((1.2, -1.8), (2.3, -1.3), fill: white, stroke: 0.5pt + diagram-black, radius: 2pt)
+    content((1.75, -1.55), text(size: 5pt)[120Ω])
+    content((1.75, -2.1), text(size: 5pt, fill: diagram-gray)[Onboard term.])
   }),
-  caption: [USB-CAN adapter provides CAN bus access from Jetson.],
+  caption: [CAN transceiver connects carrier board CAN pins to differential bus.],
 )
 
 #v(1em)
 
-*Recommended Adapters:*
-- Canable Pro (open source)
-- PEAK PCAN-USB
-- Innomaker USB-CAN
+*Transceiver Modules:*
+- Waveshare SN65HVD230 module
+- Any 3.3V CAN transceiver breakout
+- Often included on carrier board (check your model)
+
+*Wiring:*
+#spec-table(
+  [*Carrier Pin*], [*Transceiver*], [*Notes*],
+  [CAN_TX], [TXD], [Logic level out],
+  [CAN_RX], [RXD], [Logic level in],
+  [3.3V], [VCC], [Power],
+  [GND], [GND], [Common ground],
+)
 
 *Configuration:*
-```
-# Set up CAN interface
+```bash
+# Enable CAN interface (may vary by carrier board)
+sudo modprobe mttcan
 sudo ip link set can0 type can bitrate 500000
 sudo ip link set can0 up
 
@@ -353,14 +398,13 @@ candump can0
 #v(1em)
 
 *Termination:*
-- If adapter is at end of CAN bus: enable 120Ω termination
-- If adapter is in middle of chain: disable termination
-- Total bus should have exactly 2 termination resistors
-
-#v(0.5em)
+- Most transceiver modules have onboard 120Ω termination
+- CAN bus needs exactly 2 termination resistors (one at each end)
+- If transceiver is at bus end: enable termination
+- Verify: measure 60Ω across CAN_H/CAN_L (two 120Ω in parallel)
 
 #pitfall[
-  Three termination resistors = 40Ω total = signal reflections = random VESC dropouts. Use a multimeter to verify 60Ω across CAN_H/CAN_L (two 120Ω in parallel).
+  The reComputer carrier uses the Jetson's native CAN controller (mttcan driver), not a USB adapter. Check your carrier's pinout for CAN_TX/CAN_RX locations.
 ]
 
 #pagebreak()

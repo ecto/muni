@@ -115,10 +115,10 @@
       stroke: none,
       inset: 3pt,
       [#text(fill: muni-orange, weight: "bold")[A]], [Chassis: extrusions, brackets, plate], [\$150],
-      [#text(fill: muni-orange, weight: "bold")[B]], [Drivetrain: motors, VESCs, mounts], [\$800],
+      [#text(fill: muni-orange, weight: "bold")[B]], [Drivetrain: motors, VESCs], [\$830],
       [#text(fill: muni-orange, weight: "bold")[C]], [Electronics: Jetson, CAN, LTE], [\$900],
       [#text(fill: muni-orange, weight: "bold")[D]], [Perception: LiDAR, camera, pole], [\$1,800],
-      [#text(fill: muni-orange, weight: "bold")[E]], [Power: battery, DC-DC, fuse, E-stop], [\$400],
+      [#text(fill: muni-orange, weight: "bold")[E]], [Power: battery, DC-DC, E-stop], [\$400],
       [#text(fill: muni-orange, weight: "bold")[F]], [Hardware: bolts, T-nuts, wire], [\$100],
     )
   ],
@@ -129,13 +129,13 @@
       stroke: none,
       inset: 3pt,
       [Chassis], [\$150],
-      [Drivetrain], [\$800],
+      [Drivetrain], [\$830],
       [Electronics], [\$900],
       [Perception], [\$1,800],
       [Power], [\$400],
       [Hardware], [\$100],
       table.hline(stroke: 0.5pt),
-      [*Total*], [*\$4,150*],
+      [*Total*], [*\$4,180*],
     )
 
     #v(0.3em)
@@ -170,7 +170,7 @@
 
 = Custom Fabricated Parts
 
-These parts require custom fabrication (CNC cutting or laser cutting).
+BVR0 requires *zero* custom fabricated parts.
 
 #v(1em)
 
@@ -178,49 +178,30 @@ These parts require custom fabrication (CNC cutting or laser cutting).
   cetz.canvas({
     import cetz.draw: *
 
-    // Motor bracket
-    rect((-5.5, 0), (-2.5, 2), fill: diagram-light, stroke: 1.5pt + diagram-black, radius: 2pt)
-    content((-4, 1), text(size: 7pt)[Bracket])
-    content((-4, 2.5), text(size: 6pt, weight: "bold")[Motor Bracket ×4])
-
-    // Electronics plate
-    rect((-1, 0), (2, 1.5), fill: diagram-light, stroke: 1.5pt + diagram-black, radius: 2pt)
-    content((0.5, 0.75), text(size: 7pt)[Plate])
-    content((0.5, 2), text(size: 6pt, weight: "bold")[Electronics Plate ×1])
-
-    // Battery tray
-    rect((3.5, 0.2), (6, 1.3), fill: diagram-light, stroke: 1.5pt + diagram-black, radius: 2pt)
-    line((3.5, 0.2), (3.5, 0), stroke: 1pt + diagram-black)
-    line((6, 0.2), (6, 0), stroke: 1pt + diagram-black)
-    content((4.75, 0.75), text(size: 7pt)[Tray])
-    content((4.75, 2), text(size: 6pt, weight: "bold")[Battery Tray ×1])
+    // Big checkmark
+    check-mark((0, 1), size: 1.5)
+    content((0, -0.5), text(size: 10pt, weight: "bold")[No custom parts needed])
   }),
   caption: none,
 )
 
 #v(1em)
 
-*What You'll Receive from SendCutSend:*
+*How BVR0 avoids custom fabrication:*
 
 #spec-table(
-  [*Part*], [*Material*], [*Finish*], [*Notes*],
-  [Motor Bracket (×4)], [3mm 6061-T6 AL], [Raw / deburred], [Requires 90° bend],
-  [Electronics Plate], [6mm 6061-T6 AL], [Raw / deburred], [Ready to drill],
-  [Battery Tray], [2mm 6061-T6 AL], [Raw / deburred], [Requires 4× 90° bends],
+  [*Component*], [*BVR0 Approach*], [*Alternative (BVR1)*],
+  [Motor mounting], [Direct bolt to 2020 T-slot], [Custom brackets],
+  [Battery], [Downtube e-bike battery], [Custom pack + tray],
+  [Electronics], [Tape/zip-tie to chassis], [Custom plate],
 )
 
 #v(1em)
 
-*Bending Notes:*
-- SendCutSend offers bending service (+\$5-10 per part)
-- Or bend yourself with a sheet metal brake
-- Motor brackets: single 90° bend along 80mm edge
-- Battery tray: 4× 90° bends (15mm lips on all sides)
-
-#v(1em)
-
 #note[
-  Order 1-2 extra motor brackets. First attempt at alignment may require adjustment slots to be widened.
+  BVR0 is intentionally scrappy. The goal is to get a working rover with parts you can order today and assemble this weekend. No waiting for laser cutting, no CAD required.
+
+  Once you've proven the concept, BVR1 introduces custom parts for a cleaner, more serviceable build.
 ]
 
 #pagebreak()
@@ -241,11 +222,10 @@ Standard fasteners and hardware used throughout the build.
     #spec-table(
       [*Size*], [*Use*],
       [M3×8], [Electronics mounting],
-      [M4×8], [Motor to bracket],
       [M5×8], [T-nut, light duty],
       [M5×10], [T-nut, standard],
+      [M5×12], [Motor to frame],
       [M5×16], [T-nut, through plate],
-      [M6×12], [Motor bracket to frame],
     )
 
     #v(1em)

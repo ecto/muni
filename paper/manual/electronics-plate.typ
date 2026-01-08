@@ -1,18 +1,18 @@
 #import "../lib/template.typ": *
 #import "../lib/diagrams.typ": *
 
-// Electronics Plate Section
-// Layout, Drilling, Mounting
+// Electronics Section (BVR0)
+// Direct chassis mounting, no custom plate
 
-= Electronics Plate
+= Electronics Mounting
 
-All the brains live on one removable plate. The Jetson compute module, four VESC motor controllers, DC-DC converter, and fusing all mount here. When something goes wrong (and eventually it will), you can unbolt four screws, slide the plate out, and work on it at a bench.
+BVR0 takes the simplest possible approach: mount electronics directly to the chassis using zip ties, electrical tape, and the T-slot channels. No custom plate, no drilling, no fabrication.
 
-The layout is designed for airflow and serviceability. VESCs go near the edges where they can radiate heat. The Jetson sits in the middle with space around it for convection. Connectors face outward so you can plug and unplug without removing the plate.
+This isn't pretty, but it works. The goal of BVR0 is to get a rover running with zero custom parts. You can always upgrade to a proper electronics plate later (see BVR1 manual).
 
-= Electronics Plate Layout
+= Direct Mounting Strategy
 
-#procedure([Reference: plate fabrication], time: "outsource or 1 hr", difficulty: 2)
+#procedure([Mount electronics to chassis], time: "45 min", difficulty: 1)
 
 #v(1em)
 
@@ -20,59 +20,56 @@ The layout is designed for airflow and serviceability. VESCs go near the edges w
   cetz.canvas({
     import cetz.draw: *
 
-    // Plate outline
-    rect((-6, -3.5), (6, 3.5), fill: diagram-light, stroke: 1.5pt + diagram-black, radius: 2pt)
+    // Top view of chassis with electronics positions
+    rect((-5, -4), (5, 4), stroke: 1.5pt + diagram-black, fill: none, radius: 2pt)
 
-    // Dimensions
-    dim-h(-4, -6, 6, "300", offset: 0.8)
-    dim-v(6, -3.5, 3.5, "200", offset: 0.8)
+    // Vertical posts at corners
+    for (x, y) in ((-4.5, 3.5), (4.5, 3.5), (-4.5, -3.5), (4.5, -3.5)) {
+      rect((x - 0.3, y - 0.3), (x + 0.3, y + 0.3), fill: diagram-light, stroke: 1pt + diagram-black)
+    }
 
-    // Mounting holes in corners
+    // VESCs on vertical posts (at each corner)
+    rect((-4.2, 2.2), (-3, 3.2), fill: diagram-light, stroke: 1pt + diagram-black, radius: 2pt)
+    content((-3.6, 2.7), text(size: 5pt)[V-FL])
+
+    rect((3, 2.2), (4.2, 3.2), fill: diagram-light, stroke: 1pt + diagram-black, radius: 2pt)
+    content((3.6, 2.7), text(size: 5pt)[V-FR])
+
+    rect((-4.2, -3.2), (-3, -2.2), fill: diagram-light, stroke: 1pt + diagram-black, radius: 2pt)
+    content((-3.6, -2.7), text(size: 5pt)[V-RL])
+
+    rect((3, -3.2), (4.2, -2.2), fill: diagram-light, stroke: 1pt + diagram-black, radius: 2pt)
+    content((3.6, -2.7), text(size: 5pt)[V-RR])
+    callout-leader((3.6, -2.7), (6, -2.5), "2")
+
+    // Wheels (outside frame)
     for (x, y) in ((-5.5, 3), (5.5, 3), (-5.5, -3), (5.5, -3)) {
-      circle((x, y), radius: 0.2, fill: white, stroke: 1pt + diagram-black)
-      content((x, y), text(size: 5pt)[5.2])
+      circle((x, y), radius: 0.6, stroke: 1pt + diagram-gray, fill: white)
     }
 
-    // Jetson footprint
-    rect((-5, 0.5), (-1.5, 3), stroke: 1pt + diagram-gray, fill: none)
-    content((-3.25, 1.75), text(size: 7pt)[Jetson Orin NX])
-    // Jetson mounting holes
-    for (x, y) in ((-4.7, 0.8), (-1.8, 0.8), (-4.7, 2.7), (-1.8, 2.7)) {
-      circle((x, y), radius: 0.12, fill: white, stroke: 0.5pt + diagram-gray)
-    }
-    callout-leader((-3.25, 1.75), (-7, 2), "1")
+    // Jetson + CAN board (center, on top rail)
+    rect((-2, 2.5), (1, 4), fill: diagram-light, stroke: 1.5pt + diagram-black, radius: 2pt)
+    content((-0.5, 3.5), text(size: 7pt, weight: "bold")[Jetson])
+    content((-0.5, 2.9), text(size: 5pt)[+ CAN])
+    callout-leader((-0.5, 3.2), (-6, 3.5), "1")
 
-    // VESCs footprint
-    for i in range(4) {
-      let x = -4.5 + i * 2.5
-      rect((x, -2.8), (x + 2, -0.8), stroke: 1pt + diagram-gray, fill: none)
-      content((x + 1, -1.8), text(size: 6pt)[VESC #(i+1)])
-      // VESC mounting holes
-      circle((x + 0.3, -2.5), radius: 0.1, fill: white, stroke: 0.5pt + diagram-gray)
-      circle((x + 1.7, -2.5), radius: 0.1, fill: white, stroke: 0.5pt + diagram-gray)
-      circle((x + 0.3, -1.1), radius: 0.1, fill: white, stroke: 0.5pt + diagram-gray)
-      circle((x + 1.7, -1.1), radius: 0.1, fill: white, stroke: 0.5pt + diagram-gray)
-    }
-    callout-leader((-2.5, -1.8), (-7, -2), "2")
+    // DC-DC (on frame somewhere central)
+    rect((1.5, 2.5), (2.8, 4), fill: diagram-light, stroke: 1pt + diagram-black, radius: 2pt)
+    content((2.15, 3.25), text(size: 5pt)[DC-DC])
+    callout-leader((2.15, 3.25), (6, 3.5), "3")
 
-    // DC-DC
-    rect((2, 0.5), (4, 2), stroke: 1pt + diagram-gray, fill: none)
-    content((3, 1.25), text(size: 6pt)[DC-DC])
-    callout-leader((3, 1.25), (7, 1), "3")
+    // Battery (center spine)
+    rect((-1.5, -1), (1.5, 1), fill: diagram-light, stroke: 1pt + diagram-gray, radius: 2pt)
+    content((0, 0), text(size: 6pt)[Battery])
 
-    // Fuse holder
-    rect((4.5, 0.5), (5.5, 2), stroke: 1pt + diagram-gray, fill: none)
-    content((5, 1.25), text(size: 5pt)[Fuse])
-    callout-leader((5, 1.25), (7, 2.5), "4")
-
-    // USB hub area
-    rect((0.5, 1), (1.8, 2.5), stroke: 0.5pt + diagram-gray, fill: none)
-    content((1.15, 1.75), text(size: 5pt)[USB])
+    // Direction
+    motion-arrow((0, 1.5), (0, 2.2))
+    content((0.5, 1.8), text(size: 5pt)[Front])
   }),
-  caption: none,
+  caption: [VESCs at corners (on vertical posts), Jetson and DC-DC on top rail.],
 )
 
-#v(0.5em)
+#v(1em)
 
 #grid(
   columns: (1fr, 1fr),
@@ -83,20 +80,17 @@ The layout is designed for airflow and serviceability. VESCs go near the edges w
       columns: (auto, 1fr),
       stroke: none,
       inset: 3pt,
-      [#text(fill: muni-orange, weight: "bold")[1]], [Jetson Orin NX (69×45mm)],
-      [#text(fill: muni-orange, weight: "bold")[2]], [VESC 6.7 ×4 (60×40mm each)],
+      [#text(fill: muni-orange, weight: "bold")[1]], [Jetson Orin NX + CAN board],
+      [#text(fill: muni-orange, weight: "bold")[2]], [VESC 6.7 ×4 (one per corner)],
       [#text(fill: muni-orange, weight: "bold")[3]], [DC-DC 48V→12V],
-      [#text(fill: muni-orange, weight: "bold")[4]], [100A fuse holder],
     )
   ],
   [
-    *Plate Material:*
-    - 6mm (1/4") 6061-T6 aluminum (recommended)
-    - Or: 5mm acrylic (lighter, less heat dissipation)
-    - Or: 3mm FR4/G10 (good insulator)
-
-    #v(0.3em)
-    *CAD File:* `bvr/cad/electronics-plate.dxf`
+    *Mounting Methods:*
+    - Electrical tape (quick, repositionable)
+    - Zip ties through T-slot channels
+    - Velcro strips (for DC-DC)
+    - Double-sided foam tape (vibration dampening)
   ]
 )
 
@@ -104,119 +98,57 @@ The layout is designed for airflow and serviceability. VESCs go near the edges w
 
 // =============================================================================
 
-= Drilling Guide
+= Jetson + CAN Board
 
-#procedure([Drill mounting holes], time: "30 min", difficulty: 2)
+#procedure([Mount Jetson compute module], time: "15 min", difficulty: 1)
 
 #v(1em)
+
+The Jetson Orin NX sits on a carrier board with an integrated CAN interface. This eliminates the need for a separate USB-CAN adapter.
 
 #figure(
   cetz.canvas({
     import cetz.draw: *
 
-    // Grid with coordinates
-    // Origin at center of plate
+    // Side view of Jetson mounted to rail
+    // Extrusion
+    rect((-3, 0), (3, 0.5), fill: diagram-light, stroke: 1.5pt + diagram-black)
+    content((0, 0.25), text(size: 6pt)[2020 Rail])
 
-    // Plate outline
-    rect((-6, -4), (6, 4), stroke: 1pt + diagram-black, fill: diagram-light)
+    // Foam tape layer
+    rect((-2, 0.5), (2, 0.7), fill: rgb("#94a3b8"), stroke: 0.5pt + diagram-black)
+    content((0, 0.6), text(size: 4pt, fill: white)[Foam tape])
 
-    // Grid lines
-    for x in range(-5, 6) {
-      line((x, -4), (x, 4), stroke: 0.25pt + diagram-gray)
-    }
-    for y in range(-3, 4) {
-      line((-6, y), (6, y), stroke: 0.25pt + diagram-gray)
-    }
+    // Carrier board
+    rect((-2.5, 0.7), (2.5, 1), fill: diagram-light, stroke: 1pt + diagram-black)
+    content((0, 0.85), text(size: 5pt)[Carrier board])
 
-    // Origin marker
-    circle((0, 0), radius: 0.1, fill: muni-orange)
-    content((0.5, 0.3), text(size: 5pt, fill: muni-orange)[0,0])
+    // Jetson module
+    rect((-1.5, 1), (1.5, 1.8), fill: diagram-black, stroke: 1pt + diagram-black, radius: 2pt)
+    content((0, 1.4), text(size: 6pt, fill: white)[Jetson Orin NX])
 
-    // Corner mounting holes (5.2mm for M5 clearance)
-    let corners = ((-5.5, 3.5), (5.5, 3.5), (-5.5, -3.5), (5.5, -3.5))
-    for (x, y) in corners {
-      circle((x, y), radius: 0.25, fill: white, stroke: 1.5pt + diagram-black)
-    }
+    // CAN board (stacked or adjacent)
+    rect((2.8, 0.7), (4.2, 1.5), fill: diagram-light, stroke: 1pt + diagram-black, radius: 2pt)
+    content((3.5, 1.1), text(size: 5pt)[CAN])
 
-    // Jetson holes (M3, 3.2mm)
-    let jetson_holes = ((-4.5, 2.5), (-2, 2.5), (-4.5, 1), (-2, 1))
-    for (x, y) in jetson_holes {
-      circle((x, y), radius: 0.15, fill: white, stroke: 1pt + muni-orange)
-    }
-
-    // VESC holes (M3, 3.2mm) - just show pattern for one
-    let vesc_pattern = ((0.3, 0.3), (1.7, 0.3), (0.3, 1.2), (1.7, 1.2))
-    for (dx, dy) in vesc_pattern {
-      // VESC 1
-      circle((-4.7 + dx, -2.8 + dy), radius: 0.12, fill: white, stroke: 1pt + diagram-gray)
-    }
-
-    // Legend
-    circle((-5, -5.5), radius: 0.25, fill: white, stroke: 1.5pt + diagram-black)
-    content((-3.5, -5.5), text(size: 6pt)[5.2mm (M5 clearance)])
-
-    circle((-0.5, -5.5), radius: 0.15, fill: white, stroke: 1pt + muni-orange)
-    content((1.2, -5.5), text(size: 6pt)[3.2mm (M3 clearance)])
-
-    // Scale
-    dim-h(-6.5, -1, 0, "10mm grid", offset: 0)
+    // Electrical tape straps
+    line((-2.5, 0.3), (-2.5, 1.8), stroke: 2pt + muni-orange)
+    line((2.5, 0.3), (2.5, 1.8), stroke: 2pt + muni-orange)
+    content((0, 2.2), text(size: 6pt, fill: muni-orange)[Electrical tape straps])
   }),
-  caption: [Hole positions. Grid squares = 10mm. Origin at plate center.],
+  caption: [Jetson mounted with foam tape and electrical tape straps.],
 )
 
 #v(1em)
 
-*Drill Sizes:*
-#spec-table(
-  [*Hole Type*], [*Drill Size*], [*Purpose*],
-  [M5 clearance], [5.2mm], [Plate mounting to frame],
-  [M3 clearance], [3.2mm], [Electronics mounting],
-  [M3 tap], [2.5mm], [If threading aluminum],
-  [M4 clearance], [4.2mm], [Larger components],
-)
+*Mounting Steps:*
 
-#pagebreak()
-
-// =============================================================================
-
-= Plate Mounting
-
-#procedure([Mount plate to frame], time: "15 min", difficulty: 1)
-
-#v(1em)
-
-#figure(
-  cetz.canvas({
-    import cetz.draw: *
-
-    // Cross-section view of plate mounting
-
-    // Extrusion (cross section)
-    extrusion-end((0, 0), size: 1.2)
-    content((0, -1.5), text(size: 7pt)[2020 Extrusion])
-
-    // T-nut in slot
-    rect((-0.15, 0.4), (0.15, 0.6), fill: diagram-gray, stroke: 0.5pt + diagram-black)
-    content((0.8, 0.5), text(size: 5pt)[T-Nut])
-
-    // Bolt coming down
-    line((0, 0.6), (0, 1.5), stroke: 1.5pt + diagram-black)
-    rect((-0.2, 1.5), (0.2, 1.7), fill: diagram-black)
-    content((0.8, 1.6), text(size: 5pt)[M5×16])
-
-    // Standoff
-    rect((-0.15, 1.7), (0.15, 2.5), fill: diagram-light, stroke: 1pt + diagram-black)
-    content((0.8, 2.1), text(size: 5pt)[Standoff])
-
-    // Plate
-    rect((-1.5, 2.5), (1.5, 2.7), fill: diagram-light, stroke: 1pt + diagram-black)
-    content((0, 3), text(size: 7pt)[Electronics Plate])
-
-    // Dimension
-    dim-v(-1, 1.7, 2.5, "15-25", offset: 0.3)
-  }),
-  caption: [Cross-section: standoff mounting provides airflow under plate.],
-)
++ Clean the extrusion surface with isopropyl alcohol
++ Apply double-sided foam tape to carrier board bottom
++ Press carrier board onto top of frame rail
++ Wrap electrical tape around rail and carrier (2-3 wraps)
++ Connect CAN board to carrier via ribbon cable or headers
++ Route power and data cables away from tape
 
 #v(1em)
 
@@ -224,33 +156,218 @@ The layout is designed for airflow and serviceability. VESCs go near the edges w
   columns: (1fr, 1fr),
   column-gutter: 2em,
   [
-    *Mounting Hardware (per corner):*
-    - 1× M5×16 or M5×20 bolt
-    - 1× M5 T-nut (drop-in or slide-in)
-    - 1× M5 standoff (15-25mm height)
-    - 1× M5 nut or second standoff
+    *Carrier Board with CAN:*
+    - Waveshare or Seeed carrier with CAN
+    - Or: separate CAN HAT/board
+    - CAN-H, CAN-L, GND to VESC bus
+    - 120Ω termination at end of bus
   ],
   [
-    *Standoff Height:*
-    - 15mm: Minimal, tight fit
-    - 20mm: Recommended (good airflow)
-    - 25mm: Maximum cable clearance
-
-    Use same height at all 4 corners.
+    *Power:*
+    - 12V from DC-DC converter
+    - Barrel jack or screw terminal
+    - ~3A average, 5A peak
   ]
 )
 
 #v(1em)
 
-*Installation:*
-+ Insert T-nuts into top extrusion slots
-+ Thread M5 bolts through standoffs
-+ Position plate on standoffs
-+ Align with T-nuts
-+ Tighten to 4 Nm
+#lesson[
+  Electrical tape sounds janky, but it's actually great for prototyping. It's repositionable, leaves no residue, and you can see exactly where everything is. Once the layout is proven, upgrade to proper mounts.
+]
+
+#pagebreak()
+
+// =============================================================================
+
+= VESC Mounting
+
+#procedure([Mount motor controllers], time: "15 min", difficulty: 1)
+
+#v(1em)
+
+Each VESC mounts directly to the vertical post next to its wheel. This keeps phase wires as short as possible: the motor is right there.
+
+#figure(
+  cetz.canvas({
+    import cetz.draw: *
+
+    // Isometric-ish view of corner with VESC on vertical post
+    content((0, 4.5), text(size: 8pt, weight: "bold")[CORNER DETAIL])
+
+    // Vertical post
+    rect((-0.3, -2), (0.3, 3), fill: diagram-light, stroke: 1.5pt + diagram-black)
+    content((0, 3.4), text(size: 6pt)[Vertical post])
+
+    // VESC mounted on post
+    rect((0.3, 0), (2.3, 1.8), fill: diagram-light, stroke: 1.5pt + diagram-black, radius: 2pt)
+    content((1.3, 1.2), text(size: 7pt, weight: "bold")[VESC])
+    content((1.3, 0.6), text(size: 6pt)[FL])
+
+    // Tape/velcro indicator
+    rect((0.3, 0.5), (0.5, 1.3), fill: muni-orange, stroke: none)
+    content((0.4, 1.8), text(size: 5pt, fill: muni-orange)[Tape])
+
+    // Motor (wheel)
+    circle((0, -3.5), radius: 1.2, stroke: 2pt + diagram-black, fill: white)
+    content((0, -3.5), text(size: 6pt)[Motor])
+
+    // Phase wires (very short!)
+    line((1.3, 0), (1.3, -0.5), stroke: 1.5pt + rgb("#3b82f6"))
+    line((1.3, -0.5), (0.5, -2.5), stroke: 1.5pt + rgb("#3b82f6"))
+    content((2, -1), text(size: 5pt, fill: rgb("#3b82f6"))[Phase])
+
+    // Power wire (longer, to bus)
+    line((2.3, 0.9), (3.5, 0.9), stroke: 2pt + diagram-accent)
+    content((4.2, 0.9), text(size: 5pt, fill: diagram-accent)[48V])
+
+    // CAN wire
+    line((2.3, 1.4), (3.5, 1.4), stroke: 1pt + rgb("#22c55e"))
+    content((4.2, 1.4), text(size: 5pt, fill: rgb("#22c55e"))[CAN])
+  }),
+  caption: [VESC on vertical post, directly adjacent to its motor. Minimal phase wire length.],
+)
+
+#v(1em)
+
+*Mounting:*
+- Electrical tape or Velcro to vertical post
+- VESC flat against post, heatsink facing out
+- Position at comfortable height for wiring
+- One VESC per corner (4 total)
+
+*Wiring:*
+- Phase wires: direct to motor (< 15cm ideal)
+- 48V power: runs from central bus to each corner
+- CAN: daisy-chain around frame perimeter
+- Termination: 120Ω at first and last VESC
+
+#v(1em)
+
+#lesson[
+  Mounting VESCs at the corners means longer power runs but shorter phase wires. Phase wires carry high-frequency switching currents: keeping them short reduces EMI and heat. The 48V DC bus doesn't care about a few extra centimeters.
+]
 
 #note[
-  Leave plate loose until all electronics are mounted. Easier access.
+  Label each VESC with its motor position (FL, FR, RL, RR). You'll thank yourself during debugging.
+]
+
+#pagebreak()
+
+// =============================================================================
+
+= DC-DC Converter
+
+#procedure([Mount voltage regulator], time: "10 min", difficulty: 1)
+
+#v(1em)
+
+#figure(
+  cetz.canvas({
+    import cetz.draw: *
+
+    // DC-DC mounted to vertical rail
+    // Vertical extrusion
+    rect((-0.3, -2), (0.3, 3), fill: diagram-light, stroke: 1.5pt + diagram-black)
+    content((0, 3.4), text(size: 6pt)[Frame rail])
+
+    // DC-DC
+    rect((0.5, -0.5), (3, 1.5), fill: diagram-light, stroke: 1.5pt + diagram-black, radius: 2pt)
+    content((1.75, 0.8), text(size: 8pt, weight: "bold")[DC-DC])
+    content((1.75, 0.2), text(size: 6pt)[48V→12V])
+
+    // Velcro attachment
+    rect((0.3, 0), (0.5, 1), fill: muni-orange, stroke: none)
+    content((0.4, 1.5), text(size: 5pt, fill: muni-orange)[Velcro])
+
+    // Input/output wires
+    line((3, 1), (4, 1), stroke: 2pt + diagram-accent)
+    content((4.5, 1), text(size: 5pt)[48V in])
+    line((3, 0), (4, 0), stroke: 1.5pt + rgb("#3b82f6"))
+    content((4.5, 0), text(size: 5pt)[12V out])
+  }),
+  caption: [DC-DC converter attached to frame rail with Velcro.],
+)
+
+#v(1em)
+
+*Mounting Tips:*
+- Velcro strips work well for DC-DC (easy removal)
+- Route high-current wires away from signal wires
+- Leave slack for service access
+- Position near Jetson to minimize 12V wire runs
+
+#v(1em)
+
+#warning[
+  Don't mount the DC-DC upside down. The heatsink needs to face up or outward for convection cooling.
+]
+
+#note[
+  BVR0 has no inline fuse. The battery's internal BMS provides overcurrent protection. This is acceptable for a prototype but not recommended for production. BVR1 adds proper fusing.
+]
+
+#pagebreak()
+
+// =============================================================================
+
+= Wiring Overview
+
+#procedure([Route and secure cables], time: "30 min", difficulty: 2)
+
+#v(1em)
+
+#figure(
+  cetz.canvas({
+    import cetz.draw: *
+
+    // Simplified wiring diagram
+    content((0, 4), text(size: 9pt, weight: "bold")[Cable Routing])
+
+    // Power (red/orange)
+    line((-4, 2), (4, 2), stroke: 3pt + diagram-accent)
+    content((-5, 2), text(size: 6pt, fill: diagram-accent)[48V])
+
+    // 12V (blue)
+    line((-4, 1), (2, 1), stroke: 2pt + rgb("#3b82f6"))
+    content((-5, 1), text(size: 6pt, fill: rgb("#3b82f6"))[12V])
+
+    // CAN (green)
+    line((-4, 0), (4, 0), stroke: 1.5pt + rgb("#22c55e"))
+    content((-5, 0), text(size: 6pt, fill: rgb("#22c55e"))[CAN])
+
+    // Phase wires (gray, multiple)
+    for x in (-3, -1, 1, 3) {
+      line((x, 2), (x, 3), stroke: 2pt + diagram-gray)
+    }
+    content((0, 3.3), text(size: 6pt)[Phase wires to motors])
+
+    // Callouts
+    content((5, 2), text(size: 5pt)[8-10 AWG])
+    content((5, 1), text(size: 5pt)[14-18 AWG])
+    content((5, 0), text(size: 5pt)[22 AWG twisted])
+  }),
+  caption: [Keep power, 12V, and signal cables separated.],
+)
+
+#v(1em)
+
+*Cable Management:*
+- Bundle power cables together (red/black)
+- Bundle CAN cables separately (twisted pair)
+- Use split loom or spiral wrap for protection
+- Zip tie to frame at regular intervals
+- Leave service loops near connectors
+
+#v(1em)
+
+*Cable Separation:*
+- Keep CAN bus away from motor phase wires (EMI)
+- Cross power and signal cables at 90° angles
+- Don't run cables over hot components
+
+#note[
+  Messy wiring works for BVR0 prototyping. But label everything. Future you will appreciate it.
 ]
 
 #pagebreak()

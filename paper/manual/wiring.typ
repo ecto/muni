@@ -33,21 +33,16 @@ The schematic on the next page shows the complete system. Study it before you st
     line((-6, 4), (-6, 3.2), stroke: 2pt + diagram-accent)
     content((-5.2, 3.6), text(size: 5pt)[XT90])
 
-    // Fuse
-    rect((-6.4, 2.7), (-5.6, 3.2), fill: rgb("#fbbf24"), stroke: 1pt + diagram-black, radius: 2pt)
-    content((-6, 2.95), text(size: 5pt)[100A])
-
-    // E-Stop relay
-    line((-6, 2.7), (-6, 2.2), stroke: 2pt + diagram-accent)
-    rect((-6.5, 1.7), (-5.5, 2.2), fill: muni-danger, stroke: 1pt + diagram-black, radius: 2pt)
-    content((-6, 1.95), text(size: 5pt, fill: white)[E-STOP])
-
-    // E-Stop button connection
-    line((-5.5, 1.95), (-4.5, 1.95), stroke: 1pt + diagram-gray)
-    circle((-4.2, 1.95), radius: 0.25, fill: muni-danger, stroke: 1pt + diagram-black)
+    // E-Stop switch (direct, hardwired)
+    rect((-6.4, 2.5), (-5.6, 3.2), fill: muni-danger, stroke: 1pt + diagram-black, radius: 2pt)
+    content((-6, 2.85), text(size: 5pt, fill: white)[E-STOP])
+    // Button symbol
+    circle((-4.2, 2.85), radius: 0.25, fill: muni-danger, stroke: 1pt + diagram-black)
+    line((-5.6, 2.85), (-4.5, 2.85), stroke: 1pt + diagram-gray)
+    content((-4.2, 2.4), text(size: 4pt)[Button])
 
     // Power bus
-    line((-6, 1.7), (-6, 1), stroke: 2pt + diagram-accent)
+    line((-6, 2.5), (-6, 1), stroke: 2pt + diagram-accent)
     rect((-7, 0.7), (-2, 1), fill: diagram-accent, stroke: none, radius: 2pt)
     content((-4.5, 0.85), text(size: 6pt, fill: white, weight: "bold")[48V BUS])
 
@@ -94,16 +89,11 @@ The schematic on the next page shows the complete system. Study it before you st
     line((0.5, 4.25), (1.5, 4.25), stroke: 1.5pt + rgb("#3b82f6"))
     content((0.8, 1.5), text(size: 5pt, fill: rgb("#3b82f6"))[12V])
 
-    // GPIO to E-Stop
-    line((1.5, 3.7), (0, 3.7), stroke: 1pt + muni-danger)
-    line((0, 3.7), (0, 1.95), stroke: 1pt + muni-danger)
-    line((0, 1.95), (-4.2, 1.95), stroke: 1pt + muni-danger)
-    content((0.3, 2.8), text(size: 4pt, fill: muni-danger)[GPIO12])
-
-    // USB ports
-    content((5.2, 4.7), text(size: 5pt)[USB-CAN])
+    // CAN transceiver (on carrier board)
+    content((5.2, 4.7), text(size: 5pt)[CAN])
     line((4.5, 4.7), (5.8, 4.7), stroke: 1pt + diagram-black)
 
+    // USB ports
     content((5.2, 4.3), text(size: 5pt)[USB Hub])
     line((4.5, 4.3), (5.8, 4.3), stroke: 1pt + diagram-black)
 
@@ -334,40 +324,41 @@ The schematic on the next page shows the complete system. Study it before you st
     content((-3.5, 1.5), text(size: 8pt, weight: "bold")[Jetson])
 
     // USB ports
-    for (i, label) in ((0.8, "USB-CAN"), (0.2, "Camera"), (-0.4, "LTE"), (-1, "USB Hub")) {
+    for (i, label) in ((0.8, "Camera"), (0.2, "LTE"), (-0.4, "USB Hub")) {
       rect((-2, i - 0.2), (-1.5, i + 0.2), fill: diagram-gray, stroke: 0.5pt + diagram-black)
       line((-1.5, i), (0, i), stroke: 1pt + diagram-black)
       content((1.5, i), text(size: 6pt)[#label])
     }
 
-    // GPIO
-    rect((-2, -1.6), (-1.5, -1.2), fill: diagram-gray, stroke: 0.5pt + diagram-black)
-    line((-1.5, -1.4), (0, -1.4), stroke: 1pt + muni-danger)
-    content((1.5, -1.4), text(size: 6pt)[E-Stop GPIO])
+    // CAN transceiver (on carrier board)
+    rect((-2, -1.1), (-1.5, -0.7), fill: diagram-gray, stroke: 0.5pt + diagram-black)
+    line((-1.5, -0.9), (0, -0.9), stroke: 1pt + muni-orange)
+    content((1.5, -0.9), text(size: 6pt)[CAN])
 
     // Ethernet
     rect((-5, -1.6), (-4.5, -1.2), fill: diagram-gray, stroke: 0.5pt + diagram-black)
     line((-4.5, -1.4), (-6, -1.4), stroke: 1pt + diagram-black)
     content((-6.8, -1.4), text(size: 6pt)[LiDAR])
   }),
-  caption: [Jetson connections. USB for peripherals, GPIO for E-Stop, Ethernet for LiDAR.],
+  caption: [Jetson connections. USB for peripherals, CAN for VESCs, Ethernet for LiDAR.],
 )
 
 #v(1em)
 
-*USB Allocation:*
+*Port Allocation:*
 #spec-table(
   [*Port*], [*Device*], [*Cable*],
-  [USB 3.0 #1], [USB-CAN adapter], [USB-A to adapter],
-  [USB 3.0 #2], [USB Hub], [USB-A to hub],
+  [CAN pins], [CAN transceiver → VESCs], [JST → bus],
+  [USB 3.0 #1], [USB Hub], [USB-A to hub],
   [Hub Port 1], [Insta360 X4], [USB-C],
   [Hub Port 2], [LTE modem], [USB-A],
+  [Ethernet], [Livox LiDAR], [RJ45],
 )
 
-*GPIO:*
-- Pin for E-Stop relay control
-- Active-high: GPIO high = relay closed = power on
-- On Jetson startup: default low = safe state
+*E-Stop (BVR0):*
+- Hardwired switch on sensor mast
+- Wired in series with motor power
+- No GPIO control (direct disconnect)
 
 #pagebreak()
 

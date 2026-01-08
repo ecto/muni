@@ -122,54 +122,41 @@ The key habit is consistency. Use the same startup sequence every time. Check th
 
 #v(0.5em)
 
-#lesson[
-  One field test ended with a dead battery mid-session. The Jetson filesystem corrupted and needed a full reflash. Now we monitor voltage religiously and shut down at 42V.
-]
-
 #pagebreak()
 
 // =============================================================================
 
 = Tool Attachment
 
-#procedure([Attach modular tools], time: "2 min", difficulty: 1)
+#procedure([Attach tools to chassis], time: "15 min", difficulty: 1)
 
 #v(1em)
+
+BVR0 uses direct bolt mounting for tools: no quick-release, no modular interface. Tools attach to the 2020 extrusion frame using T-nuts and bolts, just like everything else on the rover.
 
 #figure(
   cetz.canvas({
     import cetz.draw: *
 
-    // Three-step process
-    let pw = 4.5
-    let ph = 3
+    // Rover frame (top view)
+    rect((-4, -2), (4, 2), stroke: 1.5pt + diagram-black, fill: diagram-light, radius: 2pt)
+    content((0, 0), text(size: 8pt, weight: "bold")[BVR0 Frame])
 
-    // Step 1: Approach
-    step-panel((0, 0), size: (pw, ph), step-num: 1, title: "Align")
-    rect((0.5, 0.5), (2, 2.2), stroke: 1pt + diagram-black, radius: 2pt)
-    content((1.25, 1.35), text(size: 6pt)[Rover])
-    rect((2.8, 0.5), (4.3, 2.2), stroke: 1pt + diagram-black, radius: 2pt)
-    content((3.55, 1.35), text(size: 6pt)[Tool])
-    motion-arrow((2.2, 1.35), (2.6, 1.35))
+    // Tool mounting area (front)
+    rect((-3, 2), (3, 3.5), stroke: 1.5pt + diagram-black, fill: white, radius: 2pt)
+    content((0, 2.75), text(size: 7pt)[Tool (e.g., plow)])
 
-    panel-arrow-h((0, 0), from-size: (pw, ph), gap: 0.5)
+    // T-nuts and bolts
+    for x in (-2, 0, 2) {
+      circle((x, 2), radius: 0.15, fill: diagram-black)
+    }
+    content((0, 1.6), text(size: 5pt)[M5 bolts + T-nuts])
 
-    // Step 2: Connect mechanical
-    step-panel((pw + 0.5, 0), size: (pw, ph), step-num: 2, title: "Latch")
-    rect((pw + 1, 0.5), (pw + 4, 2.2), stroke: 1pt + diagram-black, radius: 2pt)
-    line((pw + 2.5, 0.5), (pw + 2.5, 2.2), stroke: 0.5pt + diagram-gray)
-    rect((pw + 2.3, 1.5), (pw + 2.7, 1.9), fill: muni-success, stroke: none, radius: 2pt)
-    content((pw + 2.5, 2.5), text(size: 5pt, fill: muni-success)[Click!])
-
-    panel-arrow-h((pw + 0.5, 0), from-size: (pw, ph), gap: 0.5)
-
-    // Step 3: Connect electrical
-    step-panel((2 * (pw + 0.5), 0), size: (pw, ph), step-num: 3, title: "Connect")
-    rect((2 * (pw + 0.5) + 0.5, 0.5), (2 * (pw + 0.5) + 4, 2.2), stroke: 1pt + diagram-black, radius: 2pt)
-    connector-dt((2 * (pw + 0.5) + 2.25, 0.2), pins: 4)
-    content((2 * (pw + 0.5) + 2.25, -0.5), text(size: 5pt)[DT connector])
+    // Arrow showing attachment direction
+    motion-arrow((0, 4), (0, 3.7))
+    content((0, 4.3), text(size: 5pt)[Bolt down])
   }),
-  caption: [Tool attachment: align rails, latch, then connect electrical.],
+  caption: [Tool bolts directly to frame using T-slot hardware.],
 )
 
 #v(1em)
@@ -177,25 +164,24 @@ The key habit is consistency. Use the same startup sequence every time. Check th
 *Attachment Procedure:*
 
 + Power OFF rover (E-Stop pressed)
-+ Align tool mounting rails with rover interface
-+ Slide tool forward until latch clicks (audible)
-+ Verify latch indicator shows green/locked
-+ Connect DT electrical connector (power + CAN)
++ Position tool on frame, align with T-slots
++ Insert M5 bolts through tool mounting holes
++ Thread into T-nuts in frame extrusion
++ Tighten with 4mm hex key (hand-tight + 1/4 turn)
++ Connect power cable (if tool is powered)
 + Power ON rover
-+ Tool announces itself automatically on CAN bus
-+ Operator UI shows tool status
 
-*Detachment:*
+*Removal:*
 
 + Power OFF rover
-+ Disconnect DT electrical connector first
-+ Release latch lever
-+ Slide tool rearward to remove
++ Disconnect power cable first
++ Loosen M5 bolts
++ Lift tool off frame
 
 #v(1em)
 
 #note[
-  Always disconnect electrical before unlatching mechanical. Prevents arcing.
+  BVR1 adds a quick-release rail system with electrical pass-through. BVR0 keeps it simple: bolts work.
 ]
 
 #pagebreak()

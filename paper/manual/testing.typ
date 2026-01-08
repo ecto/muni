@@ -50,8 +50,8 @@ The first power-up should be anticlimactic. If you smell burning, hear crackling
   [All connectors fully seated],
   [Polarity correct (red to +, black to -)],
   [No pinched wires],
-  [Fuse installed and correct rating],
   [E-Stop button in pressed (safe) position],
+  [Battery key removed],
 )
 
 #v(1em)
@@ -61,10 +61,6 @@ The first power-up should be anticlimactic. If you smell burning, hear crackling
 ]
 
 #v(0.5em)
-
-#lesson[
-  A reversed XT60 connector on the DC-DC input fried a \$35 converter instantly. The 30-second continuity check would have caught it.
-]
 
 #pagebreak()
 
@@ -220,13 +216,19 @@ The first power-up should be anticlimactic. If you smell burning, hear crackling
     rect((-3, 1), (3, 2), stroke: 1.5pt + diagram-black, fill: diagram-light, radius: 2pt)
     content((0, 1.5), text(size: 8pt)[BVR0])
 
-    // Wheels spinning
-    for (x, dir) in ((-3.5, "CCW"), (3.5, "CW")) {
-      circle((x, 0.5), radius: 0.6, stroke: 1.5pt + diagram-black, fill: white)
-      // Rotation arrow
-      arc((x, 0.5), start: 45deg, stop: 315deg, radius: 0.8, stroke: 1pt + muni-orange, mark: (end: ">"))
-      content((x, -0.8), text(size: 6pt)[#dir])
-    }
+    // Left wheel spinning CCW
+    circle((-3.5, 0.5), radius: 0.6, stroke: 1.5pt + diagram-black, fill: white)
+    // CCW rotation indicator (curved arrow using bezier)
+    line((-3.5, 1.3), (-4.1, 0.9), stroke: 1pt + muni-orange)
+    line((-4.1, 0.9), (-4.2, 0.5), stroke: 1pt + muni-orange, mark: (end: ">"))
+    content((-3.5, -0.5), text(size: 6pt, fill: muni-orange)[CCW])
+
+    // Right wheel spinning CW
+    circle((3.5, 0.5), radius: 0.6, stroke: 1.5pt + diagram-black, fill: white)
+    // CW rotation indicator (curved arrow)
+    line((3.5, 1.3), (4.1, 0.9), stroke: 1pt + muni-orange)
+    line((4.1, 0.9), (4.2, 0.5), stroke: 1pt + muni-orange, mark: (end: ">"))
+    content((3.5, -0.5), text(size: 6pt, fill: muni-orange)[CW])
 
     // Support blocks
     rect((-2, 0), (-1, 1), fill: diagram-gray, stroke: 1pt + diagram-black)

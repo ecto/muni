@@ -42,7 +42,7 @@ The total cost (~\$4,200) is roughly split: one-third mechanical, one-third powe
   [*Part*], [*Qty*], [*Unit*], [*Total*], [*Source*],
   [Hub Motor 350W 48V], [4], [\$85], [\$340], [AliExpress / ODrive],
   [VESC 6.7 (Flipsky)], [4], [\$120], [\$480], [Flipsky],
-  [Motor Bracket (custom)], [4], [\$25], [\$100], [SendCutSend],
+  [M5×12 Button Head Bolt], [8], [\$0.15], [\$2], [McMaster],
   [4mm Bullet Connectors], [24], [\$0.50], [\$12], [Amazon],
 )
 
@@ -56,15 +56,12 @@ The total cost (~\$4,200) is roughly split: one-third mechanical, one-third powe
   inset: 6pt,
   fill: (_, row) => if row == 0 { rgb("#f8f8f8") } else { white },
   [*Part*], [*Qty*], [*Unit*], [*Total*], [*Source*],
-  [48V 20Ah LiPo Battery], [1], [\$450], [\$450], [Battery Hookup],
-  [XT90 Connector Pair], [2], [\$4], [\$8], [Amazon],
-  [XT60 Connector Pair], [6], [\$2], [\$12], [Amazon],
-  [100A ANL Fuse + Holder], [1], [\$15], [\$15], [Amazon],
+  [48V 20Ah Downtube Battery], [1], [\$400], [\$400], [Unit Pack Power / Luna],
+  [E-Stop Mushroom Button], [1], [\$15], [\$15], [Amazon],
+  [XT60 Connector Pair], [8], [\$2], [\$16], [Amazon],
   [DC-DC 48V→12V 10A], [1], [\$35], [\$35], [Amazon],
   [10 AWG Silicone Wire (red)], [3m], [\$2/m], [\$6], [Amazon],
   [10 AWG Silicone Wire (black)], [3m], [\$2/m], [\$6], [Amazon],
-  [E-Stop Mushroom Button], [1], [\$12], [\$12], [Amazon],
-  [40A Relay (E-Stop)], [1], [\$8], [\$8], [Amazon],
 )
 
 #pagebreak()
@@ -78,14 +75,13 @@ The total cost (~\$4,200) is roughly split: one-third mechanical, one-third powe
   fill: (_, row) => if row == 0 { rgb("#f8f8f8") } else { white },
   [*Part*], [*Qty*], [*Unit*], [*Total*], [*Source*],
   [Jetson Orin NX 16GB], [1], [\$600], [\$600], [Seeed / Arrow],
-  [Jetson Carrier Board], [1], [\$100], [\$100], [Seeed],
-  [USB-CAN Adapter (Canable)], [1], [\$30], [\$30], [Canable.io],
+  [Carrier Board w/ CAN], [1], [\$130], [\$130], [Seeed / Waveshare],
   [USB 3.0 Hub (powered)], [1], [\$25], [\$25], [Amazon],
   [LTE Modem (USB)], [1], [\$50], [\$50], [Amazon],
-  [M3×6 Standoff], [20], [\$0.30], [\$6], [McMaster],
-  [M3×8 Bolt], [40], [\$0.10], [\$4], [McMaster],
   [22 AWG Wire (CAN, assorted)], [10m], [\$0.50/m], [\$5], [Amazon],
   [JST-XH 4-pin Connector], [10], [\$0.50], [\$5], [Amazon],
+  [Electrical Tape], [2 rolls], [\$3], [\$6], [Amazon],
+  [Velcro Strips], [1 pack], [\$8], [\$8], [Amazon],
 )
 
 #v(1em)
@@ -132,9 +128,9 @@ The total cost (~\$4,200) is roughly split: one-third mechanical, one-third powe
       stroke: none,
       inset: 4pt,
       [Structural], [\$115],
-      [Drivetrain], [\$932],
-      [Power], [\$552],
-      [Electronics], [\$825],
+      [Drivetrain], [\$834],
+      [Power], [\$478],
+      [Electronics], [\$829],
       [Sensors], [\$1,700],
       [Misc], [\$39],
     )
@@ -147,7 +143,7 @@ The total cost (~\$4,200) is roughly split: one-third mechanical, one-third powe
       inset: 12pt,
       radius: 4pt,
     )[
-      #text(size: 14pt, weight: "bold")[Total: ~\$4,163]
+      #text(size: 14pt, weight: "bold")[Total: ~\$3,995]
       #v(0.3em)
       #text(size: 8pt, fill: muni-gray)[
         Excludes tools, shipping, and taxes. \
