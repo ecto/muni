@@ -1,7 +1,7 @@
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="cad/muni-logo-dark.svg">
-  <source media="(prefers-color-scheme: light)" srcset="cad/muni-logo-light.svg">
-  <img alt="muni" src="cad/muni-logo-light.svg" width="120">
+  <source media="(prefers-color-scheme: dark)" srcset="web/muni-logo-dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="web/muni-logo-light.svg">
+  <img alt="muni" src="web/muni-logo-light.svg" width="120">
 </picture>
 
 Open-source municipal robotics. Autonomous utility vehicles for public works, starting with sidewalk snow removal.
