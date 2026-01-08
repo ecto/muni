@@ -1,14 +1,14 @@
-.PHONY: all clean watch watch-whitepaper watch-manual investor
+.PHONY: all clean watch watch-whitepaper watch-manual watch-manual-bvr1 investor
 
 # All documents
-DOCS = whitepaper.pdf bvr0-manual.pdf bvr0-datasheet.pdf
+DOCS = whitepaper.pdf bvr0-manual.pdf bvr1-manual.pdf bvr0-datasheet.pdf
 INVESTOR_DOCS = pitch-deck.pdf one-pager.pdf
 
 # Font path for Berkeley Mono
 TYPST = typst compile --font-path fonts/
 TYPST_WATCH = typst watch --font-path fonts/
 
-all: $(DOCS) ../web/whitepaper.pdf ../web/bvr0-manual.pdf ../web/bvr0-datasheet.pdf
+all: $(DOCS) ../web/whitepaper.pdf ../web/bvr0-manual.pdf ../web/bvr1-manual.pdf ../web/bvr0-datasheet.pdf
 
 # Investor documents
 investor: $(INVESTOR_DOCS) ../web/pitch-deck.pdf
@@ -18,8 +18,12 @@ whitepaper.pdf: whitepaper.typ refs.bib lib/template.typ $(wildcard images/*)
 	$(TYPST) whitepaper.typ
 
 # BVR0 Manual
-bvr0-manual.pdf: bvr0-manual.typ lib/template.typ lib/diagrams.typ $(wildcard images/*)
+bvr0-manual.pdf: bvr0-manual.typ lib/template.typ lib/diagrams.typ $(wildcard manual/*.typ) $(wildcard images/*)
 	$(TYPST) bvr0-manual.typ
+
+# BVR1 Manual
+bvr1-manual.pdf: bvr1-manual.typ lib/template.typ lib/diagrams.typ $(wildcard manual/*.typ) $(wildcard manual-bvr1/*.typ) $(wildcard images/*)
+	$(TYPST) bvr1-manual.typ
 
 # BVR0 Datasheet
 bvr0-datasheet.pdf: bvr0-datasheet.typ lib/template.typ
@@ -40,6 +44,9 @@ one-pager.pdf: one-pager.typ lib/template.typ
 ../web/bvr0-manual.pdf: bvr0-manual.pdf
 	cp bvr0-manual.pdf ../web/bvr0-manual.pdf
 
+../web/bvr1-manual.pdf: bvr1-manual.pdf
+	cp bvr1-manual.pdf ../web/bvr1-manual.pdf
+
 ../web/bvr0-datasheet.pdf: bvr0-datasheet.pdf
 	cp bvr0-datasheet.pdf ../web/bvr0-datasheet.pdf
 
@@ -54,6 +61,9 @@ watch-whitepaper:
 
 watch-manual:
 	$(TYPST_WATCH) bvr0-manual.typ
+
+watch-manual-bvr1:
+	$(TYPST_WATCH) bvr1-manual.typ
 
 watch-deck:
 	$(TYPST_WATCH) pitch-deck.typ
