@@ -16,7 +16,9 @@ If you're comfortable with Linux command lines and embedded toolchains, this wil
 
 #procedure([Flash and configure Jetson], time: "45 min", difficulty: 3)
 
-#video-link("https://muni.works/docs/jetson-setup", [Full Setup Walkthrough])
+#v(0.5em)
+
+Full setup guide: #link("https://github.com/muni-works/muni/blob/main/bvr/firmware/README.md")[github.com/muni-works/muni]
 
 #v(1em)
 

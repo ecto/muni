@@ -155,10 +155,6 @@ The frame goes together like adult LEGO. No welding, no precision machining. If 
 
 #v(0.5em)
 
-#lesson[
-  The first build had exactly enough T-nuts. Adding the electronics plate later meant disassembling half the frame. Now we pre-load 30% more than the BOM says.
-]
-
 #pagebreak()
 
 // =============================================================================

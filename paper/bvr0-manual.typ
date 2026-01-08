@@ -10,8 +10,8 @@
 #show: manual.with(
   title: "BVR0",
   subtitle: "Base Vectoring Rover",
-  revision: "0.1",
-  date: "December 2025",
+  revision: "0.2",
+  date: "January 2026",
   doc-type: "Technical Manual",
   cover-image: "../images/bvr0-disassembled.jpg",
 )
