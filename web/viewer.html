@@ -6,6 +6,9 @@
   <title>CAD Viewer | Municipal Robotics</title>
   <meta name="description" content="Interactive 3D viewer for BVR rover CAD models">
   <link rel="stylesheet" href="style.css">
+  <!-- Phosphor Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.2/src/regular/style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.2/src/bold/style.css">
   <style>
     body {
       background: var(--bg);
@@ -53,7 +56,7 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 12px;
+      font-size: 14px;
       color: var(--fg-muted);
       z-index: 100;
       transition: color 0.15s ease, border-color 0.15s ease;
@@ -133,8 +136,17 @@
     }
 
     .model-item-icon {
-      margin-right: 8px;
+      margin-right: 10px;
       flex-shrink: 0;
+      font-size: 18px;
+      width: 22px;
+      text-align: center;
+      color: var(--fg-muted);
+    }
+
+    .model-item:hover .model-item-icon,
+    .model-item.active .model-item-icon {
+      color: var(--orange);
     }
 
     .model-item-content {
@@ -326,7 +338,7 @@
       color: var(--fg);
       padding: 8px 16px;
       font-family: inherit;
-      font-size: 10px;
+      font-size: 11px;
       text-transform: uppercase;
       letter-spacing: 0.05em;
       cursor: pointer;
@@ -341,6 +353,12 @@
       border-color: var(--orange);
       background: rgba(255, 102, 0, 0.2);
       color: var(--orange);
+    }
+
+    .viewer-btn i {
+      font-size: 14px;
+      vertical-align: -2px;
+      margin-right: 4px;
     }
 
     /* Light mode: stronger background for active button */
@@ -428,17 +446,26 @@
       background: var(--orange);
     }
 
-    .scale-ref-checkbox.checked::after {
-      content: '✓';
+    .scale-ref-checkbox i {
+      display: none;
       color: #000;
-      font-size: 11px;
-      font-weight: bold;
+      font-size: 10px;
+    }
+
+    .scale-ref-checkbox.checked i {
+      display: block;
     }
 
     .scale-ref-icon {
-      font-size: 16px;
-      width: 24px;
+      font-size: 18px;
+      width: 26px;
       text-align: center;
+      color: var(--fg-muted);
+    }
+
+    .scale-ref-item:hover .scale-ref-icon,
+    .scale-ref-item.active .scale-ref-icon {
+      color: var(--orange);
     }
 
     .scale-ref-info {
@@ -489,6 +516,164 @@
       opacity: 0.7;
       margin-left: 4px;
       text-align: right;
+    }
+
+    /* Hotspot labels toggle */
+    .hotspots-toggle {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .hotspots-toggle.active {
+      border-color: var(--orange);
+      background: rgba(255, 102, 0, 0.2);
+      color: var(--orange);
+    }
+
+    @media (prefers-color-scheme: light) {
+      .hotspots-toggle.active {
+        background: rgba(234, 88, 12, 0.15);
+        border-color: #c2410c;
+        color: #c2410c;
+      }
+    }
+
+    /* Hotspot legend panel */
+    .hotspot-legend {
+      position: absolute;
+      top: 16px;
+      left: 16px;
+      background: rgba(10, 10, 10, 0.95);
+      border: 1px solid var(--border);
+      max-width: 280px;
+      max-height: calc(100vh - 120px);
+      overflow-y: auto;
+      backdrop-filter: blur(8px);
+      z-index: 10;
+      display: none;
+    }
+
+    .hotspot-legend.visible {
+      display: block;
+    }
+
+    @media (prefers-color-scheme: light) {
+      .hotspot-legend {
+        background: rgba(255, 255, 255, 0.95);
+        border-color: #d6d3d1;
+      }
+    }
+
+    .hotspot-legend-header {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--orange);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .hotspot-legend-close {
+      background: none;
+      border: none;
+      color: var(--fg-muted);
+      cursor: pointer;
+      font-size: 16px;
+      padding: 0;
+      line-height: 1;
+    }
+
+    .hotspot-legend-close:hover {
+      color: var(--orange);
+    }
+
+    .hotspot-legend-section {
+      padding: 8px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .hotspot-legend-section:last-child {
+      border-bottom: none;
+    }
+
+    .hotspot-legend-section-title {
+      font-size: 9px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--fg-muted);
+      padding: 4px 16px 8px;
+    }
+
+    .hotspot-legend-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 16px;
+      cursor: pointer;
+      transition: background 0.15s ease;
+    }
+
+    .hotspot-legend-item:hover {
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    @media (prefers-color-scheme: light) {
+      .hotspot-legend-item:hover {
+        background: rgba(0, 0, 0, 0.05);
+      }
+    }
+
+    .hotspot-legend-item.active {
+      background: rgba(255, 102, 0, 0.1);
+    }
+
+    .hotspot-legend-number {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: #1a1a1a;
+      border: 2px solid var(--orange);
+      color: #fff;
+      font-size: 11px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    @media (prefers-color-scheme: light) {
+      .hotspot-legend-number {
+        background: #fff;
+        color: #1c1917;
+        border-color: #c2410c;
+      }
+    }
+
+    .hotspot-legend-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .hotspot-legend-name {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--fg);
+    }
+
+    .hotspot-legend-desc {
+      font-size: 10px;
+      color: var(--fg-muted);
+      margin-top: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .loading-overlay {
@@ -549,7 +734,7 @@
 
 <div class="viewer-container">
   <aside class="viewer-sidebar" id="sidebar">
-    <button class="sidebar-toggle" id="sidebarToggle" title="Toggle sidebar">◀</button>
+    <button class="sidebar-toggle" id="sidebarToggle" title="Toggle sidebar"><i class="ph-bold ph-caret-left"></i></button>
     <div class="viewer-header">
       <h1>CAD VIEWER</h1>
       <a href="index.html" class="back-link">← Back to home</a>
@@ -588,13 +773,25 @@
     <div class="viewer-controls">
       <button class="viewer-btn" id="resetBtn">Reset View</button>
       <button class="viewer-btn" id="wireframeBtn">Wireframe</button>
+      <button class="viewer-btn hotspots-toggle" id="hotspotsBtn">
+        <i class="ph ph-number-circle-one"></i> Labels
+      </button>
       <div class="scale-ref-dropdown">
-        <button class="viewer-btn" id="scaleRefBtn">📏 Scale References</button>
+        <button class="viewer-btn" id="scaleRefBtn"><i class="ph ph-ruler"></i> Scale References</button>
         <div class="scale-ref-menu" id="scaleRefMenu">
           <div class="scale-ref-header">Toggle scale references</div>
           <div id="scaleRefItems"></div>
         </div>
       </div>
+    </div>
+
+    <!-- Hotspot legend panel -->
+    <div class="hotspot-legend" id="hotspotLegend">
+      <div class="hotspot-legend-header">
+        <span>BVR1 Components</span>
+        <button class="hotspot-legend-close" id="hotspotLegendClose">×</button>
+      </div>
+      <div id="hotspotLegendContent"></div>
     </div>
 
     <div class="viewer-help">
@@ -626,20 +823,20 @@ import { STLLoader } from 'three/addons/loaders/STLLoader.js';
 // Model catalog - prefer glTF for PBR materials, fallback to STL
 const models = [
   { section: 'Assemblies', items: [
-    { name: 'BVR1 Production', path: 'models/bvr1_assembly.glb', icon: '🚀', desc: 'Current production rover' },
-    { name: 'BVR0 Prototype', path: 'models/bvr0_assembly.glb', icon: '🚀', desc: 'First prototype rover' },
+    { name: 'BVR1 Production', path: 'models/bvr1_assembly.glb', icon: 'rocket-launch', desc: 'Current production rover' },
+    { name: 'BVR0 Prototype', path: 'models/bvr0_assembly.glb', icon: 'rocket-launch', desc: 'First prototype rover' },
   ]},
   { section: 'Frame', items: [
-    { name: 'BVR1 Frame', path: 'models/bvr1_frame.glb', icon: '🏗️', desc: 'Aluminum extrusion frame' },
+    { name: 'BVR1 Frame', path: 'models/bvr1_frame.glb', icon: 'blueprint', desc: 'Aluminum extrusion frame' },
   ]},
   { section: 'Drivetrain', items: [
-    { name: 'SVB6HS 6.5"', path: 'models/uumotor_svb6hs.glb', icon: '🛞', desc: '500W hub motor, 6.5" wheel' },
-    { name: 'KN6104 10"', path: 'models/uumotor_kn6104.glb', icon: '🛞', desc: '800W hub motor, 10" wheel' },
-    { name: 'Motor Mount', path: 'models/uumotor_mount.glb', icon: '🔧', desc: 'Adjustable wheel mount' },
+    { name: 'SVB6HS 6.5"', path: 'models/uumotor_svb6hs.glb', icon: 'tire', desc: '500W hub motor, 6.5" wheel' },
+    { name: 'KN6104 10"', path: 'models/uumotor_kn6104.glb', icon: 'tire', desc: '800W hub motor, 10" wheel' },
+    { name: 'Motor Mount', path: 'models/uumotor_mount.glb', icon: 'wrench', desc: 'Adjustable wheel mount' },
   ]},
   { section: 'Electronics', items: [
-    { name: 'Base Tray', path: 'models/base_tray.glb', icon: '📦', desc: 'Electronics mounting plate' },
-    { name: 'Access Panel', path: 'models/access_panel.glb', icon: '🚪', desc: 'Removable service panel' },
+    { name: 'Base Tray', path: 'models/base_tray.glb', icon: 'package', desc: 'Electronics mounting plate' },
+    { name: 'Access Panel', path: 'models/access_panel.glb', icon: 'door-open', desc: 'Removable service panel' },
   ]},
 ];
 
@@ -711,7 +908,9 @@ const sidebarToggle = document.getElementById('sidebarToggle');
 
 sidebarToggle.onclick = () => {
   sidebar.classList.toggle('collapsed');
-  sidebarToggle.textContent = sidebar.classList.contains('collapsed') ? '▶' : '◀';
+  sidebarToggle.innerHTML = sidebar.classList.contains('collapsed')
+    ? '<i class="ph-bold ph-caret-right"></i>'
+    : '<i class="ph-bold ph-caret-left"></i>';
   // Trigger resize after transition
   setTimeout(resize, 310);
 };
@@ -1502,6 +1701,11 @@ function positionAndFrame(obj, name) {
   // Store the model name on the object for the inspector
   obj.userData.modelName = name;
   showInspector(obj, null);
+
+  // Notify hotspot system
+  if (typeof onModelLoaded === 'function') {
+    onModelLoaded(name);
+  }
 }
 
 function loadModel(path, name) {
@@ -1612,7 +1816,7 @@ models.forEach(section => {
     const itemEl = document.createElement('div');
     itemEl.className = 'model-item';
     itemEl.innerHTML = `
-      <span class="model-item-icon">${item.icon}</span>
+      <span class="model-item-icon"><i class="ph ph-${item.icon}"></i></span>
       <div class="model-item-content">
         <div class="model-item-name">${item.name}</div>
         ${item.desc ? `<div class="model-item-desc">${item.desc}</div>` : ''}
@@ -1704,7 +1908,7 @@ const scaleReferences = [
   {
     id: 'banana',
     name: 'Banana',
-    icon: '🍌',
+    icon: 'plant',
     description: 'Universal scale reference fruit',
     specs: '180mm long',
     modelPath: 'models/banana.glb',
@@ -1717,7 +1921,7 @@ const scaleReferences = [
   {
     id: 'astronaut',
     name: 'Astronaut',
-    icon: '🧑‍🚀',
+    icon: 'person-arms-spread',
     description: 'Spacesuit for scale',
     specs: '1850mm tall (avg male + suit)',
     modelPath: 'models/astronaut.glb',
@@ -1734,7 +1938,7 @@ const scaleReferences = [
   {
     id: 'grogu',
     name: 'Grogu',
-    icon: '👶',
+    icon: 'star-four',
     description: 'The Child, a Force-sensitive being',
     specs: '34cm tall',
     modelPath: 'models/grogu.glb',
@@ -1983,8 +2187,8 @@ function buildScaleRefMenu() {
     item.dataset.refId = ref.id;
 
     item.innerHTML = `
-      <div class="scale-ref-checkbox ${state.visible ? 'checked' : ''}"></div>
-      <div class="scale-ref-icon">${ref.icon}</div>
+      <div class="scale-ref-checkbox ${state.visible ? 'checked' : ''}"><i class="ph-bold ph-check"></i></div>
+      <div class="scale-ref-icon"><i class="ph ph-${ref.icon}"></i></div>
       <div class="scale-ref-info">
         <div class="scale-ref-name">${ref.name}</div>
         <div class="scale-ref-dims">${ref.description}</div>
@@ -2013,7 +2217,9 @@ function updateScaleRefUI() {
   const visibleCount = Object.values(scaleRefState).filter(s => s.visible).length;
   const btn = document.getElementById('scaleRefBtn');
   btn.classList.toggle('active', visibleCount > 0);
-  btn.textContent = visibleCount > 0 ? `📏 References (${visibleCount})` : '📏 Scale References';
+  btn.innerHTML = visibleCount > 0
+    ? `<i class="ph ph-ruler"></i> References (${visibleCount})`
+    : '<i class="ph ph-ruler"></i> Scale References';
 }
 
 // Toggle dropdown menu
@@ -2035,6 +2241,434 @@ document.getElementById('scaleRefMenu').onclick = (e) => {
 
 // Initialize the menu
 buildScaleRefMenu();
+
+// =============================================================================
+// HOTSPOT ANNOTATION SYSTEM
+// =============================================================================
+
+// BVR1 hotspot catalog - positions are in model coordinates (mm)
+// After Z-up to Y-up rotation: model X -> scene X, model Y -> scene Z, model Z -> scene Y
+const bvr1Hotspots = [
+  // Sensors section
+  { id: 1, section: 'Sensors', name: 'LiDAR', desc: 'Livox Mid-360, 360° scanning', specs: '40m range, 200k pts/sec',
+    position: { x: 0, y: 520, z: 200 } },
+  { id: 2, section: 'Sensors', name: '360° Camera', desc: 'Insta360 X4, panoramic video', specs: '8K 360° capture',
+    position: { x: 0, y: 420, z: 200 } },
+  { id: 3, section: 'Sensors', name: 'RTK GPS Antenna', desc: 'Multi-band GNSS antenna', specs: 'cm-level positioning',
+    position: { x: 80, y: 470, z: 200 } },
+
+  // Controls section
+  { id: 4, section: 'Controls', name: 'E-Stop', desc: 'Emergency stop button', specs: 'NC contacts, 22mm',
+    position: { x: -150, y: 340, z: -200 } },
+
+  // Electronics section
+  { id: 5, section: 'Electronics', name: 'Jetson Orin NX', desc: 'Main compute module', specs: '100 TOPS AI, 16GB RAM',
+    position: { x: 130, y: 170, z: 180 } },
+  { id: 6, section: 'Electronics', name: 'DC-DC Converter', desc: '48V to 12V power supply', specs: '300W continuous',
+    position: { x: 130, y: 155, z: -180 } },
+  { id: 7, section: 'Electronics', name: 'VESC (FL)', desc: 'Front-left motor controller', specs: 'VESC 6 MkVI, 60A cont',
+    position: { x: -160, y: 155, z: 120 } },
+  { id: 8, section: 'Electronics', name: 'VESC (RL)', desc: 'Rear-left motor controller', specs: 'VESC 6 MkVI, 60A cont',
+    position: { x: -160, y: 155, z: -120 } },
+
+  // Power section
+  { id: 9, section: 'Power', name: 'Battery Pack', desc: 'Custom 13S4P Li-ion pack', specs: '48V 14Ah, 672Wh',
+    position: { x: 0, y: 185, z: 0 } },
+
+  // Frame section
+  { id: 10, section: 'Frame', name: 'Frame', desc: '2020 aluminum extrusion', specs: '380×600mm footprint',
+    position: { x: 0, y: 250, z: 0 } },
+  { id: 11, section: 'Frame', name: 'Access Panel', desc: 'Removable top cover', specs: 'ABS, quick-release',
+    position: { x: 100, y: 324, z: 100 } },
+  { id: 12, section: 'Frame', name: 'Base Tray', desc: 'Electronics mounting plate', specs: 'ABS, 6mm thick',
+    position: { x: 100, y: 140, z: -100 } },
+
+  // Drivetrain section
+  { id: 13, section: 'Drivetrain', name: 'Hub Motor (FL)', desc: 'UUMotor SVB6HS', specs: '500W, 6.5" wheel',
+    position: { x: -132, y: 38, z: 260 } },
+  { id: 14, section: 'Drivetrain', name: 'Hub Motor (FR)', desc: 'UUMotor SVB6HS', specs: '500W, 6.5" wheel',
+    position: { x: 132, y: 38, z: 260 } },
+  { id: 15, section: 'Drivetrain', name: 'Hub Motor (RL)', desc: 'UUMotor SVB6HS', specs: '500W, 6.5" wheel',
+    position: { x: -132, y: 38, z: -260 } },
+  { id: 16, section: 'Drivetrain', name: 'Hub Motor (RR)', desc: 'UUMotor SVB6HS', specs: '500W, 6.5" wheel',
+    position: { x: 132, y: 38, z: -260 } },
+  { id: 17, section: 'Drivetrain', name: 'Motor Mount (FL)', desc: 'L-bracket mount', specs: '6061-T6 aluminum',
+    position: { x: -190, y: 100, z: 260 } },
+];
+
+// Hotspot state
+let hotspotsVisible = false;
+const hotspotGroup = new THREE.Group();
+hotspotGroup.name = 'hotspots';
+scene.add(hotspotGroup);
+
+// Create a numbered label sprite
+function createHotspotSprite(number, isHighlighted = false) {
+  const size = 64;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+
+  // Clear
+  ctx.clearRect(0, 0, size, size);
+
+  // Draw circle background
+  const radius = size / 2 - 4;
+  ctx.beginPath();
+  ctx.arc(size / 2, size / 2, radius, 0, Math.PI * 2);
+
+  if (isHighlighted) {
+    ctx.fillStyle = '#ff6600';
+    ctx.fill();
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+  } else {
+    ctx.fillStyle = 'rgba(26, 26, 26, 0.95)';
+    ctx.fill();
+    ctx.strokeStyle = '#ff6600';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+  }
+
+  // Draw number
+  ctx.font = 'bold 28px "Berkeley Mono", monospace';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = isHighlighted ? '#000' : '#fff';
+  ctx.fillText(String(number), size / 2, size / 2 + 1);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.needsUpdate = true;
+
+  const material = new THREE.SpriteMaterial({
+    map: texture,
+    transparent: true,
+    depthTest: false,
+    sizeAttenuation: false,
+  });
+
+  const sprite = new THREE.Sprite(material);
+  sprite.scale.set(0.06, 0.06, 1);
+  sprite.renderOrder = 999;
+  return sprite;
+}
+
+// Create connecting line from label to anchor point
+function createHotspotLine(startPos, endPos) {
+  const points = [
+    new THREE.Vector3(startPos.x, startPos.y, startPos.z),
+    new THREE.Vector3(endPos.x, endPos.y, endPos.z),
+  ];
+  const geometry = new THREE.BufferGeometry().setFromPoints(points);
+  const material = new THREE.LineBasicMaterial({
+    color: 0xff6600,
+    transparent: true,
+    opacity: 0.6,
+    depthTest: false,
+  });
+  const line = new THREE.Line(geometry, material);
+  line.renderOrder = 998;
+  return line;
+}
+
+// Create anchor point indicator (small sphere at the target location)
+function createAnchorPoint(position) {
+  const geometry = new THREE.SphereGeometry(4, 8, 8);
+  const material = new THREE.MeshBasicMaterial({
+    color: 0xff6600,
+    transparent: true,
+    opacity: 0.9,
+    depthTest: false,
+  });
+  const sphere = new THREE.Mesh(geometry, material);
+  sphere.position.copy(position);
+  sphere.renderOrder = 997;
+  return sphere;
+}
+
+// Create all hotspots for the current model
+function createHotspots() {
+  // Clear existing
+  while (hotspotGroup.children.length > 0) {
+    const child = hotspotGroup.children[0];
+    if (child.material) {
+      if (child.material.map) child.material.map.dispose();
+      child.material.dispose();
+    }
+    if (child.geometry) child.geometry.dispose();
+    hotspotGroup.remove(child);
+  }
+
+  if (!currentMesh) return;
+
+  // Get model bounds to position labels outside
+  currentMesh.updateMatrixWorld(true);
+  const modelBox = new THREE.Box3().setFromObject(currentMesh);
+  const modelSize = modelBox.getSize(new THREE.Vector3());
+  const labelOffset = Math.max(modelSize.x, modelSize.z) * 0.15 + 60;
+
+  bvr1Hotspots.forEach(hotspot => {
+    // Anchor point (on the model)
+    const anchorPos = new THREE.Vector3(
+      hotspot.position.x,
+      hotspot.position.y,
+      hotspot.position.z
+    );
+
+    // Label position (offset outward from center for visibility)
+    const direction = new THREE.Vector3(hotspot.position.x, 0, hotspot.position.z).normalize();
+    if (direction.length() < 0.1) {
+      direction.set(1, 0, 0); // Default to +X if centered
+    }
+
+    const labelPos = anchorPos.clone().add(
+      direction.multiplyScalar(labelOffset)
+    );
+    labelPos.y = anchorPos.y + 40; // Slight vertical offset
+
+    // Create sprite
+    const sprite = createHotspotSprite(hotspot.id);
+    sprite.position.copy(labelPos);
+    sprite.userData.hotspotId = hotspot.id;
+    sprite.userData.hotspotData = hotspot;
+    sprite.userData.anchorPos = anchorPos;
+    hotspotGroup.add(sprite);
+
+    // Create connecting line
+    const line = createHotspotLine(labelPos, anchorPos);
+    line.userData.hotspotId = hotspot.id;
+    hotspotGroup.add(line);
+
+    // Create anchor point indicator
+    const anchor = createAnchorPoint(anchorPos);
+    anchor.userData.hotspotId = hotspot.id;
+    hotspotGroup.add(anchor);
+  });
+}
+
+// Check if current model supports hotspots
+function modelSupportsHotspots() {
+  if (!currentMesh) return false;
+  const name = currentMesh.userData.modelName || '';
+  return name.includes('BVR1') && name.includes('Production');
+}
+
+// Toggle hotspots visibility
+function toggleHotspots() {
+  if (!modelSupportsHotspots()) {
+    // Show a brief message that hotspots are only available for BVR1 Production
+    const btn = document.getElementById('hotspotsBtn');
+    btn.style.opacity = '0.5';
+    setTimeout(() => { btn.style.opacity = '1'; }, 200);
+    return;
+  }
+
+  hotspotsVisible = !hotspotsVisible;
+
+  const btn = document.getElementById('hotspotsBtn');
+  const legend = document.getElementById('hotspotLegend');
+
+  btn.classList.toggle('active', hotspotsVisible);
+  legend.classList.toggle('visible', hotspotsVisible);
+
+  // Update button text
+  if (hotspotsVisible) {
+    btn.innerHTML = '<i class="ph ph-number-circle-one"></i> Labels (' + bvr1Hotspots.length + ')';
+    createHotspots();
+    hotspotGroup.visible = true;
+    buildHotspotLegend();
+  } else {
+    btn.innerHTML = '<i class="ph ph-number-circle-one"></i> Labels';
+    hotspotGroup.visible = false;
+  }
+}
+
+// Build legend panel content
+function buildHotspotLegend() {
+  const container = document.getElementById('hotspotLegendContent');
+  container.innerHTML = '';
+
+  // Group hotspots by section
+  const sections = {};
+  bvr1Hotspots.forEach(h => {
+    if (!sections[h.section]) sections[h.section] = [];
+    sections[h.section].push(h);
+  });
+
+  Object.entries(sections).forEach(([sectionName, items]) => {
+    const sectionEl = document.createElement('div');
+    sectionEl.className = 'hotspot-legend-section';
+
+    const titleEl = document.createElement('div');
+    titleEl.className = 'hotspot-legend-section-title';
+    titleEl.textContent = sectionName;
+    sectionEl.appendChild(titleEl);
+
+    items.forEach(hotspot => {
+      const itemEl = document.createElement('div');
+      itemEl.className = 'hotspot-legend-item';
+      itemEl.dataset.hotspotId = hotspot.id;
+      itemEl.innerHTML = `
+        <div class="hotspot-legend-number">${hotspot.id}</div>
+        <div class="hotspot-legend-info">
+          <div class="hotspot-legend-name">${hotspot.name}</div>
+          <div class="hotspot-legend-desc">${hotspot.desc}</div>
+        </div>
+      `;
+      itemEl.onclick = () => focusOnHotspot(hotspot.id);
+      sectionEl.appendChild(itemEl);
+    });
+
+    container.appendChild(sectionEl);
+  });
+}
+
+// Focus camera on a hotspot
+function focusOnHotspot(hotspotId) {
+  const hotspot = bvr1Hotspots.find(h => h.id === hotspotId);
+  if (!hotspot) return;
+
+  // Highlight the legend item
+  document.querySelectorAll('.hotspot-legend-item').forEach(el => {
+    el.classList.toggle('active', el.dataset.hotspotId == hotspotId);
+  });
+
+  // Update hotspot sprites (highlight selected)
+  hotspotGroup.children.forEach(child => {
+    if (child.isSprite && child.userData.hotspotId) {
+      const isSelected = child.userData.hotspotId === hotspotId;
+      // Recreate sprite with highlight state
+      const newSprite = createHotspotSprite(child.userData.hotspotId, isSelected);
+      newSprite.position.copy(child.position);
+      newSprite.userData = child.userData;
+
+      const idx = hotspotGroup.children.indexOf(child);
+      if (child.material.map) child.material.map.dispose();
+      child.material.dispose();
+      hotspotGroup.remove(child);
+      hotspotGroup.add(newSprite);
+    }
+  });
+
+  // Calculate camera target
+  const target = new THREE.Vector3(
+    hotspot.position.x,
+    hotspot.position.y,
+    hotspot.position.z
+  );
+
+  // Position camera to view the hotspot
+  const dist = 400;
+  const angle = Math.atan2(hotspot.position.z, hotspot.position.x) + Math.PI / 4;
+  const targetPosition = new THREE.Vector3(
+    target.x + Math.cos(angle) * dist,
+    target.y + dist * 0.4,
+    target.z + Math.sin(angle) * dist
+  );
+
+  // Animate camera
+  const startPosition = camera.position.clone();
+  const startTarget = controls.target.clone();
+  const duration = 500;
+  const startTime = performance.now();
+
+  function animateToHotspot(time) {
+    const t = Math.min((time - startTime) / duration, 1);
+    const ease = 1 - Math.pow(1 - t, 3);
+
+    camera.position.lerpVectors(startPosition, targetPosition, ease);
+    controls.target.lerpVectors(startTarget, target, ease);
+    controls.update();
+
+    if (t < 1) requestAnimationFrame(animateToHotspot);
+  }
+
+  requestAnimationFrame(animateToHotspot);
+
+  // Update info panel
+  infoPane.classList.add('has-selection');
+  infoTitle.textContent = hotspot.name;
+  infoDesc.textContent = hotspot.desc;
+  infoDesc.style.display = 'block';
+  infoDims.textContent = `Position: (${hotspot.position.x}, ${hotspot.position.y}, ${hotspot.position.z}) mm`;
+  infoProps.style.display = 'block';
+  infoSpecs.textContent = hotspot.specs;
+  infoSpecs.parentElement.style.display = 'flex';
+  infoMaterial.parentElement.style.display = 'none';
+  infoTris.parentElement.style.display = 'none';
+  infoActions.style.display = 'none';
+}
+
+// Hotspot click detection via raycasting
+function handleHotspotClick(event) {
+  if (!hotspotsVisible) return false;
+
+  const rect = canvas.getBoundingClientRect();
+  const mouse = new THREE.Vector2(
+    ((event.clientX - rect.left) / rect.width) * 2 - 1,
+    -((event.clientY - rect.top) / rect.height) * 2 + 1
+  );
+
+  raycaster.setFromCamera(mouse, camera);
+  const intersects = raycaster.intersectObjects(hotspotGroup.children, false);
+
+  for (const intersect of intersects) {
+    if (intersect.object.isSprite && intersect.object.userData.hotspotId) {
+      focusOnHotspot(intersect.object.userData.hotspotId);
+      return true;
+    }
+  }
+
+  return false;
+}
+
+// Update the existing click handler to check hotspots first
+const originalClickHandler = canvas.onclick;
+canvas.addEventListener('click', (event) => {
+  // Check hotspots first
+  if (handleHotspotClick(event)) {
+    event.stopPropagation();
+    return;
+  }
+}, true);
+
+// Button handlers
+document.getElementById('hotspotsBtn').onclick = toggleHotspots;
+
+document.getElementById('hotspotLegendClose').onclick = () => {
+  const legend = document.getElementById('hotspotLegend');
+  legend.classList.remove('visible');
+};
+
+// Auto-show hotspots when BVR1 Production is loaded
+const originalPositionAndFrame = positionAndFrame;
+
+// Recreate hotspots when model changes (if visible)
+function onModelLoaded(name) {
+  const btn = document.getElementById('hotspotsBtn');
+  const legend = document.getElementById('hotspotLegend');
+
+  // Check if new model supports hotspots
+  const supports = name.includes('BVR1') && name.includes('Production');
+
+  if (!supports) {
+    // Hide hotspots for unsupported models
+    hotspotsVisible = false;
+    hotspotGroup.visible = false;
+    btn.classList.remove('active');
+    btn.innerHTML = '<i class="ph ph-number-circle-one"></i> Labels';
+    btn.style.opacity = '0.5';
+    legend.classList.remove('visible');
+  } else {
+    btn.style.opacity = '1';
+    if (hotspotsVisible) {
+      createHotspots();
+      hotspotGroup.visible = true;
+    }
+  }
+}
 
 // Resize
 function resize() {
