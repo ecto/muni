@@ -1,4 +1,4 @@
-import { Map } from "lucide-react";
+import { MapTrifold } from "@phosphor-icons/react";
 
 /**
  * Placeholder for the maps view.
@@ -18,7 +18,7 @@ export function MapsView() {
 
         {/* Placeholder */}
         <div className="bg-muted/50 border border-border p-8 text-center">
-          <Map className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
+          <MapTrifold className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
           <h3 className="font-medium mb-2">Maps View</h3>
           <p className="text-sm text-muted-foreground max-w-md mx-auto">
             This view will display a list of available maps with 3D splat viewer.

@@ -1,6 +1,6 @@
 import { useParams, Link } from "react-router-dom";
 import { useConsoleStore } from "@/store";
-import { Bot, Battery, MapPin, Gamepad2, ArrowLeft, Thermometer } from "lucide-react";
+import { Robot, BatteryHigh, MapPin, GameController, ArrowLeft, Thermometer } from "@phosphor-icons/react";
 import { ModeLabels, type Mode } from "@/lib/types";
 
 export function RoverView() {
@@ -13,7 +13,7 @@ export function RoverView() {
     return (
       <div className="h-full flex items-center justify-center">
         <div className="text-center">
-          <Bot className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
+          <Robot className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
           <h3 className="font-medium mb-2">Rover Not Found</h3>
           <p className="text-sm text-muted-foreground mb-4">
             Rover "{roverId}" is not registered
@@ -50,7 +50,7 @@ export function RoverView() {
               to={`/fleet/${rover.id}/teleop`}
               className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
             >
-              <Gamepad2 className="h-4 w-4" />
+              <GameController className="h-4 w-4" />
               Enter Teleop
             </Link>
           )}
@@ -60,7 +60,7 @@ export function RoverView() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="bg-card border border-border p-4">
             <div className="flex items-center gap-2 mb-2">
-              <Battery className="h-4 w-4 text-muted-foreground" />
+              <BatteryHigh className="h-4 w-4 text-muted-foreground" />
               <span className="text-sm text-muted-foreground">Battery</span>
             </div>
             <p className="text-2xl font-mono">{rover.batteryVoltage.toFixed(1)}V</p>

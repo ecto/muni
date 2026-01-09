@@ -1,4 +1,4 @@
-import { Video } from "lucide-react";
+import { VideoCamera } from "@phosphor-icons/react";
 
 /**
  * Placeholder for the sessions view.
@@ -18,7 +18,7 @@ export function SessionsView() {
 
         {/* Placeholder */}
         <div className="bg-muted/50 border border-border p-8 text-center">
-          <Video className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
+          <VideoCamera className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
           <h3 className="font-medium mb-2">Sessions View</h3>
           <p className="text-sm text-muted-foreground max-w-md mx-auto">
             This view will display recorded sessions with filtering, playback,

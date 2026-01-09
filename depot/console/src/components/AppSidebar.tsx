@@ -15,16 +15,16 @@ import {
   SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
 import {
-  Satellite,
-  Server,
-  Bot,
-  Map,
-  Video,
-  LayoutDashboard,
-  ExternalLink,
-  BarChart3,
+  CellTower,
+  Desktop,
+  Robot,
+  MapTrifold,
+  VideoCamera,
+  SquaresFour,
+  ArrowSquareOut,
+  ChartBar,
   Database,
-} from "lucide-react";
+} from "@phosphor-icons/react";
 import { useConsoleStore } from "@/store";
 import { useDiscovery } from "@/hooks/useDiscovery";
 
@@ -71,7 +71,7 @@ export function AppSidebar() {
                 tooltip="Dashboard"
               >
                 <Link to="/">
-                  <LayoutDashboard />
+                  <SquaresFour />
                   <span>Dashboard</span>
                 </Link>
               </SidebarMenuButton>
@@ -91,7 +91,7 @@ export function AppSidebar() {
                   tooltip="Base Station"
                 >
                   <Link to="/base-station">
-                    <Satellite />
+                    <CellTower className="h-4 w-4" />
                     <span>Base Station</span>
                     <StatusDot status={gpsOk ? "ok" : "unknown"} />
                   </Link>
@@ -104,7 +104,7 @@ export function AppSidebar() {
                   tooltip="Services"
                 >
                   <Link to="/services">
-                    <Server />
+                    <Desktop className="h-4 w-4" />
                     <span>Services</span>
                   </Link>
                 </SidebarMenuButton>
@@ -127,7 +127,7 @@ export function AppSidebar() {
                   tooltip="All Rovers"
                 >
                   <Link to="/fleet">
-                    <Bot />
+                    <Robot className="h-4 w-4" />
                     <span>All Rovers</span>
                   </Link>
                 </SidebarMenuButton>
@@ -167,7 +167,7 @@ export function AppSidebar() {
                   tooltip="Sessions"
                 >
                   <Link to="/sessions">
-                    <Video />
+                    <VideoCamera className="h-4 w-4" />
                     <span>Sessions</span>
                   </Link>
                 </SidebarMenuButton>
@@ -179,7 +179,7 @@ export function AppSidebar() {
                   tooltip="Maps"
                 >
                   <Link to="/maps">
-                    <Map />
+                    <MapTrifold className="h-4 w-4" />
                     <span>Maps</span>
                   </Link>
                 </SidebarMenuButton>
@@ -194,9 +194,9 @@ export function AppSidebar() {
           <SidebarMenuItem>
             <SidebarMenuButton asChild tooltip="Grafana Dashboards">
               <a href="/grafana/" target="_blank" rel="noopener noreferrer">
-                <BarChart3 />
+                <ChartBar className="h-4 w-4" />
                 <span>Dashboards</span>
-                <ExternalLink className="ml-auto h-3 w-3 opacity-50" />
+                <ArrowSquareOut className="ml-auto h-3 w-3 opacity-50" />
               </a>
             </SidebarMenuButton>
           </SidebarMenuItem>
@@ -207,9 +207,9 @@ export function AppSidebar() {
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                <Database />
+                <Database className="h-4 w-4" />
                 <span>Database</span>
-                <ExternalLink className="ml-auto h-3 w-3 opacity-50" />
+                <ArrowSquareOut className="ml-auto h-3 w-3 opacity-50" />
               </a>
             </SidebarMenuButton>
           </SidebarMenuItem>

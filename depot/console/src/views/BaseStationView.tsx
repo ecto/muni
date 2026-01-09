@@ -1,5 +1,5 @@
 import { useConsoleStore } from "@/store";
-import { Satellite, Radio, MapPin, Activity } from "lucide-react";
+import { CellTower, Broadcast, MapPin, Heartbeat } from "@phosphor-icons/react";
 import type { GpsStatus } from "@/lib/types";
 
 const defaultStatus: GpsStatus = {
@@ -46,7 +46,7 @@ export function BaseStationView() {
                 status.connected ? "bg-green-500/20" : "bg-muted"
               }`}
             >
-              <Satellite
+              <CellTower
                 className={`h-5 w-5 ${
                   status.connected ? "text-green-500" : "text-muted-foreground"
                 }`}
@@ -121,7 +121,7 @@ export function BaseStationView() {
         {status.surveyIn && (
           <div className="bg-card border border-border p-6">
             <div className="flex items-center gap-2 mb-4">
-              <Activity className="h-4 w-4 text-muted-foreground" />
+              <Heartbeat className="h-4 w-4 text-muted-foreground" />
               <h2 className="font-medium">Survey-In Progress</h2>
             </div>
             <div className="grid grid-cols-3 gap-4 text-sm">
@@ -147,7 +147,7 @@ export function BaseStationView() {
         {status.rtcmMessages && status.rtcmMessages.length > 0 && (
           <div className="bg-card border border-border p-6">
             <div className="flex items-center gap-2 mb-4">
-              <Radio className="h-4 w-4 text-muted-foreground" />
+              <Broadcast className="h-4 w-4 text-muted-foreground" />
               <h2 className="font-medium">RTCM Output</h2>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
@@ -164,7 +164,7 @@ export function BaseStationView() {
         {/* Not Connected State */}
         {!status.connected && (
           <div className="bg-muted/50 border border-border p-8 text-center">
-            <Satellite className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
+            <CellTower className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
             <h3 className="font-medium text-foreground mb-2">GPS Module Not Connected</h3>
             <p className="text-sm text-muted-foreground max-w-md mx-auto">
               Connect a ZED-F9P GPS module via USB to the depot server.

@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { useConsoleStore } from "@/store";
-import { Bot, Battery, MapPin, Gamepad2 } from "lucide-react";
+import { Robot, BatteryHigh, MapPin, GameController } from "@phosphor-icons/react";
 import { ModeLabels, type Mode } from "@/lib/types";
 
 export function FleetView() {
@@ -25,7 +25,7 @@ export function FleetView() {
         {/* Rover List */}
         {rovers.length === 0 ? (
           <div className="bg-muted/50 border border-border p-8 text-center">
-            <Bot className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
+            <Robot className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
             <h3 className="font-medium mb-2">No Rovers Registered</h3>
             <p className="text-sm text-muted-foreground max-w-md mx-auto">
               Rovers will appear here once they connect to the discovery service.
@@ -45,7 +45,7 @@ export function FleetView() {
                     rover.online ? "bg-primary/20" : "bg-muted"
                   }`}
                 >
-                  <Bot
+                  <Robot
                     className={`h-6 w-6 ${
                       rover.online ? "text-primary" : "text-muted-foreground"
                     }`}
@@ -70,7 +70,7 @@ export function FleetView() {
                   </div>
                   <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
                     <span className="flex items-center gap-1">
-                      <Battery className="h-3 w-3" />
+                      <BatteryHigh className="h-3 w-3" />
                       {rover.batteryVoltage.toFixed(1)}V
                     </span>
                     <span className="flex items-center gap-1 font-mono text-xs">
@@ -86,7 +86,7 @@ export function FleetView() {
                     className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
                     onClick={(e) => e.stopPropagation()}
                   >
-                    <Gamepad2 className="h-4 w-4" />
+                    <GameController className="h-4 w-4" />
                     Teleop
                   </Link>
                 )}

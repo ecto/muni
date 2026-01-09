@@ -1,13 +1,13 @@
 import { Link } from "react-router-dom";
 import { useConsoleStore } from "@/store";
 import {
-  Satellite,
-  Bot,
-  Video,
-  Map,
-  AlertTriangle,
-  CheckCircle2,
-} from "lucide-react";
+  CellTower,
+  Robot,
+  VideoCamera,
+  MapTrifold,
+  Warning,
+  CheckCircle,
+} from "@phosphor-icons/react";
 
 export function DashboardView() {
   const { rovers, gpsStatus, sessions } = useConsoleStore();
@@ -31,7 +31,7 @@ export function DashboardView() {
         {/* Alerts */}
         {offlineRovers.length > 0 && (
           <div className="bg-destructive/10 border border-destructive/20 p-4 flex items-start gap-3">
-            <AlertTriangle className="h-5 w-5 text-destructive mt-0.5" />
+            <Warning className="h-5 w-5 text-destructive mt-0.5" />
             <div>
               <p className="font-medium text-destructive">
                 {offlineRovers.length} rover{offlineRovers.length > 1 ? "s" : ""} offline
@@ -52,14 +52,14 @@ export function DashboardView() {
           >
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
-                <Satellite className="h-5 w-5 text-muted-foreground" />
+                <CellTower className="h-5 w-5 text-muted-foreground" />
                 <span className="font-medium text-foreground">Base Station</span>
               </div>
               {gpsStatus ? (
                 gpsOk ? (
-                  <CheckCircle2 className="h-5 w-5 text-green-500" />
+                  <CheckCircle className="h-5 w-5 text-green-500" />
                 ) : (
-                  <AlertTriangle className="h-5 w-5 text-yellow-500" />
+                  <Warning className="h-5 w-5 text-yellow-500" />
                 )
               ) : (
                 <span className="text-xs text-muted-foreground">Unknown</span>
@@ -89,7 +89,7 @@ export function DashboardView() {
           >
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
-                <Bot className="h-5 w-5 text-muted-foreground" />
+                <Robot className="h-5 w-5 text-muted-foreground" />
                 <span className="font-medium text-foreground">Fleet</span>
               </div>
               <span className="text-sm">
@@ -120,7 +120,7 @@ export function DashboardView() {
           >
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
-                <Video className="h-5 w-5 text-muted-foreground" />
+                <VideoCamera className="h-5 w-5 text-muted-foreground" />
                 <span className="font-medium text-foreground">Sessions</span>
               </div>
               <span className="text-sm text-muted-foreground">
@@ -139,7 +139,7 @@ export function DashboardView() {
           >
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
-                <Map className="h-5 w-5 text-muted-foreground" />
+                <MapTrifold className="h-5 w-5 text-muted-foreground" />
                 <span className="font-medium text-foreground">Maps</span>
               </div>
             </div>

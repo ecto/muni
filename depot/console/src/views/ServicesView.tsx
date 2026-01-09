@@ -1,14 +1,14 @@
 import { useEffect, useState } from "react";
 import {
-  Server,
+  Desktop,
   Database,
   HardDrive,
-  Wifi,
-  Satellite,
-  CheckCircle2,
+  WifiHigh,
+  CellTower,
+  CheckCircle,
   XCircle,
-  Loader2,
-} from "lucide-react";
+  CircleNotch,
+} from "@phosphor-icons/react";
 
 interface ServiceStatus {
   name: string;
@@ -26,7 +26,7 @@ export function ServicesView() {
       description: "Rover registration and fleet status",
       status: "checking",
       url: "/api/discovery/health",
-      icon: <Wifi className="h-4 w-4" />,
+      icon: <WifiHigh className="h-4 w-4" />,
     },
     {
       name: "InfluxDB",
@@ -40,7 +40,7 @@ export function ServicesView() {
       description: "Metrics dashboards",
       status: "checking",
       url: "/grafana/api/health",
-      icon: <Server className="h-4 w-4" />,
+      icon: <Desktop className="h-4 w-4" />,
     },
     {
       name: "Map API",
@@ -61,7 +61,7 @@ export function ServicesView() {
       description: "RTK corrections broadcast",
       status: "checking",
       details: "Port 2101",
-      icon: <Satellite className="h-4 w-4" />,
+      icon: <CellTower className="h-4 w-4" />,
     },
   ]);
 
@@ -147,10 +147,10 @@ export function ServicesView() {
               </div>
               <div className="flex items-center gap-2">
                 {service.status === "checking" && (
-                  <Loader2 className="h-5 w-5 text-muted-foreground animate-spin" />
+                  <CircleNotch className="h-5 w-5 text-muted-foreground animate-spin" />
                 )}
                 {service.status === "healthy" && (
-                  <CheckCircle2 className="h-5 w-5 text-green-500" />
+                  <CheckCircle className="h-5 w-5 text-green-500" />
                 )}
                 {service.status === "unhealthy" && (
                   <XCircle className="h-5 w-5 text-red-500" />
