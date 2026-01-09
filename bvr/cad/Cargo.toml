@@ -4,11 +4,26 @@ version = "0.1.0"
 edition = "2021"
 description = "Parametric CAD for BVR rover parts"
 
+[features]
+default = ["gltf"]
+step = ["opencascade"]
+gltf = ["dep:gltf", "dep:base64"]
+usd = []  # USD export via Python script
+
 [dependencies]
 manifold-rs = "0.6"
 nalgebra = "0.33"
 thiserror = "2"
 anyhow = "1"
+toml = "0.8"
+serde = { version = "1", features = ["derive"] }
+
+# Optional: glTF export for visualization
+gltf = { version = "1.4", optional = true }
+base64 = { version = "0.22", optional = true }
+
+# Optional: OpenCASCADE for STEP export (requires OCCT installed)
+opencascade = { version = "0.2", optional = true }
 
 [[bin]]
 name = "motor-mount"

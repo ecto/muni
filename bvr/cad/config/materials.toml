@@ -1,0 +1,233 @@
+# Material Database for BVR CAD Pipeline
+#
+# Defines PBR properties and physics parameters for all parts.
+# Used by glTF exporter (visualization) and USD exporter (simulation).
+#
+# Properties:
+#   color: [R, G, B] normalized 0.0-1.0
+#   metallic: 0.0 (dielectric) to 1.0 (metal)
+#   roughness: 0.0 (smooth) to 1.0 (rough)
+#   density: kg/m³ (for mass calculation)
+#   friction: coefficient of friction (for physics)
+
+# =============================================================================
+# METALS
+# =============================================================================
+
+[materials.aluminum_6061]
+description = "6061-T6 Aluminum - frame extrusions, brackets"
+color = [0.85, 0.85, 0.88]
+metallic = 0.95
+roughness = 0.35
+density = 2700
+friction = 0.4
+
+[materials.aluminum_anodized_black]
+description = "Black anodized aluminum - motor mounts, plates"
+color = [0.12, 0.12, 0.14]
+metallic = 0.7
+roughness = 0.4
+density = 2700
+friction = 0.4
+
+[materials.steel]
+description = "Steel - fasteners, axles"
+color = [0.6, 0.6, 0.65]
+metallic = 0.9
+roughness = 0.4
+density = 7850
+friction = 0.5
+
+# =============================================================================
+# PLASTICS
+# =============================================================================
+
+[materials.abs_orange]
+description = "ABS plastic - Muni orange brand color"
+color = [1.0, 0.4, 0.0]
+metallic = 0.0
+roughness = 0.5
+density = 1050
+friction = 0.35
+
+[materials.abs_black]
+description = "Black ABS plastic - enclosures, covers"
+color = [0.08, 0.08, 0.08]
+metallic = 0.0
+roughness = 0.6
+density = 1050
+friction = 0.35
+
+[materials.hdpe_black]
+description = "HDPE - base trays, panels"
+color = [0.1, 0.1, 0.1]
+metallic = 0.0
+roughness = 0.7
+density = 970
+friction = 0.3
+
+[materials.polycarbonate_clear]
+description = "Clear polycarbonate - windows, covers"
+color = [0.95, 0.95, 0.98]
+metallic = 0.0
+roughness = 0.1
+density = 1200
+friction = 0.35
+
+# =============================================================================
+# RUBBER / ELASTOMERS
+# =============================================================================
+
+[materials.rubber_tire]
+description = "Rubber tire compound"
+color = [0.12, 0.12, 0.12]
+metallic = 0.0
+roughness = 0.95
+density = 1100
+friction = 0.85
+
+[materials.silicone_black]
+description = "Black silicone - seals, gaskets"
+color = [0.15, 0.15, 0.15]
+metallic = 0.0
+roughness = 0.8
+density = 1100
+friction = 0.7
+
+# =============================================================================
+# ELECTRONICS
+# =============================================================================
+
+[materials.pcb_green]
+description = "PCB solder mask green"
+color = [0.1, 0.35, 0.15]
+metallic = 0.0
+roughness = 0.6
+density = 1850
+friction = 0.4
+
+[materials.heatsink_aluminum]
+description = "Finned aluminum heatsink"
+color = [0.75, 0.75, 0.78]
+metallic = 0.85
+roughness = 0.5
+density = 2700
+friction = 0.4
+
+[materials.copper]
+description = "Copper - motor windings, traces"
+color = [0.95, 0.6, 0.4]
+metallic = 1.0
+roughness = 0.3
+density = 8960
+friction = 0.4
+
+# =============================================================================
+# BATTERIES
+# =============================================================================
+
+[materials.battery_cell]
+description = "Lithium-ion cell casing"
+color = [0.2, 0.25, 0.35]
+metallic = 0.6
+roughness = 0.4
+density = 2500  # Approximate for 18650 cells
+friction = 0.4
+
+[materials.battery_shrink]
+description = "Battery pack heat shrink"
+color = [0.1, 0.1, 0.1]
+metallic = 0.0
+roughness = 0.7
+density = 1000
+friction = 0.5
+
+# =============================================================================
+# SENSORS
+# =============================================================================
+
+[materials.sensor_housing]
+description = "Sensor enclosure plastic"
+color = [0.2, 0.2, 0.22]
+metallic = 0.0
+roughness = 0.5
+density = 1100
+friction = 0.4
+
+[materials.lens_glass]
+description = "Camera/LiDAR lens"
+color = [0.05, 0.05, 0.08]
+metallic = 0.0
+roughness = 0.05
+density = 2500
+friction = 0.3
+
+# =============================================================================
+# SCALE REFERENCES
+# =============================================================================
+
+[materials.banana_yellow]
+description = "Banana for scale"
+color = [1.0, 0.88, 0.21]
+metallic = 0.0
+roughness = 0.6
+density = 950
+friction = 0.4
+
+[materials.human_mannequin]
+description = "Human figure reference"
+color = [0.5, 0.5, 0.5]
+metallic = 0.0
+roughness = 0.8
+density = 985  # Average human density
+friction = 0.5
+
+# =============================================================================
+# PART ASSIGNMENTS
+# =============================================================================
+# Maps part names to their materials
+
+[part_materials]
+# Frame
+"extrusion_2020" = "aluminum_6061"
+"corner_bracket" = "aluminum_6061"
+"bvr1_frame" = "aluminum_6061"
+"tnut" = "steel"
+
+# Motor mounts
+"motor_mount" = "aluminum_anodized_black"
+"wheel_spacer" = "aluminum_anodized_black"
+
+# Drivetrain
+"uumotor_body" = "aluminum_anodized_black"
+"uumotor_tire" = "rubber_tire"
+"hub_motor_body" = "aluminum_anodized_black"
+"hub_motor_tire" = "rubber_tire"
+
+# Electronics
+"electronics_plate" = "aluminum_anodized_black"
+"vesc" = "heatsink_aluminum"
+"jetson" = "heatsink_aluminum"
+"dcdc" = "abs_black"
+
+# Enclosures
+"base_tray" = "hdpe_black"
+"access_panel" = "hdpe_black"
+"battery_tray" = "hdpe_black"
+
+# Sensors
+"lidar" = "sensor_housing"
+"camera" = "sensor_housing"
+"gps_antenna" = "abs_black"
+
+# Batteries
+"battery_downtube" = "battery_shrink"
+"battery_custom" = "battery_shrink"
+
+# Scale references
+"banana" = "banana_yellow"
+"human" = "human_mannequin"
+
+# Assemblies (use primary material)
+"bvr0_assembly" = "abs_orange"
+"bvr1_assembly" = "abs_orange"

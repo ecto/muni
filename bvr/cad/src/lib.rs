@@ -1,6 +1,21 @@
 //! BVR CAD - Parametric CAD library for rover parts
 //!
 //! Uses manifold-rs for CSG operations and STL export.
+//! Optional OpenCASCADE integration for STEP export (enable `step` feature).
+//!
+//! # Example
+//!
+//! ```rust
+//! use bvr_cad::parts::{Extrusion2020, BVR1Frame};
+//!
+//! // Create a single extrusion
+//! let rail = Extrusion2020::new(500.0).generate();
+//! rail.write_stl("rail.stl").unwrap();
+//!
+//! // Create complete frame assembly
+//! let frame = BVR1Frame::default_bvr1().generate();
+//! frame.write_stl("bvr1_frame.stl").unwrap();
+//! ```
 
 use manifold_rs::{Manifold, Mesh};
 use nalgebra::Vector3;
@@ -8,7 +23,11 @@ use std::f64::consts::PI;
 use std::io::Write;
 use thiserror::Error;
 
+pub mod export;
 pub mod parts;
+pub mod step;
+
+pub use export::{Material, Materials};
 
 #[derive(Error, Debug)]
 pub enum CadError {
