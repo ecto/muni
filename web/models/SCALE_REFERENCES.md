@@ -16,12 +16,15 @@ This directory contains scale reference models for the CAD viewer.
 | `banana.glb`     | High-res model | Primary visualization model    |
 | `ref_banana.glb` | CAD pipeline   | Fallback (generated from Rust) |
 
-### Human (1.75m)
+### Astronaut (1850mm)
 
-| File            | Source         | Notes                          |
-| --------------- | -------------- | ------------------------------ |
-| `human.glb`     | High-res model | Primary visualization model    |
-| `ref_human.glb` | CAD pipeline   | Fallback (generated from Rust) |
+| File            | Source                             | Notes     |
+| --------------- | ---------------------------------- | --------- |
+| `astronaut.glb` | [Sketchfab](https://skfb.ly/oVwuz) | CC BY 4.0 |
+
+**Attribution Required:**
+
+> "astronaut" (https://skfb.ly/oVwuz) by Antropik is licensed under Creative Commons Attribution (http://creativecommons.org/licenses/by/4.0/).
 
 ### Grogu (34cm)
 

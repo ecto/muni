@@ -799,7 +799,7 @@ const partsCatalog = [
   // Scale references (check first)
   { match: /grogu/i, name: 'Grogu', desc: 'The Child, a Force-sensitive being', specs: '34cm tall' },
   { match: /banana/i, name: 'Banana', desc: 'Scale reference fruit', specs: '180mm' },
-  { match: /human/i, name: 'Human Figure', desc: 'Scale reference', specs: '1.75m tall' },
+  { match: /astronaut/i, name: 'Astronaut', desc: 'Scale reference', specs: '1850mm tall' },
 
   // Specific parts (most specific first)
   { match: /corner[-_]?bracket/i, name: 'Corner Bracket', desc: 'Frame joint connector', material: '6061-T6 Aluminum' },
@@ -1116,7 +1116,7 @@ infoDeselectBtn.onclick = () => {
     selectedScaleRef = null;
   }
   showInspector(null, null);
-  frameAllVisibleObjects();
+  frameAllObjects();
 };
 
 // Collect all interactive meshes (model + scale references)
@@ -1715,23 +1715,21 @@ const scaleReferences = [
     attribution: null,
   },
   {
-    id: 'human',
-    name: 'Human',
-    icon: '🧍',
-    description: 'Average adult human for scale',
-    specs: '1.75m tall',
-    modelPath: 'models/human.glb',
-    fallbackPath: 'models/ref_human.glb',
-    scale: 1.0,
-    rotateY: Math.PI,
-    material: {
-      color: 0x888888,
-      metalness: 0.1,
-      roughness: 0.8,
-      transparent: true,
-      opacity: 0.85,
+    id: 'astronaut',
+    name: 'Astronaut',
+    icon: '🧑‍🚀',
+    description: 'Spacesuit for scale',
+    specs: '1850mm tall (avg male + suit)',
+    modelPath: 'models/astronaut.glb',
+    fallbackPath: null,
+    scale: 1000.0,  // Sketchfab model is in meters, convert to mm
+    material: null,
+    attribution: {
+      title: 'astronaut',
+      author: 'Antropik',
+      url: 'https://skfb.ly/oVwuz',
+      license: 'CC BY 4.0',
     },
-    attribution: null,
   },
   {
     id: 'grogu',
