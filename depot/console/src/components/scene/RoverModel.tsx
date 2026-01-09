@@ -167,7 +167,7 @@ function ErrorBoundary({
   );
 }
 
-import { Component, type ReactNode, type ErrorInfo } from "react";
+import { Component, type ReactNode } from "react";
 
 class ErrorBoundaryInner extends Component<
   { children: ReactNode; onError: () => void },
@@ -179,7 +179,7 @@ class ErrorBoundaryInner extends Component<
     return { hasError: true };
   }
 
-  componentDidCatch(_error: Error, _info: ErrorInfo) {
+  componentDidCatch() {
     this.props.onError();
   }
 
