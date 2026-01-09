@@ -38,4 +38,8 @@ web/**/*.pdf -filter -diff -merge binary
 web/*.pdf -filter -diff -merge binary
 web/*.png -filter -diff -merge binary
 web/*.jpg -filter -diff -merge binary
+web/*.stl -filter -diff -merge binary
+web/**/*.stl -filter -diff -merge binary
 web/whitepaper.pdf !text !filter !merge !diff
+web/**/*.glb -filter -diff -merge binary
+web/*.glb -filter -diff -merge binary

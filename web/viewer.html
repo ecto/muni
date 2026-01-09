@@ -1,0 +1,2067 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CAD Viewer | Municipal Robotics</title>
+  <meta name="description" content="Interactive 3D viewer for BVR rover CAD models">
+  <link rel="stylesheet" href="style.css">
+  <style>
+    body {
+      background: var(--bg);
+      overflow: hidden;
+    }
+
+    .viewer-container {
+      display: flex;
+      height: 100vh;
+      max-width: none;
+      padding: 0;
+    }
+
+    .viewer-sidebar {
+      width: 280px;
+      background: var(--card-bg);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      transition: width 0.3s ease, margin-left 0.3s ease;
+      position: relative;
+    }
+
+    .viewer-sidebar.collapsed {
+      width: 0;
+      margin-left: -1px;
+    }
+
+    .viewer-sidebar.collapsed > *:not(.sidebar-toggle) {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .sidebar-toggle {
+      position: absolute;
+      right: -32px;
+      top: 16px;
+      width: 28px;
+      height: 28px;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-left: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      color: var(--fg-muted);
+      z-index: 100;
+      transition: color 0.15s ease, border-color 0.15s ease;
+    }
+
+    .sidebar-toggle:hover {
+      color: var(--orange);
+      border-color: var(--orange);
+    }
+
+    .viewer-header {
+      padding: 20px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .viewer-header h1 {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.15em;
+      color: var(--orange);
+      margin-bottom: 8px;
+    }
+
+    .back-link {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--fg-muted);
+      text-decoration: none;
+    }
+
+    .back-link:hover {
+      color: var(--orange);
+      background: transparent;
+    }
+
+    .model-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px;
+    }
+
+    .model-section {
+      margin-bottom: 16px;
+    }
+
+    .model-section-title {
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      color: var(--fg-muted);
+      text-transform: uppercase;
+      margin-bottom: 8px;
+      padding: 0 8px;
+    }
+
+    .model-item {
+      display: flex;
+      align-items: flex-start;
+      padding: 10px 12px;
+      margin-bottom: 4px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      cursor: pointer;
+      transition: border-color 0.15s ease, background 0.15s ease;
+      font-size: 11px;
+      color: var(--fg);
+    }
+
+    .model-item:hover {
+      border-color: var(--orange);
+    }
+
+    .model-item.active {
+      border-color: var(--orange);
+      background: rgba(255, 102, 0, 0.1);
+    }
+
+    .model-item-icon {
+      margin-right: 8px;
+      flex-shrink: 0;
+    }
+
+    .model-item-content {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+    }
+
+    .model-item-name {
+      font-weight: 500;
+    }
+
+    .model-item-desc {
+      font-size: 9px;
+      color: var(--fg-muted);
+      margin-top: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .drop-zone {
+      margin: 12px;
+      padding: 20px;
+      border: 2px dashed var(--border);
+      text-align: center;
+      transition: border-color 0.15s ease, background 0.15s ease;
+    }
+
+    .drop-zone.drag-over {
+      border-color: var(--orange);
+      background: rgba(255, 102, 0, 0.05);
+    }
+
+    .drop-zone-text {
+      font-size: 10px;
+      color: var(--fg-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .drop-zone-text strong {
+      display: block;
+      color: var(--fg);
+      margin-bottom: 4px;
+    }
+
+    .viewer-main {
+      flex: 1;
+      position: relative;
+      background: var(--bg);
+    }
+
+    #canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    .viewer-info {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      background: rgba(10, 10, 10, 0.9);
+      border: 1px solid var(--border);
+      padding: 12px 16px;
+      font-size: 11px;
+      white-space: pre-line;
+      min-width: 180px;
+      max-width: 280px;
+      backdrop-filter: blur(8px);
+      z-index: 10;
+    }
+
+    /* Light mode support for inspector */
+    @media (prefers-color-scheme: light) {
+      .viewer-info {
+        background: rgba(255, 255, 255, 0.9);
+        border-color: #d6d3d1;
+      }
+      .viewer-info .viewer-info-title {
+        color: #c2410c;
+      }
+      .viewer-info .viewer-info-desc,
+      .viewer-info .viewer-info-dims,
+      .viewer-info .info-label {
+        color: #78716c;
+      }
+      .viewer-info .info-value {
+        color: #1c1917;
+      }
+      .viewer-info .info-btn {
+        background: #fafaf9;
+        border-color: #d6d3d1;
+        color: #1c1917;
+      }
+      .viewer-info .info-btn:hover {
+        border-color: #c2410c;
+      }
+      .viewer-info.has-selection {
+        border-color: #c2410c;
+      }
+    }
+
+    .viewer-info-title {
+      color: var(--orange);
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .viewer-info-desc {
+      color: var(--fg-muted);
+      font-size: 10px;
+      margin-bottom: 4px;
+      line-height: 1.4;
+    }
+
+    .viewer-info-dims {
+      color: var(--fg-muted);
+      font-size: 10px;
+    }
+
+    .viewer-info-props {
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid var(--border);
+    }
+
+    .info-prop {
+      display: flex;
+      justify-content: space-between;
+      font-size: 10px;
+      margin-bottom: 4px;
+    }
+
+    .info-label {
+      color: var(--fg-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .info-value {
+      color: var(--fg);
+    }
+
+    .viewer-info-actions {
+      margin-top: 10px;
+      display: flex;
+      gap: 6px;
+    }
+
+    .info-btn {
+      flex: 1;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--fg);
+      padding: 6px 8px;
+      font-family: inherit;
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      cursor: pointer;
+      transition: border-color 0.15s ease;
+    }
+
+    .info-btn:hover {
+      border-color: var(--orange);
+    }
+
+    .viewer-info.has-selection {
+      border-color: var(--orange);
+    }
+
+    .viewer-info.has-selection .viewer-info-title {
+      color: var(--orange);
+    }
+
+    .viewer-controls {
+      position: absolute;
+      bottom: 16px;
+      left: 16px;
+      display: flex;
+      gap: 8px;
+    }
+
+    .viewer-btn {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      color: var(--fg);
+      padding: 8px 16px;
+      font-family: inherit;
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      cursor: pointer;
+      transition: border-color 0.15s ease;
+    }
+
+    .viewer-btn:hover {
+      border-color: var(--orange);
+    }
+
+    .viewer-btn.active {
+      border-color: var(--orange);
+      background: rgba(255, 102, 0, 0.2);
+      color: var(--orange);
+    }
+
+    /* Light mode: stronger background for active button */
+    @media (prefers-color-scheme: light) {
+      .viewer-btn {
+        background: rgba(255, 255, 255, 0.9);
+        border-color: #d6d3d1;
+        color: #1c1917;
+      }
+      .viewer-btn:hover {
+        border-color: #c2410c;
+      }
+      .viewer-btn.active {
+        background: rgba(234, 88, 12, 0.15);
+        border-color: #c2410c;
+        color: #c2410c;
+      }
+    }
+
+    /* Scale reference dropdown */
+    .scale-ref-dropdown {
+      position: relative;
+    }
+
+    .scale-ref-menu {
+      display: none;
+      position: absolute;
+      bottom: 100%;
+      left: 0;
+      margin-bottom: 8px;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      min-width: 220px;
+      padding: 8px 0;
+      z-index: 100;
+    }
+
+    .scale-ref-menu.open {
+      display: block;
+    }
+
+    .scale-ref-header {
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--fg-muted);
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 4px;
+    }
+
+    .scale-ref-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      cursor: pointer;
+      transition: background 0.15s ease;
+      font-size: 12px;
+      color: var(--fg);
+    }
+
+    .scale-ref-item:hover {
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .scale-ref-item.active {
+      background: rgba(255, 102, 0, 0.1);
+    }
+
+    .scale-ref-checkbox {
+      width: 16px;
+      height: 16px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .scale-ref-checkbox.checked {
+      border-color: var(--orange);
+      background: var(--orange);
+    }
+
+    .scale-ref-checkbox.checked::after {
+      content: '✓';
+      color: #000;
+      font-size: 11px;
+      font-weight: bold;
+    }
+
+    .scale-ref-icon {
+      font-size: 16px;
+      width: 24px;
+      text-align: center;
+    }
+
+    .scale-ref-info {
+      flex: 1;
+    }
+
+    .scale-ref-name {
+      font-weight: 500;
+    }
+
+    .scale-ref-dims {
+      font-size: 10px;
+      color: var(--fg-muted);
+      margin-top: 2px;
+    }
+
+    .viewer-help {
+      position: absolute;
+      bottom: 16px;
+      right: 16px;
+      font-size: 9px;
+      color: var(--fg-muted);
+    }
+
+    .viewer-attributions {
+      position: absolute;
+      bottom: 60px;
+      right: 16px;
+      font-size: 9px;
+      color: var(--fg-muted);
+      text-align: right;
+      max-width: 300px;
+    }
+
+    .viewer-attributions a {
+      color: var(--fg-muted);
+      text-decoration: none;
+      display: block;
+      margin-bottom: 2px;
+    }
+
+    .viewer-attributions a:hover {
+      color: var(--orange);
+    }
+
+    .viewer-attributions .license {
+      font-size: 8px;
+      opacity: 0.7;
+      margin-left: 4px;
+      text-align: right;
+    }
+
+    .loading-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(10, 10, 10, 0.9);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--orange);
+      font-size: 12px;
+      letter-spacing: 0.1em;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+    }
+
+    .loading-overlay.visible {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    @media (max-width: 768px) {
+      .viewer-sidebar {
+        width: 220px;
+      }
+    }
+
+    @media (max-width: 600px) {
+      .viewer-container {
+        flex-direction: column;
+      }
+      .viewer-sidebar {
+        width: 100%;
+        height: 200px;
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+      }
+      .model-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+      }
+      .model-section {
+        width: 100%;
+      }
+      .model-item {
+        display: inline-block;
+        margin: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<div class="viewer-container">
+  <aside class="viewer-sidebar" id="sidebar">
+    <button class="sidebar-toggle" id="sidebarToggle" title="Toggle sidebar">◀</button>
+    <div class="viewer-header">
+      <h1>CAD VIEWER</h1>
+      <a href="index.html" class="back-link">← Back to home</a>
+    </div>
+
+    <div class="model-list" id="modelList"></div>
+
+    <div class="drop-zone" id="dropZone">
+      <div class="drop-zone-text">
+        <strong>Drop STL file</strong>
+        or click to browse
+      </div>
+      <input type="file" id="fileInput" accept=".stl" style="display: none;">
+    </div>
+  </aside>
+
+  <main class="viewer-main">
+    <canvas id="canvas"></canvas>
+
+    <div class="viewer-info" id="info">
+      <div class="viewer-info-title" id="infoTitle">Select a model</div>
+      <div class="viewer-info-desc" id="infoDesc"></div>
+      <div class="viewer-info-dims" id="infoDims">or drop an STL file</div>
+      <div class="viewer-info-props" id="infoProps" style="display:none">
+        <div class="info-prop"><span class="info-label">Specs</span><span class="info-value" id="infoSpecs"></span></div>
+        <div class="info-prop"><span class="info-label">Material</span><span class="info-value" id="infoMaterial"></span></div>
+        <div class="info-prop"><span class="info-label">Triangles</span><span class="info-value" id="infoTris"></span></div>
+      </div>
+      <div class="viewer-info-actions" id="infoActions" style="display:none">
+        <button class="info-btn" id="infoFocus">Focus</button>
+        <button class="info-btn" id="infoIsolate">Isolate</button>
+        <button class="info-btn" id="infoDeselect">Deselect</button>
+      </div>
+    </div>
+
+    <div class="viewer-controls">
+      <button class="viewer-btn" id="resetBtn">Reset View</button>
+      <button class="viewer-btn" id="wireframeBtn">Wireframe</button>
+      <div class="scale-ref-dropdown">
+        <button class="viewer-btn" id="scaleRefBtn">📏 Scale References</button>
+        <div class="scale-ref-menu" id="scaleRefMenu">
+          <div class="scale-ref-header">Toggle scale references</div>
+          <div id="scaleRefItems"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="viewer-help">
+      Grid: 10mm cells, 100mm sections<br>
+      Drag to rotate · Scroll to zoom<br>
+      Right-drag to pan
+    </div>
+
+    <div class="viewer-attributions" id="attributions" style="display: none;"></div>
+
+    <div class="loading-overlay" id="loading">LOADING...</div>
+  </main>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { STLLoader } from 'three/addons/loaders/STLLoader.js';
+
+// Model catalog - prefer glTF for PBR materials, fallback to STL
+const models = [
+  { section: 'Assemblies', items: [
+    { name: 'BVR1 Production', path: 'models/bvr1_assembly.glb', icon: '🚀', desc: 'Current production rover' },
+    { name: 'BVR0 Prototype', path: 'models/bvr0_assembly.glb', icon: '🚀', desc: 'First prototype rover' },
+  ]},
+  { section: 'Frame', items: [
+    { name: 'BVR1 Frame', path: 'models/bvr1_frame.glb', icon: '🏗️', desc: 'Aluminum extrusion frame' },
+  ]},
+  { section: 'Drivetrain', items: [
+    { name: 'SVB6HS 6.5"', path: 'models/uumotor_svb6hs.glb', icon: '🛞', desc: '500W hub motor, 6.5" wheel' },
+    { name: 'KN6104 10"', path: 'models/uumotor_kn6104.glb', icon: '🛞', desc: '800W hub motor, 10" wheel' },
+    { name: 'Motor Mount', path: 'models/uumotor_mount.glb', icon: '🔧', desc: 'Adjustable wheel mount' },
+  ]},
+  { section: 'Electronics', items: [
+    { name: 'Base Tray', path: 'models/base_tray.glb', icon: '📦', desc: 'Electronics mounting plate' },
+    { name: 'Access Panel', path: 'models/access_panel.glb', icon: '🚪', desc: 'Removable service panel' },
+  ]},
+];
+
+// Three.js setup
+const canvas = document.getElementById('canvas');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(window.devicePixelRatio);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+const scene = new THREE.Scene();
+
+// Theme detection and colors
+const darkTheme = {
+  background: 0x0a0a0a,
+  gridCell: 0x3a3634,
+  gridSection: 0x57534e,
+};
+
+const lightTheme = {
+  background: 0xf5f5f4,
+  gridCell: 0xd6d3d1,
+  gridSection: 0xa8a29e,
+};
+
+function getTheme() {
+  // Check for system preference or page class
+  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  const htmlHasLight = document.documentElement.classList.contains('light');
+  const htmlHasDark = document.documentElement.classList.contains('dark');
+
+  if (htmlHasLight) return lightTheme;
+  if (htmlHasDark) return darkTheme;
+  return prefersDark ? darkTheme : lightTheme;
+}
+
+let currentTheme = getTheme();
+scene.background = new THREE.Color(currentTheme.background);
+
+// Listen for theme changes
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', updateTheme);
+new MutationObserver(updateTheme).observe(document.documentElement, {
+  attributes: true,
+  attributeFilter: ['class']
+});
+
+function updateTheme() {
+  currentTheme = getTheme();
+  scene.background.set(currentTheme.background);
+
+  // Update grid colors
+  if (infiniteGridMaterial) {
+    infiniteGridMaterial.uniforms.uColor1.value.set(currentTheme.gridCell);
+    infiniteGridMaterial.uniforms.uColor2.value.set(currentTheme.gridSection);
+  }
+}
+
+const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 5000);
+camera.position.set(400, 400, 400);
+
+const controls = new OrbitControls(camera, canvas);
+controls.enableDamping = true;
+controls.dampingFactor = 0.05;
+
+// =============================================================================
+// SIDEBAR TOGGLE
+// =============================================================================
+const sidebar = document.getElementById('sidebar');
+const sidebarToggle = document.getElementById('sidebarToggle');
+
+sidebarToggle.onclick = () => {
+  sidebar.classList.toggle('collapsed');
+  sidebarToggle.textContent = sidebar.classList.contains('collapsed') ? '▶' : '◀';
+  // Trigger resize after transition
+  setTimeout(resize, 310);
+};
+
+// =============================================================================
+// RAYCASTING & INTERACTION
+// =============================================================================
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+let hoveredMesh = null;
+let selectedMesh = null;
+let selectedScaleRef = null;
+let isolatedMesh = null;
+const originalOpacity = new Map();
+
+// Highlight colors
+const highlightEmissive = new THREE.Color(0xff6600);
+const selectEmissive = new THREE.Color(0xff9933);
+
+function getMeshName(mesh) {
+  // Check for stored model name first
+  if (mesh.userData && mesh.userData.modelName) {
+    return mesh.userData.modelName;
+  }
+
+  // Try to get a meaningful name by walking up the hierarchy
+  let current = mesh;
+  const names = [];
+
+  while (current) {
+    // Check userData.modelName on parents too
+    if (current.userData && current.userData.modelName) {
+      return current.userData.modelName;
+    }
+    if (current.name && current.name !== '' && !current.name.startsWith('Scene')) {
+      names.push(current.name);
+    }
+    current = current.parent;
+  }
+
+  // Also check geometry name
+  if (mesh.geometry && mesh.geometry.name) {
+    names.push(mesh.geometry.name);
+  }
+
+  // Return the most specific non-empty name, or join hierarchy
+  if (names.length > 0) {
+    // Filter out generic names
+    const filtered = names.filter(n =>
+      !n.match(/^(mesh|object|group|node)[-_]?\d*$/i)
+    );
+    return filtered.length > 0 ? filtered[0] : names[0];
+  }
+
+  return 'Component';
+}
+
+// Get scale reference info for a mesh if it belongs to one
+function getScaleRefForMesh(mesh) {
+  let current = mesh;
+  while (current) {
+    for (const ref of scaleReferences) {
+      const state = scaleRefState[ref.id];
+      if (state.mesh === current) {
+        return ref;
+      }
+    }
+    current = current.parent;
+  }
+  return null;
+}
+
+// Highlight effects disabled - can cause visual artifacts
+function setMeshHighlight(mesh, highlighted) {
+  // No-op: highlight disabled
+}
+
+function setMeshSelected(mesh, selected) {
+  // No-op: selection highlight disabled
+}
+
+// Parts catalog with descriptions and specs
+// Keys are matched as whole words or at word boundaries
+const partsCatalog = [
+  // Scale references (check first)
+  { match: /grogu/i, name: 'Grogu', desc: 'The Child, a Force-sensitive being', specs: '34cm tall' },
+  { match: /banana/i, name: 'Banana', desc: 'Scale reference fruit', specs: '180mm' },
+  { match: /human/i, name: 'Human Figure', desc: 'Scale reference', specs: '1.75m tall' },
+
+  // Specific parts (most specific first)
+  { match: /corner[-_]?bracket/i, name: 'Corner Bracket', desc: 'Frame joint connector', material: '6061-T6 Aluminum' },
+  { match: /cross[-_]?member/i, name: 'Cross Member', desc: 'Lateral frame support', material: '6061-T6 Aluminum' },
+  { match: /motor[-_]?mount/i, name: 'Motor Mount', desc: 'Wheel/motor mounting bracket', material: '6061-T6 Aluminum' },
+  { match: /access[-_]?panel/i, name: 'Access Panel', desc: 'Removable service panel', material: 'ABS' },
+  { match: /e[-_]?stop|estop/i, name: 'Emergency Stop', desc: 'Safety shutoff button', specs: 'NC contacts, 22mm' },
+
+  // Generic parts
+  { match: /wheel/i, name: 'Drive Wheel', desc: 'Pneumatic tire with hub motor', specs: '6.5" or 10" diameter' },
+  { match: /tire/i, name: 'Tire', desc: 'Pneumatic rubber tire', specs: 'All-terrain tread' },
+  { match: /hub/i, name: 'Wheel Hub', desc: 'Motor mounting hub', material: 'Aluminum' },
+  { match: /motor/i, name: 'Hub Motor', desc: 'Brushless DC hub motor', specs: '48V, 500W' },
+  { match: /frame/i, name: 'Frame', desc: 'Structural frame component', material: '6061-T6 Aluminum' },
+  { match: /rail/i, name: 'Frame Rail', desc: 'Structural aluminum extrusion', material: '6061-T6 Aluminum' },
+  { match: /extrusion/i, name: 'Aluminum Extrusion', desc: 'Structural profile', material: '6061-T6 Aluminum' },
+  { match: /tray/i, name: 'Electronics Tray', desc: 'Component mounting platform', material: 'ABS' },
+  { match: /panel/i, name: 'Panel', desc: 'Enclosure panel', material: 'ABS' },
+  { match: /enclosure/i, name: 'Electronics Enclosure', desc: 'Weather-sealed housing', specs: 'IP65 rated' },
+  { match: /lid|cover/i, name: 'Cover', desc: 'Protective cover', material: 'ABS' },
+  { match: /standoff/i, name: 'Standoff', desc: 'PCB mounting spacer', material: 'Brass' },
+  { match: /spacer/i, name: 'Spacer', desc: 'Component spacer', material: 'Aluminum' },
+  { match: /axle/i, name: 'Axle', desc: 'Wheel axle shaft', material: 'Steel' },
+  { match: /bolt|screw/i, name: 'Fastener', desc: 'Threaded fastener', material: 'Steel' },
+  { match: /battery/i, name: 'Battery', desc: 'Power storage', specs: '48V Li-ion' },
+  { match: /camera/i, name: 'Camera', desc: 'Vision sensor', specs: '1080p' },
+  { match: /antenna/i, name: 'Antenna', desc: 'RF antenna', specs: 'Multi-band' },
+];
+
+// Identify part by geometry characteristics when name isn't helpful
+function identifyPartByGeometry(mesh) {
+  if (!mesh.geometry) return null;
+
+  mesh.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(mesh);
+  const size = box.getSize(new THREE.Vector3());
+  const center = box.getCenter(new THREE.Vector3());
+
+  // Count triangles
+  let tris = 0;
+  if (mesh.geometry.index) {
+    tris = mesh.geometry.index.count / 3;
+  } else if (mesh.geometry.attributes.position) {
+    tris = mesh.geometry.attributes.position.count / 3;
+  }
+
+  // Wheels: roughly circular in XZ, positioned at corners, high triangle count
+  const xyRatio = size.x / Math.max(size.y, 0.01);
+  const xzRatio = size.x / Math.max(size.z, 0.01);
+  const isNearCorner = Math.abs(center.x) > 150 && Math.abs(center.z) > 200;
+  const isLowToGround = center.y < 150;
+
+  if (isNearCorner && isLowToGround && tris > 500) {
+    return { name: 'Drive Wheel', desc: 'Hub motor wheel assembly', specs: 'Located at corner' };
+  }
+
+  // Top plate: flat, wide, at top
+  if (size.y < 20 && size.x > 300 && size.z > 400 && center.y > 200) {
+    return { name: 'Top Plate', desc: 'Electronics mounting surface', material: 'Aluminum' };
+  }
+
+  // Frame rails: long and thin
+  if ((size.x > 400 && size.y < 60 && size.z < 60) ||
+      (size.z > 400 && size.y < 60 && size.x < 60)) {
+    return { name: 'Frame Rail', desc: 'Structural aluminum extrusion', material: '6061-T6 Aluminum' };
+  }
+
+  // Cross members: medium length, thin
+  if ((size.x > 200 && size.x < 400 && size.y < 60) ||
+      (size.z > 200 && size.z < 400 && size.y < 60)) {
+    return { name: 'Cross Member', desc: 'Lateral support', material: '6061-T6 Aluminum' };
+  }
+
+  // Small parts with few triangles: likely fasteners or brackets
+  if (tris < 100 && size.x < 50 && size.y < 50 && size.z < 50) {
+    return { name: 'Hardware', desc: 'Fastener or bracket', material: 'Steel' };
+  }
+
+  return null;
+}
+
+function getPartInfo(meshName, mesh = null) {
+  // First try name-based matching
+  if (meshName) {
+    // Skip CSG operation noise when matching
+    const cleanedForMatch = meshName.replace(/[-_](diff|union|intersection|smooth)/gi, '');
+
+    for (const entry of partsCatalog) {
+      if (entry.match.test(cleanedForMatch)) {
+        return { name: entry.name, desc: entry.desc, specs: entry.specs, material: entry.material };
+      }
+    }
+  }
+
+  // Try geometry-based identification
+  if (mesh) {
+    const geoMatch = identifyPartByGeometry(mesh);
+    if (geoMatch) return geoMatch;
+  }
+
+  // Fallback: clean up and format the name
+  if (meshName) {
+    const cleanName = meshName
+      .replace(/[-_]?(diff|union|intersection|smooth|bar)[-_]?/gi, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    const formatted = cleanName
+      .split(/[\s_-]+/)
+      .filter(w => w.length > 1)
+      .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+      .join(' ');
+
+    if (formatted && formatted.length > 0) {
+      return { name: formatted, desc: '', specs: '' };
+    }
+  }
+
+  return { name: 'Component', desc: 'Assembly component', specs: '' };
+}
+
+// Info pane elements (combined model info + part inspector)
+const infoPane = document.getElementById('info');
+const infoTitle = document.getElementById('infoTitle');
+const infoDesc = document.getElementById('infoDesc');
+const infoDims = document.getElementById('infoDims');
+const infoProps = document.getElementById('infoProps');
+const infoSpecs = document.getElementById('infoSpecs');
+const infoMaterial = document.getElementById('infoMaterial');
+const infoTris = document.getElementById('infoTris');
+const infoActions = document.getElementById('infoActions');
+const infoFocusBtn = document.getElementById('infoFocus');
+const infoIsolateBtn = document.getElementById('infoIsolate');
+const infoDeselectBtn = document.getElementById('infoDeselect');
+
+// Track current model info for restoring when deselected
+let currentModelInfo = { name: 'Select a model', dims: 'or drop an STL file' };
+
+function showInspector(mesh, scaleRef = null) {
+  if (!mesh) {
+    // Restore default model info
+    infoPane.classList.remove('has-selection');
+    infoTitle.textContent = currentModelInfo.name;
+    infoDesc.textContent = '';
+    infoDesc.style.display = 'none';
+    infoDims.textContent = currentModelInfo.dims;
+    infoProps.style.display = 'none';
+    infoActions.style.display = 'none';
+    return;
+  }
+
+  // Calculate mesh bounds
+  mesh.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(mesh);
+  const size = box.getSize(new THREE.Vector3());
+
+  // Count triangles (traverse for groups)
+  let triangles = 0;
+  mesh.traverse((child) => {
+    if (child.geometry) {
+      if (child.geometry.index) {
+        triangles += child.geometry.index.count / 3;
+      } else if (child.geometry.attributes.position) {
+        triangles += child.geometry.attributes.position.count / 3;
+      }
+    }
+  });
+
+  let partInfo;
+
+  if (scaleRef) {
+    // Use scale reference metadata directly
+    partInfo = {
+      name: scaleRef.name,
+      desc: scaleRef.description,
+      specs: scaleRef.specs,
+      material: scaleRef.attribution ? `Model by ${scaleRef.attribution.author}` : null,
+    };
+  } else {
+    // Get part info from catalog or geometry analysis
+    const rawName = getMeshName(mesh);
+    partInfo = getPartInfo(rawName, mesh);
+  }
+
+  // Update info pane
+  infoPane.classList.add('has-selection');
+  infoTitle.textContent = partInfo.name;
+
+  if (partInfo.desc) {
+    infoDesc.textContent = partInfo.desc;
+    infoDesc.style.display = 'block';
+  } else {
+    infoDesc.style.display = 'none';
+  }
+
+  infoDims.textContent = `${size.x.toFixed(1)} × ${size.y.toFixed(1)} × ${size.z.toFixed(1)} mm`;
+
+  // Show props section
+  infoProps.style.display = 'block';
+
+  // Specs
+  if (partInfo.specs) {
+    infoSpecs.textContent = partInfo.specs;
+    infoSpecs.parentElement.style.display = 'flex';
+  } else {
+    infoSpecs.parentElement.style.display = 'none';
+  }
+
+  // Material
+  if (partInfo.material) {
+    infoMaterial.textContent = partInfo.material;
+    infoMaterial.parentElement.style.display = 'flex';
+  } else {
+    infoMaterial.parentElement.style.display = 'none';
+  }
+
+  infoTris.textContent = triangles.toLocaleString();
+
+  // Show action buttons
+  infoActions.style.display = 'flex';
+}
+
+function focusOnMesh(mesh) {
+  if (!mesh) return;
+
+  mesh.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(mesh);
+  const size = box.getSize(new THREE.Vector3());
+  const center = box.getCenter(new THREE.Vector3());
+  const maxDim = Math.max(size.x, size.y, size.z);
+
+  const dist = maxDim * 2.5;
+  const targetPosition = new THREE.Vector3(
+    center.x + dist * 0.5,
+    center.y + dist * 0.4,
+    center.z + dist * 0.5
+  );
+
+  // Animate camera
+  const startPosition = camera.position.clone();
+  const startTarget = controls.target.clone();
+  const duration = 400;
+  const startTime = performance.now();
+
+  function animate(time) {
+    const t = Math.min((time - startTime) / duration, 1);
+    const ease = 1 - Math.pow(1 - t, 3);
+
+    camera.position.lerpVectors(startPosition, targetPosition, ease);
+    controls.target.lerpVectors(startTarget, center, ease);
+    controls.update();
+
+    if (t < 1) requestAnimationFrame(animate);
+  }
+
+  requestAnimationFrame(animate);
+}
+
+function isolateMesh(mesh) {
+  if (!currentMesh) return;
+
+  // If already isolated, restore
+  if (isolatedMesh) {
+    currentMesh.traverse((child) => {
+      if (child.isMesh) {
+        const orig = originalOpacity.get(child.uuid);
+        if (orig !== undefined && child.material) {
+          const mats = Array.isArray(child.material) ? child.material : [child.material];
+          mats.forEach(m => {
+            m.transparent = orig.transparent;
+            m.opacity = orig.opacity;
+          });
+        }
+      }
+    });
+    originalOpacity.clear();
+    isolatedMesh = null;
+
+    if (!mesh || mesh === isolatedMesh) {
+      infoIsolateBtn.textContent = 'Isolate';
+      return;
+    }
+  }
+
+  // Isolate the new mesh
+  isolatedMesh = mesh;
+  infoIsolateBtn.textContent = 'Show All';
+
+  currentMesh.traverse((child) => {
+    if (child.isMesh && child !== mesh) {
+      const mats = Array.isArray(child.material) ? child.material : [child.material];
+      mats.forEach(m => {
+        originalOpacity.set(child.uuid, { transparent: m.transparent, opacity: m.opacity });
+        m.transparent = true;
+        m.opacity = 0.1;
+      });
+    }
+  });
+}
+
+// Info pane button handlers
+infoFocusBtn.onclick = () => {
+  if (selectedMesh) focusOnMesh(selectedMesh);
+};
+
+infoIsolateBtn.onclick = () => {
+  if (selectedMesh) isolateMesh(selectedMesh);
+};
+
+infoDeselectBtn.onclick = () => {
+  if (selectedMesh) {
+    setMeshSelected(selectedMesh, false);
+    selectedMesh = null;
+    selectedScaleRef = null;
+  }
+  showInspector(null, null);
+};
+
+// Collect all interactive meshes (model + scale references)
+function getInteractiveMeshes() {
+  const meshes = [];
+
+  // Main model
+  if (currentMesh) {
+    currentMesh.traverse((child) => {
+      if (child.isMesh) meshes.push(child);
+    });
+  }
+
+  // Scale references
+  scaleReferences.forEach(ref => {
+    const state = scaleRefState[ref.id];
+    if (state.mesh && state.visible) {
+      state.mesh.traverse((child) => {
+        if (child.isMesh) meshes.push(child);
+      });
+    }
+  });
+
+  return meshes;
+}
+
+// Mouse move handler for hover
+canvas.addEventListener('mousemove', (event) => {
+  const rect = canvas.getBoundingClientRect();
+  mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+  mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+  raycaster.setFromCamera(mouse, camera);
+
+  const meshes = getInteractiveMeshes();
+  const intersects = raycaster.intersectObjects(meshes, false);
+
+  // Clear previous hover
+  if (hoveredMesh && hoveredMesh !== selectedMesh) {
+    setMeshHighlight(hoveredMesh, false);
+  }
+
+  if (intersects.length > 0) {
+    const newHover = intersects[0].object;
+    if (newHover !== hoveredMesh) {
+      hoveredMesh = newHover;
+      if (hoveredMesh !== selectedMesh) {
+        setMeshHighlight(hoveredMesh, true);
+      }
+      canvas.style.cursor = 'pointer';
+    }
+  } else {
+    hoveredMesh = null;
+    canvas.style.cursor = 'grab';
+  }
+});
+
+// Click handler for selection
+canvas.addEventListener('click', (event) => {
+  // Ignore if dragging
+  if (controls.enabled && event.detail === 0) return;
+
+  const rect = canvas.getBoundingClientRect();
+  mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+  mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+  raycaster.setFromCamera(mouse, camera);
+
+  const meshes = getInteractiveMeshes();
+  const intersects = raycaster.intersectObjects(meshes, false);
+
+  // Clear previous selection
+  if (selectedMesh) {
+    setMeshSelected(selectedMesh, false);
+  }
+
+  if (intersects.length > 0) {
+    let clickedMesh = intersects[0].object;
+
+    // Check if clicked mesh belongs to a scale reference
+    // If so, select the whole reference, not the individual mesh
+    const scaleRef = getScaleRefForMesh(clickedMesh);
+    if (scaleRef) {
+      const state = scaleRefState[scaleRef.id];
+      selectedMesh = state.mesh; // Select the root, not the child
+      selectedScaleRef = scaleRef; // Track which ref is selected
+    } else {
+      selectedMesh = clickedMesh;
+      selectedScaleRef = null;
+    }
+
+    setMeshSelected(selectedMesh, true);
+    showInspector(selectedMesh, selectedScaleRef);
+
+    // Auto-focus on selection
+    focusOnMesh(selectedMesh);
+  } else {
+    selectedMesh = null;
+    selectedScaleRef = null;
+    showInspector(null, null);
+  }
+});
+
+// Update cursor on mousedown/up for orbit feedback
+canvas.addEventListener('mousedown', () => {
+  canvas.style.cursor = 'grabbing';
+});
+
+canvas.addEventListener('mouseup', () => {
+  canvas.style.cursor = hoveredMesh ? 'pointer' : 'grab';
+});
+
+// Lighting
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+scene.add(ambientLight);
+
+const keyLight = new THREE.DirectionalLight(0xffffff, 1.0);
+keyLight.position.set(200, 300, 200);
+scene.add(keyLight);
+
+const fillLight = new THREE.DirectionalLight(0xffffff, 0.5);
+fillLight.position.set(-200, 100, -100);
+scene.add(fillLight);
+
+const rimLight = new THREE.DirectionalLight(0xff6600, 0.3);
+rimLight.position.set(0, -100, -200);
+scene.add(rimLight);
+
+// Infinite grid with 10mm cells, 100mm sections
+// Colors: #3a3634 cells, #57534e sections (stone palette)
+const infiniteGridMaterial = new THREE.ShaderMaterial({
+  uniforms: {
+    uCellSize: { value: 10.0 },      // 10mm = 1cm cells
+    uSectionSize: { value: 100.0 },   // 100mm = 10cm sections
+    uColor1: { value: new THREE.Color(currentTheme.gridCell) },
+    uColor2: { value: new THREE.Color(currentTheme.gridSection) },
+    uFadeDistance: { value: 2000.0 },
+  },
+  vertexShader: `
+    varying vec3 vWorldPos;
+    void main() {
+      vec4 worldPos = modelMatrix * vec4(position, 1.0);
+      vWorldPos = worldPos.xyz;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  `,
+  fragmentShader: `
+    varying vec3 vWorldPos;
+    uniform float uCellSize;
+    uniform float uSectionSize;
+    uniform vec3 uColor1;
+    uniform vec3 uColor2;
+    uniform float uFadeDistance;
+
+    void main() {
+      // Distance fade from origin
+      float dist = length(vWorldPos.xz);
+      float fade = 1.0 - smoothstep(uFadeDistance * 0.3, uFadeDistance, dist);
+
+      // Grid using fract for proper wrapping
+      vec2 cellFrac = fract(vWorldPos.xz / uCellSize);
+      vec2 sectionFrac = fract(vWorldPos.xz / uSectionSize);
+
+      // Line width as fraction (thinner = more subtle)
+      float cellLineW = 0.04;     // 4% of 10mm = 0.4mm lines
+      float sectionLineW = 0.015; // 1.5% of 100mm = 1.5mm lines
+
+      // Detect lines
+      float cellLine = 0.0;
+      if (cellFrac.x < cellLineW || cellFrac.x > 1.0 - cellLineW) cellLine = 1.0;
+      if (cellFrac.y < cellLineW || cellFrac.y > 1.0 - cellLineW) cellLine = 1.0;
+
+      float sectionLine = 0.0;
+      if (sectionFrac.x < sectionLineW || sectionFrac.x > 1.0 - sectionLineW) sectionLine = 1.0;
+      if (sectionFrac.y < sectionLineW || sectionFrac.y > 1.0 - sectionLineW) sectionLine = 1.0;
+
+      // Combine grids (subtle alpha for less intensity)
+      vec3 color = uColor1;
+      float alpha = cellLine * 0.25 * fade;
+
+      if (sectionLine > 0.5) {
+        color = uColor2;
+        alpha = 0.5 * fade;
+      }
+
+      if (alpha < 0.02) discard;
+      gl_FragColor = vec4(color, alpha);
+    }
+  `,
+  side: THREE.DoubleSide,
+  transparent: true,
+  depthWrite: false,
+});
+
+const infiniteGridGeom = new THREE.PlaneGeometry(20000, 20000);
+const infiniteGrid = new THREE.Mesh(infiniteGridGeom, infiniteGridMaterial);
+infiniteGrid.rotation.x = -Math.PI / 2;
+infiniteGrid.position.y = 0;
+infiniteGrid.frustumCulled = false;
+scene.add(infiniteGrid);
+
+// Dimensional guides: ruler lines with labels
+const rulerGroup = new THREE.Group();
+rulerGroup.name = 'dimensionalGuides';
+
+// Create text label sprite
+function createLabel(text, size = 24) {
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+  canvas.width = 128;
+  canvas.height = 64;
+
+  ctx.fillStyle = 'rgba(0, 0, 0, 0)';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  ctx.font = `${size}px "Berkeley Mono", monospace`;
+  ctx.fillStyle = '#888';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.needsUpdate = true;
+
+  const material = new THREE.SpriteMaterial({
+    map: texture,
+    transparent: true,
+    depthTest: false,
+  });
+
+  const sprite = new THREE.Sprite(material);
+  sprite.scale.set(60, 30, 1);
+  return sprite;
+}
+
+// Create ruler tick marks
+function createRulerTick(height = 5, color = 0x666666) {
+  const geo = new THREE.BufferGeometry();
+  const positions = new Float32Array([0, 0, 0, 0, height, 0]);
+  geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  const mat = new THREE.LineBasicMaterial({ color });
+  return new THREE.Line(geo, mat);
+}
+
+// X-axis ruler (positive direction, red accent)
+const xRulerMat = new THREE.LineBasicMaterial({ color: 0xff6600, transparent: true, opacity: 0.6 });
+const xRulerGeo = new THREE.BufferGeometry();
+xRulerGeo.setAttribute('position', new THREE.BufferAttribute(
+  new Float32Array([0, 0.5, 0, 1000, 0.5, 0]), 3
+));
+const xRuler = new THREE.Line(xRulerGeo, xRulerMat);
+rulerGroup.add(xRuler);
+
+// Z-axis ruler (positive direction)
+const zRulerMat = new THREE.LineBasicMaterial({ color: 0x4488ff, transparent: true, opacity: 0.6 });
+const zRulerGeo = new THREE.BufferGeometry();
+zRulerGeo.setAttribute('position', new THREE.BufferAttribute(
+  new Float32Array([0, 0.5, 0, 0, 0.5, 1000]), 3
+));
+const zRuler = new THREE.Line(zRulerGeo, zRulerMat);
+rulerGroup.add(zRuler);
+
+// Add tick marks and labels every 100mm along X and Z
+for (let i = 100; i <= 1000; i += 100) {
+  // X-axis ticks and labels
+  const xTick = createRulerTick(8, 0xff6600);
+  xTick.position.set(i, 0.5, 0);
+  rulerGroup.add(xTick);
+
+  if (i % 500 === 0 || i <= 300) {
+    const xLabel = createLabel(`${i}`, 20);
+    xLabel.position.set(i, 20, 0);
+    rulerGroup.add(xLabel);
+  }
+
+  // Z-axis ticks and labels
+  const zTick = createRulerTick(8, 0x4488ff);
+  zTick.position.set(0, 0.5, i);
+  zTick.rotation.y = Math.PI / 2;
+  rulerGroup.add(zTick);
+
+  if (i % 500 === 0 || i <= 300) {
+    const zLabel = createLabel(`${i}`, 20);
+    zLabel.position.set(0, 20, i);
+    rulerGroup.add(zLabel);
+  }
+}
+
+// Origin marker
+const originLabel = createLabel('0', 22);
+originLabel.position.set(-20, 20, -20);
+rulerGroup.add(originLabel);
+
+// Unit indicator label
+const unitLabel = createLabel('mm', 18);
+unitLabel.position.set(550, 35, 0);
+rulerGroup.add(unitLabel);
+
+scene.add(rulerGroup);
+
+// Materials
+const material = new THREE.MeshStandardMaterial({
+  color: 0xff6600,
+  metalness: 0.4,
+  roughness: 0.5,
+});
+
+const wireMaterial = new THREE.MeshStandardMaterial({
+  color: 0xff6600,
+  metalness: 0.4,
+  roughness: 0.5,
+  wireframe: true,
+});
+
+let currentMesh = null;
+let isWireframe = false;
+const stlLoader = new STLLoader();
+const gltfLoader = new GLTFLoader();
+
+// UI Elements
+const infoEl = document.getElementById('info');
+const loadingEl = document.getElementById('loading');
+const modelListEl = document.getElementById('modelList');
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+
+function showLoading(show) {
+  loadingEl.classList.toggle('visible', show);
+}
+
+function updateInfo(name, size) {
+  // Store for restoring when deselected
+  currentModelInfo = {
+    name: name,
+    dims: `${size.x.toFixed(1)} × ${size.y.toFixed(1)} × ${size.z.toFixed(1)} mm`
+  };
+
+  // Update display (only if nothing selected)
+  if (!selectedMesh) {
+    infoTitle.textContent = name;
+    infoDesc.style.display = 'none';
+    infoDims.textContent = currentModelInfo.dims;
+    infoProps.style.display = 'none';
+    infoActions.style.display = 'none';
+    infoPane.classList.remove('has-selection');
+  }
+}
+
+function positionAndFrame(obj, name) {
+  // Rotate from CAD coordinates (Z-up) to Three.js coordinates (Y-up)
+  obj.rotation.x = -Math.PI / 2;
+
+  // Position model so its bottom sits on the grid (Y=0)
+  obj.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(obj);
+  const offset = -box.min.y;
+  obj.position.y = offset;
+
+  scene.add(obj);
+
+  // Recalculate bounds after positioning
+  obj.updateMatrixWorld(true);
+  const finalBox = new THREE.Box3().setFromObject(obj);
+  const size = finalBox.getSize(new THREE.Vector3());
+  const center = finalBox.getCenter(new THREE.Vector3());
+  const maxDim = Math.max(size.x, size.y, size.z);
+  const dist = maxDim * 2;
+
+  camera.position.set(dist, dist * 0.6, dist);
+  controls.target.copy(center);
+  controls.update();
+
+  updateInfo(name, size);
+  showLoading(false);
+
+  // Auto-select the loaded model
+  if (selectedMesh) {
+    setMeshSelected(selectedMesh, false);
+  }
+  selectedMesh = obj;
+  selectedScaleRef = null;
+
+  // Store the model name on the object for the inspector
+  obj.userData.modelName = name;
+  showInspector(obj, null);
+}
+
+function loadModel(path, name) {
+  showLoading(true);
+  if (currentMesh) scene.remove(currentMesh);
+
+  const isGLTF = path.endsWith('.glb') || path.endsWith('.gltf');
+  const url = path + '?t=' + Date.now();
+
+  if (isGLTF) {
+    gltfLoader.load(
+      url,
+      (gltf) => {
+        currentMesh = gltf.scene;
+
+        // Apply wireframe if enabled
+        if (isWireframe) {
+          currentMesh.traverse((child) => {
+            if (child.isMesh) {
+              child.material = wireMaterial;
+            }
+          });
+        }
+
+        positionAndFrame(currentMesh, name);
+      },
+      undefined,
+      (err) => {
+        console.error('Error loading glTF:', err);
+        infoEl.innerHTML = `
+          <div class="viewer-info-title">Error</div>
+          <div class="viewer-info-dims">Failed to load model</div>
+        `;
+        showLoading(false);
+      }
+    );
+  } else {
+    stlLoader.load(
+      url,
+      (geometry) => {
+        geometry.computeVertexNormals();
+        geometry.center();
+
+        currentMesh = new THREE.Mesh(geometry, isWireframe ? wireMaterial : material);
+        positionAndFrame(currentMesh, name);
+      },
+      undefined,
+      (err) => {
+        console.error('Error loading STL:', err);
+        infoEl.innerHTML = `
+          <div class="viewer-info-title">Error</div>
+          <div class="viewer-info-dims">Failed to load model</div>
+        `;
+        showLoading(false);
+      }
+    );
+  }
+}
+
+// Legacy function for backward compatibility
+function loadSTL(path, name) {
+  loadModel(path, name);
+}
+
+function loadFromFile(file) {
+  showLoading(true);
+  if (currentMesh) scene.remove(currentMesh);
+
+  const isGLTF = file.name.endsWith('.glb') || file.name.endsWith('.gltf');
+  const reader = new FileReader();
+
+  reader.onload = (e) => {
+    if (isGLTF) {
+      gltfLoader.parse(e.target.result, '', (gltf) => {
+        currentMesh = gltf.scene;
+        if (isWireframe) {
+          currentMesh.traverse((child) => {
+            if (child.isMesh) child.material = wireMaterial;
+          });
+        }
+        positionAndFrame(currentMesh, file.name);
+        document.querySelectorAll('.model-item').forEach(el => el.classList.remove('active'));
+      });
+    } else {
+      const geometry = stlLoader.parse(e.target.result);
+      geometry.computeVertexNormals();
+      geometry.center();
+      currentMesh = new THREE.Mesh(geometry, isWireframe ? wireMaterial : material);
+      positionAndFrame(currentMesh, file.name);
+      document.querySelectorAll('.model-item').forEach(el => el.classList.remove('active'));
+    }
+  };
+
+  reader.readAsArrayBuffer(file);
+}
+
+// Build model list
+models.forEach(section => {
+  const sectionEl = document.createElement('div');
+  sectionEl.className = 'model-section';
+
+  const titleEl = document.createElement('div');
+  titleEl.className = 'model-section-title';
+  titleEl.textContent = section.section;
+  sectionEl.appendChild(titleEl);
+
+  section.items.forEach(item => {
+    const itemEl = document.createElement('div');
+    itemEl.className = 'model-item';
+    itemEl.innerHTML = `
+      <span class="model-item-icon">${item.icon}</span>
+      <div class="model-item-content">
+        <div class="model-item-name">${item.name}</div>
+        ${item.desc ? `<div class="model-item-desc">${item.desc}</div>` : ''}
+      </div>
+    `;
+    itemEl.onclick = () => {
+      document.querySelectorAll('.model-item').forEach(el => el.classList.remove('active'));
+      itemEl.classList.add('active');
+      loadSTL(item.path, item.name);
+    };
+    sectionEl.appendChild(itemEl);
+  });
+
+  modelListEl.appendChild(sectionEl);
+});
+
+// Drag and drop
+dropZone.addEventListener('click', () => fileInput.click());
+
+dropZone.addEventListener('dragover', (e) => {
+  e.preventDefault();
+  dropZone.classList.add('drag-over');
+});
+
+dropZone.addEventListener('dragleave', () => {
+  dropZone.classList.remove('drag-over');
+});
+
+dropZone.addEventListener('drop', (e) => {
+  e.preventDefault();
+  dropZone.classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file && file.name.endsWith('.stl')) {
+    loadFromFile(file);
+  }
+});
+
+fileInput.addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (file) loadFromFile(file);
+});
+
+// Controls
+document.getElementById('resetBtn').onclick = () => {
+  if (currentMesh) {
+    const box = new THREE.Box3().setFromObject(currentMesh);
+    const size = box.getSize(new THREE.Vector3());
+    const maxDim = Math.max(size.x, size.y, size.z);
+    const dist = maxDim * 2;
+    camera.position.set(dist, dist * 0.8, dist);
+    controls.target.set(0, 0, 0);
+    controls.update();
+  }
+};
+
+// Store original materials for restore
+const originalMaterials = new Map();
+
+document.getElementById('wireframeBtn').onclick = () => {
+  isWireframe = !isWireframe;
+  if (currentMesh) {
+    currentMesh.traverse((child) => {
+      if (child.isMesh) {
+        if (isWireframe) {
+          // Store original material and apply wireframe
+          originalMaterials.set(child.uuid, child.material);
+          child.material = wireMaterial;
+        } else {
+          // Restore original material
+          const original = originalMaterials.get(child.uuid);
+          if (original) {
+            child.material = original;
+          } else {
+            child.material = material;
+          }
+        }
+      }
+    });
+  }
+  document.getElementById('wireframeBtn').textContent = isWireframe ? 'Solid' : 'Wireframe';
+};
+
+// =============================================================================
+// SCALE REFERENCE SYSTEM
+// =============================================================================
+
+// Scale reference catalog - add new models here!
+const scaleReferences = [
+  {
+    id: 'banana',
+    name: 'Banana',
+    icon: '🍌',
+    description: 'Universal scale reference fruit',
+    specs: '180mm long',
+    modelPath: 'models/banana.glb',
+    fallbackPath: 'models/ref_banana.glb',
+    scale: 1.0,
+    rotateY: Math.PI,
+    material: null,
+    attribution: null,
+  },
+  {
+    id: 'human',
+    name: 'Human',
+    icon: '🧍',
+    description: 'Average adult human for scale',
+    specs: '1.75m tall',
+    modelPath: 'models/human.glb',
+    fallbackPath: 'models/ref_human.glb',
+    scale: 1.0,
+    rotateY: Math.PI,
+    material: {
+      color: 0x888888,
+      metalness: 0.1,
+      roughness: 0.8,
+      transparent: true,
+      opacity: 0.85,
+    },
+    attribution: null,
+  },
+  {
+    id: 'grogu',
+    name: 'Grogu',
+    icon: '👶',
+    description: 'The Child, a Force-sensitive being',
+    specs: '34cm tall',
+    modelPath: 'models/grogu.glb',
+    fallbackPath: null,
+    scale: 34.0,  // Sketchfab model units to mm
+    // rotateY: Math.PI,
+    material: null,
+    attribution: {
+      title: 'BABY YODA FREE 3D',
+      author: 'OSCAR CREATIVO',
+      url: 'https://skfb.ly/6Rovs',
+      license: 'CC BY 4.0',
+    },
+  },
+];
+
+// State for loaded references
+const scaleRefState = {};
+scaleReferences.forEach(ref => {
+  scaleRefState[ref.id] = { mesh: null, visible: false, loading: false };
+});
+
+// Position scale reference next to the current model
+function positionScaleRef(refMesh, index = 0) {
+  if (!currentMesh || !refMesh) return;
+
+  // Get bounds of current model
+  currentMesh.updateMatrixWorld(true);
+  const modelBox = new THREE.Box3().setFromObject(currentMesh);
+  const modelCenter = modelBox.getCenter(new THREE.Vector3());
+
+  // Get bounds of reference after rotation but before positioning
+  refMesh.position.set(0, 0, 0);
+  refMesh.updateMatrixWorld(true);
+  const refBox = new THREE.Box3().setFromObject(refMesh);
+  const refSize = refBox.getSize(new THREE.Vector3());
+
+  // Position reference to the side of the model, staggered by index
+  const padding = 150; // 150mm gap
+  const stagger = 400; // 400mm between references
+  refMesh.position.x = modelBox.max.x + padding + refSize.x / 2 + (index * stagger);
+  refMesh.position.z = modelCenter.z;
+
+  // Place on ground plane (Y=0)
+  refMesh.updateMatrixWorld(true);
+  const newBox = new THREE.Box3().setFromObject(refMesh);
+  refMesh.position.y -= newBox.min.y;
+}
+
+// Reposition all visible scale references
+function repositionAllScaleRefs() {
+  let index = 0;
+  scaleReferences.forEach(ref => {
+    const state = scaleRefState[ref.id];
+    if (state.mesh && state.visible) {
+      positionScaleRef(state.mesh, index);
+      index++;
+    }
+  });
+
+  // Smoothly animate camera to frame all visible objects
+  frameAllObjects();
+
+  // Update attribution display
+  updateAttributions();
+}
+
+// Smooth camera animation state
+let cameraAnimation = null;
+
+function frameAllObjects() {
+  // Collect all visible objects
+  const objects = [];
+  if (currentMesh) objects.push(currentMesh);
+
+  scaleReferences.forEach(ref => {
+    const state = scaleRefState[ref.id];
+    if (state.mesh && state.visible) {
+      objects.push(state.mesh);
+    }
+  });
+
+  if (objects.length === 0) return;
+
+  // Compute combined bounding box
+  const combinedBox = new THREE.Box3();
+  objects.forEach(obj => {
+    obj.updateMatrixWorld(true);
+    const box = new THREE.Box3().setFromObject(obj);
+    combinedBox.union(box);
+  });
+
+  const size = combinedBox.getSize(new THREE.Vector3());
+  const center = combinedBox.getCenter(new THREE.Vector3());
+  const maxDim = Math.max(size.x, size.y, size.z);
+
+  // Calculate target camera position
+  const dist = maxDim * 1.8;
+  const targetPosition = new THREE.Vector3(
+    center.x + dist * 0.7,
+    center.y + dist * 0.5,
+    center.z + dist * 0.7
+  );
+  const targetLookAt = center.clone();
+
+  // Start smooth animation
+  if (cameraAnimation) cancelAnimationFrame(cameraAnimation);
+
+  const startPosition = camera.position.clone();
+  const startLookAt = controls.target.clone();
+  const duration = 600; // ms
+  const startTime = performance.now();
+
+  function animateCamera(time) {
+    const elapsed = time - startTime;
+    const t = Math.min(elapsed / duration, 1);
+
+    // Ease out cubic
+    const ease = 1 - Math.pow(1 - t, 3);
+
+    camera.position.lerpVectors(startPosition, targetPosition, ease);
+    controls.target.lerpVectors(startLookAt, targetLookAt, ease);
+    controls.update();
+
+    if (t < 1) {
+      cameraAnimation = requestAnimationFrame(animateCamera);
+    } else {
+      cameraAnimation = null;
+    }
+  }
+
+  cameraAnimation = requestAnimationFrame(animateCamera);
+}
+
+// Attribution display
+function updateAttributions() {
+  const attributions = [];
+
+  scaleReferences.forEach(ref => {
+    const state = scaleRefState[ref.id];
+    if (state.visible && ref.attribution) {
+      attributions.push(ref.attribution);
+    }
+  });
+
+  const container = document.getElementById('attributions');
+  if (attributions.length === 0) {
+    container.style.display = 'none';
+    return;
+  }
+
+  container.style.display = 'block';
+  container.innerHTML = attributions.map(attr => `
+    <a href="${attr.url}" target="_blank" rel="noopener">
+      "${attr.title}" by ${attr.author}
+    </a>
+    <span class="license">${attr.license}</span>
+  `).join('');
+}
+
+// Load and toggle a scale reference
+function toggleScaleRef(refConfig) {
+  const state = scaleRefState[refConfig.id];
+  state.visible = !state.visible;
+
+  // Update UI
+  updateScaleRefUI();
+
+  if (state.visible && !state.mesh && !state.loading) {
+    state.loading = true;
+
+    // Try primary model first, then fallback
+    const tryLoad = (path, onSuccess, onError) => {
+      if (!path) {
+        onError();
+        return;
+      }
+      gltfLoader.load(path, onSuccess, undefined, onError);
+    };
+
+    tryLoad(
+      refConfig.modelPath,
+      (gltf) => {
+        state.mesh = gltf.scene;
+        finishLoadingRef(refConfig, state);
+      },
+      () => {
+        // Try fallback
+        tryLoad(
+          refConfig.fallbackPath,
+          (gltf) => {
+            state.mesh = gltf.scene;
+            finishLoadingRef(refConfig, state);
+          },
+          () => {
+            console.warn(`Could not load scale reference: ${refConfig.name}`);
+            state.loading = false;
+            state.visible = false;
+            updateScaleRefUI();
+          }
+        );
+      }
+    );
+  } else if (state.mesh) {
+    state.mesh.visible = state.visible;
+    // Always reframe when toggling (both on and off)
+    repositionAllScaleRefs();
+  }
+}
+
+function finishLoadingRef(refConfig, state) {
+  state.loading = false;
+
+  // Apply rotation
+  state.mesh.rotation.y = refConfig.rotateY || 0;
+
+  // Apply custom material if specified
+  if (refConfig.material) {
+    const mat = new THREE.MeshStandardMaterial(refConfig.material);
+    state.mesh.traverse((child) => {
+      if (child.isMesh) {
+        child.material = mat;
+      }
+    });
+  }
+
+  // Apply scale
+  if (refConfig.scale !== 1.0) {
+    state.mesh.scale.setScalar(refConfig.scale);
+  }
+
+  scene.add(state.mesh);
+  repositionAllScaleRefs();
+}
+
+// Build the scale reference menu UI
+function buildScaleRefMenu() {
+  const container = document.getElementById('scaleRefItems');
+  container.innerHTML = '';
+
+  scaleReferences.forEach(ref => {
+    const state = scaleRefState[ref.id];
+
+    const item = document.createElement('div');
+    item.className = 'scale-ref-item' + (state.visible ? ' active' : '');
+    item.dataset.refId = ref.id;
+
+    item.innerHTML = `
+      <div class="scale-ref-checkbox ${state.visible ? 'checked' : ''}"></div>
+      <div class="scale-ref-icon">${ref.icon}</div>
+      <div class="scale-ref-info">
+        <div class="scale-ref-name">${ref.name}</div>
+        <div class="scale-ref-dims">${ref.description}</div>
+      </div>
+    `;
+
+    item.onclick = (e) => {
+      e.stopPropagation();
+      toggleScaleRef(ref);
+    };
+
+    container.appendChild(item);
+  });
+}
+
+function updateScaleRefUI() {
+  const items = document.querySelectorAll('.scale-ref-item');
+  items.forEach(item => {
+    const refId = item.dataset.refId;
+    const state = scaleRefState[refId];
+    item.classList.toggle('active', state.visible);
+    item.querySelector('.scale-ref-checkbox').classList.toggle('checked', state.visible);
+  });
+
+  // Update button to show count
+  const visibleCount = Object.values(scaleRefState).filter(s => s.visible).length;
+  const btn = document.getElementById('scaleRefBtn');
+  btn.classList.toggle('active', visibleCount > 0);
+  btn.textContent = visibleCount > 0 ? `📏 References (${visibleCount})` : '📏 Scale References';
+}
+
+// Toggle dropdown menu
+document.getElementById('scaleRefBtn').onclick = (e) => {
+  e.stopPropagation();
+  const menu = document.getElementById('scaleRefMenu');
+  menu.classList.toggle('open');
+};
+
+// Close menu when clicking outside
+document.addEventListener('click', () => {
+  document.getElementById('scaleRefMenu').classList.remove('open');
+});
+
+// Prevent menu from closing when clicking inside it
+document.getElementById('scaleRefMenu').onclick = (e) => {
+  e.stopPropagation();
+};
+
+// Initialize the menu
+buildScaleRefMenu();
+
+// Resize
+function resize() {
+  const main = document.querySelector('.viewer-main');
+  const w = main.clientWidth;
+  const h = main.clientHeight;
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+  renderer.setSize(w, h);
+}
+
+window.addEventListener('resize', resize);
+resize();
+
+// Animate
+function animate() {
+  requestAnimationFrame(animate);
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+
+// Load first model by default
+const firstItem = document.querySelector('.model-item');
+if (firstItem) firstItem.click();
+</script>
+
+</body>
+</html>
