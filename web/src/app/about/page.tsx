@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Header, NavBar, Footer } from "@/components/layout";
-import { Card } from "@/components/ui";
+import { Card, Pre } from "@/components/ui";
 
 export const metadata: Metadata = {
   title: "About",
@@ -16,7 +16,7 @@ export default function AboutPage() {
 
         <main className="content">
           <Card title="WHY WE BUILD">
-            <pre>
+            <Pre>
 {`We watched people (parents with strollers, elderly neighbors,
 kids walking to school) forced into the street because there
 was no safe path on the sidewalk.
@@ -28,11 +28,11 @@ So we asked a simple question: why are we still clearing
 sidewalks by hand? Why isn't there a better way?
 
 We're building that future in the open, one rover at a time.`}
-            </pre>
+            </Pre>
           </Card>
 
           <Card title="THE COMPANY">
-            <pre>
+            <Pre>
               <strong>Municipal Robotics</strong>
 {` was founded in 2025 in Cleveland, Ohio.
 
@@ -42,11 +42,11 @@ that's where winters are real and the problem is acute.
 
 Everything we build is open source. Check the code, build
 your own, or buy from us. We don't hide behind patents.`}
-            </pre>
+            </Pre>
           </Card>
 
           <Card title="TIMELINE">
-            <pre>
+            <Pre>
 {`  2025-12  `}
               <span className="status-complete">■</span>
 {` bvr0 engineering prototype complete
@@ -62,11 +62,11 @@ your own, or buy from us. We don't hide behind patents.`}
            │
   2027     ○ Full autonomy beta
                1:10 operator ratio, minimal intervention`}
-            </pre>
+            </Pre>
           </Card>
 
           <Card title="PILOT PROGRAM" highlight id="pilot">
-            <pre>
+            <Pre>
 {`We're looking for 3-5 partners in the Midwest to deploy
 bvr1 fleets in winter 2026. Pilot partners get:
 
@@ -87,11 +87,11 @@ bvr1 fleets in winter 2026. Pilot partners get:
               <a className="cta" href="mailto:info@muni.works?subject=Pilot%20Program%20Application">
                 Apply for the pilot program →
               </a>
-            </pre>
+            </Pre>
           </Card>
 
           <Card title="TEAM">
-            <pre>
+            <Pre>
               <strong>Cam Pedersen</strong>
 {`, Founder
 Autonomous vehicle scheduling at Uber. CTO and co-founder
@@ -102,7 +102,7 @@ electrical, firmware, teleoperation software.
 
 `}
               <a href="mailto:info@muni.works">info@muni.works</a>
-            </pre>
+            </Pre>
           </Card>
         </main>
 

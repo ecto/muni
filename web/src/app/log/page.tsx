@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Header, NavBar, Footer } from "@/components/layout";
-import { Card } from "@/components/ui";
+import { Card, Pre } from "@/components/ui";
 
 export const metadata: Metadata = {
   title: "Engineering Log",
@@ -16,7 +16,7 @@ export default function LogPage() {
 
         <main className="content">
           <Card title="ATTACHMENT MCU FIRMWARE">
-            <pre>
+            <Pre>
               <span className="entry-date">2025-12-28</span>
 {`
 
@@ -28,11 +28,11 @@ level shifter (in the mail).
 Also consolidated session recording to single files, added
 a sessions browser to the operator UI, and documented the
 sensor mast design.`}
-            </pre>
+            </Pre>
           </Card>
 
           <Card title="BVR0 COMPLETE">
-            <pre>
+            <Pre>
               <span className="entry-date">2025-12</span>
 {`
 
@@ -43,7 +43,7 @@ supervised autonomy coming in Artifact residency.
 
 Total build cost: ~$5,000 in parts. Assembly time: ~40 hours.
 All designs, firmware, and documentation published to GitHub.`}
-            </pre>
+            </Pre>
           </Card>
         </main>
 

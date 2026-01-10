@@ -7,7 +7,7 @@ import {
   Check,
 } from "@phosphor-icons/react/dist/ssr";
 import { Header, NavBar, Footer } from "@/components/layout";
-import { Card } from "@/components/ui";
+import { Card, Pre } from "@/components/ui";
 import { ConvertKitForm } from "@/components/ui/ConvertKitForm";
 
 export default function HomePage() {
@@ -100,7 +100,7 @@ export default function HomePage() {
 
         {/* WHY NOW */}
         <Card title="WHY NOW">
-          <pre>
+          <Pre>
 {`Three technologies converged to make this possible:
 
 `}
@@ -134,12 +134,12 @@ export default function HomePage() {
             <Link href="/investors" className="specs-link">
               Read the whitepaper →
             </Link>
-          </pre>
+          </Pre>
         </Card>
 
         {/* THE PROBLEM */}
         <Card title="THE PROBLEM">
-          <pre>
+          <Pre>
 {`Uncleared sidewalks kill people and cost millions.
 
 `}
@@ -166,12 +166,12 @@ export default function HomePage() {
 All three treat this as an episodic labor problem.
 `}
             <strong>It&apos;s a continuous coverage problem.</strong>
-          </pre>
+          </Pre>
         </Card>
 
         {/* HOW IT WORKS */}
         <Card title="HOW IT WORKS">
-          <pre>
+          <Pre>
             <strong>Simple as a video game. Safer than a human crew.</strong>
 {`
 
@@ -205,12 +205,12 @@ All three treat this as an episodic labor problem.
   Future: 1:50+ (full autonomy with human oversight)
 
 Each transition requires one full season of proven reliability.`}
-          </pre>
+          </Pre>
         </Card>
 
         {/* THE ECONOMICS */}
         <Card title="THE ECONOMICS">
-          <pre>
+          <Pre>
             <strong>5-year total cost of ownership (50 miles, 1:10 ratio):</strong>
 {`
 
@@ -258,12 +258,12 @@ Annual savings vs contractor: $94,000
             <Link href="/products#packages" className="specs-link">
               See fleet packages →
             </Link>
-          </pre>
+          </Pre>
         </Card>
 
         {/* WHO IT'S FOR */}
         <Card title="WHO IT'S FOR">
-          <pre>
+          <Pre>
             <strong>Municipalities</strong>
 {`
   • 50+ miles of sidewalk network
@@ -307,12 +307,12 @@ Annual savings vs contractor: $94,000
             <a href="mailto:info@muni.works?subject=Pilot%20program" className="specs-link">
               Join the pilot program →
             </a>
-          </pre>
+          </Pre>
         </Card>
 
         {/* WHY MUNI */}
         <Card title="WHY MUNI">
-          <pre>
+          <Pre>
             <strong>Teleoperation-first autonomy</strong>
 {`
 Unlike competitors who promise full autonomy from day one,
@@ -359,12 +359,12 @@ Not vaporware. Specifications reflect actual hardware.
             <Link href="/about" className="specs-link">
               Read the full story →
             </Link>
-          </pre>
+          </Pre>
         </Card>
 
         {/* LIMITED AVAILABILITY */}
         <Card title="LIMITED AVAILABILITY" highlight>
-          <pre>
+          <Pre>
             <strong>First batch: 100 units only</strong>
 {`
 
@@ -382,9 +382,9 @@ Why limit to 100 units?
 {`
 
 `}
-          </pre>
+          </Pre>
           <ConvertKitForm />
-          <pre>
+          <Pre>
 {`
 `}
             <strong>Not ready to buy?</strong>
@@ -405,7 +405,7 @@ Why limit to 100 units?
 
 Questions? `}
             <a href="mailto:info@muni.works">info@muni.works</a>
-          </pre>
+          </Pre>
         </Card>
 
         <Footer />

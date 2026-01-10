@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Header, NavBar, Footer } from "@/components/layout";
-import { Card } from "@/components/ui";
+import { Card, Pre } from "@/components/ui";
 
 export const metadata: Metadata = {
   title: "Documentation",
@@ -17,7 +17,7 @@ export default function DocsPage() {
 
         <main className="content">
           <Card title="TECHNICAL MANUALS" highlight>
-            <pre>
+            <Pre>
               <a href="/docs/bvr0-manual.pdf">BVR0 Technical Manual</a>
 {`     Assembly, wiring, operation, safety
 `}
@@ -26,11 +26,11 @@ export default function DocsPage() {
 `}
               <Link href="/viewer">CAD Viewer</Link>
 {`                Interactive 3D model viewer`}
-            </pre>
+            </Pre>
           </Card>
 
           <Card title="ARCHITECTURE">
-            <pre>
+            <Pre>
 {`┌─────────────────────────────────────────────────────────────────┐
 │                         Operator Station                         │
 │  ┌────────────┐  ┌────────────┐  ┌────────────────────────────┐ │
@@ -63,11 +63,11 @@ export default function DocsPage() {
 │  │ Motor   │ │ Motor│  │ Motor   │ │ Motor  │ │ Auger  │       │
 │  └─────────┘ └──────┘  └─────────┘ └────────┘ └────────┘       │
 └─────────────────────────────────────────────────────────────────┘`}
-            </pre>
+            </Pre>
           </Card>
 
           <Card title="SOFTWARE">
-            <pre>
+            <Pre>
               <strong>Crates</strong>
 {`
 ├─ types       Shared types (Twist, Mode, etc.)
@@ -87,11 +87,11 @@ export default function DocsPage() {
 {`
 ├─ bvrd        Main daemon (runs on Jetson)
 └─ cli         Debug/control CLI tool`}
-            </pre>
+            </Pre>
           </Card>
 
           <Card title="HARDWARE REFERENCE">
-            <pre>
+            <Pre>
               <strong>Specifications</strong>
 {`
 ├─ Compute       Jetson Orin NX
@@ -115,11 +115,11 @@ export default function DocsPage() {
 {`
 └─ `}
               <a href="https://github.com/ecto/muni/blob/main/docs/hardware/rtk.md">RTK GPS</a>
-            </pre>
+            </Pre>
           </Card>
 
           <Card title="SAFETY" highlight>
-            <pre>
+            <Pre>
               <strong>Watchdog</strong>
 {`      No command for 250ms → safe stop
 `}
@@ -136,7 +136,7 @@ Three independent E-Stop paths:
 ├─ Physical button on rover
 ├─ Software command (spacebar)
 └─ Connection loss timeout`}
-            </pre>
+            </Pre>
           </Card>
         </main>
 

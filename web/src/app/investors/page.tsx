@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Header, NavBar, Footer } from "@/components/layout";
-import { Card } from "@/components/ui";
+import { Card, Pre } from "@/components/ui";
 
 export const metadata: Metadata = {
   title: "Investors",
@@ -133,7 +133,7 @@ export default function InvestorsPage() {
           </Card>
 
           <Card title="TRACTION">
-            <pre>
+            <Pre>
 {`2025-12  `}
               <span className="status-complete">■</span>
 {` bvr0 engineering prototype complete
@@ -149,7 +149,7 @@ export default function InvestorsPage() {
          │
 2027     ○ Full autonomy beta
              1:10 operator ratio validated`}
-            </pre>
+            </Pre>
           </Card>
 
           <Card title="TEAM">

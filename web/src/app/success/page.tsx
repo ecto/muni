@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { CheckCircle } from "@phosphor-icons/react/dist/ssr";
 import { Header, Footer } from "@/components/layout";
-import { Card } from "@/components/ui";
+import { Card, Pre } from "@/components/ui";
 
 export const metadata: Metadata = {
   title: "Order Confirmed",
@@ -24,7 +24,7 @@ export default function SuccessPage() {
             }
             className="success-highlight"
           >
-            <pre>
+            <Pre>
 {`Your $500 deposit has been received and your order is secured.
 
 `}
@@ -43,11 +43,11 @@ Full refund available until production begins (Q2 2026).
 Email `}
               <a href="mailto:info@muni.works">info@muni.works</a>
 {` to request refund.`}
-            </pre>
+            </Pre>
           </Card>
 
           <Card title="WHILE YOU WAIT">
-            <pre>
+            <Pre>
 {`Join the community and explore the platform:
 
   ◎ `}
@@ -69,7 +69,7 @@ Email `}
 
 Questions? Email `}
               <a href="mailto:info@muni.works">info@muni.works</a>
-            </pre>
+            </Pre>
           </Card>
         </main>
 

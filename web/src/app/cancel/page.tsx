@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Header, Footer } from "@/components/layout";
-import { Card } from "@/components/ui";
+import { Card, Pre } from "@/components/ui";
 
 export const metadata: Metadata = {
   title: "Order Cancelled",
@@ -16,7 +16,7 @@ export default function CancelPage() {
 
         <main className="content">
           <Card title="ORDER CANCELLED">
-            <pre>
+            <Pre>
 {`No payment was processed. Your card was not charged.
 
 `}
@@ -31,7 +31,7 @@ export default function CancelPage() {
 
 Questions? `}
               <a href="mailto:info@muni.works">info@muni.works</a>
-            </pre>
+            </Pre>
           </Card>
         </main>
 

@@ -13,7 +13,7 @@ import {
   Gear,
 } from "@phosphor-icons/react/dist/ssr";
 import { Header, NavBar, Footer } from "@/components/layout";
-import { Card } from "@/components/ui";
+import { Card, Pre } from "@/components/ui";
 import { ConvertKitForm } from "@/components/ui/ConvertKitForm";
 
 export const metadata: Metadata = {
@@ -32,7 +32,7 @@ export default function ProductsPage() {
         <main className="content">
           {/* HERO */}
           <Card>
-            <pre>
+            <Pre>
 {`Sidewalks cleared by sunrise. 10x cheaper than crews.
 
 `}
@@ -56,12 +56,12 @@ Open source hardware and software.
               <a className="cta-secondary" href="#how-it-works">
                 How it works
               </a>
-            </pre>
+            </Pre>
           </Card>
 
           {/* THE PROBLEM */}
           <Card title="THE PROBLEM">
-            <pre>
+            <Pre>
 {`Snow removal is expensive, slow, and labor-intensive.
 
 `}
@@ -81,12 +81,12 @@ Open source hardware and software.
   • ROI timeline: decades (because labor never gets cheaper)
 
 There has to be a better way.`}
-            </pre>
+            </Pre>
           </Card>
 
           {/* THE SOLUTION */}
           <Card title="THE SOLUTION">
-            <pre>
+            <Pre>
 {`Remote-controlled rovers that do the work while you watch.
 
 `}
@@ -112,7 +112,7 @@ Cost per rover:        $24/day vs $240/day
 {`
 
 Payback period: <1 season for most deployments.`}
-            </pre>
+            </Pre>
           </Card>
 
           {/* BVR1 PRODUCT */}
@@ -132,7 +132,7 @@ Payback period: <1 season for most deployments.`}
               </a>
             </div>
 
-            <pre>
+            <Pre>
 {`Production-ready autonomous sidewalk rover.
 Shipping summer 2026.
 
@@ -187,12 +187,12 @@ Software:      $300/month (optional, or self-host free)
               <a href="#get-started" className="cta">
                 Notify me when available
               </a>
-            </pre>
+            </Pre>
           </Card>
 
           {/* DEPOT */}
           <Card title="DEPOT: THE BASE STATION" id="depot">
-            <pre>
+            <Pre>
 {`Fleet management infrastructure. Control center for your rovers.
 
 `}
@@ -263,12 +263,12 @@ Managed (TBD/month):
               <a href="https://github.com/ecto/muni/tree/main/depot" className="cta">
                 Get started (free)
               </a>
-            </pre>
+            </Pre>
           </Card>
 
           {/* HOW IT WORKS */}
           <Card title="HOW IT WORKS" id="how-it-works">
-            <pre>
+            <Pre>
               <strong>Teleoperation (now):</strong>
 {`
 
@@ -305,12 +305,12 @@ One operator can monitor 10+ rovers:
   └─ Mower deck (lawn maintenance, coming soon)
 
 Each tool has its own MCU. Plug it in, rover detects it.`}
-            </pre>
+            </Pre>
           </Card>
 
           {/* FLEET PACKAGES */}
           <Card title="FLEET PACKAGES" id="packages">
-            <pre>
+            <Pre>
 {`Complete turnkey solutions for organizations.
 Hardware + software + training + support.
 
@@ -365,12 +365,12 @@ Support         Email       Email+phone Priority    Dedicated
               <a href="mailto:info@muni.works?subject=Fleet%20inquiry" className="cta">
                 Get a quote
               </a>
-            </pre>
+            </Pre>
           </Card>
 
           {/* BUILD YOUR OWN */}
           <Card title="BUILD YOUR OWN (BVR0)" id="open-source">
-            <pre>
+            <Pre>
 {`Everything is open source. Build it yourself for ~$5,000.
 
 `}
@@ -439,12 +439,12 @@ and learning. For production deployments, we recommend BVR1.
               <a href="https://github.com/ecto/muni/tree/main/bvr/docs/hardware" className="cta">
                 Start building
               </a>
-            </pre>
+            </Pre>
           </Card>
 
           {/* FAQ */}
           <Card title="COMMON QUESTIONS">
-            <pre>
+            <Pre>
               <strong>Is this fully autonomous?</strong>
 {`
 Not yet. BVR is teleoperated now, with autonomy coming later.
@@ -557,12 +557,12 @@ BVR1: Preorders coming soon, shipping summer 2026
 Fleet packages: `}
               <a href="mailto:info@muni.works?subject=Fleet%20inquiry">Contact us</a>
 {` for custom quotes`}
-            </pre>
+            </Pre>
           </Card>
 
           {/* GET STARTED */}
           <Card title="GET STARTED" id="get-started">
-            <pre>
+            <Pre>
               <strong>Preorders coming soon</strong>
 {`
 
@@ -574,11 +574,11 @@ Limited to 100 units in the first batch.
 
 `}
               <strong>Want to be notified?</strong>
-            </pre>
+            </Pre>
 
             <ConvertKitForm />
 
-            <pre>
+            <Pre>
 {`
 `}
               <strong>In the meantime:</strong>
@@ -601,7 +601,7 @@ Limited to 100 units in the first batch.
 
 Questions? `}
               <a href="mailto:info@muni.works">info@muni.works</a>
-            </pre>
+            </Pre>
           </Card>
         </main>
 
