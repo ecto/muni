@@ -137,7 +137,7 @@ interface CameraControllerProps {
   position: THREE.Vector3 | null;
 }
 
-function CameraController({ target, position }: CameraControllerProps) {
+function CameraController({ target: _target, position }: CameraControllerProps) {
   const { camera } = useThree();
 
   useEffect(() => {

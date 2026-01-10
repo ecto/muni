@@ -9,24 +9,27 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@phosphor-icons/react": "^2.1.7",
+    "@react-three/drei": "^9.121.0",
+    "@react-three/fiber": "^8.17.0",
     "next": "^14.2.15",
+    "posthog-js": "^1.200.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "@react-three/fiber": "^8.17.0",
-    "@react-three/drei": "^9.121.0",
-    "three": "^0.170.0",
-    "@phosphor-icons/react": "^2.1.7",
-    "posthog-js": "^1.200.1"
+    "three": "^0.170.0"
   },
   "devDependencies": {
-    "typescript": "^5.7.2",
+    "@eslint/eslintrc": "^3.3.3",
+    "@eslint/js": "^9.39.2",
+    "@tailwindcss/postcss": "^4.0.0",
     "@types/node": "^22.10.2",
     "@types/react": "^18.3.0",
     "@types/react-dom": "^18.3.0",
     "@types/three": "^0.170.0",
-    "tailwindcss": "^4.0.0",
-    "@tailwindcss/postcss": "^4.0.0",
     "eslint": "^9.17.0",
-    "eslint-config-next": "^14.2.15"
+    "eslint-config-next": "^14.2.35",
+    "tailwindcss": "^4.0.0",
+    "typescript": "^5.7.2",
+    "typescript-eslint": "^8.52.0"
   }
 }
