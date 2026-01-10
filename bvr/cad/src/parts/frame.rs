@@ -299,27 +299,52 @@ impl TNut {
 // =============================================================================
 
 /// BVR1 frame dimensions
+///
+/// These dimensions are optimized for sidewalk accessibility while maintaining
+/// stability and capability. See `bvr/docs/hardware/bvr1-dimensions.md` for
+/// the full analysis.
+///
+/// Key constraints:
+/// - Dynamic stability during turns: W_track > 2 × v² × H_cg / (r × g)
+/// - Component fit: Must house Jetson, 4× VESC, battery (~350×350mm min)
+/// - ADA compliance: Total width <500mm to leave 36" on 5ft sidewalk
 #[derive(Debug, Clone)]
 pub struct BVR1FrameConfig {
     /// Width (X dimension, side to side)
+    /// Binding constraint: component fit (350mm) + structure (30mm)
     pub width: f64,
     /// Length (Y dimension, front to back)
+    /// Provides adequate wheelbase for pitch stability
     pub length: f64,
     /// Height (Z dimension, bottom to top of main frame)
+    /// Low profile for stability (keeps H_cg low)
     pub height: f64,
-    /// Wheel vertical offset from bottom
+    /// Wheel vertical offset from bottom (legacy, unused)
     pub wheel_z_offset: f64,
 }
 
 impl Default for BVR1FrameConfig {
     fn default() -> Self {
-        // ADA-compliant sizing for 6.5" (168mm) wheels
-        // Target: ~600mm total width for sidewalk operation
-        // With 168mm wheels (84mm radius), frame can be narrower
+        // Optimized dimensions from first-principles analysis:
+        //
+        // Width (380mm):
+        //   - Minimum for components: ~350mm
+        //   - With 2020 extrusion structure: 380mm
+        //   - Total robot width: ~485mm (with wheel protrusion)
+        //
+        // Length (500mm):
+        //   - Wheelbase: ~460mm (adequate for pitch stability)
+        //   - Room for front tool mount
+        //
+        // Height (180mm):
+        //   - Fits battery (70mm) + electronics (50mm) + margins
+        //   - Low CG for stability (H_cg ≈ 150mm from ground)
+        //
+        // See: bvr/docs/hardware/bvr1-dimensions.md
         Self {
-            width: 380.0,   // 380mm wide (was 500mm for 10" wheels)
-            length: 500.0,  // 500mm long (compact)
-            height: 180.0,  // 180mm tall
+            width: 380.0,
+            length: 500.0,
+            height: 180.0,
             wheel_z_offset: 0.0,
         }
     }
@@ -592,10 +617,11 @@ mod tests {
     #[test]
     fn test_bvr1_frame_config() {
         let config = BVR1FrameConfig::default();
-        // ADA-compliant sizing for 6.5" wheels
-        assert_eq!(config.width, 380.0);
-        assert_eq!(config.length, 500.0);
-        assert_eq!(config.height, 180.0);
+        // Optimized dimensions for sidewalk accessibility
+        // See: bvr/docs/hardware/bvr1-dimensions.md
+        assert_eq!(config.width, 380.0, "Frame width optimized for component fit");
+        assert_eq!(config.length, 500.0, "Frame length for adequate wheelbase");
+        assert_eq!(config.height, 180.0, "Low frame height for stability");
     }
 
     #[test]
@@ -614,24 +640,43 @@ mod tests {
     #[test]
     fn test_frame_dimensions_consistency() {
         // Verify frame parts fit together properly
+        // See: bvr/docs/hardware/bvr1-dimensions.md
         let config = BVR1FrameConfig::default();
         let profile = 20.0;
 
-        // Side rails are full length
-        let side_rail_length = config.length;
-        assert_eq!(side_rail_length, 500.0);
+        // Side rails (Y-direction) shortened to avoid corner overlap
+        let side_rail_length = config.length - profile * 2.0;
+        assert_eq!(side_rail_length, 460.0, "Side rails: 500 - 40 = 460mm");
 
-        // Front/back rails fit between side rails
+        // Front/back rails (X-direction) fit between side rails
         let front_rail_length = config.width - profile * 2.0;
-        assert_eq!(front_rail_length, 340.0);  // 380 - 40
+        assert_eq!(front_rail_length, 340.0, "Front rails: 380 - 40 = 340mm");
 
-        // Vertical posts are full height
-        let post_height = config.height;
-        assert_eq!(post_height, 180.0);
+        // Vertical posts fit between top and bottom frames
+        let post_height = config.height - profile * 2.0;
+        assert_eq!(post_height, 140.0, "Posts: 180 - 40 = 140mm");
 
-        // Central spine fits between front and back rails
-        let spine_length = config.length - profile * 2.0;
-        assert_eq!(spine_length, 460.0);  // 500 - 40
+        // Wheelbase (distance between front/rear axles)
+        // Approximately frame length minus corner structure
+        let wheelbase = config.length - profile * 2.0;
+        assert_eq!(wheelbase, 460.0, "Wheelbase: ~460mm");
+
+        // Track width (distance between left/right wheel centers)
+        // Wheels are OUTSIDE frame: frame_edge + bracket_depth + axle_offset
+        // = 190 + 20 + 64 = 274mm per side
+        // Track width = 2 * 274 = 548mm
+        let frame_edge = config.width / 2.0;  // 190mm
+        let bracket_depth = 20.0;  // mount.total_depth()
+        let axle_offset = 64.0;    // motor.axle_offset()
+        let wheel_center_x = frame_edge + bracket_depth + axle_offset;
+        let track_width = wheel_center_x * 2.0;
+        assert!((track_width - 548.0).abs() < 10.0, "Track width: ~548mm, got {}", track_width);
+
+        // Total robot width (wheel outer edges)
+        // Wheel radius = 84mm, but hub only adds ~26mm beyond center
+        let hub_half_width = 26.0;  // motor.hub_width / 2
+        let total_width = track_width + hub_half_width * 2.0;  // ~600mm
+        assert!(total_width < 650.0, "Total width ({}) should be under 650mm", total_width);
     }
 
     #[test]

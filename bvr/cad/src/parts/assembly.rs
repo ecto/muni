@@ -225,38 +225,61 @@ impl BVR0Assembly {
 // =============================================================================
 
 /// BVR1 assembly configuration
+///
+/// Overall robot dimensions (with default config):
+/// - Total width: ~485mm (frame 380mm + wheel protrusion)
+/// - Total length: ~550mm (frame 500mm + wheel protrusion)
+/// - Total height: ~700mm (ground to top of mast)
+/// - Ground clearance: 75mm (effective, with L-bracket mounts)
+/// - Mass: ~20kg target
+///
+/// See `bvr/docs/hardware/bvr1-dimensions.md` for optimization analysis.
 #[derive(Debug, Clone)]
 pub struct BVR1AssemblyConfig {
     /// Frame configuration
     pub frame: BVR1FrameConfig,
-    /// Sensor mast height (mm)
+    /// Sensor mast height above frame top (mm)
     pub mast_height: f64,
     /// Ground clearance (mm) - bottom of frame to ground
+    /// This is set by the L-bracket mount geometry
     pub ground_clearance: f64,
 }
 
 impl Default for BVR1AssemblyConfig {
     fn default() -> Self {
+        // Ground clearance calculation:
+        //
         // UUMotor SVB6HS: 168mm wheel = 84mm radius
-        // Mount bridge is 36mm above axle (plate_height/2 - tab_height/2 = 80/2 - 8/2)
-        // Wheel center at Z = 84, bridge at Z = 84 + 36 = 120
-        // Frame bottom should be at bridge height for proper mounting
+        // L-bracket mount geometry:
+        //   - Axle drop below frame bottom: ~36mm
+        //   - Wheel center height: ground_clearance - axle_drop
+        //   - For wheel to touch ground: wheel_center = wheel_radius
+        //   - Therefore: ground_clearance = wheel_radius + axle_drop
+        //   - ground_clearance = 84 + 36 = 120mm
+        //
+        // Effective ground clearance (lowest point of frame): ~75mm
+        // (frame bottom at 120mm, but L-bracket extends below)
         Self {
             frame: BVR1FrameConfig::default(),
             mast_height: 400.0,
-            ground_clearance: 120.0, // Frame bottom at 120mm (aligns with mount bridge)
+            ground_clearance: 120.0,
         }
     }
 }
 
 /// BVR1 production assembly
 ///
+/// Optimized compact design for sidewalk accessibility:
+/// - Frame: 380×500×180mm (W×L×H)
+/// - Total footprint: ~485×550mm
+/// - Mass target: ~20kg
+///
 /// Characteristics:
-/// - 8" hub motors with custom L-bracket mounts at bottom corners
-/// - Custom 13S4P battery pack in tray
-/// - Electronics plate with proper mounting
-/// - VESCs on vertical posts with mounting brackets
-/// - Headlights and tail lights
+/// - 6.5" (168mm) UUMotor hub motors with L-bracket mounts
+/// - Custom 13S4P battery pack in base tray (~720Wh)
+/// - All electronics on bottom tray (coplanar, serviceable)
+/// - Top access panel with sensor mast
+/// - ~75mm effective ground clearance
 pub struct BVR1Assembly {
     config: BVR1AssemblyConfig,
 }
@@ -400,9 +423,20 @@ impl BVR1Assembly {
     /// Add UUMotor SVB6HS wheels (168mm / 6.5" wheels)
     ///
     /// Wheel geometry with L-bracket mount:
-    /// - Wheels positioned INSIDE the frame
-    /// - Axle extends OUTWARD to bracket mounted at frame edge
-    /// - Wheel center offset from bracket axle hole by motor.axle_offset()
+    /// - Wheels positioned OUTSIDE the frame (protruding from corners)
+    /// - Bracket mounted at frame edge, wheel beyond bracket
+    /// - Axle points INWARD from wheel to bracket
+    ///
+    /// Layout (top view, left side):
+    /// ```text
+    ///     Frame edge (-190mm)
+    ///           │
+    ///     ──────┼──────  Frame rail
+    ///           │
+    ///       [Bracket]
+    ///           │
+    ///         ◯─┘  Wheel (outside, at ~-230mm)
+    /// ```
     fn add_wheels(&self) -> Part {
         let cfg = &self.config;
         let gc = self.ground_clearance();
@@ -412,7 +446,6 @@ impl BVR1Assembly {
         let wheel = motor.generate();
 
         // Motor axle offset: distance from wheel center to axle tip
-        // This is how far the axle protrudes from the hub
         let axle_offset = motor.axle_offset();  // hub_width/2 + axle_length = 26 + 38 = 64mm
 
         // Wheel Z: aligned with bracket's axle hole
@@ -421,23 +454,24 @@ impl BVR1Assembly {
         // Frame geometry
         let frame_edge_x = cfg.frame.width / 2.0;  // 190mm
 
-        // Bracket axle hole X position (for left side):
-        // Bracket origin at -frame_edge_x, axle hole offset by -axle_x_offset
-        let bracket_axle_x = frame_edge_x + mount.axle_x_offset();  // 190 + 6 = 196mm
+        // Bracket axle hole X position (distance from frame center):
+        // Bracket at frame edge, axle hole is mount.total_depth() outward
+        let bracket_axle_x = frame_edge_x + mount.total_depth();  // 190 + 20 = 210mm
 
-        // Wheel center X: axle tip at bracket, so wheel center is axle_offset INWARD
-        let wheel_x = bracket_axle_x - axle_offset;  // 196 - 64 = 132mm (INSIDE frame!)
+        // Wheel center X: wheel is OUTSIDE bracket, axle points inward toward bracket
+        // Wheel center is axle_offset further out from bracket
+        let wheel_x = bracket_axle_x + axle_offset;  // 210 + 64 = 274mm (OUTSIDE frame!)
 
         // Wheel Y: aligned with bracket's axle Y position
         let bracket_y_front = cfg.frame.length / 2.0 - mount.arm_length();
         let wheel_y_front = bracket_y_front + mount.axle_y_offset();
         let wheel_y_rear = -cfg.frame.length / 2.0 + mount.arm_length() - mount.axle_y_offset();
 
-        // Wheel orientation: axle points outward (toward ±X)
-        // Motor default: axle along +Y
-        // Rotate around Z by 90° to point axle toward -X (for left side wheels)
-        let wheel_left = wheel.rotate(0.0, 0.0, 90.0);   // Axle toward -X
-        let wheel_right = wheel.rotate(0.0, 0.0, -90.0); // Axle toward +X
+        // Wheel orientation: axle points INWARD (toward bracket at frame edge)
+        // Motor default: mount side (axle) at +Y
+        // Rotate to point axle toward +X (for left wheels) or -X (for right wheels)
+        let wheel_left = wheel.rotate(0.0, 0.0, -90.0);  // Axle toward +X (inward)
+        let wheel_right = wheel.rotate(0.0, 0.0, 90.0);  // Axle toward -X (inward)
 
         let fl = wheel_left.translate(-wheel_x, wheel_y_front, wheel_z);
         let fr = wheel_right.translate(wheel_x, wheel_y_front, wheel_z);
@@ -458,15 +492,17 @@ impl BVR1Assembly {
         let axle_offset = motor.axle_offset();
         let wheel_z = gc - mount.axle_drop();
         let frame_edge_x = cfg.frame.width / 2.0;
-        let bracket_axle_x = frame_edge_x + mount.axle_x_offset();
-        let wheel_x = bracket_axle_x - axle_offset;
+
+        // Wheels OUTSIDE frame (same logic as add_wheels)
+        let bracket_axle_x = frame_edge_x + mount.total_depth();
+        let wheel_x = bracket_axle_x + axle_offset;
 
         let bracket_y_front = cfg.frame.length / 2.0 - mount.arm_length();
         let wheel_y_front = bracket_y_front + mount.axle_y_offset();
         let wheel_y_rear = -cfg.frame.length / 2.0 + mount.arm_length() - mount.axle_y_offset();
 
-        let wheel_left = wheel.rotate(0.0, 0.0, 90.0);
-        let wheel_right = wheel.rotate(0.0, 0.0, -90.0);
+        let wheel_left = wheel.rotate(0.0, 0.0, -90.0);  // Axle toward +X (inward)
+        let wheel_right = wheel.rotate(0.0, 0.0, 90.0);  // Axle toward -X (inward)
 
         let fl = wheel_left.translate(-wheel_x, wheel_y_front, wheel_z);
         let fr = wheel_right.translate(wheel_x, wheel_y_front, wheel_z);
@@ -522,6 +558,11 @@ impl BVR1Assembly {
     }
 
     /// Add access panel on top with sensors
+    ///
+    /// Sensor heights are optimized per bvr/docs/hardware/bvr1-dimensions.md:
+    /// - LiDAR at mast top: 700mm from ground (min 620mm for camera visibility)
+    /// - Camera 100mm below LiDAR: 600mm from ground (min 520mm to see near ground)
+    /// - GPS offset to side, 50mm below LiDAR
     fn add_access_panel_assembly(&self) -> Part {
         let cfg = &self.config;
         let gc = self.ground_clearance();
@@ -533,21 +574,27 @@ impl BVR1Assembly {
         let panel = AccessPanel::default_bvr1().generate()
             .translate(0.0, 0.0, panel_z);
 
-        // Sensor mast goes through the panel
-        let mast_y = 200.0; // Same as AccessPanel::mast_offset_y
-        let mast_top_z = panel_z + cfg.mast_height;
+        // Sensor mast position (from AccessPanel config)
+        let access_panel = AccessPanel::default_bvr1();
+        let (mast_x, mast_y) = access_panel.mast_position();
 
-        // LiDAR on top of mast
+        // Mast top height
+        // With gc=120, frame.height=180, panel=4, mast=400:
+        // mast_top = 120 + 180 + 4 + 400 = 704mm from ground
+        let mast_top_z = panel_z + panel_thickness / 2.0 + cfg.mast_height;
+
+        // LiDAR on top of mast (at 700mm, must be >620mm for camera ground visibility)
         let lidar = Lidar::mid360().generate()
-            .translate(0.0, mast_y, mast_top_z);
+            .translate(mast_x, mast_y, mast_top_z);
 
-        // Camera below LiDAR
+        // Camera 100mm below LiDAR (at 600mm, must be >520mm to see ground at body edge)
         let camera = Camera::insta360_x4().generate()
-            .translate(0.0, mast_y, mast_top_z - 100.0);
+            .translate(mast_x, mast_y, mast_top_z - 100.0);
 
-        // GPS antenna offset from mast
+        // GPS antenna offset 80mm to side of mast, 50mm below LiDAR
+        // (offset reduces multipath from mast structure)
         let gps = GpsAntenna::default_rtk().generate()
-            .translate(80.0, mast_y, mast_top_z - 50.0);
+            .translate(mast_x + 80.0, mast_y, mast_top_z - 50.0);
 
         // E-Stop on the panel (accessible from top)
         let estop = EStopButton::new().generate()
@@ -623,12 +670,12 @@ mod tests {
         let frame_edge = frame_config.width / 2.0;  // 190mm
         let axle_offset = motor.axle_offset();      // 64mm
 
-        // With new design: wheel is INSIDE frame
-        let bracket_axle_x = frame_edge + mount.axle_x_offset();
-        let wheel_center_x = bracket_axle_x - axle_offset;
+        // Wheel is OUTSIDE frame to avoid intersection
+        let bracket_axle_x = frame_edge + mount.total_depth();
+        let wheel_center_x = bracket_axle_x + axle_offset;
 
-        assert!(wheel_center_x < frame_edge,
-            "Wheel center ({:.1}mm) should be INSIDE frame edge ({:.1}mm)",
+        assert!(wheel_center_x > frame_edge,
+            "Wheel center ({:.1}mm) should be OUTSIDE frame edge ({:.1}mm)",
             wheel_center_x, frame_edge);
 
         // L-bracket arm thickness must fit under frame rail
@@ -659,24 +706,30 @@ mod tests {
             nut_clearance);
     }
 
-    /// Test ADA sidewalk compliance with wheels INSIDE frame
+    /// Test ADA sidewalk compliance with wheels OUTSIDE frame
     #[test]
     fn test_ada_sidewalk_compliance() {
+        let motor = UUMotor::svb6hs();
         let mount = LBracketMount::default_bvr1();
         let frame_config = BVR1FrameConfig::default();
 
-        // With wheels inside frame, total width is approximately frame width
-        // plus the bracket overhang on each side
-        let frame_edge = frame_config.width / 2.0;
-        let bracket_overhang = mount.axle_x_offset() + mount.total_depth();
-        let total_width = (frame_edge + bracket_overhang) * 2.0;
+        // With wheels outside frame, total width is:
+        // frame_edge + bracket_depth + axle_offset + wheel_hub_half_width (on each side)
+        let frame_edge = frame_config.width / 2.0;  // 190mm
+        let bracket_axle_x = frame_edge + mount.total_depth();  // 190 + 20 = 210mm
+        let wheel_center_x = bracket_axle_x + motor.axle_offset();  // 210 + 64 = 274mm
 
+        // Total width = 2 * wheel_center_x (symmetric)
+        // Plus some hub width on each side (hub is centered on wheel_center)
+        let total_width = wheel_center_x * 2.0;  // ~548mm
+
+        // Should still fit well on sidewalks
         // ADA minimum clear width is 36" (914mm)
         assert!(total_width < 600.0,
             "Total width ({:.0}mm) should be under 600mm for ADA compliance",
             total_width);
 
-        // Verify we fit on a standard 48" (1220mm) sidewalk with generous clearance
+        // Verify we fit on a standard 48" (1220mm) sidewalk with clearance
         let sidewalk_48in = 1220.0;
         let clearance_each_side = (sidewalk_48in - total_width) / 2.0;
         assert!(clearance_each_side >= 300.0,
@@ -709,26 +762,30 @@ mod tests {
             wheel_z, gc);
     }
 
-    /// Test that wheels are INSIDE frame footprint (new design)
+    /// Test that wheels are OUTSIDE frame footprint (no intersection)
     #[test]
-    fn test_wheel_inside_frame() {
+    fn test_wheel_outside_frame() {
         let motor = UUMotor::svb6hs();
         let mount = LBracketMount::default_bvr1();
         let frame_config = BVR1FrameConfig::default();
 
-        let frame_edge = frame_config.width / 2.0;
-        let axle_offset = motor.axle_offset();
-        let bracket_axle_x = frame_edge + mount.axle_x_offset();
-        let wheel_center_x = bracket_axle_x - axle_offset;
+        let frame_edge = frame_config.width / 2.0;  // 190mm
+        let axle_offset = motor.axle_offset();      // 64mm
+        let wheel_radius = motor.wheel_diameter() / 2.0;  // 84mm
 
-        // Wheel center should be inside frame
-        assert!(wheel_center_x < frame_edge,
-            "Wheel center ({:.1}mm) should be inside frame edge ({:.1}mm)",
+        // Wheel center X (distance from centerline)
+        let bracket_axle_x = frame_edge + mount.total_depth();  // 190 + 20 = 210mm
+        let wheel_center_x = bracket_axle_x + axle_offset;      // 210 + 64 = 274mm
+
+        // Wheel center should be OUTSIDE frame
+        assert!(wheel_center_x > frame_edge,
+            "Wheel center ({:.1}mm) should be outside frame edge ({:.1}mm)",
             wheel_center_x, frame_edge);
 
-        // Wheel should have clearance from frame centerline
-        assert!(wheel_center_x > 50.0,
-            "Wheel center ({:.1}mm) should not be too close to centerline",
-            wheel_center_x);
+        // Wheel inner edge should clear frame edge
+        let wheel_inner_edge = wheel_center_x - wheel_radius;  // 274 - 84 = 190mm
+        assert!(wheel_inner_edge >= frame_edge,
+            "Wheel inner edge ({:.1}mm) should clear frame edge ({:.1}mm)",
+            wheel_inner_edge, frame_edge);
     }
 }

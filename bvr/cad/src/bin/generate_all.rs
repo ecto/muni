@@ -307,6 +307,15 @@ fn main() -> Result<()> {
     println!("  bvr1_robot.usda (articulated)");
 
     // =========================================================================
+    // SYNC TO WEB VIEWER
+    // =========================================================================
+    println!("\nSync to Web Viewer");
+    println!("------------------");
+
+    let synced = sync_to_web(&gltf_dir)?;
+    println!("  {} files synced to web/models/", synced);
+
+    // =========================================================================
     // SUMMARY
     // =========================================================================
     println!("\n════════════════════════════════════════════════════════════");
@@ -315,7 +324,51 @@ fn main() -> Result<()> {
     #[cfg(feature = "gltf")]
     println!("  glTF: {} files -> exports/gltf/", gltf_count);
     println!("  USD:  {} files -> exports/usd/", usd_count);
+    println!("  Web:  {} files -> web/models/", synced);
     println!("════════════════════════════════════════════════════════════");
 
     Ok(())
+}
+
+/// Sync GLB files needed by the web viewer to web/models/
+fn sync_to_web(gltf_dir: &Path) -> Result<usize> {
+    // Files needed by web/viewer.html: (source, destination)
+    // Most files keep their name, but some are renamed for the viewer
+    let files_to_sync: &[(&str, &str)] = &[
+        // Assemblies
+        ("bvr0_assembly.glb", "bvr0_assembly.glb"),
+        ("bvr1_assembly.glb", "bvr1_assembly.glb"),
+        // Frame
+        ("bvr1_frame.glb", "bvr1_frame.glb"),
+        // Drivetrain
+        ("uumotor_svb6hs.glb", "uumotor_svb6hs.glb"),
+        ("uumotor_kn6104.glb", "uumotor_kn6104.glb"),
+        ("uumotor_mount.glb", "uumotor_mount.glb"),
+        // Electronics
+        ("base_tray.glb", "base_tray.glb"),
+        ("access_panel.glb", "access_panel.glb"),
+        // Scale references: renamed from ref_* to match viewer expectations
+        ("ref_banana.glb", "banana.glb"),
+        ("ref_human.glb", "human.glb"),
+    ];
+
+    let web_models = Path::new("../../web/models");
+    if !web_models.exists() {
+        std::fs::create_dir_all(web_models)?;
+    }
+
+    let mut count = 0;
+    for (src_name, dst_name) in files_to_sync {
+        let src = gltf_dir.join(src_name);
+        let dst = web_models.join(dst_name);
+
+        if src.exists() {
+            std::fs::copy(&src, &dst)?;
+            count += 1;
+        } else {
+            eprintln!("  Warning: {} not found, skipping", src_name);
+        }
+    }
+
+    Ok(count)
 }
