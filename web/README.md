@@ -1,59 +1,85 @@
-# Muni Website
+# Municipal Robotics Website
 
-Static website for [muni.works](https://muni.works), hosted on GitHub Pages.
+Next.js static site for muni.works with React Three Fiber 3D viewer.
 
-## Adding Media Files
-
-**Important:** GitHub Pages does not support Git LFS. The repository uses LFS for large binary files, but web assets are excluded.
-
-When adding images or other media to the website:
-
-1. **Copy files to `web/`** (do not symlink from other directories)
-2. **Verify the file is not tracked by LFS:**
-   ```bash
-   git check-attr filter web/your-image.jpg
-   # Should output: web/your-image.jpg: filter: unset
-   ```
-3. **If the file shows `filter: lfs`**, the `.gitattributes` rules need updating
-
-### Supported formats (excluded from LFS)
-
-These patterns in `.gitattributes` exclude web assets from LFS:
-
-```
-web/*.png -filter -diff -merge binary
-web/*.jpg -filter -diff -merge binary
-web/*.pdf -filter -diff -merge binary
-web/**/*.pdf -filter -diff -merge binary
-```
-
-### Adding new file types
-
-If you need to add a new media type (e.g., `.webp`, `.mp4`), add an exclusion rule to `.gitattributes`:
-
-```
-web/*.webp -filter -diff -merge binary
-```
-
-**Rule order matters:** exclusions must come AFTER the general LFS rules in the file.
-
-### Cache busting
-
-After migrating files out of LFS, browsers may cache the old (broken) version. Add a query param to force a refresh:
-
-```html
-<img src="image.jpg?v=2" alt="...">
-```
-
-## Local Development
-
-Open `index.html` in a browser, or use a local server:
+## Development
 
 ```bash
-python3 -m http.server 8000
-# Then visit http://localhost:8000
+# Install dependencies
+npm install --legacy-peer-deps
+
+# Start development server
+npm run dev
+# Open http://localhost:3000
+
+# Build for production
+npm run build
+# Output in ./out/
+```
+
+## Stack
+
+- **Next.js 14** (App Router, static export)
+- **React 18** + TypeScript
+- **React Three Fiber 8** + drei for 3D viewer
+- **Tailwind CSS 4** for styling
+- **Phosphor Icons** for icons
+
+## Structure
+
+```
+web/
+├── src/
+│   ├── app/           # Next.js App Router pages
+│   │   ├── page.tsx   # Home (/)
+│   │   ├── about/     # /about
+│   │   ├── products/  # /products
+│   │   ├── docs/      # /docs
+│   │   ├── investors/ # /investors
+│   │   ├── log/       # /log
+│   │   ├── success/   # /success
+│   │   ├── cancel/    # /cancel
+│   │   └── viewer/    # /viewer (3D CAD viewer)
+│   ├── components/
+│   │   ├── layout/    # Header, NavBar, Footer
+│   │   ├── ui/        # Card, ConvertKitForm
+│   │   └── viewer/    # ModelViewer, Hotspots, etc.
+│   ├── lib/           # Utilities (PostHog)
+│   ├── styles/        # globals.css
+│   └── types/         # TypeScript declarations
+├── public/
+│   ├── fonts/         # Berkeley Mono woff2
+│   ├── images/        # PNG, JPG assets
+│   ├── models/        # GLB, STL 3D models
+│   └── docs/          # PDF documents
+├── next.config.mjs
+├── tailwind.config.ts
+└── vercel.json        # Redirects for old URLs
 ```
 
 ## Deployment
 
-Push to `main` branch. GitHub Pages automatically deploys from the `web/` folder.
+Deployed to Vercel with static export. The `vercel.json` file includes redirects for old `.html` URLs.
+
+```bash
+# Build and export
+npm run build
+
+# Deploy to Vercel
+vercel --prod
+```
+
+## 3D Viewer
+
+The `/viewer` page is a React Three Fiber application for viewing CAD models:
+
+- Interactive 3D model display with orbit controls
+- Component hotspots with labels
+- Model selector dropdown
+- Component explorer panel
+- Inspector with dimensions
+- Scale references (banana, astronaut, grogu)
+- Wireframe toggle
+- Custom grid shader
+
+Models are in GLB format, located in `public/models/`.

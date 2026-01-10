@@ -42,6 +42,10 @@ node_modules/
 dist/
 *.tsbuildinfo
 
+# Next.js
+.next/
+out/
+
 bvr/firmware/sessions/
 
 # Confidential

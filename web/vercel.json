@@ -1,0 +1,13 @@
+{
+  "redirects": [
+    { "source": "/index.html", "destination": "/", "permanent": true },
+    { "source": "/about.html", "destination": "/about", "permanent": true },
+    { "source": "/products.html", "destination": "/products", "permanent": true },
+    { "source": "/docs.html", "destination": "/docs", "permanent": true },
+    { "source": "/investors.html", "destination": "/investors", "permanent": true },
+    { "source": "/viewer.html", "destination": "/viewer", "permanent": true },
+    { "source": "/success.html", "destination": "/success", "permanent": true },
+    { "source": "/cancel.html", "destination": "/cancel", "permanent": true },
+    { "source": "/log.html", "destination": "/log", "permanent": true }
+  ]
+}
