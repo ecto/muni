@@ -55,6 +55,8 @@ make web-docs
 make investor
 ```
 
+Vercel runs `make -C paper web-docs` automatically during builds (configured in `web/vercel.json`), so production deployments stay in sync even if you forget to run it locally.
+
 ## Layout
 
 Custom single-column layout with:
