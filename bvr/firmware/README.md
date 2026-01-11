@@ -39,6 +39,7 @@ Onboard software for the Base Vectoring Rover, targeting Jetson Orin NX.
 | `tools`     | Tool discovery + implementations   |
 | `recording` | Telemetry recording (Rerun .rrd)   |
 | `metrics`   | Real-time metrics push to Depot    |
+| `dispatch`  | Mission dispatch client (WebSocket)|
 | `gps`       | GPS receiver integration           |
 | `camera`    | Camera capture and streaming       |
 | `rl`        | RL environment for training        |
@@ -294,6 +295,90 @@ cargo run --bin bvrd -- --sim --policy ./policies/nav-v0.1.0.json --goal "5.0,0.
 ```
 
 Switch to autonomous mode via teleop command: `SetMode(Autonomous)`
+
+## Dispatch Integration
+
+The rover connects to the Depot dispatch service to receive mission assignments automatically.
+
+### Configuration
+
+Enable in `config/bvr.toml`:
+
+```toml
+[dispatch]
+enabled = true
+endpoint = "ws://depot.local:4890/ws"
+```
+
+Or via CLI flags:
+
+```bash
+# Use custom endpoint
+bvrd --dispatch-endpoint ws://192.168.1.100:4890/ws
+
+# Disable dispatch
+bvrd --no-dispatch
+```
+
+### Behavior
+
+When a task is assigned:
+
+1. Rover receives waypoints via WebSocket from dispatch service
+2. Automatically transitions to Autonomous mode (unless in Teleop)
+3. Navigates to each waypoint using the loaded policy
+4. Reports progress (percent complete, current waypoint, lap count)
+5. Reports completion when all waypoints visited
+6. Returns to Idle mode
+
+If the task is cancelled:
+- Rover stops execution and returns to Idle
+- Reports cancellation to dispatch service
+
+If policy inference fails:
+- Rover reports failure with error message
+- Returns to Idle mode
+
+### Priority
+
+Dispatched waypoints take priority over static `--goal` configuration:
+
+1. If dispatch task is active, use task waypoints
+2. Otherwise, use `--goal` or `[autonomous].goal` from config
+3. If neither, Autonomous mode stays stopped
+
+### WebSocket Messages
+
+The rover exchanges these messages with the dispatch service:
+
+```
+Rover -> Dispatch:
+  - register: {"type": "register", "rover_id": "bvr-01"}
+  - progress: {"type": "progress", "task_id": "...", "progress": 50, "waypoint": 2, "lap": 0}
+  - complete: {"type": "complete", "task_id": "...", "laps": 1}
+  - failed: {"type": "failed", "task_id": "...", "error": "Policy inference failed"}
+
+Dispatch -> Rover:
+  - task: {"type": "task", "task_id": "...", "mission_id": "...", "zone": {...}}
+  - cancel: {"type": "cancel", "task_id": "..."}
+```
+
+### Simulation Testing
+
+Test dispatch integration in simulation mode:
+
+```bash
+# Terminal 1: Start dispatch service
+cd depot && docker compose up dispatch postgres
+
+# Terminal 2: Run rover in sim mode
+cd bvr/firmware
+cargo run --bin bvrd -- --sim \
+  --dispatch-endpoint ws://localhost:4890/ws \
+  --policy ./policies/nav-v0.1.0.json
+```
+
+Create a zone and mission via the Console at http://localhost/dispatch to see the rover receive and execute tasks.
 
 ## Documentation
 

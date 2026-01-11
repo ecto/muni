@@ -3,6 +3,7 @@
 Depot is the base station infrastructure for the Muni robot fleet. It provides:
 
 - **Console** for unified fleet operations, teleop, and infrastructure monitoring
+- **Dispatch** for mission planning, zone management, and task scheduling
 - **Real-time metrics** via InfluxDB (battery, motors, GPS, mode)
 - **Fleet dashboards** via Grafana (fleet overview + per-rover detail)
 - **Session storage** via SFTP (rovers upload recordings)
@@ -21,8 +22,10 @@ Rovers                          Depot
 │ rover-02│──UDP metrics──────▶│  InfluxDB (:8086, :8089)            │
 │ rover-0N│──rclone SFTP──────▶│  SFTP (:2222)                       │
 │         │◀─WebSocket─────────│  Console (:80) ◀─── Operators       │
+│         │◀─WebSocket tasks───│  Dispatch (:4890)                   │
 │         │◀─RTCM corrections──│  NTRIP (:2101) [optional]           │
 └─────────┘                     │  Grafana (:3000)                    │
+                                │  PostgreSQL (:5432) [internal]      │
                                 └─────────────────────────────────────┘
 ```
 
@@ -35,6 +38,7 @@ The Console is a unified React application that provides:
 - **Services**: Infrastructure health monitoring
 - **Fleet**: Rover list, status, and quick access to teleop
 - **Teleop**: 3D visualization, video feed, gamepad control
+- **Dispatch**: Zone management, mission planning, task monitoring
 - **Sessions**: Recorded telemetry browser and playback
 - **Maps**: 3D Gaussian splat viewer
 
@@ -87,6 +91,7 @@ The Console at http://localhost provides access to all functionality:
 | `/fleet`            | Rover list            |
 | `/fleet/:id`        | Rover detail          |
 | `/fleet/:id/teleop` | Teleop interface      |
+| `/dispatch`         | Mission planning      |
 | `/sessions`         | Session browser       |
 | `/maps`             | 3D map viewer         |
 
@@ -99,6 +104,7 @@ External services (direct access):
 | InfluxDB  | http://localhost:8086 | admin / munipassword                  |
 | SFTP      | localhost:2222        | bvr / SSH key auth                    |
 | Discovery | http://localhost:4860 | None (internal)                       |
+| Dispatch  | ws://localhost:4890   | None (internal)                       |
 | Map API   | http://localhost:4870 | None (internal)                       |
 
 ### GPU Support (for Gaussian Splatting)
@@ -120,6 +126,115 @@ docker compose --profile rtk up -d
 ```
 
 See [RTK documentation](../docs/hardware/rtk.md) for hardware setup.
+
+## Dispatch (Mission Planning)
+
+The Dispatch service enables automated mission planning and task execution:
+
+### Concepts
+
+- **Zones**: Geographic areas defined by waypoints (routes) or GPS polygons
+- **Missions**: Scheduled work assignments linking zones to rovers
+- **Tasks**: Individual execution instances of missions
+
+### Zone Types
+
+**Waypoint Routes**: Ordered list of coordinates the rover follows sequentially
+```json
+{
+  "name": "Sidewalk A",
+  "zone_type": "waypoints",
+  "waypoints": [
+    {"x": 0.0, "y": 0.0},
+    {"x": 10.0, "y": 0.0},
+    {"x": 10.0, "y": 5.0}
+  ],
+  "is_loop": true
+}
+```
+
+**GPS Polygons**: Area boundaries for coverage planning (future: auto-generate waypoints)
+```json
+{
+  "name": "Parking Lot B",
+  "zone_type": "polygon",
+  "polygon": [
+    {"lat": 41.481956, "lon": -81.8053},
+    {"lat": 41.482100, "lon": -81.8053},
+    {"lat": 41.482100, "lon": -81.8050}
+  ]
+}
+```
+
+### Task Lifecycle
+
+```
+pending -> assigned -> active -> completed
+                    \         \-> failed
+                     \-> cancelled
+```
+
+1. **Pending**: Task created, waiting for rover availability
+2. **Assigned**: Sent to rover via WebSocket
+3. **Active**: Rover executing waypoints, reporting progress
+4. **Completed**: All waypoints visited successfully
+5. **Failed**: Error during execution (rover reports reason)
+6. **Cancelled**: Operator cancelled via console
+
+### API Endpoints
+
+| Method | Path | Description |
+| ------ | ---- | ----------- |
+| GET | `/api/zones` | List all zones |
+| POST | `/api/zones` | Create zone |
+| GET | `/api/zones/:id` | Get zone details |
+| PUT | `/api/zones/:id` | Update zone |
+| DELETE | `/api/zones/:id` | Delete zone |
+| GET | `/api/missions` | List all missions |
+| POST | `/api/missions` | Create mission |
+| GET | `/api/missions/:id` | Get mission details |
+| DELETE | `/api/missions/:id` | Delete mission |
+| GET | `/api/tasks` | List tasks (filterable) |
+| POST | `/api/tasks/:id/cancel` | Cancel a task |
+
+### WebSocket Protocol
+
+**Rover connection** (`/ws`):
+```json
+// Rover -> Dispatch: Register
+{"type": "register", "rover_id": "bvr-01"}
+
+// Dispatch -> Rover: Task assignment
+{"type": "task", "task_id": "uuid", "mission_id": "uuid", "zone": {...}}
+
+// Rover -> Dispatch: Progress update
+{"type": "progress", "task_id": "uuid", "progress": 75, "waypoint": 3, "lap": 0}
+
+// Rover -> Dispatch: Complete
+{"type": "complete", "task_id": "uuid", "laps": 1}
+
+// Dispatch -> Rover: Cancel
+{"type": "cancel", "task_id": "uuid"}
+```
+
+**Console connection** (`/ws/console`): Receives real-time task state updates.
+
+### Rover Configuration
+
+Enable dispatch in `bvr.toml`:
+
+```toml
+[dispatch]
+enabled = true
+endpoint = "ws://depot.local:4890/ws"
+```
+
+Or via CLI:
+```bash
+bvrd --dispatch-endpoint ws://192.168.1.100:4890/ws
+```
+
+Disable with `--no-dispatch` flag.
 
 ## Authentication
 
@@ -196,6 +311,7 @@ The console dev server runs on http://localhost:5173 with:
 depot/
 ├── console/          # React web application (Console)
 ├── discovery/        # Rover registration service (Rust)
+├── dispatch/         # Mission planning & task dispatch (Rust)
 ├── map-api/          # Map serving API (Rust)
 ├── mapper/           # Map processing orchestrator (Rust)
 ├── splat-worker/     # GPU splatting worker (Python)
@@ -316,16 +432,18 @@ docker compose logs -f influxdb
 
 ## Network Ports
 
-| Port | Protocol | Service   | Purpose                   |
-| ---- | -------- | --------- | ------------------------- |
-| 80   | TCP      | Console   | Web interface             |
-| 2101 | TCP      | NTRIP     | RTK corrections broadcast |
-| 2222 | TCP      | SFTP      | Session file uploads      |
-| 3000 | TCP      | Grafana   | Metrics dashboards        |
-| 4860 | TCP      | Discovery | Rover registration        |
-| 4870 | TCP      | Map API   | Map serving               |
-| 8086 | TCP      | InfluxDB  | HTTP API + Web UI         |
-| 8089 | UDP      | InfluxDB  | Line protocol metrics     |
+| Port | Protocol | Service    | Purpose                   |
+| ---- | -------- | ---------- | ------------------------- |
+| 80   | TCP      | Console    | Web interface             |
+| 2101 | TCP      | NTRIP      | RTK corrections broadcast |
+| 2222 | TCP      | SFTP       | Session file uploads      |
+| 3000 | TCP      | Grafana    | Metrics dashboards        |
+| 4860 | TCP      | Discovery  | Rover registration        |
+| 4870 | TCP      | Map API    | Map serving               |
+| 4890 | TCP      | Dispatch   | Mission/task WebSocket    |
+| 5432 | TCP      | PostgreSQL | Database (internal)       |
+| 8086 | TCP      | InfluxDB   | HTTP API + Web UI         |
+| 8089 | UDP      | InfluxDB   | Line protocol metrics     |
 
 ## Security Considerations
 

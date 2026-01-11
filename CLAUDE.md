@@ -23,8 +23,9 @@ muni/
 │   ├── electrical/         # Schematics and PCBs
 │   └── docs/               # BVR-specific documentation
 ├── depot/                  # Base station services
-│   ├── console/            # React web app (fleet ops, teleop UI)
+│   ├── console/            # React web app (fleet ops, teleop UI, dispatch)
 │   ├── discovery/          # Rover registration service (Rust)
+│   ├── dispatch/           # Mission planning & task dispatch (Rust)
 │   ├── gps-status/         # GPS/RTK status service (Rust)
 │   ├── map-api/            # Map serving API (Rust)
 │   ├── mapper/             # Map processing orchestrator (Rust)
@@ -209,15 +210,19 @@ Requires Typst installed.
 │   Console (:80)     Grafana (:3000)     InfluxDB        SFTP (:2222)       │
 │   Fleet ops         Dashboards          Metrics DB      Session storage    │
 │   Teleop UI         Alerts              Time series     Recording sync     │
+│   Dispatch (:4890)  PostgreSQL                                              │
+│   Mission planning  Zone/task storage                                       │
 └───────────────────────────────────┬─────────────────────────────────────────┘
                                     │
                         UDP metrics │ WebSocket teleop
                         SFTP sync   │ RTK corrections
+                        WS dispatch │ (task assignments)
                                     │
 ┌───────────────────────────────────┴─────────────────────────────────────────┐
 │ BVR Rover                                                                   │
 │   Jetson Orin NX running bvrd daemon                                        │
 │   ├── teleop     WebSocket comms, video streaming                          │
+│   ├── dispatch   Mission tasks from depot, progress reporting              │
 │   ├── control    Differential drive mixer, rate limiting                   │
 │   ├── state      Mode management (Idle → Teleop → Autonomous → EStop)      │
 │   ├── gps        RTK positioning                                           │
@@ -235,11 +240,14 @@ Requires Typst installed.
 | Main daemon entry | `bvr/firmware/bins/bvrd/src/main.rs` |
 | Motor control logic | `bvr/firmware/crates/control/src/lib.rs` |
 | State machine | `bvr/firmware/crates/state/src/lib.rs` |
+| Dispatch client | `bvr/firmware/crates/dispatch/src/lib.rs` |
 | Shared types | `bvr/firmware/crates/types/src/lib.rs` |
 | Runtime config | `bvr/firmware/config/bvr.toml` |
 | Console app entry | `depot/console/src/main.tsx` |
 | Console state | `depot/console/src/store.ts` |
 | Console types | `depot/console/src/lib/types.ts` |
+| Dispatch service | `depot/dispatch/src/main.rs` |
+| Dispatch UI | `depot/console/src/views/DispatchView.tsx` |
 | Docker services | `depot/docker-compose.yml` |
 | MCU LED controller | `mcu/bins/rp2350/src/main.rs` |
 | GitHub Pages CI | `.github/workflows/pages.yml` |
