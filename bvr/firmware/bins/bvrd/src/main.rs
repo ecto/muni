@@ -2,6 +2,7 @@
 
 use anyhow::Result;
 use camera::Config as CameraConfig;
+use dispatch::{DispatchClient, DispatchEvent, TaskAssignment, Waypoint as DispatchWaypoint};
 use can::vesc::Drivetrain;
 use can::Bus;
 use clap::Parser;
@@ -37,6 +38,25 @@ struct FileConfig {
     metrics: MetricsFileConfig,
     discovery: DiscoveryFileConfig,
     autonomous: AutonomousFileConfig,
+    dispatch: DispatchFileConfig,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(default)]
+struct DispatchFileConfig {
+    /// Enable dispatch service connection
+    enabled: bool,
+    /// Dispatch service endpoint (ws://host:port/ws)
+    endpoint: String,
+}
+
+impl Default for DispatchFileConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            endpoint: "ws://depot.local:4890/ws".to_string(),
+        }
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -250,6 +270,14 @@ struct Args {
     /// Autonomous mode goal position [x,y] (for testing)
     #[arg(long, value_parser = parse_goal)]
     goal: Option<[f64; 2]>,
+
+    /// Disable dispatch service connection (overrides config file)
+    #[arg(long)]
+    no_dispatch: bool,
+
+    /// Dispatch service endpoint - overrides config file (e.g., "ws://192.168.1.100:4890/ws")
+    #[arg(long)]
+    dispatch_endpoint: Option<String>,
 }
 
 /// Parse goal position from "x,y" string.
@@ -302,6 +330,56 @@ impl CanInterface {
                 Pose { x, y, theta }
             }
         }
+    }
+}
+
+/// State for a dispatched task being executed
+#[derive(Debug, Clone)]
+struct DispatchedTask {
+    task_id: uuid::Uuid,
+    waypoints: Vec<DispatchWaypoint>,
+    current_waypoint: usize,
+    lap: i32,
+    is_loop: bool,
+}
+
+impl DispatchedTask {
+    fn from_assignment(assignment: TaskAssignment) -> Self {
+        Self {
+            task_id: assignment.task_id,
+            waypoints: assignment.zone.waypoints,
+            current_waypoint: 0,
+            lap: 0,
+            is_loop: assignment.zone.is_loop,
+        }
+    }
+
+    fn current_goal(&self) -> Option<[f64; 2]> {
+        self.waypoints.get(self.current_waypoint).map(|wp| [wp.x, wp.y])
+    }
+
+    /// Advance to next waypoint. Returns true if task is complete.
+    fn advance(&mut self) -> bool {
+        self.current_waypoint += 1;
+        if self.current_waypoint >= self.waypoints.len() {
+            if self.is_loop {
+                self.current_waypoint = 0;
+                self.lap += 1;
+                info!(lap = self.lap, "Starting new lap");
+                false
+            } else {
+                true // Task complete
+            }
+        } else {
+            false
+        }
+    }
+
+    fn progress_percent(&self) -> i32 {
+        if self.waypoints.is_empty() {
+            return 100;
+        }
+        ((self.current_waypoint as f64 / self.waypoints.len() as f64) * 100.0) as i32
     }
 }
 
@@ -495,6 +573,27 @@ async fn main() -> Result<()> {
     } else {
         info!("Autonomous mode disabled");
     }
+
+    // Initialize dispatch client for receiving mission waypoints
+    let dispatch_enabled = !args.no_dispatch && file_config.dispatch.enabled;
+    let dispatch_client = if dispatch_enabled {
+        let dispatch_endpoint = args.dispatch_endpoint.clone()
+            .unwrap_or(file_config.dispatch.endpoint.clone());
+        
+        info!(endpoint = %dispatch_endpoint, "Connecting to dispatch service");
+        let client = DispatchClient::new(&dispatch_endpoint, &rover_id);
+        Some(client)
+    } else {
+        info!("Dispatch service connection disabled");
+        None
+    };
+
+    // Subscribe to dispatch events if enabled
+    let mut dispatch_rx = dispatch_client.as_ref().map(|c| c.subscribe());
+
+    // Current dispatched task state
+    let current_dispatch_task: Arc<Mutex<Option<DispatchedTask>>> = Arc::new(Mutex::new(None));
+    let dispatch_task_clone = current_dispatch_task.clone();
 
     // Initialize CAN interface
     let vesc_ids: [u8; 4] = args.vesc_ids.try_into().expect("Need exactly 4 VESC IDs");
@@ -843,6 +942,68 @@ async fn main() -> Result<()> {
             }
         }
 
+        // Process dispatch events (task assignments/cancellations)
+        if let Some(ref mut rx) = dispatch_rx {
+            while let Ok(event) = rx.try_recv() {
+                match event {
+                    DispatchEvent::TaskAssigned(assignment) => {
+                        info!(
+                            task_id = %assignment.task_id,
+                            mission_id = %assignment.mission_id,
+                            waypoints = assignment.zone.waypoints.len(),
+                            is_loop = assignment.zone.is_loop,
+                            "Task assigned from dispatch"
+                        );
+                        
+                        let task = DispatchedTask::from_assignment(assignment);
+                        *dispatch_task_clone.lock().unwrap() = Some(task);
+                        
+                        // Transition to autonomous mode to execute the task
+                        let mut state = shared.lock().unwrap();
+                        match state.state_machine.mode() {
+                            Mode::Idle | Mode::Disabled => {
+                                if state.state_machine.mode() == Mode::Disabled {
+                                    state.state_machine.transition(Event::Enable);
+                                }
+                                state.state_machine.transition(Event::AutonomousRequest);
+                                info!("Transitioned to Autonomous mode for dispatch task");
+                            }
+                            Mode::Teleop => {
+                                // Don't interrupt teleop - operator has control
+                                info!("Task queued - currently in Teleop mode");
+                            }
+                            Mode::Autonomous => {
+                                // Already autonomous, will pick up new task
+                                info!("New task received while autonomous");
+                            }
+                            _ => {}
+                        }
+                    }
+                    DispatchEvent::TaskCancelled(task_id) => {
+                        info!(task_id = %task_id, "Task cancelled by dispatch");
+                        let mut task_guard = dispatch_task_clone.lock().unwrap();
+                        if let Some(ref task) = *task_guard {
+                            if task.task_id == task_id {
+                                *task_guard = None;
+                                // Return to idle if we were executing this task
+                                let mut state = shared.lock().unwrap();
+                                if state.state_machine.mode() == Mode::Autonomous {
+                                    state.state_machine.transition(Event::CommandTimeout);
+                                    info!("Returned to Idle after task cancellation");
+                                }
+                            }
+                        }
+                    }
+                    DispatchEvent::Connected(true) => {
+                        info!("Connected to dispatch service");
+                    }
+                    DispatchEvent::Connected(false) => {
+                        warn!("Disconnected from dispatch service");
+                    }
+                }
+            }
+        }
+
         // Check watchdog
         {
             let mut state = shared.lock().unwrap();
@@ -864,7 +1025,17 @@ async fn main() -> Result<()> {
         let (target_twist, boost_active) = match current_mode {
             Mode::Autonomous => {
                 // Autonomous mode: use policy for navigation
-                if let (Some(policy), Some(goal)) = (&loaded_policy, autonomous_goal) {
+                // Priority: dispatched task waypoints > static autonomous_goal
+                let goal = {
+                    let task_guard = current_dispatch_task.lock().unwrap();
+                    if let Some(ref task) = *task_guard {
+                        task.current_goal()
+                    } else {
+                        autonomous_goal
+                    }
+                };
+
+                if let (Some(policy), Some(goal)) = (&loaded_policy, goal) {
                     // Get current pose estimate
                     let current_pose = if args.sim {
                         can_interface.pose()
@@ -900,25 +1071,91 @@ async fn main() -> Result<()> {
                                 "Autonomous policy output"
                             );
 
-                            // Check if goal reached (within 0.5m)
+                            // Check if waypoint reached (within 0.5m)
                             let dx = goal[0] - current_pose.x;
                             let dy = goal[1] - current_pose.y;
                             let dist = (dx * dx + dy * dy).sqrt();
                             if dist < 0.5 {
-                                info!(distance = dist, "Goal reached!");
-                                // Could transition back to idle here
+                                // Handle dispatched task waypoint progression
+                                let mut task_guard = current_dispatch_task.lock().unwrap();
+                                if let Some(ref mut task) = *task_guard {
+                                    let wp_idx = task.current_waypoint;
+                                    info!(
+                                        waypoint = wp_idx,
+                                        total = task.waypoints.len(),
+                                        distance = dist,
+                                        "Waypoint reached"
+                                    );
+
+                                    // Report progress to dispatch service
+                                    if let Some(ref client) = dispatch_client {
+                                        let progress = task.progress_percent();
+                                        let waypoint = task.current_waypoint as i32;
+                                        let lap = task.lap;
+                                        let task_id = task.task_id;
+                                        // Spawn async task for the report
+                                        let client_clone = client.clone();
+                                        tokio::spawn(async move {
+                                            let _ = client_clone.report_progress(task_id, progress, waypoint, lap).await;
+                                        });
+                                    }
+
+                                    // Advance to next waypoint
+                                    let task_complete = task.advance();
+                                    if task_complete {
+                                        info!(task_id = %task.task_id, "Dispatch task complete");
+                                        
+                                        // Report completion
+                                        if let Some(ref client) = dispatch_client {
+                                            let task_id = task.task_id;
+                                            let laps = task.lap;
+                                            let client_clone = client.clone();
+                                            tokio::spawn(async move {
+                                                let _ = client_clone.report_complete(task_id, laps).await;
+                                            });
+                                        }
+                                        
+                                        // Clear task and return to idle
+                                        let task_id = task.task_id;
+                                        drop(task_guard);
+                                        *current_dispatch_task.lock().unwrap() = None;
+                                        
+                                        let mut state = shared.lock().unwrap();
+                                        state.state_machine.transition(Event::CommandTimeout);
+                                        info!(task_id = %task_id, "Returned to Idle after task completion");
+                                    }
+                                } else {
+                                    // Static goal reached (testing mode)
+                                    info!(distance = dist, "Static goal reached!");
+                                }
                             }
 
                             (twist, false)
                         }
                         Err(e) => {
                             warn!(?e, "Policy inference failed, stopping");
+                            
+                            // Report failure if executing dispatch task
+                            if let Some(ref task) = *current_dispatch_task.lock().unwrap() {
+                                if let Some(ref client) = dispatch_client {
+                                    let task_id = task.task_id;
+                                    let client_clone = client.clone();
+                                    tokio::spawn(async move {
+                                        let _ = client_clone.report_failed(task_id, "Policy inference failed").await;
+                                    });
+                                }
+                            }
+                            
                             (Twist::default(), false)
                         }
                     }
                 } else {
                     // No policy or goal, stay stopped
-                    debug!("Autonomous mode but no policy/goal configured");
+                    if loaded_policy.is_none() {
+                        debug!("Autonomous mode but no policy loaded");
+                    } else {
+                        debug!("Autonomous mode but no goal/waypoints");
+                    }
                     (Twist::default(), false)
                 }
             }

@@ -137,6 +137,7 @@ enum ClientCommand {
 }
 
 /// Dispatch client for connecting to the depot
+#[derive(Clone)]
 pub struct DispatchClient {
     /// Dispatch service URL
     url: String,
