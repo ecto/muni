@@ -1,6 +1,6 @@
 {
   "framework": "nextjs",
-  "buildCommand": "curl -L -o /tmp/typst.tar.xz https://github.com/typst/typst/releases/download/v0.14.2/typst-x86_64-unknown-linux-gnu.tar.xz && tar -xJf /tmp/typst.tar.xz -C /tmp && export PATH=\"/tmp/typst-x86_64-unknown-linux-gnu:$PATH\" && make -C ../paper web-docs && npm run build",
+  "buildCommand": "curl -L -o /tmp/typst.tar.xz https://github.com/typst/typst/releases/download/v0.14.2/typst-x86_64-unknown-linux-musl.tar.xz && tar -xJf /tmp/typst.tar.xz -C /tmp && export PATH=\"/tmp/typst-x86_64-unknown-linux-musl:$PATH\" && make -C ../paper web-docs && npm run build",
   "redirects": [
     { "source": "/index.html", "destination": "/", "permanent": true },
     { "source": "/about.html", "destination": "/about", "permanent": true },
