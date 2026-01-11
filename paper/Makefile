@@ -1,17 +1,23 @@
-.PHONY: all clean watch watch-whitepaper watch-manual watch-manual-bvr1 investor
+.PHONY: all clean watch watch-whitepaper watch-manual watch-manual-bvr1 watch-deck watch-onepager investor web-docs
 
 # All documents
 DOCS = whitepaper.pdf bvr0-manual.pdf bvr1-manual.pdf bvr0-datasheet.pdf
 INVESTOR_DOCS = pitch-deck.pdf one-pager.pdf
+WEB_DOCS_DIR = ../web/public/docs
+WEB_DOCS = $(WEB_DOCS_DIR)/whitepaper.pdf $(WEB_DOCS_DIR)/bvr0-manual.pdf $(WEB_DOCS_DIR)/bvr1-manual.pdf $(WEB_DOCS_DIR)/bvr0-datasheet.pdf
+WEB_INVESTOR_DOCS = $(WEB_DOCS_DIR)/pitch-deck.pdf $(WEB_DOCS_DIR)/one-pager.pdf
 
 # Font path for Berkeley Mono
 TYPST = typst compile --font-path fonts/
 TYPST_WATCH = typst watch --font-path fonts/
 
-all: $(DOCS) ../web/whitepaper.pdf ../web/bvr0-manual.pdf ../web/bvr1-manual.pdf ../web/bvr0-datasheet.pdf
+all: $(DOCS) $(WEB_DOCS)
 
 # Investor documents
-investor: $(INVESTOR_DOCS) ../web/pitch-deck.pdf
+investor: $(INVESTOR_DOCS) $(WEB_INVESTOR_DOCS)
+
+# Build + copy all docs to the website
+web-docs: $(DOCS) $(INVESTOR_DOCS) $(WEB_DOCS) $(WEB_INVESTOR_DOCS)
 
 # Whitepaper
 whitepaper.pdf: whitepaper.typ refs.bib lib/template.typ $(wildcard images/*)
@@ -38,20 +44,26 @@ one-pager.pdf: one-pager.typ lib/template.typ
 	$(TYPST) one-pager.typ
 
 # Copy documents to web folder
-../web/whitepaper.pdf: whitepaper.pdf
-	cp whitepaper.pdf ../web/whitepaper.pdf
+$(WEB_DOCS_DIR):
+	mkdir -p $(WEB_DOCS_DIR)
 
-../web/bvr0-manual.pdf: bvr0-manual.pdf
-	cp bvr0-manual.pdf ../web/bvr0-manual.pdf
+$(WEB_DOCS_DIR)/whitepaper.pdf: whitepaper.pdf | $(WEB_DOCS_DIR)
+	cp $< $@
 
-../web/bvr1-manual.pdf: bvr1-manual.pdf
-	cp bvr1-manual.pdf ../web/bvr1-manual.pdf
+$(WEB_DOCS_DIR)/bvr0-manual.pdf: bvr0-manual.pdf | $(WEB_DOCS_DIR)
+	cp $< $@
 
-../web/bvr0-datasheet.pdf: bvr0-datasheet.pdf
-	cp bvr0-datasheet.pdf ../web/bvr0-datasheet.pdf
+$(WEB_DOCS_DIR)/bvr1-manual.pdf: bvr1-manual.pdf | $(WEB_DOCS_DIR)
+	cp $< $@
 
-../web/pitch-deck.pdf: pitch-deck.pdf
-	cp pitch-deck.pdf ../web/pitch-deck.pdf
+$(WEB_DOCS_DIR)/bvr0-datasheet.pdf: bvr0-datasheet.pdf | $(WEB_DOCS_DIR)
+	cp $< $@
+
+$(WEB_DOCS_DIR)/pitch-deck.pdf: pitch-deck.pdf | $(WEB_DOCS_DIR)
+	cp $< $@
+
+$(WEB_DOCS_DIR)/one-pager.pdf: one-pager.pdf | $(WEB_DOCS_DIR)
+	cp $< $@
 
 # Watch modes
 watch: watch-whitepaper

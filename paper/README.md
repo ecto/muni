@@ -45,6 +45,16 @@ typst compile main.typ
 typst watch main.typ
 ```
 
+### Publishing to the website
+
+```bash
+# Build + copy all PDFs into web/public/docs/
+make web-docs
+
+# Build + copy just the investor PDFs
+make investor
+```
+
 ## Layout
 
 Custom single-column layout with:
