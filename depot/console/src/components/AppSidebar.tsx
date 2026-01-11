@@ -24,6 +24,7 @@ import {
   ArrowSquareOut,
   ChartBar,
   Database,
+  NavigationArrow,
 } from "@phosphor-icons/react";
 import { useConsoleStore } from "@/store";
 import { useDiscovery } from "@/hooks/useDiscovery";
@@ -150,6 +151,18 @@ export function AppSidebar() {
                     ))}
                   </SidebarMenuSub>
                 )}
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  isActive={isActive("/dispatch")}
+                  tooltip="Dispatch"
+                >
+                  <Link to="/dispatch">
+                    <NavigationArrow className="h-4 w-4" />
+                    <span>Dispatch</span>
+                  </Link>
+                </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>

@@ -223,6 +223,47 @@ services:
       timeout: 3s
       retries: 3
 
+  # PostgreSQL database for normalized depot data
+  postgres:
+    image: postgres:16-alpine
+    container_name: depot-postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-muni}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-munipassword}
+      - POSTGRES_DB=${POSTGRES_DB:-depot}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-muni} -d ${POSTGRES_DB:-depot}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Dispatch service - mission planning and task assignment
+  dispatch:
+    build:
+      context: ./dispatch
+      dockerfile: Dockerfile
+    container_name: depot-dispatch
+    restart: unless-stopped
+    ports:
+      - "4890:4890"
+    environment:
+      - PORT=4890
+      - DATABASE_URL=postgres://${POSTGRES_USER:-muni}:${POSTGRES_PASSWORD:-munipassword}@postgres:5432/${POSTGRES_DB:-depot}
+      - RUST_LOG=dispatch=info
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O-", "http://localhost:4890/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
 volumes:
   influxdb-data:
   influxdb-config:
@@ -230,3 +271,4 @@ volumes:
   sessions-data:
   maps-data:
   jobs-data:
+  postgres-data:

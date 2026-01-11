@@ -169,6 +169,80 @@ export interface ServiceHealth {
   details?: string;
 }
 
+// =============================================================================
+// Dispatch Types (zones, missions, tasks)
+// =============================================================================
+
+export interface Waypoint {
+  x: number;
+  y: number;
+  theta?: number;
+}
+
+export interface GpsCoord {
+  lat: number;
+  lon: number;
+}
+
+export interface Zone {
+  id: string;
+  name: string;
+  zoneType: string;
+  waypoints: Waypoint[];
+  polygon?: GpsCoord[];
+  mapId?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Schedule {
+  trigger: "manual" | "once" | "cron";
+  cron?: string;
+  loop: boolean;
+}
+
+export interface Mission {
+  id: string;
+  name: string;
+  zoneId: string;
+  roverId?: string;
+  schedule: Schedule;
+  enabled: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export const TaskStatus = {
+  Pending: "pending",
+  Assigned: "assigned",
+  Active: "active",
+  Done: "done",
+  Failed: "failed",
+  Cancelled: "cancelled",
+} as const;
+
+export type TaskStatus = (typeof TaskStatus)[keyof typeof TaskStatus];
+
+export interface Task {
+  id: string;
+  missionId: string;
+  roverId: string;
+  status: TaskStatus;
+  progress: number;
+  waypoint: number;
+  lap: number;
+  error?: string;
+  createdAt: string;
+  startedAt?: string;
+  endedAt?: string;
+}
+
+export interface ConnectedRover {
+  roverId: string;
+  connected: boolean;
+  taskId?: string;
+}
+
 // GPS/Base station status
 export interface GpsStatus {
   connected: boolean;

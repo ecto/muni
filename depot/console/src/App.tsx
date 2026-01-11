@@ -14,6 +14,7 @@ import { RoverView } from "@/views/RoverView";
 import { TeleopView } from "@/views/TeleopView";
 import { SessionsView } from "@/views/SessionsView";
 import { MapsView } from "@/views/MapsView";
+import { DispatchView } from "@/views/DispatchView";
 
 function App() {
   // Connect to backend services
@@ -35,6 +36,7 @@ function App() {
             <Route path="/sessions" element={<SessionsView />} />
             <Route path="/maps" element={<MapsView />} />
             <Route path="/maps/:mapId" element={<MapsView />} />
+            <Route path="/dispatch" element={<DispatchView />} />
           </Routes>
         </SidebarInset>
       </SidebarProvider>

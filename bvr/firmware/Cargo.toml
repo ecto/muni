@@ -66,6 +66,7 @@ recording = { path = "crates/recording" }
 metrics = { path = "crates/metrics" }
 rl = { path = "crates/rl" }
 policy = { path = "crates/policy" }
+dispatch = { path = "crates/dispatch" }
 
 # RL training dependencies
 rand = "0.8"
