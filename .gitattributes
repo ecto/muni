@@ -32,14 +32,11 @@
 *.drl filter=lfs diff=lfs merge=lfs -text
 *.zip filter=lfs diff=lfs merge=lfs -text
 
-# Exclude web assets from LFS (GitHub Pages doesn't support LFS)
+# Exclude web assets from LFS (Vercel doesn't support LFS by default)
 # These MUST come AFTER the general LFS rules (last matching rule wins)
 web/**/*.pdf -filter -diff -merge binary
-web/*.pdf -filter -diff -merge binary
-web/*.png -filter -diff -merge binary
-web/*.jpg -filter -diff -merge binary
-web/*.stl -filter -diff -merge binary
+web/**/*.png -filter -diff -merge binary
+web/**/*.jpg -filter -diff -merge binary
+web/**/*.jpeg -filter -diff -merge binary
 web/**/*.stl -filter -diff -merge binary
-web/whitepaper.pdf !text !filter !merge !diff
 web/**/*.glb -filter -diff -merge binary
-web/*.glb -filter -diff -merge binary
