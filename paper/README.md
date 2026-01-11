@@ -55,7 +55,15 @@ make web-docs
 make investor
 ```
 
-Vercel runs `make -C paper web-docs` automatically during builds (configured in `web/vercel.json`), so production deployments stay in sync even if you forget to run it locally.
+### Pre-commit hook
+
+To make this automatic locally, enable the repo hook:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+Then commits will auto-run `make -C paper web-docs` and stage updated PDFs.
 
 ## Layout
 
