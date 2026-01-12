@@ -43,7 +43,7 @@
   --border: #27272a;
   
   /* Fonts */
-  --font-display: var(--font-display), "Jost", system-ui, sans-serif;
+  --font-display: "Futura", "Futura-Medium", "Century Gothic", "Apple SD Gothic Neo", sans-serif;
   --font-mono: "Berkeley Mono", ui-monospace, monospace;
   
   /* Type scale (Tailwind) */

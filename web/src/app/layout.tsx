@@ -1,13 +1,6 @@
 import type { Metadata } from "next";
 import Script from "next/script";
-import { Jost } from "next/font/google";
 import "@/styles/globals.css";
-
-const jost = Jost({
-  subsets: ["latin"],
-  variable: "--font-display",
-  display: "swap",
-});
 
 export const metadata: Metadata = {
   title: {
@@ -55,7 +48,7 @@ export default function RootLayout({
           `}
         </Script>
       </head>
-      <body className={jost.variable}>{children}</body>
+      <body>{children}</body>
     </html>
   );
 }
