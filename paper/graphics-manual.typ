@@ -352,7 +352,7 @@ The color palette is minimal and functional. Safety orange serves as the primary
       fill: white,
     )[
       #text(size: 9pt, weight: "bold")[#name] \
-      #text(size: 8pt, fill: muni-gray)[#hex] \
+      #text(font: "Berkeley Mono", size: 7pt, fill: muni-gray)[#hex] \
       #text(size: 7pt, fill: muni-gray)[#usage]
     ]
   ]

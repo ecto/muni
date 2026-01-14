@@ -139,8 +139,8 @@
     #align(center)[
       #v(0.2in)
 
-      // Document type (subtle)
-      #text(size: 9pt, fill: gray, tracking: 0.1em)[
+      // Document type (subtle, Berkeley Mono)
+      #text(font: (muni-font-mono, ..muni-font-mono-fallback), size: 9pt, fill: gray, tracking: 0.1em)[
         #upper(doc-type)
       ]
 
@@ -153,7 +153,7 @@
 
       #if subtitle != none [
         #v(0.2em)
-        #text(size: 11pt, fill: muni-gray)[#subtitle]
+        #text(font: (muni-font-mono, ..muni-font-mono-fallback), size: 9pt, fill: muni-gray)[#subtitle]
       ]
 
       #v(0.3in)
@@ -165,8 +165,8 @@
 
       #v(1fr)
 
-      // Revision and date
-      #text(size: 9pt, fill: gray)[
+      // Revision and date (Berkeley Mono)
+      #text(font: (muni-font-mono, ..muni-font-mono-fallback), size: 8pt, fill: gray)[
         Revision #revision
         #h(2em)
         #date
@@ -174,8 +174,8 @@
 
       #v(0.15in)
 
-      // Company info
-      #text(size: 9pt)[
+      // Company info (Berkeley Mono)
+      #text(font: (muni-font-mono, ..muni-font-mono-fallback), size: 8pt)[
         *Municipal Robotics* \
         Cleveland, Ohio \
         #link("https://muni.works")[muni.works]
@@ -191,6 +191,14 @@
     #v(0.3in)
     #text(size: 14pt, weight: "bold")[Contents]
     #v(1em)
+
+    // TOC uses Berkeley Mono with bold level 1 entries
+    #set text(font: (muni-font-mono, ..muni-font-mono-fallback), size: 8pt)
+
+    #show outline.entry.where(level: 1): it => {
+      strong(it)
+    }
+
     #outline(
       title: none,
       indent: 1.5em,
