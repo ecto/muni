@@ -1,7 +1,7 @@
-.PHONY: all clean watch watch-whitepaper watch-manual watch-manual-bvr1 watch-deck watch-onepager investor web-docs
+.PHONY: all clean watch watch-whitepaper watch-manual watch-manual-bvr1 watch-deck watch-onepager watch-graphics investor web-docs
 
 # All documents
-DOCS = whitepaper.pdf bvr0-manual.pdf bvr1-manual.pdf bvr0-datasheet.pdf
+DOCS = whitepaper.pdf bvr0-manual.pdf bvr1-manual.pdf bvr0-datasheet.pdf graphics-manual.pdf
 INVESTOR_DOCS = pitch-deck.pdf one-pager.pdf
 WEB_DOCS_DIR = ../web/public/docs
 WEB_DOCS = $(WEB_DOCS_DIR)/whitepaper.pdf $(WEB_DOCS_DIR)/bvr0-manual.pdf $(WEB_DOCS_DIR)/bvr1-manual.pdf $(WEB_DOCS_DIR)/bvr0-datasheet.pdf
@@ -43,6 +43,10 @@ pitch-deck.pdf: pitch-deck.typ lib/template.typ
 one-pager.pdf: one-pager.typ lib/template.typ
 	$(TYPST) one-pager.typ
 
+# Graphics Standards Manual
+graphics-manual.pdf: graphics-manual.typ lib/template.typ
+	$(TYPST) graphics-manual.typ
+
 # Copy documents to web folder
 $(WEB_DOCS_DIR):
 	mkdir -p $(WEB_DOCS_DIR)
@@ -83,5 +87,8 @@ watch-deck:
 watch-onepager:
 	$(TYPST_WATCH) one-pager.typ
 
+watch-graphics:
+	$(TYPST_WATCH) graphics-manual.typ
+
 clean:
-	rm -f $(DOCS) $(INVESTOR_DOCS)
+	rm -f $(DOCS) $(INVESTOR_DOCS) graphics-manual.pdf

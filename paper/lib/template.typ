@@ -23,9 +23,10 @@
 // Compile with: typst compile --font-path fonts/ <file>.typ
 // =============================================================================
 
-#let muni-font = "Berkeley Mono" // Primary font (terminal aesthetic)
-#let muni-font-mono = "Berkeley Mono" // Monospace (same as primary)
-#let muni-font-fallback = ("SF Mono", "Courier New", "Courier")
+#let muni-font = "Helvetica Neue" // Primary font (prose and headings)
+#let muni-font-mono = "Berkeley Mono" // Monospace (code, data labels, metadata, tables)
+#let muni-font-fallback = ("Helvetica", "Arial")
+#let muni-font-mono-fallback = ("Menlo", "Courier New", "Courier")
 #let muni-font-size = 9pt
 #let muni-leading = 0.9em
 #let muni-tracking = 0em
@@ -62,13 +63,13 @@
     number-align: right,
     header: context {
       if counter(page).get().first() > 2 [
-        #set text(size: 8pt, fill: gray)
+        #set text(font: (muni-font-mono, ..muni-font-mono-fallback), size: 8pt, fill: gray)
         #title #h(1fr) Rev #revision
       ]
     },
     footer: context {
       if counter(page).get().first() > 2 [
-        #set text(size: 8pt, fill: muni-gray)
+        #set text(font: (muni-font-mono, ..muni-font-mono-fallback), size: 8pt, fill: muni-gray)
         Municipal Robotics
         #h(1fr)
         #counter(page).display()
@@ -79,41 +80,44 @@
   // Figures: inline, not floating
   set figure(placement: none)
 
-  // Typography (Berkeley Mono for terminal aesthetic)
+  // Typography: Helvetica Neue for prose, Berkeley Mono for data/metadata
   set text(font: (muni-font, ..muni-font-fallback), size: 9pt, tracking: muni-tracking)
-  set par(justify: muni-justify, leading: 0.8em, spacing: 1.4em)
+  set par(justify: muni-justify, leading: 0.8em, spacing: 2em)
   // No heading numbers for cleaner section titles
   set heading(numbering: none)
 
-  // Level 1 headings: Orange left border
+  // Level 1 headings: Orange left border, Helvetica Neue Bold
+  // Large space before (section breaks), minimal space after (tight grouping with content)
   show heading.where(level: 1): it => {
-    v(1em)
+    v(3em)
     block(
       width: 100%,
       inset: (left: 10pt, y: 8pt),
       stroke: (left: 3pt + muni-orange),
     )[
-      #text(size: 14pt, weight: "bold")[#it.body]
+      #text(font: (muni-font, ..muni-font-fallback), size: 14pt, weight: "bold")[#it.body]
     ]
-    v(0.5em)
+    v(0.3em)
   }
 
-  // Level 2 headings
+  // Level 2 headings: Helvetica Neue Medium
+  // Substantial space before (subsection breaks), minimal space after (tight grouping)
   show heading.where(level: 2): it => {
-    v(0.8em)
-    text(size: 11pt, weight: "bold")[#it.body]
-    v(0.2em)
+    v(2.5em)
+    text(font: (muni-font, ..muni-font-fallback), size: 11pt, weight: "medium")[#it.body]
+    v(0.15em)
   }
 
-  // Level 3 headings
+  // Level 3 headings: Helvetica Neue Regular Bold
+  // Moderate space before, minimal space after (negative to compensate for paragraph spacing)
   show heading.where(level: 3): it => {
-    v(0.5em)
-    text(size: 9pt, weight: "bold")[#it.body]
-    v(0.1em)
+    v(1.5em)
+    text(font: (muni-font, ..muni-font-fallback), size: 9pt, weight: "bold")[#it.body]
+    v(-0.8em)
   }
 
-  // Code blocks
-  show raw: set text(font: (muni-font-mono, ..muni-font-fallback), size: 8pt)
+  // Code blocks (always Berkeley Mono)
+  show raw: set text(font: (muni-font-mono, ..muni-font-mono-fallback), size: 8pt)
   show raw.where(block: true): it => {
     block(
       width: 100%,
@@ -122,6 +126,9 @@
       radius: 4pt,
     )[#it]
   }
+
+  // Tables use Berkeley Mono for tabular data
+  show table: set text(font: (muni-font-mono, ..muni-font-mono-fallback), size: 7pt)
 
   // Cover page
   page(
@@ -265,9 +272,9 @@
 // Tables
 // =============================================================================
 
-// Specification table (two columns, clean styling)
+// Specification table (two columns, clean styling, Berkeley Mono for tabular data)
 #let spec-table(..args) = {
-  set text(size: 8pt)
+  set text(font: (muni-font-mono, ..muni-font-mono-fallback), size: 7pt)
   table(
     columns: (1fr, 1fr),
     stroke: 0.5pt + rgb("#e0e0e0"),
@@ -277,9 +284,9 @@
   )
 }
 
-// BOM table (4 columns: Part, Qty, Unit, Total)
+// BOM table (4 columns: Part, Qty, Unit, Total, Berkeley Mono for tabular data)
 #let bom-table(..args) = {
-  set text(size: 8pt)
+  set text(font: (muni-font-mono, ..muni-font-mono-fallback), size: 7pt)
   table(
     columns: (2fr, auto, auto, auto),
     stroke: 0.5pt + rgb("#e0e0e0"),
@@ -363,9 +370,9 @@
 // Figures
 // =============================================================================
 
-// Styled figure with muted caption
+// Styled figure with muted caption (Berkeley Mono for metadata)
 #show figure.caption: it => {
-  text(size: 8pt, fill: rgb("#999999"))[
+  text(font: (muni-font-mono, ..muni-font-mono-fallback), size: 8pt, fill: rgb("#999999"))[
     #text(weight: "bold")[#it.supplement #it.counter.display():]
     #it.body
   ]
@@ -388,7 +395,7 @@
   )
 }
 
-// Procedure header with time estimate and difficulty
+// Procedure header with time estimate and difficulty (Berkeley Mono for metadata)
 #let procedure(title, time: none, difficulty: none) = {
   v(0.3em)
   block(
@@ -400,8 +407,8 @@
       columns: (1fr, auto, auto),
       column-gutter: 8pt,
       align: (left, center, center),
-      text(size: 9pt, fill: muni-gray)[#title],
-      if time != none { text(size: 7pt, fill: muni-gray)[~#time] },
+      text(font: (muni-font-mono, ..muni-font-mono-fallback), size: 9pt, fill: muni-gray)[#title],
+      if time != none { text(font: (muni-font-mono, ..muni-font-mono-fallback), size: 7pt, fill: muni-gray)[~#time] },
       if difficulty != none { difficulty-dots(difficulty) },
     )
   ]
@@ -520,6 +527,7 @@
 // =============================================================================
 
 #let version-history(..revisions) = {
+  set text(font: (muni-font-mono, ..muni-font-mono-fallback), size: 8pt)
   table(
     columns: (auto, auto, 1fr),
     stroke: 0.5pt + rgb("#e0e0e0"),
