@@ -12,8 +12,11 @@
 )
 
 // Presentation text size
-#set text(font: muni-font, size: 11pt, tracking: muni-tracking)
+#set text(font: (muni-font, ..muni-font-fallback), size: 11pt, tracking: muni-tracking)
 #set par(justify: false, leading: muni-leading)  // Left-aligned for slides
+
+// Tables use Berkeley Mono for financial and comparison data
+#show table: set text(font: (muni-font-mono, ..muni-font-mono-fallback), size: 10pt)
 
 // =============================================================================
 // Slide 1: Title

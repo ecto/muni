@@ -1,7 +1,7 @@
 // Municipal Robotics One-Pager
 // Pre-Seed Investment Summary
 
-#import "lib/template.typ": muni-orange, muni-gray, muni-light-gray, muni-font, muni-font-size, muni-leading, muni-tracking, muni-justify
+#import "lib/template.typ": muni-orange, muni-gray, muni-light-gray, muni-font, muni-font-mono, muni-font-fallback, muni-font-mono-fallback, muni-font-size, muni-leading, muni-tracking, muni-justify
 
 #set document(title: "Municipal Robotics - Investment Summary", author: "Municipal Robotics")
 
@@ -12,8 +12,11 @@
 )
 
 // Smaller size to fit on one page
-#set text(font: muni-font, size: 9pt, tracking: muni-tracking)
+#set text(font: (muni-font, ..muni-font-fallback), size: 9pt, tracking: muni-tracking)
 #set par(justify: muni-justify, leading: muni-leading)
+
+// Tables use Berkeley Mono for financial data
+#show table: set text(font: (muni-font-mono, ..muni-font-mono-fallback), size: 8pt)
 
 // Header
 #align(center)[

@@ -16,8 +16,11 @@
   footer: none,
 )
 
-#set text(font: ("Berkeley Mono", "SF Mono", "Courier"), size: 8pt)
+#set text(font: (muni-font-mono, ..muni-font-mono-fallback), size: 8pt)
 #set par(justify: false, leading: 0.9em, spacing: 1em)
+
+// Tables use smaller mono for density
+#show table: set text(size: 7pt)
 
 // Header
 #grid(

@@ -39,8 +39,8 @@
   },
 )
 
-// Berkeley Mono for terminal aesthetic
-#set text(font: ("Berkeley Mono", "SF Mono", "Courier"), size: 9pt)
+// Helvetica Neue for prose, Berkeley Mono for technical content
+#set text(font: ("Helvetica Neue", "Helvetica", "Arial"), size: 9pt)
 #set par(justify: false, leading: 0.9em, spacing: 1.5em)
 #set heading(numbering: "1.1")
 #show heading.where(level: 1): it => {
@@ -53,7 +53,10 @@
   text(size: 12pt, weight: "bold", it)
   v(0.3em)
 }
-#show raw: set text(font: ("Berkeley Mono", "Menlo"), size: 9pt)
+#show raw: set text(font: ("Berkeley Mono", "Menlo"), size: 8pt)
+
+// Tables use Berkeley Mono for technical data
+#show table: set text(font: ("Berkeley Mono", "Menlo"), size: 8pt)
 
 // Figures and tables span both columns with bottom margin
 #set figure(placement: top, scope: "parent", gap: 1em)

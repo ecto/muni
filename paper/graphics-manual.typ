@@ -421,9 +421,9 @@ The following are explicitly prohibited in the brand identity:
 
 = Typography
 
-The typographic system uses Berkeley Mono for all body text (terminal aesthetic) and Helvetica Neue for headings (hierarchy and visual breaks). This creates a distinctive, engineering-focused reading experience.
+The typographic system uses Helvetica Neue for prose (readable body text) and Berkeley Mono for technical content (data, code, specifications). Helvetica Neue also serves as the heading typeface. This creates clean, readable documents with technical precision where it matters.
 
-== Primary Typeface: Berkeley Mono
+== Technical Typeface: Berkeley Mono
 
 #box(
   width: 100%,
@@ -445,12 +445,12 @@ The typographic system uses Berkeley Mono for all body text (terminal aesthetic)
 
 #v(0.5em)
 #text(size: 7pt, fill: muni-gray)[
-  Licensed from berkeleygraphics.com. Use for body text, code, data labels, tables, and all technical content.
+  Licensed from berkeleygraphics.com. Use for code, data labels, tables, specifications, and all technical content.
 ]
 
 #v(1em)
 
-== Heading Typeface: Helvetica Neue
+== Primary Typeface: Helvetica Neue
 
 #box(
   width: 100%,
@@ -471,7 +471,7 @@ The typographic system uses Berkeley Mono for all body text (terminal aesthetic)
 
 #v(0.5em)
 #text(size: 7pt, fill: muni-gray)[
-  System font (macOS). Use ONLY for headings to create hierarchy against Berkeley Mono body text.
+  System font (macOS). Use for prose body text and all headings. Creates readable, professional documents.
 ]
 
 == Type Weights
@@ -560,7 +560,6 @@ font-family: "Helvetica Neue", "Helvetica", "Arial";
   fill: (_, row) => if row == 0 { muni-light-gray } else { white },
   [*Use Berkeley Mono for:*], [*Use Helvetica Neue for:*],
   [
-    - Body text (ALL paragraphs) \
     - Code snippets \
     - Terminal output \
     - Data values and labels \
@@ -578,13 +577,14 @@ font-family: "Helvetica Neue", "Helvetica", "Arial";
     - H1 headings (section titles) \
     - H2 headings (subsections) \
     - H3 headings (minor headings) \
-    - NOTHING ELSE
+    - Body text (ALL paragraphs) \
+    - All prose and descriptive text
   ],
 )
 
 #v(0.5em)
 
-*Design Philosophy:* Berkeley Mono creates a distinctive terminal aesthetic throughout the entire document. Helvetica Neue is used *sparingly*—only for headings—to create visual breaks and hierarchy. This gives documents a consistent, engineering-focused character.
+*Design Philosophy:* Helvetica Neue creates readable prose for general consumption. Berkeley Mono is reserved for technical content where precision and monospace formatting matter: code, specifications, data tables, and system output. This separation keeps documents professional while maintaining technical authenticity.
 
 // =============================================================================
 // Physical Design Language
