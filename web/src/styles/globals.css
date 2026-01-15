@@ -2881,3 +2881,12 @@ body > div:not(.frame-footer):not([class*="frame"]) > .formkit-form[data-uid="cb
     padding-top: 64px;
   }
 }
+
+/* Light mode adjustments for floating header */
+@media (prefers-color-scheme: light) {
+  .floating-header {
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.1);
+  }
+}
