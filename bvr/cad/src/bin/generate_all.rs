@@ -14,6 +14,8 @@ use bvr_cad::parts::{
     // Custom fabricated
     BVR1Frame, CornerBracket, ElectronicsPlate, Extrusion2020, MotorMount, SensorMount, TNut,
     WheelSpacer, BatteryTray, BaseTray, AccessPanel, UUMotor, UUMotorMount,
+    // 3-Panel Shell (Wall Wrap + Top Lid + Skid Plate)
+    ShellConfig, ShellAssembly, WallWrap, WallWrapConfig, TopLid, TopLidConfig, SkidPlate, SkidPlateConfig,
     // Reference parts
     HubMotor, Lidar, Camera, GpsAntenna, Vesc, Jetson, DcDc, EStopButton,
     DowntubeBattery, CustomBattery,
@@ -42,14 +44,17 @@ fn main() -> Result<()> {
     let stl_dir = base_dir.join("stl");
     let gltf_dir = base_dir.join("gltf");
     let usd_dir = base_dir.join("usd");
+    let dxf_dir = base_dir.join("dxf");
 
     std::fs::create_dir_all(&stl_dir)?;
     std::fs::create_dir_all(&gltf_dir)?;
     std::fs::create_dir_all(&usd_dir)?;
+    std::fs::create_dir_all(&dxf_dir)?;
 
     let mut stl_count = 0;
     let mut gltf_count = 0;
     let mut usd_count = 0;
+    let mut dxf_count = 0;
 
     // Helper to export a part in all formats
     let mut export_part = |name: &str, part: &Part, mat_key: &str| -> Result<()> {
@@ -160,6 +165,55 @@ fn main() -> Result<()> {
     let part = panel.generate();
     export_part("access_panel", &part, "access_panel")?;
     println!("  Access panel");
+
+    // =========================================================================
+    // 3-PANEL CLAM SHELL (for SendCutSend laser cutting + bending)
+    // =========================================================================
+    println!("\n3-Panel Clam Shell");
+    println!("------------------");
+
+    let shell_config = ShellConfig::default();
+    let wall_wrap_config = WallWrapConfig::default();
+    let top_lid_config = TopLidConfig::default();
+    let skid_plate_config = SkidPlateConfig::default();
+
+    // Wall Wrap: Front + sides + rear as single bent piece (3 bends)
+    let wall_wrap = WallWrap::new(wall_wrap_config.clone());
+    let part = wall_wrap.generate();
+    export_part("shell_wall_wrap", &part, "shell_panel")?;
+    println!("  Wall Wrap (flat: ~{:.0}mm x {:.0}mm, 3 bends)",
+             wall_wrap_config.flat_width(), wall_wrap_config.panel_height());
+    println!("    - Front: nozzle slot + LED channel");
+    println!("    - Rear: louver vents + drain holes");
+    println!("    - Sides: clean panels with mount holes");
+
+    // Top Lid: Removable panel with sensor mast and e-stop
+    let top_lid = TopLid::new(top_lid_config);
+    let part = top_lid.generate();
+    export_part("shell_top_lid", &part, "shell_panel")?;
+    println!("  Top Lid ({:.0}mm x {:.0}mm, flat panel)",
+             shell_config.shell_width(), shell_config.shell_length());
+    println!("    - Sensor mast hole: 150mm diameter");
+    println!("    - E-stop hole: 30mm diameter");
+    println!("    - GPS grommet: 12mm diameter");
+
+    // Skid Plate: Bottom protection panel
+    let skid_plate = SkidPlate::new(skid_plate_config);
+    let part = skid_plate.generate();
+    export_part("shell_skid_plate", &part, "shell_panel")?;
+    println!("  Skid Plate ({:.0}mm x {:.0}mm, flat panel)",
+             shell_config.shell_width(), shell_config.shell_length());
+    println!("    - 12 mounting holes");
+    println!("    - 4 drain holes at corners");
+
+    // Export DXF files for SendCutSend
+    let shell_assembly = ShellAssembly::default_bvr1();
+    shell_assembly.export_dxf_files(&dxf_dir)?;
+    dxf_count += 3;  // 3 DXF files
+    println!("  DXF files for SendCutSend:");
+    println!("    - shell_wall_wrap.dxf (with BEND layer for forming)");
+    println!("    - shell_top_lid.dxf");
+    println!("    - shell_skid_plate.dxf");
 
     // =========================================================================
     // DRIVETRAIN
@@ -321,6 +375,7 @@ fn main() -> Result<()> {
     println!("\n════════════════════════════════════════════════════════════");
     println!("Export complete:");
     println!("  STL:  {} files -> exports/stl/", stl_count);
+    println!("  DXF:  {} files -> exports/dxf/", dxf_count);
     #[cfg(feature = "gltf")]
     println!("  glTF: {} files -> exports/gltf/", gltf_count);
     println!("  USD:  {} files -> exports/usd/", usd_count);

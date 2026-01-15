@@ -19,6 +19,7 @@ use super::{
     Lidar,
     Camera,
     GpsAntenna,
+    ShellAssembly,
     frame::BVR1FrameConfig,
 };
 
@@ -303,6 +304,7 @@ impl BVR1Assembly {
     /// New design:
     /// - All electronics and battery on bottom tray (coplanar)
     /// - Top access panel with sensor mast
+    /// - 3-panel clam shell enclosure (wall wrap + top lid + skid plate)
     /// - Clean, serviceable layout
     pub fn generate(&self) -> Part {
         let cfg = &self.config;
@@ -323,11 +325,15 @@ impl BVR1Assembly {
         // Top: access panel with sensors
         let top_assembly = self.add_access_panel_assembly();
 
+        // Shell enclosure (wall wrap + top lid + skid plate)
+        let shell = self.add_shell();
+
         frame
             .union(&motor_mounts)
             .union(&wheels)
             .union(&base_assembly)
             .union(&top_assembly)
+            .union(&shell)
     }
 
     /// Generate simplified BVR1 assembly
@@ -605,6 +611,25 @@ impl BVR1Assembly {
             .union(&camera)
             .union(&gps)
             .union(&estop)
+    }
+
+    /// Add 3-panel clam shell enclosure
+    ///
+    /// Shell components:
+    /// - Wall Wrap: Front + sides + rear (single bent piece)
+    /// - Top Lid: Removable panel for maintenance access
+    /// - Skid Plate: Bottom protection panel
+    fn add_shell(&self) -> Part {
+        // Shell assembly positioned to enclose the frame
+        // The shell's Z=0 is at ground level, frame sits inside at gc height
+        let shell = ShellAssembly::default_bvr1().generate();
+
+        // Position shell so it encloses the frame
+        // Shell's skid plate is at Z=0 (ground level) + small offset to clear ground
+        // Shell's wall wrap starts at skid plate level
+        // Shell's top lid is at shell_height above skid plate
+        let skid_clearance = 5.0; // 5mm clearance above ground for skid plate
+        shell.translate(0.0, 0.0, skid_clearance)
     }
 }
 

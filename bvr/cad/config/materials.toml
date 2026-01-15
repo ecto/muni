@@ -30,6 +30,14 @@ roughness = 0.4
 density = 2700
 friction = 0.4
 
+[materials.aluminum_powder_orange]
+description = "Orange powder-coated 5052 aluminum - shell panels"
+color = [1.0, 0.4, 0.0]
+metallic = 0.3
+roughness = 0.6
+density = 2680
+friction = 0.4
+
 [materials.steel]
 description = "Steel - fasteners, axles"
 color = [0.6, 0.6, 0.65]
@@ -214,6 +222,9 @@ friction = 0.5
 "base_tray" = "hdpe_black"
 "access_panel" = "hdpe_black"
 "battery_tray" = "hdpe_black"
+
+# Shell panels
+"shell_panel" = "aluminum_powder_orange"
 
 # Sensors
 "lidar" = "sensor_housing"

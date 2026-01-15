@@ -9,6 +9,7 @@
 //! - [`electronics_plate`] - Electronics mounting plate
 //! - [`sensor_mount`] - Sensor mast mounting bracket
 //! - [`wheel_spacer`] - Wheel spacers
+//! - [`shell`] - Exterior shell panels (front, rear, sides, top)
 //!
 //! **Reference Parts** (for visualization):
 //! - [`hub_motor`] - Hub motors and wheels
@@ -26,6 +27,7 @@ pub mod electronics_plate;
 pub mod frame;
 pub mod motor_mount;
 pub mod sensor_mount;
+pub mod shell;
 pub mod uumotor;
 pub mod wheel_spacer;
 
@@ -46,6 +48,9 @@ pub use electronics_plate::ElectronicsPlate;
 pub use frame::{BVR1Frame, CornerBracket, Extrusion2020, TNut};
 pub use motor_mount::MotorMount;
 pub use sensor_mount::SensorMount;
+pub use shell::{ShellAssembly, ShellConfig, SkidPlate, SkidPlateConfig, TopLid, TopLidConfig, WallWrap, WallWrapConfig};
+// Legacy aliases for compatibility
+pub use shell::{FrontPanel, RearPanel, SidePanel, TopPanel};
 pub use uumotor::{LBracketMount, UUMotor, UUMotorMount};
 pub use wheel_spacer::WheelSpacer;
 
