@@ -11,10 +11,10 @@
 
 | Week | Focus                  | Exit Criteria                                             |
 | ---- | ---------------------- | --------------------------------------------------------- |
-| 1    | Transit + Foundation   | Rover operational in SF, LiDAR crate integrated           |
-| 2    | SLAM + Localization    | Map building works, localization stable, Depot map view   |
+| 1    | LiDAR Integration      | LiDAR scans working, odometry verified, shell CAD started |
+| 2    | SLAM + Shell Fab       | Map building works, shell ordered from SendCutSend        |
 | 3    | Navigation + Obstacles | Rover navigates to goals, avoids static/dynamic obstacles |
-| 4    | Integration + Polish   | 10+ consecutive demo runs, all monitors ready             |
+| 4    | Blower Integration     | Blower working, shell assembled, 10+ consecutive runs     |
 | 5    | Festival               | Demos all day, 5+ meetings scheduled                      |
 
 ---
@@ -61,6 +61,19 @@
 > $18k hardware, $300/month software. $14B market. Raising $500k for pilots next winter."
 
 ---
+
+## Quick Reference: Documentation
+
+**Technical Specs:**
+- [Blower CAD Specification](blower-cad-spec.md) - Dimensions, geometry, 3D printing details
+- [Blower Build Guide](blower-build-guide.md) - Assembly, wiring, testing procedures
+
+**Integration Guides:**
+- [Blower Firmware Control](../bvr/firmware/docs/blower-control.md) - bvrd integration, CAN protocol
+- [Blower Console UI](../depot/console/docs/blower-ui.md) - React component, WebSocket protocol
+
+**Demo Day:**
+- [Demo Day Script](demo-day-script.md) - Choreography, patter, failure recovery
 
 ## Table of Contents
 
@@ -226,7 +239,7 @@ Hand them the Xbox controller. They drive for 10 seconds. Then:
 | Fleet Dashboard | 27"  | Rover status, battery %, mode, GPS, fleet of 5       | Depot Console | Shows scale potential   |
 | SLAM Map        | 27"  | Live 2D map, rover position, planned path, obstacles | Depot Console | Proves autonomy is real |
 | Camera Feed     | 27"  | First-person view from rover, H.265 stream           | Depot Console | "See what it sees"      |
-| Video Reel      | 32"  | 60-second loop of outdoor footage                    | Pre-recorded  | Context for indoor demo |
+| Video Reel      | 32"  | 60-second loop: logo, problem, build, control, scale | Pre-recorded  | Context for business    |
 
 ---
 
@@ -303,6 +316,25 @@ Hand them the Xbox controller. They drive for 10 seconds. Then:
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
 
+### Tool Display Table
+
+**What's physically present:**
+
+| Tool                  | Status     | Purpose                                    |
+| --------------------- | ---------- | ------------------------------------------ |
+| **Blower** (attached) | WORKING    | Debris clearing, live demo, year-round use |
+| Auger (display)       | Mockup     | Winter snow removal (photos + description) |
+| Plow (display)        | Mockup     | Debris clearing alternative                |
+| Mower (display)       | Render/3D  | Summer grass maintenance concept           |
+
+**Signage:**
+> **ONE PLATFORM. SWAP TOOLS.**
+>
+> Same chassis. Same autonomy. Different work.
+> Operator swaps tools in 5 minutes.
+
+**Why this works:** The blower is running and working. Investors see one tool operating autonomously, believe the others are achievable.
+
 ### Fleet Dashboard: Simulated Scale
 
 Even with one physical rover, show a dashboard with 5 rovers:
@@ -319,17 +351,21 @@ Even with one physical rover, show a dashboard with 5 rovers:
 
 ### Video Reel Shot List (60 seconds, loop)
 
-| Seconds | Content                                 | Source          |
-| ------- | --------------------------------------- | --------------- |
-| 0-5     | Municipal Robotics logo fade in         | Create          |
-| 5-15    | Drone/wide shot: snowy Midwest sidewalk | Capture in CLE  |
-| 15-25   | Rover clearing snow, close-up of auger  | Capture in CLE  |
-| 25-35   | Time-lapse: assembly of bvr0            | Capture in shop |
-| 35-45   | Teleop session, operator at console     | Capture         |
-| 45-55   | Fleet dashboard with multiple rovers    | Screen capture  |
-| 55-60   | Logo + "muni.works" + tagline           | Create          |
+**UPDATED:** No snow footage available. Using stock + SF-captured footage.
+
+| Seconds | Content                                         | Source                    |
+| ------- | ----------------------------------------------- | ------------------------- |
+| 0-5     | Municipal Robotics logo fade in                 | After Effects             |
+| 5-15    | **THE PROBLEM:** Stock snowy sidewalk footage   | Pexels/Unsplash (free)    |
+| 15-25   | **THE SOLUTION:** Rover navigating autonomously | Film Week 3 (Fort Mason)  |
+| 25-35   | **THE BUILD:** Rover assembly, components       | Film Week 1 (in SF)       |
+| 35-45   | **THE CONTROL:** Operator at console            | Film Week 2-3 (depot)     |
+| 45-55   | **THE SCALE:** Fleet dashboard (5 rovers)       | Screen capture Week 3     |
+| 55-60   | Logo + "muni.works" + tagline                   | After Effects             |
 
 **Audio:** None. Silent loop. Let the live demo be the audio focus.
+
+**Key change:** No real snow clearing footage. Focus shifts to autonomous navigation (which is the actual demo capability).
 
 ---
 
@@ -2358,88 +2394,294 @@ while True:
 
 ---
 
+## Blower Tool: Technical Specification
+
+### Design Philosophy
+
+**Goal:** Create a showpiece tool that proves autonomous work capability and looks professional.
+
+**Approach:** Wide-slot nozzle (500mm) for full-width coverage, high velocity (120+ MPH), integrated into powder-coated shell.
+
+### System Architecture
+
+```
+Side cutaway:
+
+  ┌─────────────────────── Shell (powder coated orange)
+  │   ╱╱╱ Intake vents
+  │   (top rear, baffled)
+  │
+  │  ┌──────────────────── 90mm EDF motor
+  │  │    [MOTOR]
+  │  │       ║
+  │  │    [═══]  ← Centrifugal impeller
+  │  │       ║
+  │  │    ╔══╩══╗  ← 3D printed volute housing
+  │  │    ║     ║
+──┼──┼────╨─────╨──────── Shell cutout (500mm x 50mm)
+  │  │     ▓▓▓▓▓  ← Expansion nozzle (gradual 500mm wide)
+  │  │      ╲╲╲
+  └──┴───────╲╲╲ 20° down
+              ╲╲╲
+            Ground
+```
+
+### Bill of Materials
+
+| Item | Spec | Source | Cost | Lead Time |
+|------|------|--------|------|-----------|
+| 90mm EDF unit | Motor + impeller, balanced | Amazon | $130 | 2 days |
+| VESC 75/300 | CAN control (if not sharing) | VESC-Project | $220 | 1 week |
+| ASA filament | 2kg, outdoor-rated | Amazon | $50 | 2 days |
+| Shell panels | Aluminum, powder coat orange | SendCutSend | $200 | 5-7 days |
+| Mounting hardware | M5 bolts, T-nuts | McMaster | $40 | 2 days |
+| Conformal coating | For electronics (moisture) | Amazon | $25 | 2 days |
+| Drain grommets | 6mm, chassis drainage | McMaster | $15 | 2 days |
+
+**Total: ~$680**
+
+### Performance Specifications
+
+**Power:**
+- Electrical: 48V × 60A = 2.9 kW continuous
+- Mechanical: ~2.5 kW (85% motor efficiency)
+- Air power: ~1.5 kW (60% fan efficiency)
+
+**Airflow:**
+- Exit velocity: 120-140 MPH (across full 500mm width)
+- Pressure rise: 1500-2000 Pa
+- Volume flow: 400-500 CFM
+- Force on debris: ~18N (4 lbs) on coffee cup
+
+**Effective range:**
+- Visible debris movement: 8-10 feet
+- Strong clearing: 4-6 feet
+- Coverage width: 500mm (full rover width)
+
+**What it can clear:**
+- ✓ Cups, paper, wrappers
+- ✓ Leaves (dry), sand, light gravel
+- ✓ Fresh snow dusting (< 1")
+- ✗ Wet/packed snow (> 2")
+- ✗ Rocks > 1"
+
+### Fabrication Plan
+
+**Week 1:**
+- Design CAD (volute, nozzle, shell integration)
+- Order EDF unit, filament
+
+**Week 2:**
+- Submit shell to SendCutSend
+- Print volute housing (20-30 hours)
+- Print nozzle sections (10-15 hours)
+- Test-fit motor to housing
+
+**Week 4:**
+- Shell arrives
+- Assemble motor + impeller + housing
+- Integrate into shell
+- Wire + test
+
+**Total build time: 3 days active work** (most time is waiting for prints/shipping)
+
+### Control Integration
+
+**Firmware (`bvrd`):**
+```rust
+// Add to autonomy loop
+let blower_power = if state.is_autonomous() && velocity > 0.1 {
+    50  // 50% when moving autonomously
+} else if state.is_teleop() {
+    operator_override  // Manual control 0-100%
+} else {
+    0  // Off when stopped
+};
+
+can_bus.send_blower_command(blower_power)?;
+```
+
+**Depot Console:**
+```typescript
+// Add slider to rover control panel
+<div className="blower-control">
+  <label>Blower Power</label>
+  <input
+    type="range"
+    min="0"
+    max="100"
+    value={blowerPower}
+    onChange={(e) => setBlowerPower(e.target.value)}
+  />
+  <span>{blowerPower}%</span>
+</div>
+```
+
+### Demo Choreography
+
+**See complete script:** [demo-day-script.md](demo-day-script.md#the-standard-demo-flow)
+
+**Setup:**
+- Rover patrolling autonomously
+- Blower at 50% (constant hum)
+- Floor sign: "DROP SOMETHING IN THE PATH"
+
+**Sequence:**
+1. Investor drops cup 10 feet ahead
+2. Rover approaches (blower at 50%)
+3. At 8 feet: Object starts to move
+4. Operator bumps blower to 100% (via console)
+5. At 5 feet: Object tumbles violently aside
+6. Rover drives past
+7. Operator returns to 50%
+
+**Why this works:**
+- Interactive (they participate)
+- Visceral (see it work)
+- Autonomous (rover navigating)
+- Supervised (operator adjusts power)
+
+### Moisture Management
+
+**Problem:** Sealed chassis in winter = condensation
+
+**Solution:**
+1. **Intake vents:** Top rear, angled louvers (100-150mm²)
+2. **Positive pressure:** Blower running creates outward airflow
+3. **Drain holes:** Bottom corners, 6mm with grommets
+4. **Conformal coating:** All PCBs coated (MG Chemicals 422B)
+5. **Operational:** Blower spins on startup to purge moisture
+
+**Design principle:** Accept moisture will enter, prevent damage.
+
+### Testing Protocol
+
+**Week 4 Wednesday:**
+
+1. **Bench test (30 min)**
+   - Spin up to 100%, measure current draw
+   - Check for vibration, unusual sounds
+   - Thermal test: 15 min continuous 80% power
+   - Measure exit velocity (anemometer if available)
+
+2. **Debris test (30 min)**
+   - Coffee cup at 2, 4, 6, 8, 10 feet
+   - Paper at various distances
+   - Leaves (if available)
+   - Find optimal demo power (impressive but safe)
+
+3. **Integration test (1 hour)**
+   - Full autonomous patrol with blower at 50%
+   - Operator override test (boost to 100%, return to 50%)
+   - Battery drain measurement
+   - Thermal check after 30 min run
+
+4. **Demo rehearsal (2 hours)**
+   - 10+ runs with "investors" dropping debris
+   - Practice operator patter
+   - Test failure modes (what if blower stops mid-demo?)
+
+### Failure Modes & Mitigations
+
+| Failure | Probability | Impact | Mitigation |
+|---------|-------------|--------|------------|
+| Motor overheats | Low | Medium | Run at 60% max continuous, have spare |
+| Impeller unbalanced | Low | High | Pre-balance with weights, have spare |
+| Too loud indoors | Medium | Low | Add foam damping, acceptable trade-off |
+| Not powerful enough | Low | High | Order 220KV backup motor Week 1 |
+| Debris jams intake | Medium | Medium | Pre-filter screen, test various objects |
+| Shell doesn't fit | Low | Critical | Test-fit printed parts in Week 2 |
+
+**Spare parts to have:**
+- Second EDF motor assembly
+- Spare impeller
+- Extra 3D printed housings
+
+---
+
 ## Week-by-Week Sprint
 
-### Week 1: Transit + Foundation
+### Week 1: LiDAR Integration + Blower Prep
 
 **Monday**
 
-- [ ] Final checkout in Cleveland
-- [ ] Pack rover, batteries, tools
-- [ ] Ship freight (arrive by Thursday)
-- [ ] Capture video footage in snow (for reel)
+- [ ] Rover setup at Founders Inc hardware lab
+- [ ] Verify all systems operational
+- [ ] **ORDER BLOWER PARTS** (EDF unit, filament, hardware)
 
 **Tuesday**
-
-- [ ] Travel to SF
-- [ ] Set up temporary workspace
-
-**Wednesday**
-
-- [ ] Receive shipment
-- [ ] Unpack, visual inspection
-- [ ] Basic power-on test
-
-**Thursday**
 
 - [ ] Full system checkout: all motors, sensors, comms
 - [ ] `lidar` crate: RPLidar driver working, scans parsing
 - [ ] LiDAR data logging to Rerun for debugging
 
-**Friday**
+**Wednesday**
 
 - [ ] Teleop working via existing stack
 - [ ] Verify existing safety systems (watchdog, e-stop)
 - [ ] Odometry computation verified (VESC → pose)
-- [ ] Depot telemetry flowing
+
+**Thursday**
+
+- [ ] Start shell CAD: body panels with blower integration
+- [ ] Design volute housing CAD (for 3D printing) - **See [blower-cad-spec.md](blower-cad-spec.md)**
+- [ ] Design expansion nozzle (500mm wide slot) - **See [blower-cad-spec.md](blower-cad-spec.md)**
+
+**Friday**
+
+- [ ] Finish shell + blower CAD
+- [ ] Film: Rover chassis, components, build process (for video reel)
+- [ ] Depot telemetry verification
 
 **Exit Criteria:**
 
 - [ ] Rover drives via teleop (existing)
 - [ ] LiDAR scans visible in Rerun
 - [ ] Odometry accurate over 10m test path
-- [ ] Depot telemetry still flowing
+- [ ] Shell CAD complete, ready for SendCutSend
+- [ ] Blower parts ordered (arriving Week 2-3)
 
 ---
 
-### Week 2: SLAM + Localization
+### Week 2: SLAM + Shell Fabrication
 
 **Monday**
 
+- [ ] **SUBMIT SHELL TO SENDCUTSEND** (5-7 day lead time)
+- [ ] Start printing volute housing (20-30 hour print)
 - [ ] `slam` crate: basic scan matching (ICP) implementation
-- [ ] `costmap` crate: occupancy grid from LiDAR
-- [ ] First SLAM run: drive around, watch map build in Rerun
 
 **Tuesday**
 
-- [ ] Tune scan matching parameters
-- [ ] Map persistence: save/load to disk
-- [ ] Test map quality in demo space
+- [ ] `costmap` crate: occupancy grid from LiDAR
+- [ ] First SLAM run: drive around, watch map build in Rerun
+- [ ] Continue printing blower components
 
 **Wednesday**
 
-- [ ] `localization`: particle filter on saved map
-- [ ] Pose estimate stability testing
-- [ ] Handle kidnapped robot (re-localization)
+- [ ] Tune scan matching parameters
+- [ ] Map persistence: save/load to disk
+- [ ] Print expansion nozzle sections
 
 **Thursday**
 
+- [ ] `localization`: particle filter on saved map
 - [ ] Depot Console: add map view component
-- [ ] WebSocket endpoint for map + pose streaming
-- [ ] Map + pose displaying on external monitor
+- [ ] EDF unit arrives, test motor bench
 
 **Friday**
 
-- [ ] Odometry calibration (wheel diameter, track width)
+- [ ] Assemble printed blower parts, check fit
 - [ ] Long-run localization test (30+ minutes)
-- [ ] Document SLAM procedures
+- [ ] Film: Operator at console (for video reel)
 
 **Exit Criteria:**
 
 - [ ] Map building works reliably
 - [ ] Localization in saved map works
-- [ ] Pose estimate stable (not jumping)
 - [ ] Depot Console showing live map + pose
+- [ ] Shell ordered, arriving early Week 3
+- [ ] Blower components printed and test-fit
 
 ---
 
@@ -2484,45 +2726,50 @@ while True:
 
 ---
 
-### Week 4: Integration + Demo Polish
+### Week 4: Blower Integration + Demo Polish
 
-**Monday**
+**Monday: Blower Build Day**
 
-- [ ] Design demo course (measure booth space)
-- [ ] Continuous patrol loop
-- [ ] Operator handoff: teleop ↔ autonomous
+- [ ] Shell arrives from SendCutSend
+- [ ] Mount blower motor to housing - **See [blower-build-guide.md](blower-build-guide.md)**
+- [ ] Assemble impeller, nozzle, shroud - **See [blower-build-guide.md](blower-build-guide.md)**
+- [ ] Paint/finish housing (orange)
 
-**Tuesday**
+**Tuesday: Integration Day**
+
+- [ ] Integrate blower into shell - **See [blower-build-guide.md](blower-build-guide.md)**
+- [ ] Wire 48V power + VESC CAN control - **See [blower-build-guide.md](blower-build-guide.md)**
+- [ ] Add blower control to `bvrd` firmware - **See [../bvr/firmware/docs/blower-control.md](../bvr/firmware/docs/blower-control.md)**
+- [ ] Add blower slider to Depot Console - **See [../depot/console/docs/blower-ui.md](../depot/console/docs/blower-ui.md)**
+
+**Wednesday: Testing Day**
+
+- [ ] Bench test: variable speed, thermal limits - **See [blower-build-guide.md](blower-build-guide.md#bench-testing)**
+- [ ] Debris test: cups, paper, leaves at distance - **See [blower-build-guide.md](blower-build-guide.md#debris-testing)**
+- [ ] Integration test: Blower + autonomous navigation
+- [ ] 10+ runs with blower active
+
+**Thursday: Polish Day**
 
 - [ ] Fleet dashboard: add simulated rovers
-- [ ] Camera feed integration
 - [ ] All four monitors content finalized
-
-**Wednesday**
-
-- [ ] Stress testing: 4+ hours continuous
-- [ ] Battery swap procedures
-- [ ] Edge case testing
-
-**Thursday**
-
+- [ ] Video reel editing complete
 - [ ] Demo course setup with tape/cones
-- [ ] Full demo run-throughs (10+)
-- [ ] Video reel finalized
 
-**Friday**
+**Friday: Rehearsal Day**
 
+- [ ] 20+ full demo run-throughs - **See [demo-day-script.md](demo-day-script.md)**
 - [ ] Booth setup rehearsal
 - [ ] All signage/materials ready
-- [ ] Backup plans tested
+- [ ] Backup plans tested - **See [demo-day-script.md](demo-day-script.md#failure-modes--recovery)**
 
 **Exit Criteria:**
 
+- [ ] Blower working, integrated, tested
 - [ ] 10+ consecutive demo runs without intervention
 - [ ] Obstacle avoidance works with real humans
-- [ ] Operator handoff smooth
+- [ ] Blower clearing debris visibly from 6-8 feet
 - [ ] All monitors showing correct content
-- [ ] Materials printed and ready
 
 ---
 
@@ -2530,9 +2777,9 @@ while True:
 
 **Monday**
 
-- [ ] Final dress rehearsal
+- [ ] Final dress rehearsal - **See [demo-day-script.md](demo-day-script.md)**
 - [ ] Booth space walkthrough
-- [ ] Pitch rehearsal (timed)
+- [ ] Pitch rehearsal (timed) - **See [demo-day-script.md](demo-day-script.md#the-standard-demo-flow)**
 
 **Tuesday**
 
@@ -2618,16 +2865,14 @@ while True:
 
 ## Shopping List
 
-### Ship from Cleveland
+### Already in SF (at Founders Inc)
 
 | Item                                       | ✓   |
 | ------------------------------------------ | --- |
-| bvr0 rover (complete)                      | [ ] |
-| Snow auger                                 | [ ] |
-| Plow blade (if available)                  | [ ] |
+| bvr0 rover chassis (with swing arm)        | [x] |
 | Xbox controller x2                         | [ ] |
-| Operator laptop                            | [ ] |
-| Dev laptop                                 | [ ] |
+| Operator laptop                            | [x] |
+| Dev laptop                                 | [x] |
 | Batteries x3                               | [ ] |
 | Charger                                    | [ ] |
 | Spare VESCs x2                             | [ ] |
@@ -2642,7 +2887,30 @@ while True:
 | Wire, heat shrink                          | [ ] |
 | Zip ties, velcro straps                    | [ ] |
 
-### Buy/Rent in SF
+### Order Week 1 (Blower Components)
+
+**ORDER BY FRIDAY JAN 16 to arrive Week 2-3**
+
+| Item                    | Where                                      | Est. Cost | Lead Time | ✓   |
+| ----------------------- | ------------------------------------------ | --------- | --------- | --- |
+| 90mm EDF unit           | Amazon (search "90mm EDF motor brushless") | $130      | 2 days    | [ ] |
+| ASA filament 2kg        | Amazon (outdoor-rated)                     | $50       | 2 days    | [ ] |
+| VESC 75/300 (if needed) | VESC-Project or similar                    | $220      | 1 week    | [ ] |
+| Mounting hardware       | McMaster-Carr (M5 bolts, T-nuts)           | $40       | 2 days    | [ ] |
+| Conformal coating       | Amazon (MG Chemicals 422B)                 | $25       | 2 days    | [ ] |
+| Drain grommets          | McMaster-Carr (6mm rubber)                 | $15       | 2 days    | [ ] |
+
+**Subtotal: ~$480** (or $700 if need VESC)
+
+### Order Week 2 (Shell Fabrication)
+
+**SUBMIT TO SENDCUTSEND BY MONDAY JAN 20**
+
+| Item                          | Where        | Est. Cost | Lead Time | ✓   |
+| ----------------------------- | ------------ | --------- | --------- | --- |
+| Shell panels (cut/bent/coated) | SendCutSend  | $200      | 5-7 days  | [ ] |
+
+### Buy/Rent in SF (Booth Setup)
 
 | Item                      | Where           | Est. Cost | ✓   |
 | ------------------------- | --------------- | --------- | --- |
