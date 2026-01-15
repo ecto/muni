@@ -571,6 +571,22 @@ img {
   opacity: 0.6;
 }
 
+.footer-investors-link {
+  margin-top: 16px !important;
+}
+
+.footer-investors-link a {
+  font-size: var(--text-xs);
+  color: var(--fg-muted);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.footer-investors-link a:hover {
+  color: var(--orange);
+  background: transparent !important;
+}
+
 .footer-newsletter {
   position: relative;
   overflow: visible;

@@ -6,7 +6,7 @@ export function Footer() {
       <div className="footer-top">
         <div className="footer-section">
           <h3 className="footer-section-title">Resources</h3>
-          <a href="/investors">Whitepaper</a>
+          <a href="/docs/whitepaper.pdf" target="_blank" rel="noopener noreferrer">Whitepaper</a>
           <a href="https://github.com/ecto/muni" target="_blank" rel="noopener noreferrer">
             GitHub
           </a>
@@ -35,6 +35,9 @@ export function Footer() {
       <div className="footer-bottom">
         <p>© {currentYear} Municipal Robotics · Cleveland, Ohio</p>
         <p className="footer-tagline">Autonomous utility vehicles for public works</p>
+        <p className="footer-investors-link">
+          <a href="/investors">Investor Information</a>
+        </p>
       </div>
     </footer>
   );

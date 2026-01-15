@@ -11,7 +11,7 @@ export function FloatingHeader() {
         </Link>
 
         <nav className="floating-header-nav">
-          <a href="/investors" className="floating-header-link">
+          <a href="/docs/whitepaper.pdf" className="floating-header-link" target="_blank" rel="noopener noreferrer">
             Whitepaper
           </a>
           <a href="https://github.com/ecto/muni" className="floating-header-link" target="_blank" rel="noopener noreferrer">

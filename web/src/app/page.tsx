@@ -150,7 +150,7 @@ export default function HomePage() {
           <div className="cta-learn-more">
             <p>Learn more:</p>
             <div className="cta-alt-buttons">
-              <a href="/investors" className="cta-button-secondary">Read the whitepaper</a>
+              <a href="/docs/whitepaper.pdf" className="cta-button-secondary" target="_blank" rel="noopener noreferrer">Read the whitepaper</a>
               <a href="https://github.com/ecto/muni/tree/main/bvr/docs/hardware" className="cta-button-secondary">
                 Build it yourself
               </a>
