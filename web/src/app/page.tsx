@@ -6,14 +6,15 @@ import {
   MapPin,
   ArrowDown,
 } from "@phosphor-icons/react/dist/ssr";
-import { Footer } from "@/components/layout";
-import { ConvertKitForm } from "@/components/ui/ConvertKitForm";
+import { Footer, FloatingHeader } from "@/components/layout";
 import { HeroViewer } from "@/components/home/HeroViewer";
 import { CoverageMapViewer } from "@/components/home/CoverageMapViewer";
 
 export default function HomePage() {
   return (
-    <main className="home-frames">
+    <>
+      <FloatingHeader />
+      <main className="home-frames">
       {/* ═══════════════════════════════════════════════════════════════════════
           FRAME 1: THE HOOK
           Goal: Arrest attention, establish what this is in 3 seconds
@@ -35,7 +36,7 @@ export default function HomePage() {
             </p>
             <div className="hero-action">
               <a href="https://buy.stripe.com/dRm8wH3aL91u5mybf3grS00" className="btn-primary btn-large">
-                Reserve Yours Now — $99 Deposit
+                Reserve Yours Now — $999 Deposit
               </a>
             </div>
           </div>
@@ -125,34 +126,35 @@ export default function HomePage() {
           ═══════════════════════════════════════════════════════════════════════ */}
       <section className="frame frame-cta">
         <div className="frame-content frame-content-centered">
-          <p className="cta-eyebrow">Limited availability</p>
-          <h2 className="cta-headline">First batch: 100 units</h2>
+          <p className="cta-eyebrow">Early access</p>
+          <h2 className="cta-headline">First production batch: 100 units</h2>
           <p className="cta-subtitle">
-            $99 deposit, fully refundable until production begins Q2 2026.
+            Reserve your delivery slot. Production begins Q2 2026.
           </p>
 
           <div className="hero-action">
             <a href="https://buy.stripe.com/dRm8wH3aL91u5mybf3grS00" className="btn-primary btn-large">
-              Reserve Yours Now — $99 Deposit
+              Reserve Yours Now — $999 Deposit
             </a>
           </div>
+
+          <p className="cta-risk-reversal">
+            Fully refundable anytime before production begins.
+          </p>
 
           <div className="cta-trust-signals">
             <span><BookOpen size={16} /> Fully open source</span>
             <span><MapPin size={16} /> Operating in Cleveland, OH</span>
           </div>
 
-          <div className="cta-alternatives">
-            <p>Stay updated or explore other options:</p>
-            <div style={{ marginBottom: "16px" }}>
-              <ConvertKitForm />
-            </div>
-            <div className="cta-alt-links">
-              <a href="https://github.com/ecto/muni/tree/main/bvr/docs/hardware">
+          <div className="cta-learn-more">
+            <p>Learn more:</p>
+            <div className="cta-alt-buttons">
+              <a href="/investors" className="cta-button-secondary">Read the whitepaper</a>
+              <a href="https://github.com/ecto/muni/tree/main/bvr/docs/hardware" className="cta-button-secondary">
                 Build it yourself
               </a>
-              <a href="/investors">Read the whitepaper</a>
-              <a href="mailto:info@muni.works?subject=Pilot%20program">
+              <a href="mailto:info@muni.works?subject=Pilot%20program" className="cta-button-secondary">
                 Join the pilot program
               </a>
             </div>
@@ -167,5 +169,6 @@ export default function HomePage() {
         </div>
       </footer>
     </main>
+    </>
   );
 }

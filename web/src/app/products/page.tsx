@@ -566,7 +566,7 @@ Fleet packages: `}
               <strong>Preorders now open</strong>
 {`
 
-Reserve your BVR1 rover for $99 (fully refundable until
+Reserve your BVR1 rover for $999 (fully refundable until
 production begins Q2 2026).
 
 Limited to 100 units in the first batch.
@@ -580,7 +580,7 @@ Limited to 100 units in the first batch.
                 className="cta-primary"
                 style={{ fontSize: "16px", padding: "14px 28px" }}
               >
-                Reserve Yours Now — $99 Deposit
+                Reserve Yours Now — $999 Deposit
               </a>
             </div>
 

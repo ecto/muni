@@ -1,0 +1,18 @@
+[package]
+name = "integration-tests"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+nalgebra.workspace = true
+rand.workspace = true
+
+# Internal crates we're testing
+types.workspace = true
+# control.workspace = true  # Uncomment when implementing autonomy stack
+# state.workspace = true
+
+[dev-dependencies]
+approx = "0.5"
