@@ -1,0 +1,18 @@
+[package]
+name = "lidar"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+tokio.workspace = true
+tokio-serial = "5"
+tracing.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+tracing-subscriber.workspace = true
+
+[[example]]
+name = "read_scans"

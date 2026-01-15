@@ -8,6 +8,7 @@ use can::Bus;
 use clap::Parser;
 use control::{ChassisParams, DiffDriveMixer, Limits, RateLimiter, Watchdog};
 use gps::{Config as GpsConfig, GpsReader, GpsState};
+use lidar::{Config as LidarConfig, LidarReader};
 use localization::{PoseEstimator, WheelOdometry};
 use metrics::{Config as MetricsConfig, DiscoveryClient, DiscoveryConfig, MetricsPusher, MetricsSnapshot};
 use policy::{NormalizationConfig, Policy, PolicyManager, PolicyObservation};
@@ -35,10 +36,12 @@ use ui::{Config as UiConfig, Dashboard};
 #[serde(default)]
 struct FileConfig {
     identity: IdentityConfig,
+    chassis: ChassisFileConfig,
     metrics: MetricsFileConfig,
     discovery: DiscoveryFileConfig,
     autonomous: AutonomousFileConfig,
     dispatch: DispatchFileConfig,
+    lidar: LidarFileConfig,
 }
 
 #[derive(Debug, Deserialize)]
@@ -55,6 +58,48 @@ impl Default for DispatchFileConfig {
         Self {
             enabled: true,
             endpoint: "ws://depot.local:4890/ws".to_string(),
+        }
+    }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(default)]
+struct LidarFileConfig {
+    /// Enable LiDAR sensor
+    enabled: bool,
+    /// Serial port for RPLidar A1
+    port: String,
+    /// Baud rate (always 115200 for RPLidar A1)
+    baud_rate: u32,
+}
+
+impl Default for LidarFileConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            port: "/dev/ttyUSB0".to_string(),
+            baud_rate: 115200,
+        }
+    }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(default)]
+struct ChassisFileConfig {
+    /// Wheel diameter in meters
+    wheel_diameter_m: f64,
+    /// Distance between left and right wheels (track width)
+    track_width_m: f64,
+    /// Distance between front and rear axles
+    wheelbase_m: f64,
+}
+
+impl Default for ChassisFileConfig {
+    fn default() -> Self {
+        Self {
+            wheel_diameter_m: 0.165,
+            track_width_m: 0.55,
+            wheelbase_m: 0.55,
         }
     }
 }
@@ -609,9 +654,17 @@ async fn main() -> Result<()> {
     // Initialize drivetrain
     let drivetrain = Drivetrain::new(vesc_ids, args.pole_pairs);
 
-    // Chassis parameters (TODO: load from config)
-    // Wheel diameter: 160mm, track width: 550mm, wheelbase: 550mm
-    let chassis = ChassisParams::new(0.160, 0.55, 0.55);
+    // Chassis parameters from config
+    let chassis = ChassisParams::new(
+        file_config.chassis.wheel_diameter_m,
+        file_config.chassis.track_width_m,
+        file_config.chassis.wheelbase_m,
+    );
+    info!(
+        wheel_diameter = chassis.wheel_radius * 2.0,
+        track_width = chassis.track_width,
+        "Chassis parameters loaded"
+    );
     let limits = Limits::default();
 
     // Shared state
@@ -812,6 +865,31 @@ async fn main() -> Result<()> {
                 warn!(?e, "Failed to start GPS reader - continuing without GPS");
             }
         }
+    }
+
+    // LiDAR reader
+    let (lidar_tx, mut lidar_rx) = watch::channel(None);
+    if file_config.lidar.enabled {
+        let lidar_config = LidarConfig {
+            port: file_config.lidar.port.clone(),
+            baud_rate: file_config.lidar.baud_rate,
+        };
+
+        let lidar_reader = LidarReader::new(lidar_config);
+        match lidar_reader.spawn(lidar_tx) {
+            Ok(_handle) => {
+                info!(
+                    port = %file_config.lidar.port,
+                    baud = file_config.lidar.baud_rate,
+                    "LiDAR reader started"
+                );
+            }
+            Err(e) => {
+                warn!(?e, "Failed to start LiDAR reader - continuing without LiDAR");
+            }
+        }
+    } else {
+        info!("LiDAR disabled in config");
     }
 
     // Control loop setup
@@ -1270,6 +1348,23 @@ async fn main() -> Result<()> {
                     sats = gps_state.satellites,
                     "GPS update"
                 );
+            }
+        }
+
+        // Check for LiDAR updates
+        if lidar_rx.has_changed().unwrap_or(false) {
+            if let Some(ref scan) = &*lidar_rx.borrow_and_update() {
+                let _ = recorder.log_lidar_scan(scan);
+
+                // Log stats periodically (every 50 scans = ~5-10 seconds)
+                static LIDAR_COUNT: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+                let count = LIDAR_COUNT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                if count % 50 == 0 {
+                    debug!(
+                        points = scan.ranges.len(),
+                        "LiDAR scan"
+                    );
+                }
             }
         }
 

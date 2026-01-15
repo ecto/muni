@@ -61,6 +61,7 @@ sim = { path = "crates/sim" }
 ui = { path = "crates/ui" }
 camera = { path = "crates/camera" }
 gps = { path = "crates/gps" }
+lidar = { path = "crates/lidar" }
 localization = { path = "crates/localization" }
 recording = { path = "crates/recording" }
 metrics = { path = "crates/metrics" }

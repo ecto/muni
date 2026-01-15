@@ -568,6 +568,48 @@ impl Recorder {
         Ok(())
     }
 
+    /// Log a LiDAR scan as a 2D point cloud.
+    ///
+    /// Converts polar coordinates (range, angle) to Cartesian (x, y).
+    pub fn log_lidar_scan(&self, scan: &lidar::LaserScan) -> Result<(), RecordingError> {
+        let Some(ref stream) = self.stream else {
+            return Ok(());
+        };
+
+        let mut points = Vec::with_capacity(scan.ranges.len());
+        let mut colors = Vec::with_capacity(scan.ranges.len());
+
+        for (i, &range) in scan.ranges.iter().enumerate() {
+            // Skip invalid ranges
+            if range < scan.range_min || range > scan.range_max || range == 0.0 {
+                continue;
+            }
+
+            // Convert polar → Cartesian
+            // Index 0 = 0°, increases counter-clockwise
+            let angle = i as f32 * scan.angle_increment;
+            let x = range * angle.cos();
+            let y = range * angle.sin();
+
+            points.push([x, y]);
+
+            // Color by intensity (if available) or distance
+            let intensity = scan.intensities.get(i).copied().unwrap_or(128);
+            colors.push([intensity, intensity, intensity, 255]);
+        }
+
+        if !points.is_empty() {
+            stream.log(
+                "lidar/scan",
+                &rerun::Points2D::new(points)
+                    .with_colors(colors)
+                    .with_radii([0.02]), // 2cm point size
+            )?;
+        }
+
+        Ok(())
+    }
+
     /// End the current session.
     ///
     /// Writes the session metadata.json file for quick lookups.

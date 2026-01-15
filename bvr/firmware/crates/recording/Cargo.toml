@@ -8,6 +8,7 @@ license.workspace = true
 [dependencies]
 rerun = "0.22"
 types = { workspace = true }
+lidar = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
 serde = { workspace = true }
