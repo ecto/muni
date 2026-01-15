@@ -1,12 +1,12 @@
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="web/muni-logo-dark.svg">
-  <source media="(prefers-color-scheme: light)" srcset="web/muni-logo-light.svg">
-  <img alt="muni" src="web/muni-logo-light.svg" width="120">
+  <source media="(prefers-color-scheme: dark)" srcset="web/public/images/muni-logo-dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="web/public/images/muni-logo-light.svg">
+  <img alt="muni" src="web/public/images/muni-logo-light.svg" width="120">
 </picture>
 
 Open-source municipal robotics. Autonomous utility vehicles for public works, starting with sidewalk snow removal.
 
-<img src="web/bvr1.png" alt="BVR rover with plow attachment" width="600">
+<img src="web/public/images/bvr1.png" alt="BVR rover with plow attachment" width="600">
 
 ## Repository
 
