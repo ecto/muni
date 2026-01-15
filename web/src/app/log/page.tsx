@@ -26,7 +26,7 @@ command interface. LED strip driver is ready but needs a
 level shifter (in the mail).
 
 Also consolidated session recording to single files, added
-a sessions browser to the operator UI, and documented the
+a sessions browser to the fleet UI, and documented the
 sensor mast design.`}
             </Pre>
           </Card>

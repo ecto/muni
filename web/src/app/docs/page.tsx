@@ -49,7 +49,7 @@ export default function DocsPage() {
 │  ┌────────────────────────────────────────────────────────────┐ │
 │  │  bvrd (Jetson Orin NX)                                     │ │
 │  │  ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌───────────────┐ │ │
-│  │  │ teleop  │  │ control │  │ state   │  │ tools         │ │ │
+│  │  │autonomy │  │ control │  │ state   │  │ tools         │ │ │
 │  │  └────┬────┘  └────┬────┘  └────┬────┘  └───────┬───────┘ │ │
 │  │       └────────────┴────────────┴───────────────┘         │ │
 │  │                          │ CAN bus                         │ │
@@ -75,7 +75,7 @@ export default function DocsPage() {
 ├─ control     Differential drive mixer, rate limiter, watchdog
 ├─ state       State machine (Disabled → Idle → Teleop → EStop)
 ├─ hal         GPIO, ADC, power monitoring
-├─ teleop      LTE communications, command/telemetry
+├─ autonomy    Path planning, navigation, comms
 ├─ tools       Tool discovery and implementations
 ├─ recording   Session recording to Rerun .rrd files
 ├─ metrics     Real-time metrics push to Depot (InfluxDB UDP)

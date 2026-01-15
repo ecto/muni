@@ -8,11 +8,11 @@ export const metadata: Metadata = {
     template: "%s | Municipal Robotics",
   },
   description:
-    "10x cheaper sidewalk clearing. One operator, ten rovers. $18k hardware, $300/month software.",
+    "Fully autonomous sidewalk clearing. Zero labor cost, operates 24/7. $18k hardware, $300/month software.",
   metadataBase: new URL("https://muni.works"),
   openGraph: {
     title: "Municipal Robotics",
-    description: "Autonomous sidewalk maintenance. 10x cheaper clearing.",
+    description: "Fully autonomous sidewalk maintenance. Zero labor cost. Operates 24/7.",
     url: "https://muni.works",
     siteName: "Municipal Robotics",
     images: [

@@ -2748,6 +2748,7 @@ can_bus.send_blower_command(blower_power)?;
 - [ ] Debris test: cups, paper, leaves at distance - **See [blower-build-guide.md](blower-build-guide.md#debris-testing)**
 - [ ] Integration test: Blower + autonomous navigation
 - [ ] 10+ runs with blower active
+- [ ] **Capture .rrd session recordings** from successful autonomous runs (for future website visualization with real Cleveland deployment data - see `/web/src/components/home/CoverageMapViewer.tsx` TODO)
 
 **Thursday: Polish Day**
 

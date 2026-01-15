@@ -65,7 +65,7 @@ export default function InvestorsPage() {
             </div>
             <div className="solution-points">
               <p>
-                <strong>10x cost reduction.</strong> One operator monitors ten rovers.
+                <strong>Zero labor cost.</strong> Fully autonomous operation.
                 Sidewalks cleared in hours, not days.
               </p>
               <p>
@@ -85,13 +85,13 @@ export default function InvestorsPage() {
               <span className="hero-label">payback for customers</span>
             </div>
             <p className="hero-explain">
-              An $18k rover replaces $50k+/year in labor costs. One operator monitors ten
-              rovers. The math is obvious.
+              An $18k rover replaces $50k+/year in labor costs. Zero ongoing labor.
+              The math is obvious.
             </p>
             <div className="economics-grid">
               <div className="econ-item">
-                <span className="econ-value">1:10</span>
-                <span className="econ-label">operator ratio</span>
+                <span className="econ-value">24/7</span>
+                <span className="econ-label">operation</span>
               </div>
               <div className="econ-item">
                 <span className="econ-value">$36k</span>
@@ -147,8 +147,8 @@ export default function InvestorsPage() {
 2026-Q3  ○ bvr1 shipping to pilot partners
          │   10 units, Midwest municipalities
          │
-2027     ○ Full autonomy beta
-             1:10 operator ratio validated`}
+2027     ○ Fleet autonomy at scale
+             Multi-unit deployments validated`}
             </Pre>
           </Card>
 
@@ -207,7 +207,7 @@ export default function InvestorsPage() {
                 <ul>
                   <li>Build 10 bvr1 production units</li>
                   <li>Deploy to 3-5 Midwest pilot partners</li>
-                  <li>Validate 1:10 operator ratio</li>
+                  <li>Validate autonomous fleet operations</li>
                   <li>Generate revenue and LOIs for Series A</li>
                 </ul>
               </div>

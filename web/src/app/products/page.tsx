@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import {
-  GameController,
+  Robot,
   ChartLineUp,
   Broadcast,
   FloppyDisk,
@@ -41,8 +41,8 @@ export default function ProductsPage() {
               </a>
 {`
 
-One operator monitors ten rovers from a warm office.
-Sidewalks cleared in hours, not days. Works in snow.
+Fully autonomous sidewalk clearing. Zero labor cost.
+Operates 24/7, even in active snowfall.
 Open source hardware and software.
 
 `}
@@ -87,28 +87,28 @@ There has to be a better way.`}
           {/* THE SOLUTION */}
           <Card title="THE SOLUTION">
             <Pre>
-{`Remote-controlled rovers that do the work while you watch.
+{`Autonomous rovers that do the work without supervision.
 
 `}
               <strong>How it works:</strong>
 {`
 
-1. Operator connects to rover via web browser
-2. Drives it using an Xbox controller with live 360° video
-3. Rover clears sidewalks at 1 m/s (~2 mph)
-4. LiDAR stops it automatically if anyone gets close
-5. One operator can monitor 10+ rovers simultaneously
+1. Define coverage areas in web interface
+2. Rovers navigate autonomously using HD maps + LiDAR
+3. Clears sidewalks at 1 m/s (~2 mph)
+4. Multi-layer safety: LiDAR + computer vision + e-stop
+5. Operates 24/7 without human supervision
 
 `}
               <strong>The economics:</strong>
 {`
 
 Traditional crew:       4 workers × $30/hr × 8 hrs = $960/day
-Muni rover:            1 operator × $30/hr × 8 hrs = $240/day (10 rovers)
+Muni rover:            $0 labor + $10/day electricity = $10/day
                        ────────────────────────────────────────
-Cost per rover:        $24/day vs $240/day
+Cost per rover:        $10/day vs $240/day per worker
 `}
-              <strong>Savings:           90% cost reduction</strong>
+              <strong>Savings:           Zero labor cost</strong>
 {`
 
 Payback period: <1 season for most deployments.`}
@@ -200,10 +200,10 @@ Software:      $300/month (optional, or self-host free)
 {`
 
   `}
-              <GameController size={12} /> Web-based operator interface
+              <Robot size={12} /> Web-based fleet interface
 {`
-     • Xbox controller support
-     • 360° video streaming
+     • Mission planning and scheduling
+     • Coverage area definition
      • Real-time telemetry
      • Multi-rover monitoring
 
@@ -269,29 +269,28 @@ Managed (TBD/month):
           {/* HOW IT WORKS */}
           <Card title="HOW IT WORKS" id="how-it-works">
             <Pre>
-              <strong>Teleoperation (now):</strong>
+              <strong>Autonomous Operation:</strong>
 {`
 
-  1. Operator opens web browser, connects to rover
-  2. Plugs in Xbox controller
-  3. Sees live 360° H.265 video (100-250ms latency)
-  4. Drives rover like a video game
-  5. LiDAR creates safety bubble (auto-stops on obstacles)
-  6. Rover streams telemetry to Depot
-  7. Session recorded for review
+  1. Define coverage areas in web interface
+  2. Schedule missions or run on-demand
+  3. Rovers navigate using HD maps + real-time LiDAR
+  4. Multi-layer safety: LiDAR + computer vision + e-stop
+  5. Continuous telemetry streaming to Depot
+  6. Session recorded for review and optimization
 
-One operator can monitor 10+ rovers:
-  • Switch between rovers with keyboard shortcuts
-  • Automated tasks run with supervision
-  • Intervene only when needed
+Fleet operates without supervision:
+  • Automatic route planning and optimization
+  • Real-time obstacle avoidance
+  • Human override available anytime
 
 `}
-              <strong>Autonomy (coming):</strong>
+              <strong>Safety Systems:</strong>
 {`
 
-  • High-definition maps from teleoperation sessions
-  • Localization via LiDAR + RTK GPS
-  • Planned paths, human-supervised execution
+  • 360° LiDAR creates 1.5m safety bubble
+  • Computer vision for enhanced perception
+  • Emergency stop system (manual + automatic)
   • Operator monitors, intervenes if needed
   • Gradual transition: 10% → 50% → 90% autonomous
 
@@ -447,25 +446,26 @@ and learning. For production deployments, we recommend BVR1.
             <Pre>
               <strong>Is this fully autonomous?</strong>
 {`
-Not yet. BVR is teleoperated now, with autonomy coming later.
-An operator drives it remotely via Xbox controller. The LiDAR
-provides automatic safety (stops before hitting things), but
-a human is always monitoring.
+Yes. BVR operates autonomously using HD maps + real-time LiDAR.
+The rover plans paths, avoids obstacles, and navigates without
+human supervision. Remote monitoring and override capability
+available through secure web interface.
 
 `}
-              <strong>Why not autonomous from day one?</strong>
+              <strong>Do I need supervision?</strong>
 {`
-Safety and trust. We want operators to drive it manually first,
-build high-definition maps, understand the edge cases. Then we
-layer in autonomy gradually. Plus, teleop is useful even with
-autonomy (for edge cases, new areas, tool changes).
+No continuous supervision required. The multi-layer safety system
+(LiDAR + computer vision + e-stop) prevents collisions automatically.
+Remote monitoring optional for peace of mind. Human override available
+anytime through web interface.
 
 `}
-              <strong>What&apos;s the video latency like?</strong>
+              <strong>What happens if connectivity drops?</strong>
 {`
-Typically 100-250ms end-to-end. If latency exceeds 500ms, the
-system warns the operator and reduces max speed. If connection
-drops for 250ms, rover coasts to a safe stop.
+Rovers operate independently with onboard autonomy. If connection
+drops, rover continues current mission using local maps + LiDAR.
+Safety systems remain active. Rover will pause and await reconnection
+if it encounters uncertainty.
 
 `}
               <strong>How does safety work?</strong>
@@ -523,8 +523,8 @@ BVR1: Production rover, pre-assembled, ~8h final config, $18k.
 `}
               <strong>Do I need RTK GPS?</strong>
 {`
-Not for basic teleoperation. RTK provides cm-accurate positioning
-for mapping and future autonomy. Recommended but not required.
+Yes, for production autonomy. RTK provides cm-accurate positioning
+for precise navigation and mapping. Recommended for all deployments.
 
 `}
               <strong>What&apos;s the total cost of ownership?</strong>
@@ -532,9 +532,9 @@ for mapping and future autonomy. Recommended but not required.
 Hardware:       $18,000 (one-time)
 Software:       $300/month (optional, can self-host free)
 LTE data:       $30-50/month per rover
-Electricity:    ~$0.50/day per rover
+Electricity:    ~$10/day per rover
 Maintenance:    ~$500/year per rover
-Operator time:  1 operator per 10+ rovers
+Labor:          $0 (fully autonomous)
 
 Compare to: $25-35/hour per crew member (traditional).
 
@@ -563,25 +563,31 @@ Fleet packages: `}
           {/* GET STARTED */}
           <Card title="GET STARTED" id="get-started">
             <Pre>
-              <strong>Preorders coming soon</strong>
+              <strong>Preorders now open</strong>
 {`
 
-We're finalizing production details and will open preorders
-in the coming weeks. Reserve your spot for $500 (fully
-refundable until production begins).
+Reserve your BVR1 rover for $99 (fully refundable until
+production begins Q2 2026).
 
 Limited to 100 units in the first batch.
 
 `}
-              <strong>Want to be notified?</strong>
             </Pre>
 
-            <ConvertKitForm />
+            <div style={{ textAlign: "center", margin: "20px 0" }}>
+              <a
+                href="https://buy.stripe.com/dRm8wH3aL91u5mybf3grS00"
+                className="cta-primary"
+                style={{ fontSize: "16px", padding: "14px 28px" }}
+              >
+                Reserve Yours Now — $99 Deposit
+              </a>
+            </div>
 
             <Pre>
 {`
 `}
-              <strong>In the meantime:</strong>
+              <strong>Not ready to commit?</strong>
 {`
 
   • `}
@@ -599,6 +605,14 @@ Limited to 100 units in the first batch.
               <a href="mailto:info@muni.works?subject=Pilot%20program">Join the pilot program</a>
 {`
 
+`}
+              <strong>Stay updated:</strong>
+            </Pre>
+
+            <ConvertKitForm />
+
+            <Pre>
+{`
 Questions? `}
               <a href="mailto:info@muni.works">info@muni.works</a>
             </Pre>

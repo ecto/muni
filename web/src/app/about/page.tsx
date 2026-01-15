@@ -60,8 +60,8 @@ your own, or buy from us. We don't hide behind patents.`}
   2026-Q3  ○ bvr1 shipping to pilot partners
            │   10 production units, Midwest municipalities
            │
-  2027     ○ Full autonomy beta
-               1:10 operator ratio, minimal intervention`}
+  2027     ○ Fleet autonomy at scale
+               Multi-unit deployments validated`}
             </Pre>
           </Card>
 
@@ -98,7 +98,7 @@ Autonomous vehicle scheduling at Uber. CTO and co-founder
 at DitchCarbon.
 
 Built bvr0 from scratch in Cleveland: mechanical design,
-electrical, firmware, teleoperation software.
+electrical, firmware, autonomous navigation software.
 
 `}
               <a href="mailto:info@muni.works">info@muni.works</a>
