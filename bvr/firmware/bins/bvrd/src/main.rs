@@ -10,6 +10,7 @@ use control::{ChassisParams, DiffDriveMixer, Limits, RateLimiter, Watchdog};
 use gps::{Config as GpsConfig, GpsReader, GpsState};
 use lidar::{Config as LidarConfig, LidarReader};
 use localization::{PoseEstimator, WheelOdometry};
+use slam::{SlamConfig, SlamProcessor};
 use metrics::{Config as MetricsConfig, DiscoveryClient, DiscoveryConfig, MetricsPusher, MetricsSnapshot};
 use policy::{NormalizationConfig, Policy, PolicyManager, PolicyObservation};
 use recording::{Config as RecordingConfig, Recorder};
@@ -28,7 +29,7 @@ use tools::{protocol, Registry as ToolRegistry, ToolOutput};
 use tracing::{debug, error, info, warn};
 use tracing_appender::rolling::{RollingFileAppender, Rotation};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
-use types::{Command, Mode, Pose, PowerStatus, Twist};
+use types::{Command, Mode, Pose, PowerStatus, SlamStatus, Twist};
 use ui::{Config as UiConfig, Dashboard};
 
 /// Configuration file structure (bvr.toml).
@@ -42,6 +43,7 @@ struct FileConfig {
     autonomous: AutonomousFileConfig,
     dispatch: DispatchFileConfig,
     lidar: LidarFileConfig,
+    slam: SlamFileConfig,
 }
 
 #[derive(Debug, Deserialize)]
@@ -79,6 +81,33 @@ impl Default for LidarFileConfig {
             enabled: true,
             port: "/dev/ttyUSB0".to_string(),
             baud_rate: 115200,
+        }
+    }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(default)]
+struct SlamFileConfig {
+    /// Enable SLAM processing
+    enabled: bool,
+    /// Resolution for scan matching correlation grid (meters)
+    scan_match_resolution: f64,
+    /// Distance threshold for inserting new keyframe (meters)
+    keyframe_distance: f64,
+    /// Rotation threshold for inserting new keyframe (radians)
+    keyframe_rotation: f64,
+    /// Score threshold for accepting loop closure match
+    loop_closure_threshold: f64,
+}
+
+impl Default for SlamFileConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            scan_match_resolution: 0.05,
+            keyframe_distance: 1.0,
+            keyframe_rotation: 0.5,
+            loop_closure_threshold: 0.7,
         }
     }
 }
@@ -702,6 +731,7 @@ async fn main() -> Result<()> {
         motor_currents: [0.0; 4],
         active_tool: None,
         tool_status: None,
+        slam_status: None,
     };
     let (telemetry_tx, telemetry_rx) = watch::channel(initial_telemetry);
 
@@ -891,6 +921,24 @@ async fn main() -> Result<()> {
     } else {
         info!("LiDAR disabled in config");
     }
+
+    // Initialize SLAM processor
+    let mut slam_processor = if file_config.slam.enabled && file_config.lidar.enabled {
+        let slam_config = SlamConfig {
+            scan_match_resolution: file_config.slam.scan_match_resolution,
+            keyframe_distance: file_config.slam.keyframe_distance,
+            keyframe_rotation: file_config.slam.keyframe_rotation,
+            loop_closure_threshold: file_config.slam.loop_closure_threshold,
+            ..Default::default()
+        };
+        info!("SLAM enabled");
+        Some(SlamProcessor::new(slam_config))
+    } else {
+        if !file_config.slam.enabled {
+            info!("SLAM disabled in config");
+        }
+        None
+    };
 
     // Control loop setup
     let mixer = DiffDriveMixer::new(chassis);
@@ -1337,6 +1385,11 @@ async fn main() -> Result<()> {
         // Update pose estimator with odometry
         pose_estimator.update_odometry(dx, dy, dtheta);
 
+        // Feed odometry to SLAM (runs at control loop rate)
+        if let Some(ref mut slam) = slam_processor {
+            slam.update_odometry(&pose_estimator.pose());
+        }
+
         // Check for GPS updates
         if gps_rx.has_changed().unwrap_or(false) {
             let gps_state = gps_rx.borrow_and_update();
@@ -1355,6 +1408,24 @@ async fn main() -> Result<()> {
         if lidar_rx.has_changed().unwrap_or(false) {
             if let Some(ref scan) = &*lidar_rx.borrow_and_update() {
                 let _ = recorder.log_lidar_scan(scan);
+
+                // Process scan through SLAM
+                if let Some(ref mut slam) = slam_processor {
+                    if let Some(slam_update) = slam.process_scan(scan) {
+                        if slam_update.keyframe_added {
+                            debug!(
+                                keyframe_count = slam_update.keyframe_count,
+                                "SLAM keyframe added"
+                            );
+                        }
+                        if slam_update.loop_closure_detected {
+                            info!(
+                                loop_closure_count = slam_update.loop_closure_count,
+                                "SLAM loop closure detected"
+                            );
+                        }
+                    }
+                }
 
                 // Log stats periodically (every 50 scans = ~5-10 seconds)
                 static LIDAR_COUNT: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
@@ -1389,9 +1460,22 @@ async fn main() -> Result<()> {
             // In sim mode, use simulation ground truth for accurate feedback
             can_interface.pose()
         } else {
-            // In real mode, use the pose estimator
-            pose_estimator.pose()
+            // In real mode, use SLAM-corrected pose if available, otherwise pose estimator
+            if let Some(ref slam) = slam_processor {
+                slam.pose()
+            } else {
+                pose_estimator.pose()
+            }
         };
+
+        // Build SLAM status if enabled
+        let slam_status = slam_processor.as_ref().map(|slam| SlamStatus {
+            pose,
+            confidence: 0.8, // TODO: track actual match score
+            keyframe_count: slam.keyframe_count() as u32,
+            loop_closure_count: slam.loop_closure_count() as u32,
+            mapping_active: true,
+        });
 
         let state = shared.lock().unwrap();
         let telemetry = Telemetry {
@@ -1410,6 +1494,7 @@ async fn main() -> Result<()> {
             motor_currents,
             active_tool,
             tool_status,
+            slam_status,
         };
 
         let _ = telemetry_tx.send(telemetry.clone());
@@ -1445,6 +1530,17 @@ async fn main() -> Result<()> {
         let _ = recorder.log_motors(&motor_currents, &motor_temps);
         let _ = recorder.log_power(telemetry.power.battery_voltage, telemetry.power.system_current);
         let _ = recorder.log_odometry(dx, dy, dtheta);
+
+        // Log SLAM data if enabled
+        if let Some(ref slam) = slam_processor {
+            let _ = recorder.log_slam_trajectory(&pose);
+            let _ = recorder.log_slam_keyframes(&slam.keyframe_poses());
+            let _ = recorder.log_slam_status(
+                slam.keyframe_count(),
+                slam.loop_closure_count(),
+                0.0, // TODO: track match score
+            );
+        }
 
         // Log mode changes and update LEDs
         let current_mode = telemetry.mode;

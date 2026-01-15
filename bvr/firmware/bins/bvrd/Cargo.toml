@@ -23,6 +23,9 @@ recording = { workspace = true }
 metrics = { workspace = true }
 policy = { workspace = true }
 dispatch = { workspace = true }
+transforms = { workspace = true }
+slam = { workspace = true }
+costmap = { workspace = true }
 
 tokio = { workspace = true }
 serde = { workspace = true }

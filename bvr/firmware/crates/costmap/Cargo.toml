@@ -1,0 +1,16 @@
+[package]
+name = "costmap"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Occupancy grid and costmap for navigation"
+
+[dependencies]
+nalgebra.workspace = true
+thiserror.workspace = true
+lidar = { path = "../lidar" }
+transforms = { path = "../transforms" }
+
+[dev-dependencies]
+approx = "0.5"

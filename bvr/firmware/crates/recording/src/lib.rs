@@ -568,6 +568,141 @@ impl Recorder {
         Ok(())
     }
 
+    /// Log SLAM occupancy grid as a 2D image.
+    ///
+    /// The grid is rendered as a grayscale image where:
+    /// - Black (0) = occupied
+    /// - Gray (128) = unknown
+    /// - White (255) = free
+    pub fn log_occupancy_grid(&self, grid: &costmap::OccupancyGrid) -> Result<(), RecordingError> {
+        let Some(ref stream) = self.stream else {
+            return Ok(());
+        };
+
+        // Convert log-odds grid to grayscale image
+        let width = grid.width();
+        let height = grid.height();
+        let mut pixels = vec![128u8; width * height]; // Default to unknown (gray)
+
+        for y in 0..height {
+            for x in 0..width {
+                let prob = grid.probability(x, y);
+                // Convert probability to grayscale (inverted: 0=occupied, 255=free)
+                let gray = ((1.0 - prob) * 255.0) as u8;
+                // Flip y-axis for image coordinates
+                pixels[(height - 1 - y) * width + x] = gray;
+            }
+        }
+
+        stream.log(
+            "slam/occupancy_grid",
+            &rerun::Image::from_l8(pixels, [width as u32, height as u32]),
+        )?;
+
+        // Log grid metadata as text
+        stream.log(
+            "slam/grid_info",
+            &rerun::TextLog::new(format!(
+                "{}x{} cells, {:.2}m resolution, origin: ({:.1}, {:.1})",
+                width,
+                height,
+                grid.resolution(),
+                grid.origin().x,
+                grid.origin().y
+            )),
+        )?;
+
+        Ok(())
+    }
+
+    /// Log SLAM keyframe poses as 2D points.
+    pub fn log_slam_keyframes(&self, keyframes: &[(f64, f64, f64)]) -> Result<(), RecordingError> {
+        let Some(ref stream) = self.stream else {
+            return Ok(());
+        };
+
+        if keyframes.is_empty() {
+            return Ok(());
+        }
+
+        // Log keyframes as larger points (different color from trajectory)
+        let points: Vec<[f32; 2]> = keyframes
+            .iter()
+            .map(|(x, y, _)| [*x as f32, *y as f32])
+            .collect();
+
+        stream.log(
+            "slam/keyframes",
+            &rerun::Points2D::new(points)
+                .with_colors([[255, 165, 0, 255]]) // Orange
+                .with_radii([0.1]), // Larger than trajectory points
+        )?;
+
+        // Log keyframe count
+        stream.log("slam/keyframe_count", &rerun::Scalar::new(keyframes.len() as f64))?;
+
+        Ok(())
+    }
+
+    /// Log SLAM-corrected robot trajectory.
+    pub fn log_slam_trajectory(&self, pose: &Pose) -> Result<(), RecordingError> {
+        let Some(ref stream) = self.stream else {
+            return Ok(());
+        };
+
+        // Log as separate trajectory from raw odometry
+        stream.log(
+            "slam/trajectory",
+            &rerun::Points2D::new([[pose.x as f32, pose.y as f32]])
+                .with_colors([[0, 255, 0, 255]]) // Green for SLAM trajectory
+                .with_radii([0.03]),
+        )?;
+
+        Ok(())
+    }
+
+    /// Log a SLAM loop closure event.
+    pub fn log_loop_closure(
+        &self,
+        from_pose: (f64, f64),
+        to_pose: (f64, f64),
+    ) -> Result<(), RecordingError> {
+        let Some(ref stream) = self.stream else {
+            return Ok(());
+        };
+
+        // Log loop closure edge as a line segment
+        stream.log(
+            "slam/loop_closures",
+            &rerun::LineStrips2D::new([[
+                [from_pose.0 as f32, from_pose.1 as f32],
+                [to_pose.0 as f32, to_pose.1 as f32],
+            ]])
+            .with_colors([[255, 0, 255, 255]]) // Magenta for loop closures
+            .with_radii([0.05]),
+        )?;
+
+        Ok(())
+    }
+
+    /// Log SLAM status metrics.
+    pub fn log_slam_status(
+        &self,
+        keyframe_count: usize,
+        loop_closure_count: usize,
+        match_score: f64,
+    ) -> Result<(), RecordingError> {
+        let Some(ref stream) = self.stream else {
+            return Ok(());
+        };
+
+        stream.log("slam/keyframe_count", &rerun::Scalar::new(keyframe_count as f64))?;
+        stream.log("slam/loop_closure_count", &rerun::Scalar::new(loop_closure_count as f64))?;
+        stream.log("slam/match_score", &rerun::Scalar::new(match_score))?;
+
+        Ok(())
+    }
+
     /// Log a LiDAR scan as a 2D point cloud.
     ///
     /// Converts polar coordinates (range, angle) to Cartesian (x, y).

@@ -35,6 +35,14 @@ export interface Pose {
   theta: number;
 }
 
+export interface SlamStatus {
+  pose: Pose;
+  confidence: number;
+  keyframeCount: number;
+  loopClosureCount: number;
+  mappingActive: boolean;
+}
+
 export interface Telemetry {
   mode: Mode;
   pose: Pose;
@@ -43,6 +51,7 @@ export interface Telemetry {
   motor_temps: [number, number, number, number];
   connected: boolean;
   latency_ms: number;
+  slamStatus?: SlamStatus;
 }
 
 export interface GamepadInput {

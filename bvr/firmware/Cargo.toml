@@ -68,6 +68,9 @@ metrics = { path = "crates/metrics" }
 rl = { path = "crates/rl" }
 policy = { path = "crates/policy" }
 dispatch = { path = "crates/dispatch" }
+transforms = { path = "crates/transforms" }
+slam = { path = "crates/slam" }
+costmap = { path = "crates/costmap" }
 
 # RL training dependencies
 rand = "0.8"

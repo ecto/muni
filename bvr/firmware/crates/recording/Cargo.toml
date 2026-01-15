@@ -9,6 +9,8 @@ license.workspace = true
 rerun = "0.22"
 types = { workspace = true }
 lidar = { workspace = true }
+costmap = { workspace = true }
+transforms = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
 serde = { workspace = true }

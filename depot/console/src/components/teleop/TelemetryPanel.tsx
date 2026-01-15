@@ -8,6 +8,7 @@ import {
   BatteryWarning,
   Lightning,
   Gauge,
+  MapTrifold,
 } from "@phosphor-icons/react";
 import { useConsoleStore } from "@/store";
 import { Mode, ModeLabels } from "@/lib/types";
@@ -117,6 +118,39 @@ export function TelemetryPanel() {
             </div>
           </div>
         </div>
+
+        {/* SLAM Status */}
+        {telemetry.slamStatus && (
+          <>
+            <Separator />
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <MapTrifold className="h-4 w-4" weight="fill" />
+                SLAM
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Keyframes</span>
+                  <span className="font-mono">
+                    {telemetry.slamStatus.keyframeCount}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Loop Closures</span>
+                  <span className="font-mono">
+                    {telemetry.slamStatus.loopClosureCount}
+                  </span>
+                </div>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Confidence</span>
+                <span className="font-mono">
+                  {(telemetry.slamStatus.confidence * 100).toFixed(0)}%
+                </span>
+              </div>
+            </div>
+          </>
+        )}
       </CardContent>
     </Card>
   );

@@ -14,7 +14,7 @@ use thiserror::Error;
 use tokio::net::UdpSocket;
 use tokio::sync::{mpsc, watch};
 use tracing::{debug, error, info, trace, warn};
-use types::{Command, Mode, Pose, PowerStatus, ToolCommand, Twist};
+use types::{Command, Mode, Pose, PowerStatus, SlamStatus, ToolCommand, Twist};
 
 #[derive(Error, Debug)]
 pub enum TeleopError {
@@ -56,6 +56,9 @@ pub struct Telemetry {
     pub motor_currents: [f32; 4],
     pub active_tool: Option<String>,
     pub tool_status: Option<ToolStatus>,
+    /// SLAM status (optional, only when SLAM is enabled)
+    #[serde(default)]
+    pub slam_status: Option<SlamStatus>,
 }
 
 /// Tool status for telemetry.
@@ -397,6 +400,7 @@ mod tests {
             motor_currents: [5.0, 5.5, 6.0, 6.5],
             active_tool: None,
             tool_status: None,
+            slam_status: None,
         };
 
         let data = Server::serialize_telemetry(&telemetry);

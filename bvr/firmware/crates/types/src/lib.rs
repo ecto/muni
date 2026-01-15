@@ -96,6 +96,21 @@ pub struct GpsCoord {
     pub accuracy: f32,
 }
 
+/// SLAM system status for telemetry.
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
+pub struct SlamStatus {
+    /// Current pose from SLAM (world frame)
+    pub pose: Pose,
+    /// Match confidence (0.0-1.0)
+    pub confidence: f32,
+    /// Number of keyframes in pose graph
+    pub keyframe_count: u32,
+    /// Number of loop closures detected
+    pub loop_closure_count: u32,
+    /// Whether SLAM is actively mapping
+    pub mapping_active: bool,
+}
+
 /// Command from operator/autonomy to rover.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Command {

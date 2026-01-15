@@ -1,0 +1,18 @@
+[package]
+name = "slam"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "2D LiDAR SLAM: scan matching, pose graph, loop closure"
+
+[dependencies]
+nalgebra.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+types = { path = "../types" }
+transforms = { path = "../transforms" }
+lidar = { path = "../lidar" }
+
+[dev-dependencies]
+approx = "0.5"
