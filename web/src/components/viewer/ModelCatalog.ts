@@ -44,7 +44,7 @@ export const models: ModelSection[] = [
       {
         id: "bvr1",
         name: "BVR1 Production",
-        path: "/models/bvr1_assembly.glb",
+        path: "/models/bvr1_assembly_realistic.glb",
         icon: "rocket-launch",
         desc: "Current production rover",
         hasLabels: true,
