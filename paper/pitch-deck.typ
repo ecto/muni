@@ -24,7 +24,7 @@
 
 #page[
   #align(center + horizon)[
-    #text(size: 14pt, fill: gray)[Pre-Seed Investment Opportunity]
+    #text(size: 14pt, fill: gray)[Seed Investment Opportunity]
 
     #v(1em)
 
@@ -295,13 +295,13 @@
     ],
     [
       #align(center)[
-        #text(size: 48pt, weight: "bold", fill: muni-orange)[3-5]
+        #text(size: 48pt, weight: "bold", fill: muni-orange)[Cleveland]
         #v(0.1in)
-        #text(size: 16pt, weight: "bold")[Pilot Partners Sought]
+        #text(size: 16pt, weight: "bold")[Pilot Discussions]
         #v(0.1in)
         #text(size: 12pt, fill: gray)[
-          Midwest municipalities \
-          Winter 2026
+          Public works interest \
+          Meetings scheduled
         ]
       ]
     ],
@@ -328,7 +328,7 @@
       radius: 8pt,
     )[
       #text(size: 16pt)[
-        *Milestone:* bvr1 production units shipping to pilot partners Summer 2026
+        *Bootstrapped to seed.* No pre-seed dilution. Cleveland pilot validates demand.
       ]
     ]
   ]
@@ -430,14 +430,14 @@
 
     [*When*], [*Milestone*], [*Capability*],
     [Dec 2025], [bvr0 prototype complete], [Drivetrain, teleop, GPS, depot],
-    [Jan 2026], [Artifact residency], [bvr1 R&D, autonomy, production unit],
-    [Q1 2026], [Pre-seed close], [Hire team, scale production],
-    [Q2 2026], [bvr1 production], [First pilot units built],
-    [Q3 2026], [Pilot deployments], [3-5 municipal partners],
-    [Q3 2026], [Supervised autonomy], [1 operator : 10 rovers],
-    [Q4 2026], [Seed round], [\$3M at \$12M post],
-    [2027], [Scale production], [100+ rovers deployed],
-    [2028], [Series A], [National expansion],
+    [Jan 2026], [Artifact residency], [Supervised autonomy demo],
+    [Q1 2026], [Cleveland pilot signed], [First paying customer],
+    [Q2 2026], [bvr1 production], [2-3 pilot units built],
+    [Q2-Q3 2026], [Seed round], [\$2-3M at \$12-15M post],
+    [Q3 2026], [Scale production], [10 rovers, 3-5 pilots],
+    [Q4 2026], [Supervised autonomy], [1 operator : 10 rovers],
+    [2027], [Fleet deployments], [50+ rovers, national expansion],
+    [2028], [Series A], [\$15M for platform expansion],
   )
 ]
 
@@ -504,9 +504,9 @@
   #v(-0.5in)
 
   #align(center)[
-    #text(size: 48pt, weight: "bold")[\$500-600k Pre-Seed]
+    #text(size: 48pt, weight: "bold")[\$2-3M Seed]
     #v(-0.5in)
-    #text(size: 20pt, fill: gray)[at \$3M post-money valuation]
+    #text(size: 20pt, fill: gray)[at \$12-15M post-money valuation]
   ]
 
   #grid(
@@ -521,33 +521,34 @@
         stroke: 0.5pt + muni-light-gray,
         inset: 10pt,
 
-        [Team (2 hires, 12 mo)], [\$220k],
-        [Hardware (10 pilot units)], [\$100k],
-        [Facilities], [\$40k],
-        [R&D / prototyping], [\$50k],
-        [Sales / marketing], [\$40k],
-        [Legal / admin], [\$25k],
-        [Buffer], [\$75k],
-        [*Total*], [*\$550k*],
+        [Team (3-4 hires, 18 mo)], [\$900k],
+        [Hardware (25 pilot units)], [\$250k],
+        [Facilities + equipment], [\$150k],
+        [R&D / iteration], [\$200k],
+        [Sales / marketing], [\$150k],
+        [Legal / ops], [\$100k],
+        [Buffer], [\$250k],
+        [*Total*], [*\$2M*],
       )
     ],
     [
-      #text(size: 18pt, weight: "bold")[Milestones to Seed]
+      #text(size: 18pt, weight: "bold")[Why We're Seed-Ready]
 
       #box(fill: muni-light-gray, inset: 16pt, radius: 8pt, width: 100%)[
         #stack(
           dir: ttb,
           spacing: 12pt,
-          [✓ 3 paying pilots (\$100k+ revenue)],
-          [✓ 10 rovers deployed in field],
-          [✓ Supervised autonomy working (1:10)],
-          [✓ 2-3 LOIs from larger cities],
+          [✓ Bootstrapped — no pre-seed dilution],
+          [✓ Working prototype (bvr0)],
+          [✓ Cleveland pilot discussions active],
+          [✓ Supervised autonomy demo (Artifact)],
         )
       ]
 
       #text(size: 14pt)[
-        *Seed target:* \$3M at \$12M post \
-        *Timeline:* Q4 2026
+        *Milestones to Series A:* \
+        50+ rovers deployed, \$1M+ ARR \
+        *Timeline:* 2027
       ]
     ]
   )

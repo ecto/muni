@@ -5,7 +5,7 @@ import { Card, Pre } from "@/components/ui";
 export const metadata: Metadata = {
   title: "Investors",
   description:
-    "$500-600k pre-seed for autonomous sidewalk maintenance. $14B market, 10x cost reduction.",
+    "$2-3M seed for autonomous sidewalk maintenance. Bootstrapped to seed, Cleveland pilot active. $14B market.",
 };
 
 export default function InvestorsPage() {
@@ -142,13 +142,18 @@ export default function InvestorsPage() {
 2026-01  `}
               <span className="status-dev">◐</span>
 {` F.Inc Artifact program (SF)
-         │   bvr1 R&D, supervised autonomy, 1 production unit
+         │   Supervised autonomy demo
          │
-2026-Q3  ○ bvr1 shipping to pilot partners
-         │   10 units, Midwest municipalities
+2026-Q1  `}
+              <span className="status-dev">◐</span>
+{` Cleveland pilot discussions
+         │   Public works meetings scheduled
          │
-2027     ○ Fleet autonomy at scale
-             Multi-unit deployments validated`}
+2026-Q2  ○ Seed round + scale production
+         │   25 units, 3-5 municipal partners
+         │
+2027     ○ National expansion
+             50+ rovers, $1M+ ARR`}
             </Pre>
           </Card>
 
@@ -200,15 +205,15 @@ export default function InvestorsPage() {
 
           <Card title="THE ASK" highlight>
             <div className="ask-box">
-              <div className="ask-amount">$500-600K Pre-Seed</div>
-              <div className="ask-terms">$3M post-money SAFE</div>
+              <div className="ask-amount">$2-3M Seed</div>
+              <div className="ask-terms">$12-15M post-money valuation</div>
               <div className="ask-use">
-                <strong>Use of funds:</strong>
+                <strong>Bootstrapped to seed — zero pre-seed dilution.</strong>
                 <ul>
-                  <li>Build 10 bvr1 production units</li>
-                  <li>Deploy to 3-5 Midwest pilot partners</li>
-                  <li>Validate autonomous fleet operations</li>
-                  <li>Generate revenue and LOIs for Series A</li>
+                  <li>Scale to 25 bvr1 production units</li>
+                  <li>Expand Cleveland pilot, add 3-5 partners</li>
+                  <li>Hire robotics engineer + BD lead</li>
+                  <li>$1M+ ARR runway to Series A</li>
                 </ul>
               </div>
             </div>

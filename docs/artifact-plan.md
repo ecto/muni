@@ -3,7 +3,7 @@
 **Program:** F.Inc Artifact (5 weeks)
 **Location:** Fort Mason, San Francisco
 **Dates:** January 2026
-**Goal:** Demonstrate supervised autonomy, close pre-seed
+**Goal:** Demonstrate supervised autonomy, prepare for seed round
 
 ---
 
@@ -99,17 +99,17 @@ Demonstrate supervised autonomy working on a single rover (SLAM + waypoint follo
 ### Why This Goal
 
 - Business model depends on supervised autonomy (10x cost difference)
-- Investors need to see capability, not just hear promises
+- Autonomy demo + Cleveland pilot = seed-ready without pre-seed dilution
 - Indoor demo proves the autonomy stack (snow is just an attachment)
-- Maps directly to Q3 2026 milestone in business plan
+- Bootstrapping to seed preserves ~15-20% more founder equity at exit
 
 ### Success Criteria
 
 - [ ] Rover autonomously patrols a course for 10+ consecutive runs
 - [ ] Obstacle avoidance works with unpredictable humans
 - [ ] Operator handoff is smooth and reliable
-- [ ] At least 3 investor meetings scheduled from demo day
-- [ ] LOI or strong interest from 1+ investor
+- [ ] Cleveland pilot discussions converted to signed agreement or strong LOI
+- [ ] Seed-ready: demo video + pilot traction for Q2 2026 raise
 
 ---
 

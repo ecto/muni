@@ -1,5 +1,5 @@
 // Municipal Robotics One-Pager
-// Pre-Seed Investment Summary
+// Seed Investment Summary
 
 #import "lib/template.typ": muni-orange, muni-gray, muni-light-gray, muni-font, muni-font-mono, muni-font-fallback, muni-font-mono-fallback, muni-font-size, muni-leading, muni-tracking, muni-justify
 
@@ -23,7 +23,7 @@
   #stack(dir: ttb, spacing: 1em)[
     #text(size: 24pt, weight: "bold")[Municipal Robotics]
   ][
-    #text(size: 11pt, fill: gray)[Pre-Seed Investment Summary]
+    #text(size: 11pt, fill: gray)[Seed Investment Summary]
   ]
 ]
 
@@ -91,9 +91,10 @@
     #text(size: 11pt, weight: "bold", fill: muni-orange)[Traction]
 
     - bvr0 prototype: drivetrain, teleop, GPS, depot (Dec 2025)
-    - F.Inc Artifact residency: bvr1 R&D, autonomy (Jan 2026)
-    - bvr1 production units shipping Summer 2026
+    - F.Inc Artifact residency: supervised autonomy (Jan 2026)
+    - Cleveland pilot discussions active
     - 100% open source (builds trust, community)
+    - *Bootstrapped to seed — zero pre-seed dilution*
   ],
 
   // RIGHT COLUMN
@@ -136,29 +137,29 @@
       radius: 4pt,
     )[
       #align(center)[
-        #text(size: 16pt, weight: "bold")[\$500-600k Pre-Seed]
+        #text(size: 16pt, weight: "bold")[\$2-3M Seed]
         #v(0in)
-        #text(size: 10pt)[\$3M post-money valuation]
+        #text(size: 10pt)[\$12-15M post-money valuation]
       ]
     ]
 
     #v(0.1in)
 
     *Use of funds:*
-    - Team: \$220k (2 hires, 12 months)
-    - Hardware: \$100k (10 pilot units)
-    - Operations: \$155k (facilities, R&D, sales)
-    - Buffer: \$75k
+    - Team: \$900k (3-4 hires, 18 months)
+    - Hardware: \$250k (25 pilot units)
+    - Operations: \$600k (facilities, R&D, sales)
+    - Buffer: \$250k
 
     #v(0.12in)
 
     // Milestones
-    #text(size: 11pt, weight: "bold", fill: muni-orange)[Milestones to Seed (Q4 2026)]
+    #text(size: 11pt, weight: "bold", fill: muni-orange)[Milestones to Series A (2027)]
 
-    - 3 paying pilots (\$100k+ revenue)
-    - 10 rovers deployed in field
-    - Supervised autonomy (1 operator : 10 rovers)
-    - Seed: \$3M at \$12M post
+    - 50+ rovers deployed
+    - \$1M+ ARR from fleet subscriptions
+    - Supervised autonomy at scale (1:10)
+    - National expansion underway
 
     #v(0.12in)
 
