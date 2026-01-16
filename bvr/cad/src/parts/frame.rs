@@ -325,16 +325,12 @@ pub struct BVR1FrameConfig {
 
 impl Default for BVR1FrameConfig {
     fn default() -> Self {
-        // Optimized dimensions from first-principles analysis:
+        // Dimensions based on 500mm 2020 extrusions (no cutting required):
         //
-        // Width (380mm):
-        //   - Minimum for components: ~350mm
-        //   - With 2020 extrusion structure: 380mm
-        //   - Total robot width: ~485mm (with wheel protrusion)
-        //
-        // Length (500mm):
-        //   - Wheelbase: ~460mm (adequate for pitch stability)
-        //   - Room for front tool mount
+        // Width & Length (540mm each):
+        //   - 500mm extrusion + 20mm profile on each end = 540mm exterior
+        //   - Square frame simplifies manufacturing and assembly
+        //   - Total robot width: ~640mm (with hub motor protrusion)
         //
         // Height (180mm):
         //   - Fits battery (70mm) + electronics (50mm) + margins
@@ -342,8 +338,8 @@ impl Default for BVR1FrameConfig {
         //
         // See: bvr/docs/hardware/bvr1-dimensions.md
         Self {
-            width: 380.0,
-            length: 500.0,
+            width: 540.0,
+            length: 540.0,
             height: 180.0,
             wheel_z_offset: 0.0,
         }
@@ -617,10 +613,10 @@ mod tests {
     #[test]
     fn test_bvr1_frame_config() {
         let config = BVR1FrameConfig::default();
-        // Optimized dimensions for sidewalk accessibility
+        // Updated for 500mm extrusions (no cutting required)
         // See: bvr/docs/hardware/bvr1-dimensions.md
-        assert_eq!(config.width, 380.0, "Frame width optimized for component fit");
-        assert_eq!(config.length, 500.0, "Frame length for adequate wheelbase");
+        assert_eq!(config.width, 540.0, "Frame width: 500mm extrusion + 2×20mm brackets");
+        assert_eq!(config.length, 540.0, "Frame length: 500mm extrusion + 2×20mm brackets");
         assert_eq!(config.height, 180.0, "Low frame height for stability");
     }
 
@@ -640,17 +636,17 @@ mod tests {
     #[test]
     fn test_frame_dimensions_consistency() {
         // Verify frame parts fit together properly
-        // See: bvr/docs/hardware/bvr1-dimensions.md
+        // Updated for 500mm extrusions: 540×540mm frame
         let config = BVR1FrameConfig::default();
         let profile = 20.0;
 
         // Side rails (Y-direction) shortened to avoid corner overlap
         let side_rail_length = config.length - profile * 2.0;
-        assert_eq!(side_rail_length, 460.0, "Side rails: 500 - 40 = 460mm");
+        assert_eq!(side_rail_length, 500.0, "Side rails: 540 - 40 = 500mm");
 
         // Front/back rails (X-direction) fit between side rails
         let front_rail_length = config.width - profile * 2.0;
-        assert_eq!(front_rail_length, 340.0, "Front rails: 380 - 40 = 340mm");
+        assert_eq!(front_rail_length, 500.0, "Front rails: 540 - 40 = 500mm");
 
         // Vertical posts fit between top and bottom frames
         let post_height = config.height - profile * 2.0;
@@ -659,24 +655,25 @@ mod tests {
         // Wheelbase (distance between front/rear axles)
         // Approximately frame length minus corner structure
         let wheelbase = config.length - profile * 2.0;
-        assert_eq!(wheelbase, 460.0, "Wheelbase: ~460mm");
+        assert_eq!(wheelbase, 500.0, "Wheelbase: ~500mm");
 
         // Track width (distance between left/right wheel centers)
         // Wheels are OUTSIDE frame: frame_edge + bracket_depth + axle_offset
-        // = 190 + 20 + 64 = 274mm per side
-        // Track width = 2 * 274 = 548mm
-        let frame_edge = config.width / 2.0;  // 190mm
+        // = 270 + 20 + 64 = 354mm per side
+        // Track width = 2 * 354 = 708mm
+        let frame_edge = config.width / 2.0;  // 270mm
         let bracket_depth = 20.0;  // mount.total_depth()
         let axle_offset = 64.0;    // motor.axle_offset()
         let wheel_center_x = frame_edge + bracket_depth + axle_offset;
         let track_width = wheel_center_x * 2.0;
-        assert!((track_width - 548.0).abs() < 10.0, "Track width: ~548mm, got {}", track_width);
+        assert!((track_width - 708.0).abs() < 10.0, "Track width: ~708mm, got {}", track_width);
 
         // Total robot width (wheel outer edges)
         // Wheel radius = 84mm, but hub only adds ~26mm beyond center
         let hub_half_width = 26.0;  // motor.hub_width / 2
-        let total_width = track_width + hub_half_width * 2.0;  // ~600mm
-        assert!(total_width < 650.0, "Total width ({}) should be under 650mm", total_width);
+        let total_width = track_width + hub_half_width * 2.0;  // ~760mm
+        // Still fits well within ADA minimum (914mm)
+        assert!(total_width < 914.0, "Total width ({}) should be under 914mm for ADA", total_width);
     }
 
     #[test]

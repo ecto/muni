@@ -203,6 +203,226 @@ fn build_gltf_json(
     )
 }
 
+// =============================================================================
+// Multi-material Scene export
+// =============================================================================
+
+use crate::Scene;
+use super::Materials;
+
+/// Export a scene with multiple parts and materials to GLB
+pub fn export_scene_glb(
+    scene: &Scene,
+    materials_db: &Materials,
+    path: impl AsRef<Path>,
+) -> Result<(), CadError> {
+    let glb_data = scene_to_glb_bytes(scene, materials_db)?;
+    std::fs::write(path, glb_data)?;
+    Ok(())
+}
+
+/// Convert a scene to GLB bytes with multiple meshes and materials
+pub fn scene_to_glb_bytes(scene: &Scene, materials_db: &Materials) -> Result<Vec<u8>, CadError> {
+    if scene.is_empty() {
+        return Err(CadError::EmptyGeometry);
+    }
+
+    // Collect all unique materials used in the scene
+    let mut material_indices: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+    let mut materials_list: Vec<Material> = Vec::new();
+
+    for node in &scene.nodes {
+        if !material_indices.contains_key(&node.material_key) {
+            let mat = materials_db.get_for_part_or_default(&node.material_key);
+            material_indices.insert(node.material_key.clone(), materials_list.len());
+            materials_list.push(mat);
+        }
+    }
+
+    // Build binary buffer for all meshes
+    let mut bin_buffer: Vec<u8> = Vec::new();
+    let mut buffer_views: Vec<String> = Vec::new();
+    let mut accessors: Vec<String> = Vec::new();
+    let mut meshes: Vec<String> = Vec::new();
+    let mut nodes: Vec<String> = Vec::new();
+
+    let mut accessor_idx = 0;
+    let mut buffer_view_idx = 0;
+
+    for (mesh_idx, node) in scene.nodes.iter().enumerate() {
+        let mesh = node.part.to_mesh();
+        let vertices = mesh.vertices();
+        let indices = mesh.indices();
+
+        if vertices.is_empty() || indices.is_empty() {
+            continue;
+        }
+
+        let vertex_count = vertices.len() / 3;
+        let index_count = indices.len();
+
+        // Calculate bounds
+        let mut min = [f32::MAX; 3];
+        let mut max = [f32::MIN; 3];
+        for i in 0..vertex_count {
+            let x = vertices[i * 3];
+            let y = vertices[i * 3 + 1];
+            let z = vertices[i * 3 + 2];
+            min[0] = min[0].min(x);
+            min[1] = min[1].min(y);
+            min[2] = min[2].min(z);
+            max[0] = max[0].max(x);
+            max[1] = max[1].max(y);
+            max[2] = max[2].max(z);
+        }
+
+        // Record byte offsets
+        let indices_byte_offset = bin_buffer.len();
+        let indices_byte_length = index_count * 4;
+
+        // Write indices
+        for &idx in &indices {
+            bin_buffer.extend_from_slice(&idx.to_le_bytes());
+        }
+
+        // Pad to 4-byte alignment
+        while bin_buffer.len() % 4 != 0 {
+            bin_buffer.push(0);
+        }
+
+        let vertices_byte_offset = bin_buffer.len();
+        let vertices_byte_length = vertex_count * 12;
+
+        // Write vertices
+        for &v in &vertices {
+            bin_buffer.extend_from_slice(&v.to_le_bytes());
+        }
+
+        // Pad to 4-byte alignment
+        while bin_buffer.len() % 4 != 0 {
+            bin_buffer.push(0);
+        }
+
+        // Buffer views for this mesh
+        buffer_views.push(format!(
+            r#"{{ "buffer": 0, "byteOffset": {}, "byteLength": {}, "target": 34963 }}"#,
+            indices_byte_offset, indices_byte_length
+        ));
+        let indices_bv = buffer_view_idx;
+        buffer_view_idx += 1;
+
+        buffer_views.push(format!(
+            r#"{{ "buffer": 0, "byteOffset": {}, "byteLength": {}, "target": 34962 }}"#,
+            vertices_byte_offset, vertices_byte_length
+        ));
+        let vertices_bv = buffer_view_idx;
+        buffer_view_idx += 1;
+
+        // Accessors for this mesh
+        accessors.push(format!(
+            r#"{{ "bufferView": {}, "componentType": 5125, "count": {}, "type": "SCALAR" }}"#,
+            indices_bv, index_count
+        ));
+        let indices_acc = accessor_idx;
+        accessor_idx += 1;
+
+        accessors.push(format!(
+            r#"{{ "bufferView": {}, "componentType": 5126, "count": {}, "type": "VEC3", "min": [{}, {}, {}], "max": [{}, {}, {}] }}"#,
+            vertices_bv, vertex_count,
+            min[0], min[1], min[2],
+            max[0], max[1], max[2]
+        ));
+        let vertices_acc = accessor_idx;
+        accessor_idx += 1;
+
+        // Get material index for this node
+        let mat_idx = material_indices.get(&node.material_key).copied().unwrap_or(0);
+
+        // Mesh
+        meshes.push(format!(
+            r#"{{ "name": "{}", "primitives": [{{ "attributes": {{ "POSITION": {} }}, "indices": {}, "material": {} }}] }}"#,
+            node.part.name, vertices_acc, indices_acc, mat_idx
+        ));
+
+        // Node
+        nodes.push(format!(
+            r#"{{ "mesh": {}, "name": "{}" }}"#,
+            mesh_idx, node.part.name
+        ));
+    }
+
+    if meshes.is_empty() {
+        return Err(CadError::EmptyGeometry);
+    }
+
+    // Build materials JSON
+    let materials_json: Vec<String> = materials_list.iter().map(|m| {
+        format!(
+            r#"{{ "name": "{}", "pbrMetallicRoughness": {{ "baseColorFactor": [{}, {}, {}, 1.0], "metallicFactor": {}, "roughnessFactor": {} }} }}"#,
+            m.name, m.color[0], m.color[1], m.color[2], m.metallic, m.roughness
+        )
+    }).collect();
+
+    // Build node indices for scene
+    let node_indices: Vec<String> = (0..nodes.len()).map(|i| i.to_string()).collect();
+
+    // Build JSON
+    let json = format!(
+        r#"{{
+  "asset": {{ "version": "2.0", "generator": "bvr-cad" }},
+  "scene": 0,
+  "scenes": [{{ "name": "{}", "nodes": [{}] }}],
+  "nodes": [{}],
+  "meshes": [{}],
+  "materials": [{}],
+  "accessors": [{}],
+  "bufferViews": [{}],
+  "buffers": [{{ "byteLength": {} }}]
+}}"#,
+        scene.name,
+        node_indices.join(", "),
+        nodes.join(",\n    "),
+        meshes.join(",\n    "),
+        materials_json.join(",\n    "),
+        accessors.join(",\n    "),
+        buffer_views.join(",\n    "),
+        bin_buffer.len()
+    );
+
+    let json_bytes = json.as_bytes();
+    let json_padded_length = (json_bytes.len() + 3) & !3;
+    let mut json_chunk = json_bytes.to_vec();
+    while json_chunk.len() < json_padded_length {
+        json_chunk.push(b' ');
+    }
+
+    let bin_padded_length = (bin_buffer.len() + 3) & !3;
+    while bin_buffer.len() < bin_padded_length {
+        bin_buffer.push(0);
+    }
+
+    // Build GLB
+    let total_length = 12 + 8 + json_padded_length + 8 + bin_padded_length;
+    let mut glb = Vec::with_capacity(total_length);
+
+    // GLB header
+    glb.extend_from_slice(b"glTF");
+    glb.extend_from_slice(&2u32.to_le_bytes());
+    glb.extend_from_slice(&(total_length as u32).to_le_bytes());
+
+    // JSON chunk
+    glb.extend_from_slice(&(json_padded_length as u32).to_le_bytes());
+    glb.extend_from_slice(&0x4E4F534Au32.to_le_bytes());
+    glb.extend_from_slice(&json_chunk);
+
+    // BIN chunk
+    glb.extend_from_slice(&(bin_padded_length as u32).to_le_bytes());
+    glb.extend_from_slice(&0x004E4942u32.to_le_bytes());
+    glb.extend_from_slice(&bin_buffer);
+
+    Ok(glb)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -219,5 +439,31 @@ mod tests {
         // Check version
         let version = u32::from_le_bytes([glb_data[4], glb_data[5], glb_data[6], glb_data[7]]);
         assert_eq!(version, 2);
+    }
+
+    #[test]
+    fn test_scene_glb_export() {
+        let mut scene = Scene::new("test_scene");
+        scene.add(Part::cube("cube1", 10.0, 10.0, 10.0), "aluminum_6061");
+        scene.add(
+            Part::cube("cube2", 5.0, 5.0, 5.0).translate(20.0, 0.0, 0.0),
+            "aluminum_powder_orange"
+        );
+
+        let materials = Materials::parse(r#"
+            [materials.aluminum_6061]
+            color = [0.85, 0.85, 0.88]
+            metallic = 0.95
+            roughness = 0.35
+            [materials.aluminum_powder_orange]
+            color = [1.0, 0.4, 0.0]
+            metallic = 0.3
+            roughness = 0.6
+        "#).unwrap();
+
+        let glb_data = scene_to_glb_bytes(&scene, &materials).unwrap();
+
+        // Check GLB magic
+        assert_eq!(&glb_data[0..4], b"glTF");
     }
 }

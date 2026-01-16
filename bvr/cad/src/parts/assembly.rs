@@ -2,7 +2,7 @@
 //!
 //! Complete rover models for BVR0 (prototype) and BVR1 (production).
 
-use crate::Part;
+use crate::{Part, Scene};
 use super::{
     BVR1Frame,
     HubMotor,
@@ -20,6 +20,8 @@ use super::{
     Camera,
     GpsAntenna,
     ShellAssembly,
+    WallWrap, WallWrapConfig,
+    TopLid, TopLidConfig,
     frame::BVR1FrameConfig,
 };
 
@@ -356,6 +358,109 @@ impl BVR1Assembly {
             .translate(0.0, 0.0, gc + cfg.frame.height);
 
         frame.union(&wheels).union(&tray).union(&panel)
+    }
+
+    /// Generate BVR1 assembly as a Scene with multiple parts and materials
+    ///
+    /// Unlike generate() which unions everything into one mesh, this preserves
+    /// individual parts for multi-material rendering.
+    pub fn generate_scene(&self) -> Scene {
+        let cfg = &self.config;
+        let gc = self.ground_clearance();
+        let shell_cfg = super::shell::ShellConfig::default();
+
+        let mut scene = Scene::new("bvr1_assembly");
+
+        // Frame (silver aluminum 6061)
+        let frame = BVR1Frame::new(cfg.frame.clone())
+            .generate()
+            .translate(0.0, 0.0, gc);
+        scene.add(frame, "aluminum_6061");
+
+        // Motor mounts (black anodized aluminum)
+        let motor_mounts = self.add_motor_mounts();
+        scene.add(motor_mounts, "aluminum_anodized_black");
+
+        // Wheels with tires
+        let wheels = self.add_wheels();
+        scene.add(wheels, "rubber_tire");
+
+        // Base tray assembly (black HDPE + components)
+        let base_tray = BaseTray::default_bvr1()
+            .generate()
+            .translate(0.0, 0.0, gc + 20.0);
+        scene.add(base_tray, "hdpe_black");
+
+        // Electronics on base tray
+        let vesc_z = gc + 20.0 + 2.0 + 20.0;
+        for (x, y) in [(-80.0, 150.0), (80.0, 150.0), (-80.0, -150.0), (80.0, -150.0)] {
+            let vesc = Vesc::vesc_6().generate().translate(x, y, vesc_z);
+            scene.add(vesc, "heatsink_aluminum");
+        }
+
+        let jetson = Jetson::recomputer()
+            .generate()
+            .translate(0.0, 0.0, vesc_z);
+        scene.add(jetson, "heatsink_aluminum");
+
+        // Battery (black shrink wrap)
+        let battery = CustomBattery::bvr1_pack()
+            .generate()
+            .translate(0.0, -50.0, gc + 20.0 + 2.0);
+        scene.add(battery, "battery_shrink");
+
+        // Access panel (black HDPE)
+        let panel = AccessPanel::default_bvr1()
+            .generate()
+            .translate(0.0, 0.0, gc + cfg.frame.height);
+        scene.add(panel, "hdpe_black");
+
+        // Shell panels (ORANGE powder-coated aluminum!)
+        // Shell walls should match frame height and sit on the frame bottom rail
+        // WallWrap generates walls from z=0 to z=shell_height, then we translate up
+
+        // Use frame_height directly for shell walls (no extra clearance needed)
+        let mut adjusted_shell_cfg = shell_cfg.clone();
+        adjusted_shell_cfg.frame_height = cfg.frame.height;  // 180mm
+        adjusted_shell_cfg.clearance = 0.0;  // No extra height beyond frame
+        // shell_height() = 180 + 0 = 180mm (matches vertical posts)
+
+        // Position shell bottom at frame bottom (gc = 50mm)
+        let wall_wrap = WallWrap::new(WallWrapConfig {
+            shell: adjusted_shell_cfg.clone(),
+            include_bottom: false,  // No bottom panel - shell sits on frame
+            ..Default::default()
+        }).generate().translate(0.0, 0.0, gc);
+        scene.add(wall_wrap, "aluminum_powder_orange");
+
+        // Top lid sits on top of the walls (at frame top)
+        let lid_z = gc + cfg.frame.height;  // 230mm
+        let top_lid = TopLid::new(TopLidConfig {
+            shell: adjusted_shell_cfg.clone(),
+            ..Default::default()
+        }).generate().translate(0.0, 0.0, lid_z);
+        scene.add(top_lid, "aluminum_powder_orange");
+
+        // Sensors mount on top of the lid
+        let mast_base_z = lid_z + 2.0; // lid thickness
+        let mast_height = 150.0;
+
+        let lidar = Lidar::mid360()
+            .generate()
+            .translate(0.0, -shell_cfg.shell_length() / 4.0, mast_base_z + mast_height);
+        scene.add(lidar, "sensor_housing");
+
+        let camera = Camera::insta360_x4()
+            .generate()
+            .translate(0.0, -shell_cfg.shell_length() / 4.0, mast_base_z + mast_height - 80.0);
+        scene.add(camera, "sensor_housing");
+
+        let gps = GpsAntenna::default_rtk()
+            .generate()
+            .translate(80.0, -shell_cfg.shell_length() / 4.0, mast_base_z + mast_height + 30.0);
+        scene.add(gps, "abs_black");
+
+        scene
     }
 
     /// Add L-bracket mounts at each corner
@@ -740,25 +845,26 @@ mod tests {
 
         // With wheels outside frame, total width is:
         // frame_edge + bracket_depth + axle_offset + wheel_hub_half_width (on each side)
-        let frame_edge = frame_config.width / 2.0;  // 190mm
-        let bracket_axle_x = frame_edge + mount.total_depth();  // 190 + 20 = 210mm
-        let wheel_center_x = bracket_axle_x + motor.axle_offset();  // 210 + 64 = 274mm
+        // Updated for 540mm frame (500mm extrusions)
+        let frame_edge = frame_config.width / 2.0;  // 270mm
+        let bracket_axle_x = frame_edge + mount.total_depth();  // 270 + 20 = 290mm
+        let wheel_center_x = bracket_axle_x + motor.axle_offset();  // 290 + 64 = 354mm
 
         // Total width = 2 * wheel_center_x (symmetric)
         // Plus some hub width on each side (hub is centered on wheel_center)
-        let total_width = wheel_center_x * 2.0;  // ~548mm
+        let total_width = wheel_center_x * 2.0;  // ~708mm
 
-        // Should still fit well on sidewalks
         // ADA minimum clear width is 36" (914mm)
-        assert!(total_width < 600.0,
-            "Total width ({:.0}mm) should be under 600mm for ADA compliance",
+        // Robot should fit within ADA minimum with clearance
+        assert!(total_width < 914.0,
+            "Total width ({:.0}mm) should be under 914mm for ADA compliance",
             total_width);
 
         // Verify we fit on a standard 48" (1220mm) sidewalk with clearance
         let sidewalk_48in = 1220.0;
         let clearance_each_side = (sidewalk_48in - total_width) / 2.0;
-        assert!(clearance_each_side >= 300.0,
-            "Should have 300mm+ clearance on each side of 48\" sidewalk, got {:.0}mm",
+        assert!(clearance_each_side >= 200.0,
+            "Should have 200mm+ clearance on each side of 48\" sidewalk, got {:.0}mm",
             clearance_each_side);
     }
 

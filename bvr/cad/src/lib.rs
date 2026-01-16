@@ -268,6 +268,63 @@ pub fn bolt_pattern(
     result
 }
 
+// =============================================================================
+// Scene (multi-part assembly with materials)
+// =============================================================================
+
+/// A scene node containing a part with its material assignment
+pub struct SceneNode {
+    pub part: Part,
+    pub material_key: String,
+}
+
+impl SceneNode {
+    pub fn new(part: Part, material_key: impl Into<String>) -> Self {
+        Self {
+            part,
+            material_key: material_key.into(),
+        }
+    }
+}
+
+/// A scene containing multiple parts with different materials
+///
+/// Unlike Part.union() which merges geometry into a single mesh,
+/// Scene preserves individual parts for multi-material rendering.
+pub struct Scene {
+    pub name: String,
+    pub nodes: Vec<SceneNode>,
+}
+
+impl Scene {
+    pub fn new(name: impl Into<String>) -> Self {
+        Self {
+            name: name.into(),
+            nodes: Vec::new(),
+        }
+    }
+
+    /// Add a part with its material key
+    pub fn add(&mut self, part: Part, material_key: impl Into<String>) {
+        self.nodes.push(SceneNode::new(part, material_key));
+    }
+
+    /// Add a part with default material
+    pub fn add_default(&mut self, part: Part) {
+        self.nodes.push(SceneNode::new(part, "default"));
+    }
+
+    /// Get total number of nodes
+    pub fn len(&self) -> usize {
+        self.nodes.len()
+    }
+
+    /// Check if scene is empty
+    pub fn is_empty(&self) -> bool {
+        self.nodes.is_empty()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

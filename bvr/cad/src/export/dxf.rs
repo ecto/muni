@@ -40,6 +40,10 @@ pub enum Shape2D {
     Line { start: Point2D, end: Point2D, layer: String },
     /// Slot (stadium shape - rectangle with semicircular ends)
     Slot { width: f64, height: f64, center: Point2D },
+    /// Arbitrary closed polyline (for complex profiles like knuckle tabs)
+    Polyline { points: Vec<Point2D>, closed: bool },
+    /// Arc (for rounded corners in complex profiles)
+    Arc { center: Point2D, radius: f64, start_angle: f64, end_angle: f64 },
 }
 
 /// DXF document builder
@@ -118,6 +122,82 @@ impl DxfDocument {
         });
     }
 
+    /// Add an arbitrary closed polyline (for complex profiles)
+    pub fn add_polyline(&mut self, points: Vec<(f64, f64)>, closed: bool) {
+        self.shapes.push(Shape2D::Polyline {
+            points: points.into_iter().map(|(x, y)| Point2D::new(x, y)).collect(),
+            closed,
+        });
+    }
+
+    /// Add an arc (for rounded corners)
+    pub fn add_arc(&mut self, cx: f64, cy: f64, radius: f64, start_angle: f64, end_angle: f64) {
+        self.shapes.push(Shape2D::Arc {
+            center: Point2D::new(cx, cy),
+            radius,
+            start_angle,
+            end_angle,
+        });
+    }
+
+    /// Generate knuckle hinge tab profile points along an edge
+    /// Returns points for a profile with tabs extending in the +Y direction
+    /// `edge_y` - Y coordinate of the edge
+    /// `edge_x_start` - X coordinate of edge start
+    /// `edge_x_end` - X coordinate of edge end
+    /// `tab_width` - Width of each tab
+    /// `tab_height` - Height of each tab (how far they extend)
+    /// `num_tabs` - Number of tabs
+    /// `offset` - If true, offset tabs (for mating piece)
+    pub fn knuckle_tab_edge_points(
+        edge_y: f64,
+        edge_x_start: f64,
+        edge_x_end: f64,
+        tab_width: f64,
+        tab_height: f64,
+        num_tabs: usize,
+        offset: bool,
+    ) -> Vec<(f64, f64)> {
+        let mut points = Vec::new();
+        let edge_length = edge_x_end - edge_x_start;
+        let total_tabs = num_tabs * 2 - 1; // tabs + gaps
+        let segment_width = edge_length / total_tabs as f64;
+
+        // Start from left edge
+        let mut x = edge_x_start;
+        let start_with_tab = !offset;
+
+        for i in 0..total_tabs {
+            let is_tab = if start_with_tab { i % 2 == 0 } else { i % 2 == 1 };
+
+            if is_tab {
+                // Tab: go up, across, down
+                points.push((x, edge_y));
+                points.push((x, edge_y + tab_height));
+                points.push((x + segment_width, edge_y + tab_height));
+                points.push((x + segment_width, edge_y));
+            } else {
+                // Gap: just the edge (will connect to next segment)
+                points.push((x, edge_y));
+                points.push((x + segment_width, edge_y));
+            }
+            x += segment_width;
+        }
+
+        // Remove duplicate points where segments meet
+        let mut deduped: Vec<(f64, f64)> = Vec::new();
+        for p in points {
+            if deduped.is_empty() || {
+                let last = deduped.last().unwrap();
+                (last.0 - p.0).abs() > 0.001 || (last.1 - p.1).abs() > 0.001
+            } {
+                deduped.push(p);
+            }
+        }
+
+        deduped
+    }
+
     /// Export to DXF file
     pub fn export(&self, path: impl AsRef<Path>) -> std::io::Result<()> {
         let file = File::create(path)?;
@@ -180,6 +260,12 @@ impl DxfDocument {
                 }
                 Shape2D::Slot { width, height, center } => {
                     self.write_slot(&mut writer, *width, *height, center)?;
+                }
+                Shape2D::Polyline { points, closed } => {
+                    self.write_polyline(&mut writer, points, *closed)?;
+                }
+                Shape2D::Arc { center, radius, start_angle, end_angle } => {
+                    self.write_arc(&mut writer, center, *radius, *start_angle, *end_angle)?;
                 }
             }
         }
@@ -473,6 +559,61 @@ impl DxfDocument {
             writeln!(writer, "20")?;
             writeln!(writer, "{:.6}", y2)?;
         }
+
+        Ok(())
+    }
+
+    fn write_polyline(
+        &self,
+        writer: &mut impl Write,
+        points: &[Point2D],
+        closed: bool,
+    ) -> std::io::Result<()> {
+        if points.is_empty() {
+            return Ok(());
+        }
+
+        writeln!(writer, "0")?;
+        writeln!(writer, "LWPOLYLINE")?;
+        writeln!(writer, "8")?;
+        writeln!(writer, "0")?; // Layer 0
+        writeln!(writer, "90")?;
+        writeln!(writer, "{}", points.len())?;
+        writeln!(writer, "70")?;
+        writeln!(writer, "{}", if closed { 1 } else { 0 })?;
+
+        for point in points {
+            writeln!(writer, "10")?;
+            writeln!(writer, "{:.6}", point.x)?;
+            writeln!(writer, "20")?;
+            writeln!(writer, "{:.6}", point.y)?;
+        }
+
+        Ok(())
+    }
+
+    fn write_arc(
+        &self,
+        writer: &mut impl Write,
+        center: &Point2D,
+        radius: f64,
+        start_angle: f64,
+        end_angle: f64,
+    ) -> std::io::Result<()> {
+        writeln!(writer, "0")?;
+        writeln!(writer, "ARC")?;
+        writeln!(writer, "8")?;
+        writeln!(writer, "0")?; // Layer 0
+        writeln!(writer, "10")?;
+        writeln!(writer, "{:.6}", center.x)?;
+        writeln!(writer, "20")?;
+        writeln!(writer, "{:.6}", center.y)?;
+        writeln!(writer, "40")?;
+        writeln!(writer, "{:.6}", radius)?;
+        writeln!(writer, "50")?;
+        writeln!(writer, "{:.6}", start_angle)?;
+        writeln!(writer, "51")?;
+        writeln!(writer, "{:.6}", end_angle)?;
 
         Ok(())
     }

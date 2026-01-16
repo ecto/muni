@@ -8,7 +8,7 @@
 use anyhow::Result;
 use bvr_cad::export::{export_stl, Materials};
 #[cfg(feature = "gltf")]
-use bvr_cad::export::export_glb;
+use bvr_cad::export::{export_glb, export_scene_glb};
 use bvr_cad::export::{export_usd, export_robot_usd, WheelConfig};
 use bvr_cad::parts::{
     // Custom fabricated
@@ -313,9 +313,20 @@ fn main() -> Result<()> {
     export_part("bvr0_assembly", &bvr0, "bvr0_assembly")?;
     println!("  BVR0 (prototype)");
 
-    let bvr1 = BVR1Assembly::default_bvr1().generate();
+    let bvr1_assembly = BVR1Assembly::default_bvr1();
+    let bvr1 = bvr1_assembly.generate();
     export_part("bvr1_assembly", &bvr1, "bvr1_assembly")?;
     println!("  BVR1 (production)");
+
+    // Also export multi-material scene for realistic rendering
+    #[cfg(feature = "gltf")]
+    {
+        let bvr1_scene = bvr1_assembly.generate_scene();
+        let scene_path = gltf_dir.join("bvr1_assembly_realistic.glb");
+        export_scene_glb(&bvr1_scene, &materials, &scene_path)?;
+        gltf_count += 1;
+        println!("  BVR1 (realistic multi-material)");
+    }
 
     // =========================================================================
     // ROBOT USD FOR ISAAC SIM
@@ -393,6 +404,7 @@ fn sync_to_web(gltf_dir: &Path) -> Result<usize> {
         // Assemblies
         ("bvr0_assembly.glb", "bvr0_assembly.glb"),
         ("bvr1_assembly.glb", "bvr1_assembly.glb"),
+        ("bvr1_assembly_realistic.glb", "bvr1_assembly_realistic.glb"),
         // Frame
         ("bvr1_frame.glb", "bvr1_frame.glb"),
         // Drivetrain
