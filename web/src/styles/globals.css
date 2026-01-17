@@ -1382,8 +1382,8 @@ body > div:not(.frame-footer):not([class*="frame"]) > .formkit-form[data-uid="cb
 
 .hero-visual {
   width: 100%;
-  max-width: 500px;
-  height: 320px;
+  max-width: 600px;
+  height: 380px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1394,6 +1394,7 @@ body > div:not(.frame-footer):not([class*="frame"]) > .formkit-form[data-uid="cb
   height: 100%;
   opacity: 0;
   transition: opacity 0.4s ease;
+  position: relative;
 }
 
 .hero-viewer-ready {
@@ -1402,6 +1403,28 @@ body > div:not(.frame-footer):not([class*="frame"]) > .formkit-form[data-uid="cb
 
 .hero-viewer-loading {
   opacity: 0;
+}
+
+/* ASCII Renderer styling */
+.hero-viewer table {
+  font-family: var(--font-mono) !important;
+  font-size: 8px !important;
+  line-height: 0.65 !important;
+  letter-spacing: -0.5px !important;
+  border-collapse: collapse;
+  margin: 0 auto;
+}
+
+.hero-viewer td {
+  padding: 0 !important;
+  white-space: pre;
+}
+
+@media (max-width: 768px) {
+  .hero-viewer table {
+    font-size: 6px !important;
+    line-height: 0.6 !important;
+  }
 }
 
 .hero-fallback-image {
@@ -1995,7 +2018,7 @@ body > div:not(.frame-footer):not([class*="frame"]) > .formkit-form[data-uid="cb
   }
 
   .hero-visual {
-    height: 240px;
+    height: 280px;
   }
 
   .btn-large {

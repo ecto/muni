@@ -2,9 +2,8 @@
 
 import { Suspense, useRef, useEffect, useState } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { useGLTF } from "@react-three/drei";
+import { useGLTF, AsciiRenderer } from "@react-three/drei";
 import * as THREE from "three";
-import { useTheme } from "../viewer/hooks/useTheme";
 import { useIsMobile, useReducedMotion } from "./hooks/useIsMobile";
 
 interface AutoRotatingModelProps {
@@ -59,22 +58,15 @@ interface SceneProps {
 }
 
 function Scene({ enableRotation, onLoaded }: SceneProps) {
-  const theme = useTheme();
-  const { scene } = useThree();
-
-  useEffect(() => {
-    scene.background = new THREE.Color(theme.background);
-  }, [scene, theme.background]);
-
   return (
     <>
-      {/* Lighting */}
-      <ambientLight intensity={0.5} />
-      <directionalLight position={[200, 300, 200]} intensity={1.0} />
-      <directionalLight position={[-200, 100, -100]} intensity={0.5} />
+      {/* Lighting - higher contrast for ASCII */}
+      <ambientLight intensity={0.3} />
+      <directionalLight position={[300, 400, 200]} intensity={1.2} />
+      <directionalLight position={[-200, 100, -100]} intensity={0.4} />
       <directionalLight
         position={[0, -100, -200]}
-        intensity={0.3}
+        intensity={0.2}
         color="#ff6600"
       />
 
@@ -86,6 +78,15 @@ function Scene({ enableRotation, onLoaded }: SceneProps) {
           onLoaded={onLoaded}
         />
       </Suspense>
+
+      {/* ASCII Effect */}
+      <AsciiRenderer
+        fgColor="#ff6600"
+        bgColor="transparent"
+        characters={" .'`^,:;Il!i><~+_-?][}{1)(|/tfjrxnuvczXYUJCLQ0OZmwqpdbkhao*#MW&8%B@$"}
+        invert
+        resolution={0.18}
+      />
     </>
   );
 }
