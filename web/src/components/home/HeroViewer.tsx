@@ -5,6 +5,7 @@ import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { useGLTF, AsciiRenderer } from "@react-three/drei";
 import * as THREE from "three";
 import { useIsMobile, useReducedMotion, useDarkMode } from "./hooks/useIsMobile";
+import { cn } from "@/lib/utils";
 
 interface AutoRotatingModelProps {
   path: string;
@@ -128,7 +129,7 @@ export function HeroViewer() {
   const enableRotation = !prefersReducedMotion;
 
   return (
-    <div className={`hero-viewer ${isLoaded ? "hero-viewer-ready" : "hero-viewer-loading"}`}>
+    <div className={cn("hero-viewer", isLoaded ? "hero-viewer-ready" : "hero-viewer-loading")}>
       <Canvas
         camera={{
           fov: 35,

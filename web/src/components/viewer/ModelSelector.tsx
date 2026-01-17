@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Cube, CaretDown } from "@phosphor-icons/react";
 import { models, type ModelInfo } from "./ModelCatalog";
+import { cn } from "@/lib/utils";
 
 interface ModelSelectorProps {
   currentModel: ModelInfo | null;
@@ -25,7 +26,7 @@ export function ModelSelector({ currentModel, onSelectModel }: ModelSelectorProp
   }, []);
 
   return (
-    <div className={`model-selector ${isOpen ? "open" : ""}`} ref={containerRef}>
+    <div className={cn("model-selector", isOpen && "open")} ref={containerRef}>
       <button
         className="model-selector-btn"
         onClick={() => setIsOpen(!isOpen)}
@@ -46,7 +47,7 @@ export function ModelSelector({ currentModel, onSelectModel }: ModelSelectorProp
             {section.items.map((item) => (
               <button
                 key={item.id}
-                className={`model-menu-item ${currentModel?.id === item.id ? "active" : ""}`}
+                className={cn("model-menu-item", currentModel?.id === item.id && "active")}
                 onClick={() => {
                   onSelectModel(item);
                   setIsOpen(false);

@@ -2,6 +2,7 @@
 
 import { X } from "@phosphor-icons/react";
 import { bvr1Components, type ComponentInfo } from "./ModelCatalog";
+import { cn } from "@/lib/utils";
 
 interface ComponentExplorerProps {
   visible: boolean;
@@ -24,7 +25,7 @@ export function ComponentExplorer({
   });
 
   return (
-    <div className={`component-explorer ${visible ? "" : "hidden"}`}>
+    <div className={cn("component-explorer", !visible && "hidden")}>
       <div className="explorer-header">
         <span className="explorer-title">Components</span>
         <span className="explorer-count">{bvr1Components.length} parts</span>
@@ -39,7 +40,7 @@ export function ComponentExplorer({
             {items.map((item) => (
               <button
                 key={item.id}
-                className={`explorer-item ${selectedComponent?.id === item.id ? "active" : ""}`}
+                className={cn("explorer-item", selectedComponent?.id === item.id && "active")}
                 onClick={() => onSelectComponent(item)}
                 role="option"
                 aria-selected={selectedComponent?.id === item.id}

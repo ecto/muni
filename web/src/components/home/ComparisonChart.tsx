@@ -1,3 +1,5 @@
+import { cn } from "@/lib/utils";
+
 interface ComparisonItem {
   label: string;
   value: number;
@@ -18,7 +20,7 @@ export function ComparisonChart({ items, maxValue }: ComparisonChartProps) {
       {items.map((item) => (
         <div
           key={item.label}
-          className={`comparison-row ${item.highlight ? "comparison-row-highlight" : ""}`}
+          className={cn("comparison-row", item.highlight && "comparison-row-highlight")}
         >
           <span className="comparison-label">{item.label}</span>
           <div className="comparison-bar-container">

@@ -41,11 +41,11 @@
   --bg-subtle: #0f0f12;
   --card-bg: #18181b;
   --border: #27272a;
-  
+
   /* Fonts */
   --font-display: "Helvetica Neue", "Helvetica", "Arial", system-ui, sans-serif;
   --font-mono: "Berkeley Mono", "Menlo", "Courier New", monospace;
-  
+
   /* Type scale (Tailwind) */
   --text-xs: 0.75rem;    /* 12px */
   --text-sm: 0.875rem;   /* 14px */
@@ -56,6 +56,14 @@
   --text-3xl: 1.875rem;  /* 30px */
   --text-4xl: 2.25rem;   /* 36px */
   --text-5xl: 3rem;      /* 48px */
+
+  /* Z-index scale */
+  --z-base: 0;
+  --z-dropdown: 50;
+  --z-sticky: 100;
+  --z-overlay: 200;
+  --z-modal: 300;
+  --z-header: 1000;
 }
 
 @media (prefers-color-scheme: light) {
@@ -399,6 +407,7 @@ img {
   font-weight: 700;
   color: var(--orange);
   line-height: 1;
+  font-variant-numeric: tabular-nums;
 }
 
 .stat-label {
@@ -697,6 +706,7 @@ img {
   font-size: 28px;
   font-weight: 700;
   color: var(--orange);
+  font-variant-numeric: tabular-nums;
 }
 
 .problem-label {
@@ -761,6 +771,7 @@ img {
   font-weight: 700;
   color: var(--orange);
   line-height: 1;
+  font-variant-numeric: tabular-nums;
 }
 
 .hero-label {
@@ -798,6 +809,7 @@ img {
   font-size: 18px;
   font-weight: 700;
   color: var(--fg);
+  font-variant-numeric: tabular-nums;
 }
 
 .econ-label {
@@ -1348,6 +1360,12 @@ body > div:not(.frame-footer):not([class*="frame"]) > .formkit-form[data-uid="cb
   60% { transform: translateX(-50%) translateY(-5px); }
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .frame-scroll-hint {
+    animation: none;
+  }
+}
+
 /* ─────────────────────────────────────────────────────────────────────────────
    FRAME 1: HERO
    ───────────────────────────────────────────────────────────────────────────── */
@@ -1630,6 +1648,7 @@ body > div:not(.frame-footer):not([class*="frame"]) > .formkit-form[data-uid="cb
   line-height: 1;
   margin-bottom: 8px;
   letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
 }
 
 .problem-stat-label {
@@ -1806,6 +1825,7 @@ body > div:not(.frame-footer):not([class*="frame"]) > .formkit-form[data-uid="cb
   color: var(--fg);
   line-height: 1;
   margin-bottom: 2px;
+  font-variant-numeric: tabular-nums;
 }
 
 .breakdown-label {
@@ -2364,6 +2384,7 @@ body > div:not(.frame-footer):not([class*="frame"]) > .formkit-form[data-uid="cb
   color: var(--orange);
   line-height: 1;
   letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
 }
 
 .stat-card-label {
@@ -2751,6 +2772,7 @@ body > div:not(.frame-footer):not([class*="frame"]) > .formkit-form[data-uid="cb
   font-weight: 700;
   color: var(--orange);
   letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
 }
 
 .economics-label {
@@ -2919,10 +2941,10 @@ body > div:not(.frame-footer):not([class*="frame"]) > .formkit-form[data-uid="cb
 
 .floating-header {
   position: fixed;
-  top: 16px;
+  top: max(16px, env(safe-area-inset-top));
   left: 50%;
   transform: translateX(-50%);
-  z-index: 1000;
+  z-index: var(--z-header);
   backdrop-filter: blur(12px) saturate(180%);
   -webkit-backdrop-filter: blur(12px) saturate(180%);
   background: rgba(0, 0, 0, 0.8);

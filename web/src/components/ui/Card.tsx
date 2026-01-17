@@ -1,4 +1,5 @@
 import { ReactNode } from "react";
+import { cn } from "@/lib/utils";
 
 interface CardProps {
   title?: ReactNode;
@@ -12,7 +13,7 @@ export function Card({ title, highlight, id, className, children }: CardProps) {
   return (
     <section
       id={id}
-      className={`card ${highlight ? "highlight" : ""} ${className || ""}`}
+      className={cn("card", highlight && "highlight", className)}
     >
       {title && <div className="card-title">{title}</div>}
       <div className="card-body">{children}</div>

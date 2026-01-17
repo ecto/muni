@@ -15,6 +15,7 @@ import {
   type ComponentInfo,
   type ViewerState,
 } from "@/components/viewer";
+import { cn } from "@/lib/utils";
 import "./viewer.css";
 
 // Dynamically import ModelViewer with SSR disabled to prevent pre-render issues
@@ -146,7 +147,7 @@ export default function ViewerPage() {
       <div className="bottom-bar">
         <div className="controls-group">
           <button
-            className={`control-btn ${state.wireframe ? "active" : ""}`}
+            className={cn("control-btn", state.wireframe && "active")}
             onClick={handleToggleWireframe}
             aria-pressed={state.wireframe}
           >
@@ -157,7 +158,7 @@ export default function ViewerPage() {
           <ScaleDropdown activeScales={activeScales} onToggleScale={handleToggleScale} />
           <div className="control-divider" />
           <button
-            className={`control-btn ${state.labelsVisible ? "active" : ""}`}
+            className={cn("control-btn", state.labelsVisible && "active")}
             onClick={handleToggleLabels}
             aria-pressed={state.labelsVisible}
           >

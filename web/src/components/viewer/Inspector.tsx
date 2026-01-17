@@ -2,6 +2,7 @@
 
 import type { ModelInfo, ComponentInfo } from "./ModelCatalog";
 import * as THREE from "three";
+import { cn } from "@/lib/utils";
 
 interface InspectorProps {
   visible: boolean;
@@ -26,7 +27,7 @@ export function Inspector({
   const subtitle = selectedComponent?.desc || modelInfo?.desc || "";
 
   return (
-    <div className={`inspector ${visible ? "" : "hidden"}`}>
+    <div className={cn("inspector", !visible && "hidden")}>
       <div className="inspector-header">
         <div className="inspector-title">{title}</div>
         <div className="inspector-subtitle">{subtitle}</div>

@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Ruler, Plant, PersonArmsSpread, StarFour } from "@phosphor-icons/react";
 import { scaleReferences } from "./ModelCatalog";
+import { cn } from "@/lib/utils";
 
 const iconMap: Record<string, React.ElementType> = {
   plant: Plant,
@@ -33,9 +34,9 @@ export function ScaleDropdown({ activeScales, onToggleScale }: ScaleDropdownProp
   const hasActive = activeScales.size > 0;
 
   return (
-    <div className={`scale-dropdown ${isOpen ? "open" : ""}`} ref={containerRef}>
+    <div className={cn("scale-dropdown", isOpen && "open")} ref={containerRef}>
       <button
-        className={`control-btn ${hasActive ? "active" : ""}`}
+        className={cn("control-btn", hasActive && "active")}
         onClick={() => setIsOpen(!isOpen)}
         aria-expanded={isOpen}
         aria-haspopup="menu"
@@ -61,7 +62,7 @@ export function ScaleDropdown({ activeScales, onToggleScale }: ScaleDropdownProp
                 role="menuitemcheckbox"
                 aria-checked={isChecked}
               >
-                <div className={`scale-checkbox ${isChecked ? "checked" : ""}`} aria-hidden="true" />
+                <div className={cn("scale-checkbox", isChecked && "checked")} aria-hidden="true" />
                 <Icon size={18} weight="regular" aria-hidden="true" />
                 <div className="scale-menu-item-info">
                   <div className="scale-menu-item-name">{ref.name}</div>
