@@ -41,7 +41,7 @@ export default function HomePage() {
             </div>
           </div>
         </div>
-        <div className="frame-scroll-hint">
+        <div className="frame-scroll-hint" aria-hidden="true">
           <ArrowDown size={24} />
         </div>
       </section>
@@ -104,15 +104,15 @@ export default function HomePage() {
             </h2>
             <div className="solution-features">
               <div className="solution-feature">
-                <Robot size={24} />
+                <Robot size={24} aria-hidden="true" />
                 <span>Autonomous path planning with real-time obstacle avoidance</span>
               </div>
               <div className="solution-feature">
-                <ShieldCheck size={24} />
+                <ShieldCheck size={24} aria-hidden="true" />
                 <span>Multi-layer safety: LiDAR + computer vision + e-stop</span>
               </div>
               <div className="solution-feature">
-                <Snowflake size={24} />
+                <Snowflake size={24} aria-hidden="true" />
                 <span>Operates 24/7 in active snowfall, day or night</span>
               </div>
             </div>
@@ -143,8 +143,8 @@ export default function HomePage() {
           </p>
 
           <div className="cta-trust-signals">
-            <span><BookOpen size={16} /> Fully open source</span>
-            <span><MapPin size={16} /> Operating in Cleveland, OH</span>
+            <span><BookOpen size={16} aria-hidden="true" /> Fully open source</span>
+            <span><MapPin size={16} aria-hidden="true" /> Operating in Cleveland, OH</span>
           </div>
 
           <div className="cta-learn-more">

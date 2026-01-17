@@ -19,11 +19,12 @@ export function CoverageMapViewer() {
   }
 
   return (
-    <div className="coverage-map-viewer">
+    <div className="coverage-map-viewer" role="img" aria-label="Animated map showing three autonomous rovers clearing 50 miles of sidewalk paths">
       <svg
         viewBox="0 0 800 450"
         className="coverage-map-svg"
         style={{ width: "100%", height: "100%" }}
+        aria-hidden="true"
       >
         {/* Background grid */}
         <defs>

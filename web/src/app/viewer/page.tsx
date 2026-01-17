@@ -116,7 +116,7 @@ export default function ViewerPage() {
       <div className="top-bar">
         <div className="top-left">
           <Link href="/" className="back-link">
-            <ArrowLeft size={12} weight="regular" />
+            <ArrowLeft size={12} weight="regular" aria-hidden="true" />
             <span>Home</span>
           </Link>
           <ModelSelector currentModel={state.modelInfo} onSelectModel={handleSelectModel} />
@@ -148,8 +148,9 @@ export default function ViewerPage() {
           <button
             className={`control-btn ${state.wireframe ? "active" : ""}`}
             onClick={handleToggleWireframe}
+            aria-pressed={state.wireframe}
           >
-            <Polygon size={14} weight="regular" />
+            <Polygon size={14} weight="regular" aria-hidden="true" />
             Wireframe
           </button>
           <div className="control-divider" />
@@ -158,8 +159,9 @@ export default function ViewerPage() {
           <button
             className={`control-btn ${state.labelsVisible ? "active" : ""}`}
             onClick={handleToggleLabels}
+            aria-pressed={state.labelsVisible}
           >
-            <Tag size={14} weight="regular" />
+            <Tag size={14} weight="regular" aria-hidden="true" />
             Labels
           </button>
         </div>

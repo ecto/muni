@@ -151,6 +151,12 @@
   cursor: pointer;
   transition: background 0.15s;
   color: var(--fg);
+  width: 100%;
+  border: none;
+  background: transparent;
+  font-family: inherit;
+  font-size: inherit;
+  text-align: left;
 }
 
 .model-menu-item:hover {
@@ -286,6 +292,13 @@
   padding: 10px 16px;
   cursor: pointer;
   transition: background 0.15s;
+  width: 100%;
+  border: none;
+  background: transparent;
+  font-family: inherit;
+  font-size: inherit;
+  text-align: left;
+  color: inherit;
 }
 
 .explorer-item:hover {
@@ -536,6 +549,12 @@
   cursor: pointer;
   transition: background 0.15s;
   color: var(--fg);
+  width: 100%;
+  border: none;
+  background: transparent;
+  font-family: inherit;
+  font-size: inherit;
+  text-align: left;
 }
 
 .scale-menu-item:hover {

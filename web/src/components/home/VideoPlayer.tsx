@@ -35,8 +35,22 @@ export function VideoPlayer({
     }
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      togglePlay();
+    }
+  };
+
   return (
-    <div className="video-player" onClick={togglePlay}>
+    <div
+      className="video-player"
+      onClick={togglePlay}
+      onKeyDown={handleKeyDown}
+      role="button"
+      tabIndex={0}
+      aria-label={isPlaying ? "Pause video" : "Play video"}
+    >
       <video
         ref={videoRef}
         src={src}
@@ -51,16 +65,16 @@ export function VideoPlayer({
       />
       {!hasStarted && (
         <div className="video-player-overlay">
-          <button className="video-player-button" aria-label="Play video">
+          <span className="video-player-button" aria-hidden="true">
             <Play size={64} weight="fill" />
-          </button>
+          </span>
         </div>
       )}
       {hasStarted && !isPlaying && (
         <div className="video-player-overlay video-player-overlay-paused">
-          <button className="video-player-button" aria-label="Play video">
+          <span className="video-player-button" aria-hidden="true">
             <Play size={48} weight="fill" />
-          </button>
+          </span>
         </div>
       )}
     </div>

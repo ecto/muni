@@ -37,11 +37,13 @@ export function ScaleDropdown({ activeScales, onToggleScale }: ScaleDropdownProp
       <button
         className={`control-btn ${hasActive ? "active" : ""}`}
         onClick={() => setIsOpen(!isOpen)}
+        aria-expanded={isOpen}
+        aria-haspopup="menu"
       >
-        <Ruler size={14} weight="regular" />
+        <Ruler size={14} weight="regular" aria-hidden="true" />
         Scale
       </button>
-      <div className="scale-menu">
+      <div className="scale-menu" role="menu" aria-label="Scale references">
         <div className="scale-menu-header">Scale References</div>
         <div>
           {scaleReferences.map((ref) => {
@@ -49,21 +51,23 @@ export function ScaleDropdown({ activeScales, onToggleScale }: ScaleDropdownProp
             const isChecked = activeScales.has(ref.id);
 
             return (
-              <div
+              <button
                 key={ref.id}
                 className="scale-menu-item"
                 onClick={(e) => {
                   e.stopPropagation();
                   onToggleScale(ref.id);
                 }}
+                role="menuitemcheckbox"
+                aria-checked={isChecked}
               >
-                <div className={`scale-checkbox ${isChecked ? "checked" : ""}`} />
-                <Icon size={18} weight="regular" />
+                <div className={`scale-checkbox ${isChecked ? "checked" : ""}`} aria-hidden="true" />
+                <Icon size={18} weight="regular" aria-hidden="true" />
                 <div className="scale-menu-item-info">
                   <div className="scale-menu-item-name">{ref.name}</div>
                   <div className="scale-menu-item-desc">{ref.desc}</div>
                 </div>
-              </div>
+              </button>
             );
           })}
         </div>

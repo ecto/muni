@@ -7,6 +7,8 @@ export function MuniLogo({ className }: { className?: string }) {
       viewBox="-60 -60 880 400"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
+      role="img"
+      aria-label="Muni logo"
     >
       <g
         stroke="#ff6600"

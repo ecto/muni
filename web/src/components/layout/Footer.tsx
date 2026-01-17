@@ -6,12 +6,14 @@ export function Footer() {
       <div className="footer-top">
         <div className="footer-section">
           <h3 className="footer-section-title">Resources</h3>
-          <a href="/docs/whitepaper.pdf" target="_blank" rel="noopener noreferrer">Whitepaper</a>
+          <a href="/docs/whitepaper.pdf" target="_blank" rel="noopener noreferrer">
+            Whitepaper <span className="sr-only">(opens in new tab)</span>
+          </a>
           <a href="https://github.com/ecto/muni" target="_blank" rel="noopener noreferrer">
-            GitHub
+            GitHub <span className="sr-only">(opens in new tab)</span>
           </a>
           <a href="https://github.com/ecto/muni/tree/main/bvr/docs/hardware" target="_blank" rel="noopener noreferrer">
-            Build Guide
+            Build Guide <span className="sr-only">(opens in new tab)</span>
           </a>
         </div>
 
@@ -24,10 +26,10 @@ export function Footer() {
         <div className="footer-section">
           <h3 className="footer-section-title">Social</h3>
           <a href="https://x.com/municipalrobots" target="_blank" rel="noopener noreferrer">
-            X
+            X <span className="sr-only">(opens in new tab)</span>
           </a>
           <a href="https://www.linkedin.com/company/municipal-robotics" target="_blank" rel="noopener noreferrer">
-            LinkedIn
+            LinkedIn <span className="sr-only">(opens in new tab)</span>
           </a>
         </div>
       </div>

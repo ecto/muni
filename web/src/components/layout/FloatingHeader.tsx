@@ -10,12 +10,12 @@ export function FloatingHeader() {
           <span className="floating-header-name">Municipal Robotics</span>
         </Link>
 
-        <nav className="floating-header-nav">
+        <nav className="floating-header-nav" aria-label="Main navigation">
           <a href="/docs/whitepaper.pdf" className="floating-header-link" target="_blank" rel="noopener noreferrer">
-            Whitepaper
+            Whitepaper<span className="sr-only"> (opens in new tab)</span>
           </a>
           <a href="https://github.com/ecto/muni" className="floating-header-link" target="_blank" rel="noopener noreferrer">
-            GitHub
+            GitHub<span className="sr-only"> (opens in new tab)</span>
           </a>
           <a
             href="https://buy.stripe.com/dRm8wH3aL91u5mybf3grS00"
