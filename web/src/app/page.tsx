@@ -20,10 +20,10 @@ export default function HomePage() {
           Goal: Arrest attention, establish what this is in 3 seconds
           ═══════════════════════════════════════════════════════════════════════ */}
       <section className="frame frame-hero">
-        <div className="frame-content frame-content-centered">
-          <div className="hero-visual">
-            <HeroViewer />
-          </div>
+        <div className="hero-background">
+          <HeroViewer />
+        </div>
+        <div className="frame-content frame-content-centered hero-content-overlay">
           <div className="hero-message">
             <h1 className="hero-title">
               Clear 50 miles of sidewalk. <span className="hero-title-accent">Autonomously.</span>

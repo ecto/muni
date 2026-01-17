@@ -83,9 +83,9 @@ function Scene({ enableRotation, onLoaded }: SceneProps) {
       <AsciiRenderer
         fgColor="#ff6600"
         bgColor="#09090b"
-        characters={" .:-=+*#%@"}
+        characters={" .'`^,:;Il!i><~+_-?][}{1)(|/tfjrxnuvczXYUJCLQ0OZmwqpdbkhao*#MW&8%B@$"}
         invert={false}
-        resolution={0.12}
+        resolution={0.22}
       />
     </>
   );
