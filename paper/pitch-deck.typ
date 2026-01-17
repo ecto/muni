@@ -15,6 +15,13 @@
 #set text(font: (muni-font, ..muni-font-fallback), size: 11pt, tracking: muni-tracking)
 #set par(justify: false, leading: muni-leading)  // Left-aligned for slides
 
+// Slide headings: orange, bold, 32pt (generates PDF bookmarks)
+#set heading(numbering: none, outlined: true)
+#show heading.where(level: 1): it => {
+  text(size: 32pt, weight: "bold", fill: muni-orange)[#it.body]
+  v(0.2in)
+}
+
 // Tables use Berkeley Mono for financial and comparison data
 #show table: set text(font: (muni-font-mono, ..muni-font-mono-fallback), size: 10pt)
 
@@ -53,7 +60,7 @@
 // =============================================================================
 
 #page[
-  #text(size: 32pt, weight: "bold", fill: muni-orange)[The Problem]
+  = The Problem
 
   #v(0.3in)
 
@@ -97,7 +104,7 @@
 // =============================================================================
 
 #page[
-  #text(size: 32pt, weight: "bold", fill: muni-orange)[Our Solution]
+  = Our Solution
 
   #grid(
     columns: (1fr, 1fr),
@@ -134,7 +141,7 @@
 // =============================================================================
 
 #page[
-  #text(size: 32pt, weight: "bold", fill: muni-orange)[Progress]
+  = Progress
 
   #v(0.2in)
 
@@ -185,7 +192,7 @@
 // =============================================================================
 
 #page[
-  #text(size: 32pt, weight: "bold", fill: muni-orange)[Market Opportunity]
+  = Market Opportunity
 
   #text(size: 18pt, weight: "bold")[Total Addressable Market: \$14B+]
 
@@ -219,7 +226,7 @@
 // =============================================================================
 
 #page[
-  #text(size: 32pt, weight: "bold", fill: muni-orange)[Business Model]
+  = Business Model
 
   #grid(
     columns: (1fr, 1fr),
@@ -276,7 +283,7 @@
 // =============================================================================
 
 #page[
-  #text(size: 32pt, weight: "bold", fill: muni-orange)[Traction]
+  = Traction
 
   #grid(
     columns: (1fr, 1fr, 1fr),
@@ -339,7 +346,7 @@
 // =============================================================================
 
 #page[
-  #text(size: 32pt, weight: "bold", fill: muni-orange)[Competitive Landscape]
+  = Competitive Landscape
 
   #table(
     columns: (1.5fr, 1fr, 1fr, 1fr, 1fr),
@@ -372,7 +379,7 @@
 // =============================================================================
 
 #page[
-  #text(size: 32pt, weight: "bold", fill: muni-orange)[Team]
+  = Team
 
   #grid(
     columns: (auto, 1fr),
@@ -420,7 +427,7 @@
 // =============================================================================
 
 #page[
-  #text(size: 32pt, weight: "bold", fill: muni-orange)[Roadmap]
+  = Roadmap
 
   #table(
     columns: (1fr, 2fr, 2fr),
@@ -446,7 +453,7 @@
 // =============================================================================
 
 #page[
-  #text(size: 32pt, weight: "bold", fill: muni-orange)[Financial Projections]
+  = Financial Projections
 
   #grid(
     columns: (1fr, 1fr),
@@ -499,21 +506,20 @@
 // =============================================================================
 
 #page[
-  #text(size: 32pt, weight: "bold", fill: muni-orange)[The Ask]
-
-  #v(-0.5in)
+  = The Ask
 
   #align(center)[
     #text(size: 48pt, weight: "bold")[\$2-3M Seed]
-    #v(-0.5in)
-    #text(size: 20pt, fill: gray)[at \$12-15M post-money valuation]
+    #v(0.1in)
+    #text(size: 20pt, fill: muni-gray)[at \$12-15M post-money valuation]
   ]
+
+  #v(0.2in)
 
   #grid(
     columns: (1fr, 1fr),
     gutter: 0.5in,
     [
-    #v(-0.5in)
       #text(size: 18pt, weight: "bold")[Use of Funds]
 
       #table(

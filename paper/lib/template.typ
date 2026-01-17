@@ -226,7 +226,7 @@
     radius: (right: 3pt),
   )[
     #text(size: 8pt)[
-      #text(weight: "bold", fill: muni-danger)[⚠ DANGER ] #body
+      #text(weight: "bold", fill: muni-danger)[DANGER: ] #body
     ]
   ]
 }
@@ -241,7 +241,7 @@
     radius: (right: 3pt),
   )[
     #text(size: 8pt)[
-      #text(weight: "bold", fill: muni-orange)[⚠ WARNING ] #body
+      #text(weight: "bold", fill: muni-orange)[WARNING: ] #body
     ]
   ]
 }
@@ -256,7 +256,7 @@
     radius: (right: 3pt),
   )[
     #text(size: 8pt)[
-      #text(weight: "bold", fill: muni-note)[ℹ NOTE ] #body
+      #text(weight: "bold", fill: muni-note)[NOTE: ] #body
     ]
   ]
 }
@@ -271,7 +271,7 @@
     radius: (right: 3pt),
   )[
     #text(size: 8pt)[
-      #text(weight: "bold", fill: muni-success)[✓ TIP ] #body
+      #text(weight: "bold", fill: muni-success)[TIP: ] #body
     ]
   ]
 }
@@ -452,7 +452,7 @@
     radius: (right: 3pt),
   )[
     #text(size: 7pt)[
-      #text(weight: "bold", fill: rgb("#92400E"))[⚡ COMMON MISTAKE ] #body
+      #text(weight: "bold", fill: rgb("#92400E"))[COMMON MISTAKE: ] #body
     ]
   ]
 }
@@ -469,7 +469,7 @@
     fill: muni-light-gray,
     stroke: 0.5pt + rgb("#E5E5E5"),
   )[
-    #text(size: 7pt, fill: muni-orange)[▶]
+    #text(size: 7pt, fill: muni-orange, weight: "bold")[VIDEO:]
     #h(4pt)
     #link(url)[#text(size: 7pt)[#caption]]
   ]

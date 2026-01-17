@@ -1,7 +1,7 @@
 // Municipal Robotics One-Pager
 // Seed Investment Summary
 
-#import "lib/template.typ": muni-orange, muni-gray, muni-light-gray, muni-font, muni-font-mono, muni-font-fallback, muni-font-mono-fallback, muni-font-size, muni-leading, muni-tracking, muni-justify
+#import "lib/template.typ": *
 
 #set document(title: "Municipal Robotics - Investment Summary", author: "Municipal Robotics")
 
@@ -14,6 +14,13 @@
 // Smaller size to fit on one page
 #set text(font: (muni-font, ..muni-font-fallback), size: 9pt, tracking: muni-tracking)
 #set par(justify: muni-justify, leading: muni-leading)
+
+// Section headings: orange, bold, 11pt (generates PDF bookmarks)
+#set heading(numbering: none, outlined: true)
+#show heading.where(level: 2): it => {
+  text(size: 11pt, weight: "bold", fill: muni-orange)[#it.body]
+  v(0.05in)
+}
 
 // Tables use Berkeley Mono for financial data
 #show table: set text(font: (muni-font-mono, ..muni-font-mono-fallback), size: 8pt)
@@ -37,14 +44,14 @@
   // LEFT COLUMN
   [
     // Company
-    #text(size: 11pt, weight: "bold", fill: muni-orange)[Company]
+    == Company
 
     Autonomous sidewalk maintenance vehicles for municipalities. Starting with snow removal, expanding to all outdoor surface maintenance.
 
     #v(0.12in)
 
     // Problem
-    #text(size: 11pt, weight: "bold", fill: muni-orange)[Problem]
+    == Problem
 
     - 1M+ slip-and-fall injuries annually from icy sidewalks
     - \$35B in municipal liability costs
@@ -54,14 +61,14 @@
     #v(0.12in)
 
     // Solution
-    #text(size: 11pt, weight: "bold", fill: muni-orange)[Solution]
+    == Solution
 
     *BVR (Base Vectoring Rover):* Electric, sidewalk-sized rover with modular tools. LiDAR safety stops on any obstacle. One operator monitors 10+ rovers. Currently in development: bvr1 production units shipping Summer 2026.
 
     #v(0.12in)
 
     // Market
-    #text(size: 11pt, weight: "bold", fill: muni-orange)[Market]
+    == Market
 
     #table(
       columns: (2fr, 1fr),
@@ -78,7 +85,7 @@
     #v(0.12in)
 
     // Business Model
-    #text(size: 11pt, weight: "bold", fill: muni-orange)[Business Model]
+    == Business Model
 
     - Hardware: \$18k per rover (65% margin)
     - Software subscription: \$3,600/year (85% margin)
@@ -88,7 +95,7 @@
     #v(0.12in)
 
     // Traction
-    #text(size: 11pt, weight: "bold", fill: muni-orange)[Traction]
+    == Traction
 
     - bvr0 prototype: drivetrain, teleop, GPS, depot (Dec 2025)
     - F.Inc Artifact residency: supervised autonomy (Jan 2026)
@@ -100,7 +107,7 @@
   // RIGHT COLUMN
   [
     // Team
-    #text(size: 11pt, weight: "bold", fill: muni-orange)[Team]
+    == Team
 
     *Cam Pedersen, Founder* \
     Autonomous vehicle scheduling at Uber. CTO & Co-founder at DitchCarbon. Based in Cleveland, Ohio.
@@ -110,7 +117,7 @@
     #v(0.12in)
 
     // Financials
-    #text(size: 11pt, weight: "bold", fill: muni-orange)[Financial Projections]
+    == Financial Projections
 
     #table(
       columns: (1fr, 1fr, 1fr),
@@ -128,7 +135,7 @@
     #v(0.12in)
 
     // The Ask
-    #text(size: 11pt, weight: "bold", fill: muni-orange)[The Ask]
+    == The Ask
 
     #box(
       width: 100%,
@@ -154,7 +161,7 @@
     #v(0.12in)
 
     // Milestones
-    #text(size: 11pt, weight: "bold", fill: muni-orange)[Milestones to Series A (2027)]
+    == Milestones to Series A (2027)
 
     - 50+ rovers deployed
     - \$1M+ ARR from fleet subscriptions
@@ -164,7 +171,7 @@
     #v(0.12in)
 
     // Exit
-    #text(size: 11pt, weight: "bold", fill: muni-orange)[Exit Potential]
+    == Exit Potential
 
     \$400-600M acquisition by 2029-2030 by industrial OEM (John Deere, Caterpillar, Husqvarna) consolidating outdoor autonomy.
 

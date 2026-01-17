@@ -1,8 +1,22 @@
+// Whitepaper: 2-column academic layout
+// Uses shared tokens from lib/template.typ for consistency
+
 #import "@preview/cetz:0.4.2"
 #import "@preview/lilaq:0.5.0" as lq
 #import "@preview/fletcher:0.5.7" as fletcher: diagram, node, edge
 #import "@preview/timeliney:0.4.0"
 #import "@preview/zero:0.5.0": num, ztable, set-num
+
+// Import shared design tokens
+#import "lib/template.typ": (
+  muni-orange,
+  muni-gray,
+  muni-light-gray,
+  muni-font,
+  muni-font-mono,
+  muni-font-fallback,
+  muni-font-mono-fallback,
+)
 
 // Configure zero for large numbers with comma grouping
 #set-num(group: (threshold: 4, separator: ","))
@@ -21,7 +35,7 @@
   number-align: center,
   header: context {
     if counter(page).get().first() > 1 [
-      #set text(size: 9pt, fill: gray)
+      #set text(font: (muni-font-mono, ..muni-font-mono-fallback), size: 9pt, fill: muni-gray)
       Robotic Systems for Sidewalk Maintenance
       #h(1fr)
       Municipal Robotics
@@ -29,7 +43,7 @@
   },
   footer: context {
     if counter(page).get().first() > 1 [
-      #set text(size: 8pt, fill: gray)
+      #set text(font: (muni-font-mono, ..muni-font-mono-fallback), size: 8pt, fill: muni-gray)
       Rev 1.2, December 2025
       #h(1fr)
       #counter(page).display()
@@ -39,8 +53,8 @@
   },
 )
 
-// Helvetica Neue for prose, Berkeley Mono for technical content
-#set text(font: ("Helvetica Neue", "Helvetica", "Arial"), size: 9pt)
+// Typography: shared fonts from template
+#set text(font: (muni-font, ..muni-font-fallback), size: 9pt)
 #set par(justify: false, leading: 0.9em, spacing: 1.5em)
 #set heading(numbering: "1.1")
 #show heading.where(level: 1): it => {
@@ -53,10 +67,10 @@
   text(size: 12pt, weight: "bold", it)
   v(0.3em)
 }
-#show raw: set text(font: ("Berkeley Mono", "Menlo"), size: 8pt)
+#show raw: set text(font: (muni-font-mono, ..muni-font-mono-fallback), size: 8pt)
 
 // Tables use Berkeley Mono for technical data
-#show table: set text(font: ("Berkeley Mono", "Menlo"), size: 8pt)
+#show table: set text(font: (muni-font-mono, ..muni-font-mono-fallback), size: 8pt)
 
 // Figures and tables span both columns with bottom margin
 #set figure(placement: top, scope: "parent", gap: 1em)
@@ -64,7 +78,7 @@
 
 // Muted figure captions
 #show figure.caption: it => {
-  text(size: 8pt, fill: rgb("#888888"))[
+  text(font: (muni-font-mono, ..muni-font-mono-fallback), size: 8pt, fill: muni-gray)[
     #text(weight: "bold")[#it.supplement #it.counter.display():]
     #it.body
   ]
@@ -84,7 +98,7 @@
       Why aren't robots shoveling the snow?
     ]
     #v(0.1em)
-    #text(size: 11pt, fill: gray)[
+    #text(font: (muni-font-mono, ..muni-font-mono-fallback), size: 11pt, fill: muni-gray)[
       Whitepaper, December 2025
     ]
     #v(0.1em)
@@ -94,7 +108,10 @@
       #link("mailto:info@muni.works")[info\@muni.works]
     ]
     #v(0.1em)
-    #image("images/rover.jpg", width: 50%)
+    #figure(
+      image("images/rover.jpg", width: 50%),
+      caption: [BVR0 prototype rover in snow clearing configuration],
+    )
   ]
 ]
 
