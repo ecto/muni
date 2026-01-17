@@ -4,7 +4,7 @@ import { Suspense, useRef, useEffect, useState } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { useGLTF, AsciiRenderer } from "@react-three/drei";
 import * as THREE from "three";
-import { useIsMobile, useReducedMotion } from "./hooks/useIsMobile";
+import { useIsMobile, useReducedMotion, useDarkMode } from "./hooks/useIsMobile";
 
 interface AutoRotatingModelProps {
   path: string;
@@ -54,10 +54,15 @@ function AutoRotatingModel({
 
 interface SceneProps {
   enableRotation: boolean;
+  isDarkMode: boolean;
   onLoaded?: () => void;
 }
 
-function Scene({ enableRotation, onLoaded }: SceneProps) {
+function Scene({ enableRotation, isDarkMode, onLoaded }: SceneProps) {
+  // Colors for dark and light modes
+  const fgColor = "#ff6600"; // Orange in both modes
+  const bgColor = isDarkMode ? "#09090b" : "#ffffff";
+
   return (
     <>
       {/* Lighting - higher contrast for ASCII */}
@@ -81,8 +86,8 @@ function Scene({ enableRotation, onLoaded }: SceneProps) {
 
       {/* ASCII Effect */}
       <AsciiRenderer
-        fgColor="#ff6600"
-        bgColor="#09090b"
+        fgColor={fgColor}
+        bgColor={bgColor}
         characters={" .'`^,:;Il!i><~+_-?][}{1)(|/tfjrxnuvczXYUJCLQ0OZmwqpdbkhao*#MW&8%B@$"}
         invert={false}
         resolution={0.22}
@@ -96,6 +101,7 @@ export function HeroViewer() {
   const [isLoaded, setIsLoaded] = useState(false);
   const isMobile = useIsMobile();
   const prefersReducedMotion = useReducedMotion();
+  const isDarkMode = useDarkMode();
 
   useEffect(() => {
     setIsClient(true);
@@ -132,7 +138,7 @@ export function HeroViewer() {
         }}
         style={{ width: "100%", height: "100%" }}
       >
-        <Scene enableRotation={enableRotation} onLoaded={() => setIsLoaded(true)} />
+        <Scene enableRotation={enableRotation} isDarkMode={isDarkMode} onLoaded={() => setIsLoaded(true)} />
       </Canvas>
     </div>
   );

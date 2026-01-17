@@ -1465,11 +1465,9 @@ body > div:not(.frame-footer):not([class*="frame"]) > .formkit-form[data-uid="cb
   max-width: 800px;
 }
 
-/* Text backdrop for readability over ASCII background */
+/* Hero text centered over ASCII - no backdrop needed */
 .hero-content-overlay .hero-message {
-  background: rgba(9, 9, 11, 0.85);
   padding: 40px 48px;
-  backdrop-filter: blur(8px);
 }
 
 .hero-title {
