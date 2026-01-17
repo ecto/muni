@@ -189,18 +189,6 @@ export function CoverageMapViewer() {
         <RoverIcon x={500} y={210} color="#ff6600" pathId="path2" />
         <RoverIcon x={650} y={340} color="#ff6600" pathId="path3" />
 
-        {/* Labels */}
-        <text
-          x="400"
-          y="430"
-          textAnchor="middle"
-          fontSize="14"
-          fill="currentColor"
-          opacity="0.6"
-          fontFamily="Berkeley Mono, monospace"
-        >
-          50 miles cleared autonomously
-        </text>
       </svg>
     </div>
   );

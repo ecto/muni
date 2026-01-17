@@ -1485,6 +1485,12 @@ body > div:not(.frame-footer):not([class*="frame"]) > .formkit-form[data-uid="cb
   max-width: 100%;
 }
 
+/* Full-bleed mode: center and scale fallback image */
+.hero-background .hero-fallback-image {
+  object-fit: cover;
+  opacity: 0.6;
+}
+
 .hero-message {
   text-align: center;
   max-width: 800px;
