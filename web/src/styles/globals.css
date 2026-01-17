@@ -1306,6 +1306,31 @@ body > div:not(.frame-footer):not([class*="frame"]) > .formkit-form[data-uid="cb
   text-align: center;
 }
 
+/* Full-bleed background for frames */
+.frame-background {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.frame-background-image {
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  object-fit: cover;
+  opacity: 0.4;
+}
+
+/* Content overlay on top of frame background */
+.frame-content-overlay {
+  position: relative;
+  z-index: 10;
+}
+
 /* Scroll hint arrow */
 .frame-scroll-hint {
   position: absolute;
@@ -1540,6 +1565,8 @@ body > div:not(.frame-footer):not([class*="frame"]) > .formkit-form[data-uid="cb
 
 .frame-problem {
   background: var(--bg);
+  position: relative;
+  overflow: hidden;
 }
 
 .problem-visual {
@@ -1613,6 +1640,8 @@ body > div:not(.frame-footer):not([class*="frame"]) > .formkit-form[data-uid="cb
 
 .frame-solution {
   background: var(--bg);
+  position: relative;
+  overflow: hidden;
 }
 
 .solution-visual {
@@ -2178,6 +2207,16 @@ body > div:not(.frame-footer):not([class*="frame"]) > .formkit-form[data-uid="cb
   justify-content: center;
   background: var(--bg-subtle);
   border: 1px solid var(--border);
+}
+
+/* Full-bleed mode when used as frame background */
+.frame-background .coverage-map-viewer {
+  position: absolute;
+  inset: 0;
+  min-height: auto;
+  background: transparent;
+  border: none;
+  opacity: 0.5;
 }
 
 .coverage-map-svg {

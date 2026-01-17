@@ -49,16 +49,14 @@ export default function HomePage() {
           Goal: Create urgency by making the pain visceral
           ═══════════════════════════════════════════════════════════════════════ */}
       <section className="frame frame-problem">
-        <div className="frame-content frame-content-centered">
-          <div className="problem-visual">
-            <div className="problem-image-placeholder">
-              <img
-                src="/images/pedestrian-road.jpg"
-                alt="Pedestrian forced to walk in road due to uncleared sidewalk"
-                className="problem-image"
-              />
-            </div>
-          </div>
+        <div className="frame-background">
+          <img
+            src="/images/pedestrian-road.jpg"
+            alt=""
+            className="frame-background-image"
+          />
+        </div>
+        <div className="frame-content frame-content-centered frame-content-overlay">
           <div className="problem-message">
             <p className="problem-eyebrow">The problem</p>
             <h2 className="problem-headline">
@@ -87,12 +85,10 @@ export default function HomePage() {
           Goal: Show the product in action, make it feel real
           ═══════════════════════════════════════════════════════════════════════ */}
       <section className="frame frame-solution">
-        <div className="frame-content frame-content-centered">
-          <div className="solution-visual">
-            <div className="solution-video-placeholder">
-              <CoverageMapViewer />
-            </div>
-          </div>
+        <div className="frame-background">
+          <CoverageMapViewer />
+        </div>
+        <div className="frame-content frame-content-centered frame-content-overlay">
           <div className="solution-message">
             <p className="solution-eyebrow">The solution</p>
             <h2 className="solution-headline">
