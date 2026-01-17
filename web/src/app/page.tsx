@@ -26,9 +26,7 @@ export default function HomePage() {
           </div>
           <div className="hero-message">
             <h1 className="hero-title">
-              Clear 50 miles of sidewalk.
-              <br />
-              <span className="hero-title-accent">Autonomously.</span>
+              Clear 50 miles of sidewalk. <span className="hero-title-accent">Autonomously.</span>
             </h1>
             <p className="hero-value-prop">
               Fully autonomous snow clearing rovers for municipalities and campuses.
@@ -64,9 +62,7 @@ export default function HomePage() {
           <div className="problem-message">
             <p className="problem-eyebrow">The problem</p>
             <h2 className="problem-headline">
-              Uncleared sidewalks aren&apos;t just inconvenient.
-              <br />
-              <span className="problem-headline-accent">They&apos;re dangerous.</span>
+              Uncleared sidewalks aren&apos;t just inconvenient. <span className="problem-headline-accent">They&apos;re dangerous.</span>
             </h2>
             <div className="problem-stats">
               <div className="problem-stat">

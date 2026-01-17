@@ -1339,7 +1339,7 @@ body > div:not(.frame-footer):not([class*="frame"]) > .formkit-form[data-uid="cb
   line-height: 1.5;
 }
 
-/* Eyebrow labels - monospace */
+/* Eyebrow labels - monospace, consistent tracking */
 .problem-eyebrow,
 .solution-eyebrow,
 .economics-eyebrow,
@@ -1350,7 +1350,7 @@ body > div:not(.frame-footer):not([class*="frame"]) > .formkit-form[data-uid="cb
   font-size: var(--text-xs);
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.15em;
+  letter-spacing: 0.1em;
   color: var(--orange);
   margin-bottom: 12px;
 }
@@ -1363,10 +1363,14 @@ body > div:not(.frame-footer):not([class*="frame"]) > .formkit-form[data-uid="cb
 .why-headline,
 .cta-headline {
   font-family: var(--font-display);
-  font-size: clamp(1.75rem, 4vw, 2.25rem);
+  font-size: clamp(1.75rem, 4vw, 2.5rem);
   font-weight: 600;
   line-height: 1.15;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+  max-width: 650px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .frame-hero .frame-content {
@@ -1414,11 +1418,13 @@ body > div:not(.frame-footer):not([class*="frame"]) > .formkit-form[data-uid="cb
 
 .hero-title {
   font-family: var(--font-display);
-  font-size: clamp(2rem, 5vw, 3rem);
+  font-size: clamp(2.5rem, 6vw, 4rem);
   font-weight: 700;
   line-height: 1.1;
-  margin-bottom: 12px;
+  margin-bottom: 16px;
   letter-spacing: -0.02em;
+  max-width: 700px;
+  text-wrap: balance;
 }
 
 .hero-title-accent {
@@ -1426,14 +1432,18 @@ body > div:not(.frame-footer):not([class*="frame"]) > .formkit-form[data-uid="cb
 }
 
 .hero-value-prop {
-  font-size: var(--text-base);
-  color: var(--fg-muted);
-  margin-bottom: 20px;
-  line-height: 1.4;
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  color: var(--fg);
+  margin-bottom: 24px;
+  line-height: 1.5;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .hero-value-prop strong {
-  color: var(--fg);
+  color: var(--orange);
 }
 
 .hero-action {
@@ -1447,12 +1457,14 @@ body > div:not(.frame-footer):not([class*="frame"]) > .formkit-form[data-uid="cb
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  font-family: var(--font-display);
   background: var(--orange);
   color: #000;
-  font-weight: 700;
+  font-weight: 600;
   text-decoration: none;
-  padding: 12px 24px;
-  font-size: var(--text-sm);
+  padding: 14px 28px;
+  font-size: var(--text-base);
+  letter-spacing: -0.01em;
   transition: all 0.15s ease;
   border: none;
 }
@@ -1464,8 +1476,8 @@ body > div:not(.frame-footer):not([class*="frame"]) > .formkit-form[data-uid="cb
 }
 
 .btn-large {
-  padding: 14px 28px;
-  font-size: var(--text-base);
+  padding: 16px 32px;
+  font-size: var(--text-lg);
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -1500,14 +1512,7 @@ body > div:not(.frame-footer):not([class*="frame"]) > .formkit-form[data-uid="cb
   filter: grayscale(20%);
 }
 
-.problem-eyebrow {
-  font-size: var(--text-sm);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: var(--orange);
-  margin-bottom: 16px;
-}
+/* problem-eyebrow inherits from shared eyebrow styles above */
 
 .problem-headline {
   margin-bottom: 24px;
@@ -1531,18 +1536,21 @@ body > div:not(.frame-footer):not([class*="frame"]) > .formkit-form[data-uid="cb
 
 .problem-stat-value {
   display: block;
-  font-size: clamp(1.5rem, 3vw, 2rem);
+  font-family: var(--font-mono);
+  font-size: clamp(1.75rem, 4vw, 2.5rem);
   font-weight: 700;
   color: var(--orange);
   line-height: 1;
-  margin-bottom: 4px;
+  margin-bottom: 8px;
+  letter-spacing: -0.02em;
 }
 
 .problem-stat-label {
   display: block;
+  font-family: var(--font-display);
   font-size: var(--text-sm);
   color: var(--fg-muted);
-  line-height: 1.4;
+  line-height: 1.5;
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -1610,9 +1618,11 @@ body > div:not(.frame-footer):not([class*="frame"]) > .formkit-form[data-uid="cb
 .solution-feature {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
+  font-family: var(--font-display);
   font-size: var(--text-sm);
   color: var(--fg-muted);
+  line-height: 1.5;
 }
 
 .solution-feature svg {
@@ -1871,9 +1881,11 @@ body > div:not(.frame-footer):not([class*="frame"]) > .formkit-form[data-uid="cb
 }
 
 .cta-subtitle {
-  font-size: var(--text-sm);
+  font-family: var(--font-display);
+  font-size: var(--text-base);
   color: var(--fg-muted);
-  margin-bottom: 20px;
+  margin-bottom: 24px;
+  line-height: 1.5;
 }
 
 .cta-trust-signals {
@@ -1888,8 +1900,10 @@ body > div:not(.frame-footer):not([class*="frame"]) > .formkit-form[data-uid="cb
   display: flex;
   align-items: center;
   gap: 6px;
+  font-family: var(--font-mono);
   font-size: var(--text-xs);
   color: var(--fg-muted);
+  letter-spacing: 0.02em;
 }
 
 .cta-trust-signals svg {
@@ -1897,11 +1911,13 @@ body > div:not(.frame-footer):not([class*="frame"]) > .formkit-form[data-uid="cb
 }
 
 .cta-risk-reversal {
+  font-family: var(--font-display);
   font-size: var(--text-sm);
   color: var(--fg-muted);
-  margin-top: 12px;
-  margin-bottom: 16px;
+  margin-top: 16px;
+  margin-bottom: 20px;
   text-align: center;
+  line-height: 1.5;
 }
 
 .cta-learn-more,
@@ -1911,9 +1927,12 @@ body > div:not(.frame-footer):not([class*="frame"]) > .formkit-form[data-uid="cb
 
 .cta-learn-more p,
 .cta-alternatives p {
+  font-family: var(--font-mono);
   font-size: var(--text-xs);
   color: var(--fg-muted);
-  margin-bottom: 12px;
+  margin-bottom: 16px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
 }
 
 .cta-alt-buttons {
@@ -1924,13 +1943,13 @@ body > div:not(.frame-footer):not([class*="frame"]) > .formkit-form[data-uid="cb
 }
 
 .cta-alt-buttons a {
-  padding: 10px 20px;
-  font-size: var(--text-xs);
+  font-family: var(--font-display);
+  padding: 12px 20px;
+  font-size: var(--text-sm);
   color: var(--fg);
   font-weight: 500;
   text-decoration: none;
   border: 1px solid var(--border);
-  border-radius: 6px;
   transition: all 0.2s ease;
 }
 
@@ -1991,8 +2010,10 @@ body > div:not(.frame-footer):not([class*="frame"]) > .formkit-form[data-uid="cb
 
   .solution-features {
     flex-direction: column;
-    align-items: center;
+    align-items: flex-start;
     gap: 16px;
+    max-width: 400px;
+    margin: 0 auto;
   }
 
   .economics-bar-row {
@@ -2036,7 +2057,15 @@ body > div:not(.frame-footer):not([class*="frame"]) > .formkit-form[data-uid="cb
   }
 
   .hero-title {
-    font-size: 1.75rem;
+    font-size: 2rem;
+  }
+
+  .hero-value-prop {
+    font-size: var(--text-base);
+  }
+
+  .problem-stat-label {
+    font-size: var(--text-sm);
   }
 
   .economics-bar-row {
