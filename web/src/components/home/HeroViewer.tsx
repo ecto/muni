@@ -82,9 +82,9 @@ function Scene({ enableRotation, onLoaded }: SceneProps) {
       {/* ASCII Effect */}
       <AsciiRenderer
         fgColor="#ff6600"
-        bgColor="transparent"
+        bgColor="#09090b"
         characters={" .'`^,:;Il!i><~+_-?][}{1)(|/tfjrxnuvczXYUJCLQ0OZmwqpdbkhao*#MW&8%B@$"}
-        invert
+        invert={false}
         resolution={0.18}
       />
     </>
