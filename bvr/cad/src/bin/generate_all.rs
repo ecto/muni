@@ -178,18 +178,18 @@ fn main() -> Result<()> {
     let top_lid_config = TopLidConfig::default();
     let skid_plate_config = SkidPlateConfig::default();
 
-    // Wall Wrap: Front + sides + rear as single bent piece (3 bends)
+    // Wall Wrap: Front + sides + rear as single bent piece (vertical walls only)
     let wall_wrap = WallWrap::new(wall_wrap_config.clone());
     let part = wall_wrap.generate();
     export_part("shell_wall_wrap", &part, "shell_panel")?;
     println!("  Wall Wrap (flat: ~{:.0}mm x {:.0}mm, {} bends)",
              wall_wrap_config.flat_width(), wall_wrap_config.panel_height(),
              wall_wrap_config.bend_count());
-    println!("    - Front: nozzle slot + LED channel + stereo cameras (\"eyes\")");
+    println!("    - Front: nozzle + LED channel (\"mouth\") + camera eyes");
     println!("    - Rear: louver vents + drain holes");
     println!("    - Sides: clean panels with mount holes");
 
-    // Top Lid: Removable panel with LiDAR dome, e-stop, and antenna
+    // Top Lid: Flat hinged panel
     let top_lid = TopLid::new(top_lid_config.clone());
     let part = top_lid.generate();
     export_part("shell_top_lid", &part, "shell_panel")?;

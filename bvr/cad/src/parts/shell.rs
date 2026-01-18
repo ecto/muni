@@ -10,9 +10,9 @@
 //! - **The Face** - stereo cameras as "eyes", LED bar as "gaze" (pareidolia-friendly)
 //!
 //! Shell components:
-//! - **Wall Wrap**: Front + sides + rear as single bent piece with stereo camera eyes
-//! - **Top Lid**: Removable panel with LiDAR dome hole and antenna mount
-//! - **Sensor Dome**: 3D printed cover for LiDAR only (cameras are in the face)
+//! - **Wall Wrap**: Front + sides + rear as single bent piece (vertical walls only)
+//! - **Top Lid**: Hinged lid with front visor (the "forehead" with camera eyes)
+//! - **Sensor Dome**: 3D printed cover for LiDAR only (cameras are in the visor)
 //!
 //! Material: 5052-H32 Aluminum, 2mm thickness
 //! Finish: Matte orange powder coat (RAL 2004)
@@ -86,18 +86,14 @@ impl ShellConfig {
 ///
 /// The "friendly industrial" wall wrap has:
 /// - Simple 90° corners (4 vertical bends)
-/// - Gentle front rake (15°) creating a "forehead" that's welcoming not aggressive
-/// - LED channel positioned as the robot's "face" - steady, aware
+/// - Vertical front panel (the "forehead" visor is now part of the lid)
+/// - LED channel positioned as the robot's "mouth" - steady, aware
 #[derive(Debug, Clone)]
 pub struct WallWrapConfig {
     pub shell: ShellConfig,
     // --- Friendly Industrial Design ---
-    /// Front rake angle (degrees) - gentle slope on upper front
-    /// 15° is welcoming, 45° would be aggressive
-    pub front_rake_angle: f64,
-    /// Height of the raked "forehead" portion (mm)
-    /// The lower portion stays vertical for the blower nozzle
-    pub front_rake_height: f64,
+    // NOTE: Front rake (forehead with camera eyes) moved to TopLid as visor
+    // The wall wrap front panel is now fully vertical
     // --- Blower Integration ---
     /// Nozzle slot width (mm)
     pub nozzle_width: f64,
@@ -118,23 +114,7 @@ pub struct WallWrapConfig {
     pub led_mount_hole_diameter: f64,
     /// LED diffuser mounting hole spacing from channel ends (mm)
     pub led_mount_hole_inset: f64,
-    // --- Stereo Camera "Eyes" (pareidolia-friendly) ---
-    /// Enable stereo camera cutouts in front rake
-    pub stereo_cameras_enabled: bool,
-    /// Camera spacing (mm) - matches human IPD for natural stereo
-    /// 63mm is average human IPD, good for Vision Pro telepresence
-    pub camera_spacing: f64,
-    /// Camera window width (mm) - rectangular for weather seal gasket
-    pub camera_window_width: f64,
-    /// Camera window height (mm)
-    pub camera_window_height: f64,
-    /// Camera window corner radius (mm)
-    pub camera_window_radius: f64,
-    /// Camera vertical offset from top of rake section (mm)
-    /// Positioned in the "forehead" for the face effect
-    pub camera_offset_from_top: f64,
-    /// Camera tilt angle (degrees) - slight downward pitch to see ground
-    pub camera_tilt: f64,
+    // NOTE: Stereo camera "eyes" moved to TopLid visor configuration
     // --- Rear Vents ---
     /// Louver vent slot width (mm)
     pub louver_width: f64,
@@ -178,12 +158,7 @@ impl Default for WallWrapConfig {
     fn default() -> Self {
         Self {
             shell: ShellConfig::default(),
-            // --- Friendly Industrial Design ---
-            // Front rake: 15° is gentle, welcoming - like a calm forehead
-            // (45° would be Cybertruck aggressive, 0° is the old box)
-            front_rake_angle: 15.0,
-            // Rake the upper 40% of front panel, keep lower 60% vertical for nozzle
-            front_rake_height: 80.0,
+            // NOTE: Forehead with camera eyes is now on the lid visor
             // --- Blower Integration ---
             // Nozzle slot (500mm blower nozzle + 2mm tolerance)
             nozzle_width: 502.0,
@@ -197,15 +172,7 @@ impl Default for WallWrapConfig {
             led_channel_gap: 15.0,    // 15mm above nozzle slot
             led_mount_hole_diameter: 3.5, // M3 mounting holes for diffuser clips
             led_mount_hole_inset: 20.0,   // Holes 20mm from channel ends
-            // --- Stereo Camera "Eyes" ---
-            // Two cameras spaced at human IPD for pareidolia + Vision Pro telepresence
-            stereo_cameras_enabled: true,
-            camera_spacing: 63.0,         // Human IPD average (54-74mm range)
-            camera_window_width: 30.0,    // Wide enough for CSI camera module
-            camera_window_height: 25.0,   // Slightly shorter for horizontal look
-            camera_window_radius: 5.0,    // Rounded corners
-            camera_offset_from_top: 30.0, // Centered in forehead section
-            camera_tilt: -5.0,            // 5° downward to see ground/snow
+            // NOTE: Stereo camera "eyes" are now on the lid visor
             // --- Rear Vents ---
             // Louver vents (8 slots, ~150mm² total area per artifact-plan)
             louver_width: 60.0,
@@ -251,34 +218,25 @@ impl WallWrapConfig {
     }
 
     /// Panel height (same as shell height)
+    /// Note: This is the vertical wall height only - the visor adds height on the lid
     pub fn panel_height(&self) -> f64 {
         self.shell.shell_height()
     }
 
-    /// Front rake setback (how far the top of front panel moves back)
-    pub fn front_rake_setback(&self) -> f64 {
-        // tan(15°) ≈ 0.268
-        self.front_rake_height * (self.front_rake_angle * std::f64::consts::PI / 180.0).tan()
-    }
-
-    /// Height of vertical portion of front panel (below the rake)
-    pub fn front_vertical_height(&self) -> f64 {
-        self.panel_height() - self.front_rake_height
-    }
-
     /// Total flat pattern width (before bending)
     ///
-    /// Simple 5-bend layout: [FRONT][LEFT][REAR][RIGHT][gap]
+    /// Simple 4-bend layout: [FRONT][LEFT][REAR][RIGHT][gap]
     ///
     /// - Front/Rear: 580mm each
     /// - Sides: 580mm each
     /// - Gap: 20mm
     /// - Total: 580×4 + 20 = 2340mm
     ///
-    /// Bend lines (5 total with bottom):
-    /// 1. Front rake (horizontal, 15° forward lean)
-    /// 2-4. Three 90° corner bends
-    /// 5. Bottom panel bend (if include_bottom)
+    /// Bend lines (4 total with bottom):
+    /// 1-3. Three 90° corner bends
+    /// 4. Bottom panel bend (if include_bottom)
+    ///
+    /// Note: Front rake removed - the forehead visor is now part of the lid
     pub fn flat_width(&self) -> f64 {
         let front = self.front_width();
         let sides = self.side_length() * 2.0;
@@ -290,9 +248,9 @@ impl WallWrapConfig {
 
     /// Number of bend lines in the wall wrap
     pub fn bend_count(&self) -> usize {
-        // 1 front rake + 3 corner bends = 4
-        // With integrated bottom: + 1 = 5
-        if self.include_bottom { 5 } else { 4 }
+        // 3 corner bends
+        // With integrated bottom: + 1 = 4
+        if self.include_bottom { 4 } else { 3 }
     }
 }
 
@@ -310,12 +268,12 @@ impl WallWrap {
         Self::new(WallWrapConfig::default())
     }
 
-    /// Generate 3D representation with raked front
+    /// Generate 3D representation with vertical walls
     ///
     /// The friendly industrial look:
     /// - Simple 90° corners (clean box shape)
-    /// - Front panel has gentle 15° rake on upper portion
-    /// - LED channel is the robot's "face"
+    /// - Flat front panel with stereo camera "eyes"
+    /// - LED channel is the robot's "mouth"
     pub fn generate(&self) -> Part {
         let cfg = &self.config;
         let height = cfg.panel_height();
@@ -325,23 +283,10 @@ impl WallWrap {
         let width = cfg.shell.shell_width();
         let length = cfg.shell.shell_length();
 
-        // Front panel dimensions
+        // === FRONT PANEL (flat, full height) ===
         let front_w = cfg.front_width();
-        let vertical_h = cfg.front_vertical_height();
-        let rake_h = cfg.front_rake_height;
-        let rake_setback = cfg.front_rake_setback();
-
-        // === FRONT PANEL (with rake) ===
-        // Lower vertical section (holds blower nozzle)
-        let front_lower = centered_cube("front_lower", front_w, thickness, vertical_h)
-            .translate(0.0, length / 2.0, vertical_h / 2.0);
-
-        // Upper raked section (the "forehead")
-        // For visualization, we approximate with a slightly set-back panel
-        let front_upper = centered_cube("front_upper", front_w, thickness + rake_setback, rake_h)
-            .translate(0.0, length / 2.0 - rake_setback / 2.0, vertical_h + rake_h / 2.0);
-
-        let front = front_lower.union(&front_upper);
+        let front = centered_cube("front_panel", front_w, thickness, height)
+            .translate(0.0, length / 2.0, height / 2.0);
 
         // === SIDE PANELS ===
         let side_l = cfg.side_length();
@@ -362,7 +307,7 @@ impl WallWrap {
         // === CUTOUTS ===
         let segments = 32; // for circular cutouts
 
-        // Nozzle cutout in front lower section
+        // Nozzle cutout in front panel
         let nozzle_cutout = centered_cube(
             "nozzle",
             cfg.nozzle_width,
@@ -375,7 +320,7 @@ impl WallWrap {
             cfg.nozzle_offset_y + cfg.nozzle_height / 2.0,
         );
 
-        // LED channel cutout - the robot's steady gaze
+        // LED channel cutout - the robot's "mouth"
         let led_z = cfg.nozzle_offset_y + cfg.nozzle_height + cfg.led_channel_gap + cfg.led_channel_height / 2.0;
         let led_cutout = centered_cube(
             "led_channel",
@@ -385,32 +330,18 @@ impl WallWrap {
         )
         .translate(0.0, length / 2.0, led_z);
 
-        // Stereo camera "eyes" in the forehead section
-        // Positioned for pareidolia: two eyes above the LED "mouth"
-        let camera_cutouts = if cfg.stereo_cameras_enabled {
-            let cam_z = vertical_h + rake_h - cfg.camera_offset_from_top;
-            let cam_y = length / 2.0 - rake_setback / 2.0; // In the raked section
+        // Stereo camera "eyes" - positioned near top of front panel
+        let lid_cfg = super::shell::TopLidConfig::default();
+        let cam_z = height - lid_cfg.visor_camera_offset_from_top;
+        let cam_spacing = lid_cfg.visor_camera_spacing;
+        let cam_w = lid_cfg.visor_camera_window_width;
+        let cam_h = lid_cfg.visor_camera_window_height;
 
-            let left_eye = centered_cube(
-                "camera_left",
-                cfg.camera_window_width,
-                thickness * 3.0 + rake_setback,
-                cfg.camera_window_height,
-            )
-            .translate(-cfg.camera_spacing / 2.0, cam_y, cam_z);
-
-            let right_eye = centered_cube(
-                "camera_right",
-                cfg.camera_window_width,
-                thickness * 3.0 + rake_setback,
-                cfg.camera_window_height,
-            )
-            .translate(cfg.camera_spacing / 2.0, cam_y, cam_z);
-
-            left_eye.union(&right_eye)
-        } else {
-            Part::empty("no_cameras")
-        };
+        let left_eye = centered_cube("camera_left", cam_w, thickness * 3.0, cam_h)
+            .translate(-cam_spacing / 2.0, length / 2.0, cam_z);
+        let right_eye = centered_cube("camera_right", cam_w, thickness * 3.0, cam_h)
+            .translate(cam_spacing / 2.0, length / 2.0, cam_z);
+        let camera_cutouts = left_eye.union(&right_eye);
 
         // Louver vents in rear
         let mut louvers = Part::empty("louvers");
@@ -465,29 +396,30 @@ impl WallWrap {
 
     /// Generate 2D DXF flat pattern for laser cutting
     ///
-    /// Simple 5-bend layout with front rake:
+    /// Simple 4-bend layout (vertical walls only):
     ///
     /// ```text
     ///                         ┌─────────────────────┐
     ///                         │       BOTTOM        │
     ///                         │      (580x580)      │
     ///                         └──────────┬──────────┘
-    ///                                    │ bend 5
+    ///                                    │ bend 4
     /// ┌─────────┬─────────┬──────────────┴──────────┬─────────┬───┐
     /// │  FRONT  │  LEFT   │ REAR (with hinge tabs)  │  RIGHT  │gap│
     /// │   580   │   580   │          580            │   580   │20 │
-    /// ├─────────┤         │                         │         │   │
-    /// │  rake   │         │                         │         │   │
+    /// │         │         │                         │         │   │
+    /// │         │         │                         │         │   │
     /// └─────────┴─────────┴─────────────────────────┴─────────┴───┘
-    ///     ↑     ↑         ↑                         ↑
-    ///   rake   90°       90°                       90°
-    ///   bend   bend      bend                      bend
+    ///           ↑         ↑                         ↑
+    ///          90°       90°                       90°
+    ///          bend      bend                      bend
     /// ```
     ///
-    /// Bend lines (5 total):
-    /// 1. Front rake (horizontal, 15° forward lean)
-    /// 2-4. Three 90° corner bends
-    /// 5. Bottom panel bend
+    /// Bend lines (4 total):
+    /// 1-3. Three 90° corner bends
+    /// 4. Bottom panel bend
+    ///
+    /// NOTE: Front rake (forehead with camera eyes) is now on the lid visor
     pub fn to_dxf(&self) -> DxfDocument {
         let cfg = &self.config;
         let mut dxf = DxfDocument::new();
@@ -503,8 +435,7 @@ impl WallWrap {
         let bottom_w = cfg.shell.shell_width();   // 580mm
         let bottom_l = cfg.shell.shell_length();  // 580mm
 
-        // Front rake dimensions
-        let vertical_h = cfg.front_vertical_height(); // 120mm lower vertical section
+        // NOTE: Front is now fully vertical - forehead visor is on the lid
 
         // === FLAT PATTERN LAYOUT ===
         // Simple layout: FRONT | LEFT | REAR | RIGHT | gap
@@ -594,16 +525,8 @@ impl WallWrap {
         }
 
         // === BEND LINES ===
-        // Bend 1: Front rake (horizontal, across front panel at rake height)
-        let rake_bend_y = wall_bottom + vertical_h;
-        dxf.add_bend_line(
-            offset_x + front_start,
-            rake_bend_y,
-            offset_x + front_start + front_w,
-            rake_bend_y,
-        );
-
-        // Bends 2-4: Three 90° corner bends (vertical)
+        // Bends 1-3: Three 90° corner bends (vertical)
+        // NOTE: Front rake bend removed - forehead visor is on the lid
         let corner_bend_positions = [
             left_start,   // Front -> Left
             rear_start,   // Left -> Rear
@@ -615,7 +538,7 @@ impl WallWrap {
             dxf.add_bend_line(x, wall_bottom, x, wall_top);
         }
 
-        // Bottom panel bend (between rear wall top and bottom panel)
+        // Bend 4: Bottom panel bend (between rear wall top and bottom panel)
         if cfg.include_bottom {
             let rear_left_edge = offset_x + rear_start;
             let rear_right_edge = offset_x + rear_start + rear_w;
@@ -652,45 +575,22 @@ impl WallWrap {
         dxf.add_circle(led_mount_left, led_mount_y + cfg.led_channel_height, cfg.led_mount_hole_diameter / 2.0);
         dxf.add_circle(led_mount_right, led_mount_y + cfg.led_channel_height, cfg.led_mount_hole_diameter / 2.0);
 
-        // Stereo camera "eyes" in the forehead section (pareidolia-friendly)
-        // Two rounded rectangles positioned for the "face" effect
-        if cfg.stereo_cameras_enabled {
-            // Camera Y position: in the rake section (above LED channel)
-            let cam_cy = wall_top - cfg.camera_offset_from_top;
+        // NOTE: Stereo camera "eyes" are now on the lid visor
 
-            // Left eye
-            dxf.add_rounded_rectangle(
-                cfg.camera_window_width,
-                cfg.camera_window_height,
-                front_cx - cfg.camera_spacing / 2.0,
-                cam_cy,
-                cfg.camera_window_radius,
-            );
-
-            // Right eye
-            dxf.add_rounded_rectangle(
-                cfg.camera_window_width,
-                cfg.camera_window_height,
-                front_cx + cfg.camera_spacing / 2.0,
-                cam_cy,
-                cfg.camera_window_radius,
-            );
-        }
-
-        // Front mounting holes (in vertical section, clear of rake)
+        // Front mounting holes (now full height, no rake section to avoid)
         let front_hx = front_w / 2.0 - inset;
         let hy_bottom = wall_bottom + inset;
-        let hy_mid = wall_bottom + vertical_h / 2.0;
+        let hy_top = wall_top - inset;
         for (dx, dy) in [
             (-front_hx, hy_bottom),
             (front_hx, hy_bottom),
-            (-front_hx, hy_mid),
-            (front_hx, hy_mid),
+            (-front_hx, hy_top),
+            (front_hx, hy_top),
         ] {
             dxf.add_circle(front_cx + dx, dy, hole_r);
         }
 
-        // Quarter-turn latch holes on front (in raked section, near top)
+        // Quarter-turn latch holes on front (near top)
         let qt_y = wall_top - cfg.quarter_turn_inset;
         let qt_x_left = front_cx - front_w / 2.0 + cfg.quarter_turn_inset;
         let qt_x_right = front_cx + front_w / 2.0 - cfg.quarter_turn_inset;
@@ -789,9 +689,32 @@ impl WallWrap {
 // =============================================================================
 
 /// Top Lid configuration
+///
+/// The lid now includes a front "visor" - the raked forehead with camera eyes.
+/// This allows the entire forehead to lift with the lid, providing access to
+/// electronics while keeping the cameras mounted to the moving lid.
 #[derive(Debug, Clone)]
 pub struct TopLidConfig {
     pub shell: ShellConfig,
+    // --- Front Visor (forehead with camera eyes) ---
+    /// Visor rake angle (degrees) - gentle slope for friendly look
+    /// 15° is welcoming, tilts backward when lid is closed
+    pub visor_rake_angle: f64,
+    /// Visor height (mm) - how far it hangs down from lid front edge
+    pub visor_height: f64,
+    /// Enable stereo camera cutouts in visor
+    pub visor_cameras_enabled: bool,
+    /// Camera spacing (mm) - matches human IPD for natural stereo
+    pub visor_camera_spacing: f64,
+    /// Camera window width (mm)
+    pub visor_camera_window_width: f64,
+    /// Camera window height (mm)
+    pub visor_camera_window_height: f64,
+    /// Camera window corner radius (mm)
+    pub visor_camera_window_radius: f64,
+    /// Camera vertical offset from top of visor (mm)
+    pub visor_camera_offset_from_top: f64,
+    // --- Sensor and utility holes ---
     /// LiDAR dome hole diameter (mm) - fits sensor dome base
     pub sensor_hole_diameter: f64,
     /// LiDAR dome hole position offset from center (x, y)
@@ -835,6 +758,19 @@ impl Default for TopLidConfig {
     fn default() -> Self {
         let shell = ShellConfig::default();
         Self {
+            // --- Front Visor (the "forehead" with camera eyes) ---
+            // 15° is gentle, welcoming - tilts backward when closed
+            visor_rake_angle: 15.0,
+            // 60mm height ensures setback stays within frame clearance
+            // tan(15°) × 60mm ≈ 16mm setback < 20mm frame clearance
+            visor_height: 60.0,
+            // Stereo cameras for pareidolia + Vision Pro telepresence
+            visor_cameras_enabled: true,
+            visor_camera_spacing: 63.0,         // Human IPD average
+            visor_camera_window_width: 30.0,    // Wide enough for CSI camera
+            visor_camera_window_height: 25.0,   // Slightly shorter for horizontal look
+            visor_camera_window_radius: 5.0,    // Rounded corners
+            visor_camera_offset_from_top: 25.0, // Centered in visor
             // LiDAR dome hole - centered, forms the "head"
             sensor_hole_diameter: 160.0, // Slightly larger for dome lip
             sensor_hole_offset: (0.0, 0.0), // Centered on lid
@@ -862,7 +798,11 @@ impl Default for TopLidConfig {
     }
 }
 
-/// Top Lid: Removable panel with sensor mast and e-stop holes
+/// Top Lid: Hinged panel with front visor (the "forehead" with camera eyes)
+///
+/// The visor hangs down from the front edge of the lid at a 15° rake,
+/// creating a welcoming forehead appearance. When the lid opens,
+/// the visor lifts with it, providing access to the electronics.
 pub struct TopLid {
     config: TopLidConfig,
 }
@@ -876,7 +816,13 @@ impl TopLid {
         Self::new(TopLidConfig::default())
     }
 
-    /// Generate 3D representation
+    /// Calculate visor setback (how far the bottom of visor moves back)
+    fn visor_setback(&self) -> f64 {
+        let cfg = &self.config;
+        cfg.visor_height * (cfg.visor_rake_angle * std::f64::consts::PI / 180.0).tan()
+    }
+
+    /// Generate 3D representation (flat panel)
     pub fn generate(&self) -> Part {
         let cfg = &self.config;
         let shell = &cfg.shell;
@@ -885,7 +831,7 @@ impl TopLid {
         let width = shell.shell_width();
         let length = shell.shell_length();
 
-        // Main panel body
+        // Main panel body (flat horizontal lid)
         let panel = centered_cube("top_lid", width, length, shell.thickness);
 
         // Sensor mast hole
@@ -1498,7 +1444,7 @@ impl ShellAssembly {
                 height + shell.thickness,
             );
 
-        // Gas struts (simplified representation)
+        // Gas struts (inside shell, connecting walls to lid underside)
         let gas_struts = self.generate_gas_struts();
 
         big_shell
@@ -1508,33 +1454,36 @@ impl ShellAssembly {
     }
 
     /// Generate simplified gas strut representation for visualization
+    ///
+    /// Gas struts connect the side walls to the underside of the lid,
+    /// positioned near the rear to hold the lid open.
     fn generate_gas_struts(&self) -> Part {
         use crate::centered_cylinder;
 
         let shell = &self.config;
         let height = shell.shell_height();
         let length = shell.shell_length();
-        let width = shell.shell_width();
+        let wall_cfg = WallWrapConfig::default();
+        let lid_cfg = TopLidConfig::default();
 
-        // Gas strut parameters
-        let strut_diameter = 15.0;
-        let strut_length = 200.0; // Extended length
+        // Gas strut parameters - sized to fit inside shell
+        let strut_diameter = 10.0;
+        let strut_length = 100.0; // Short enough to stay inside
         let segments = 16;
 
-        // Strut positions (on side walls, near rear, angling up to lid)
-        let strut_x = width / 2.0 - 30.0;
-        let strut_y_bottom = -length / 2.0 + 100.0; // Wall attachment point
-        let strut_z_bottom = height - 50.0;
-        let strut_z_top = height + 20.0; // Lid attachment point
+        // Position inside shell, near rear corners
+        let strut_x = shell.shell_width() / 2.0 - 50.0; // Inset from walls
+        let strut_y = -length / 2.0 + 80.0; // Near rear
+        let strut_z = height * 0.6; // Mid-height inside shell
 
-        // Simple cylinder representation (angled strut)
+        // Struts angled from wall toward lid (fully inside the shell)
         let strut_right = centered_cylinder("gas_strut", strut_diameter / 2.0, strut_length, segments)
-            .rotate(15.0, 0.0, 0.0) // Angled
-            .translate(strut_x, strut_y_bottom, (strut_z_bottom + strut_z_top) / 2.0);
+            .rotate(-45.0, 0.0, 0.0) // Angled up toward front
+            .translate(strut_x, strut_y, strut_z);
 
         let strut_left = centered_cylinder("gas_strut", strut_diameter / 2.0, strut_length, segments)
-            .rotate(15.0, 0.0, 0.0)
-            .translate(-strut_x, strut_y_bottom, (strut_z_bottom + strut_z_top) / 2.0);
+            .rotate(-45.0, 0.0, 0.0)
+            .translate(-strut_x, strut_y, strut_z);
 
         strut_right.union(&strut_left)
     }
@@ -1627,23 +1576,36 @@ mod tests {
     fn test_wall_wrap_config() {
         let cfg = WallWrapConfig::default();
 
-        // Simple 5-panel design (no chamfers):
+        // Simple 4-panel design (vertical walls only):
         // All panels = shell_width/length = 580mm
         assert_eq!(cfg.front_width(), 580.0);
         assert_eq!(cfg.side_length(), 580.0);
         assert_eq!(cfg.rear_width(), 580.0);
         assert_eq!(cfg.panel_height(), 200.0);
 
-        // Front rake: 80mm raked section, 120mm vertical
-        assert_eq!(cfg.front_rake_height, 80.0);
-        assert_eq!(cfg.front_vertical_height(), 120.0);
+        // NOTE: Front rake (forehead) is now on the lid visor
 
         // Flat width: 580*4 + 20 = 2340mm
         let flat_w = cfg.flat_width();
         assert_eq!(flat_w, 2340.0, "Flat width should be 2340mm");
 
-        // Bend count: 1 rake + 3 corners + 1 bottom = 5
-        assert_eq!(cfg.bend_count(), 5);
+        // Bend count: 3 corners + 1 bottom = 4 (no front rake bend)
+        assert_eq!(cfg.bend_count(), 4);
+    }
+
+    #[test]
+    fn test_top_lid_visor() {
+        let cfg = TopLidConfig::default();
+
+        // Visor (forehead) configuration
+        assert_eq!(cfg.visor_rake_angle, 15.0);
+        assert_eq!(cfg.visor_height, 60.0);
+        assert!(cfg.visor_cameras_enabled);
+        assert_eq!(cfg.visor_camera_spacing, 63.0); // Human IPD
+
+        // Visor setback should be within frame clearance (20mm)
+        let setback = cfg.visor_height * (cfg.visor_rake_angle * std::f64::consts::PI / 180.0).tan();
+        assert!(setback < 20.0, "Visor setback {} should be < 20mm frame clearance", setback);
     }
 
     #[test]
