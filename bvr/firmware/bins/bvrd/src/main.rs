@@ -69,18 +69,21 @@ impl Default for DispatchFileConfig {
 struct LidarFileConfig {
     /// Enable LiDAR sensor
     enabled: bool,
-    /// Serial port for RPLidar A1
-    port: String,
-    /// Baud rate (always 115200 for RPLidar A1)
-    baud_rate: u32,
+    /// LiDAR IP address (Livox Mid360)
+    lidar_ip: String,
+    /// Point cloud UDP port (default 56301)
+    point_cloud_port: u16,
+    /// IMU data UDP port (default 56401, 0 to disable)
+    imu_port: u16,
 }
 
 impl Default for LidarFileConfig {
     fn default() -> Self {
         Self {
             enabled: true,
-            port: "/dev/ttyUSB0".to_string(),
-            baud_rate: 115200,
+            lidar_ip: "192.168.1.100".to_string(),
+            point_cloud_port: 56301,
+            imu_port: 56401,
         }
     }
 }
@@ -897,27 +900,25 @@ async fn main() -> Result<()> {
         }
     }
 
-    // LiDAR reader
+    // LiDAR reader (Livox Mid360)
     let (lidar_tx, mut lidar_rx) = watch::channel(None);
     if file_config.lidar.enabled {
+        let lidar_ip = file_config.lidar.lidar_ip.parse()
+            .unwrap_or(std::net::Ipv4Addr::new(192, 168, 1, 100));
         let lidar_config = LidarConfig {
-            port: file_config.lidar.port.clone(),
-            baud_rate: file_config.lidar.baud_rate,
+            lidar_ip,
+            point_cloud_port: file_config.lidar.point_cloud_port,
+            imu_port: file_config.lidar.imu_port,
+            ..Default::default()
         };
 
         let lidar_reader = LidarReader::new(lidar_config);
-        match lidar_reader.spawn(lidar_tx) {
-            Ok(_handle) => {
-                info!(
-                    port = %file_config.lidar.port,
-                    baud = file_config.lidar.baud_rate,
-                    "LiDAR reader started"
-                );
-            }
-            Err(e) => {
-                warn!(?e, "Failed to start LiDAR reader - continuing without LiDAR");
-            }
-        }
+        let _lidar_handle = lidar_reader.spawn(lidar_tx);
+        info!(
+            ip = %file_config.lidar.lidar_ip,
+            port = file_config.lidar.point_cloud_port,
+            "LiDAR reader started (Livox Mid360)"
+        );
     } else {
         info!("LiDAR disabled in config");
     }
@@ -1432,8 +1433,8 @@ async fn main() -> Result<()> {
                 let count = LIDAR_COUNT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
                 if count % 50 == 0 {
                     debug!(
-                        points = scan.ranges.len(),
-                        "LiDAR scan"
+                        points = scan.points.len(),
+                        "LiDAR point cloud"
                     );
                 }
             }

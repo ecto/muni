@@ -3,7 +3,7 @@
 //! Uses a grid-based correlation approach that is more robust to
 //! initialization errors than ICP-based methods.
 
-use lidar::LaserScan;
+use lidar::PointCloud;
 use nalgebra::{Matrix3, Vector2};
 use std::sync::Arc;
 use transforms::Transform2D;
@@ -65,8 +65,8 @@ impl CorrelativeScanMatcher {
     /// starting from `initial_guess`.
     pub fn match_scans(
         &self,
-        reference: &Arc<LaserScan>,
-        current: &Arc<LaserScan>,
+        reference: &Arc<PointCloud>,
+        current: &Arc<PointCloud>,
         initial_guess: Transform2D,
     ) -> Result<ScanMatchResult, SlamError> {
         // Build lookup table from reference scan
@@ -89,7 +89,7 @@ impl CorrelativeScanMatcher {
     }
 
     /// Build a lookup table (precomputed map) from a laser scan.
-    fn build_lookup_table(&self, scan: &LaserScan) -> LookupTable {
+    fn build_lookup_table(&self, scan: &PointCloud) -> LookupTable {
         // Convert scan to points
         let points: Vec<Vector2<f64>> = self.scan_to_points(scan, &Transform2D::identity());
 
@@ -146,7 +146,7 @@ impl CorrelativeScanMatcher {
     /// Coarse grid search over pose space.
     fn coarse_search(
         &self,
-        scan: &LaserScan,
+        scan: &PointCloud,
         lookup: &LookupTable,
         initial: &Transform2D,
     ) -> (Transform2D, f64) {
@@ -189,7 +189,7 @@ impl CorrelativeScanMatcher {
     /// Fine search using gradient descent.
     fn fine_search(
         &self,
-        scan: &LaserScan,
+        scan: &PointCloud,
         lookup: &LookupTable,
         initial: &Transform2D,
     ) -> (Transform2D, f64) {
@@ -236,7 +236,7 @@ impl CorrelativeScanMatcher {
     }
 
     /// Score a pose by summing lookup table values at scan point locations.
-    fn score_pose(&self, scan: &LaserScan, lookup: &LookupTable, pose: &Transform2D) -> f64 {
+    fn score_pose(&self, scan: &PointCloud, lookup: &LookupTable, pose: &Transform2D) -> f64 {
         let points = self.scan_to_points(scan, pose);
         if points.is_empty() {
             return 0.0;
@@ -259,20 +259,30 @@ impl CorrelativeScanMatcher {
         total / count as f64
     }
 
-    /// Convert a laser scan to 2D points in a given frame.
-    fn scan_to_points(&self, scan: &LaserScan, pose: &Transform2D) -> Vec<Vector2<f64>> {
-        let mut points = Vec::with_capacity(scan.ranges.len());
+    /// Convert a point cloud to 2D points in a given frame.
+    ///
+    /// Projects 3D points to ground plane and filters by height.
+    fn scan_to_points(&self, cloud: &PointCloud, pose: &Transform2D) -> Vec<Vector2<f64>> {
+        // Height filter for ground plane projection
+        const MIN_Z: f32 = -0.3;
+        const MAX_Z: f32 = 1.5;
+        const MAX_RANGE: f32 = 50.0;
 
-        for (i, &range) in scan.ranges.iter().enumerate() {
-            if !range.is_finite() || range < scan.range_min || range > scan.range_max {
+        let mut points = Vec::with_capacity(cloud.points.len() / 2);
+
+        for point in &cloud.points {
+            // Filter by height
+            if point.z < MIN_Z || point.z > MAX_Z {
                 continue;
             }
 
-            let angle = i as f32 * scan.angle_increment;
-            let local_x = range * angle.cos();
-            let local_y = range * angle.sin();
+            // Check 2D range
+            let range = (point.x * point.x + point.y * point.y).sqrt();
+            if !range.is_finite() || range < 0.1 || range > MAX_RANGE {
+                continue;
+            }
 
-            let world_point = pose.transform_point(Vector2::new(local_x as f64, local_y as f64));
+            let world_point = pose.transform_point(Vector2::new(point.x as f64, point.y as f64));
             points.push(world_point);
         }
 
@@ -303,7 +313,7 @@ impl CorrelativeScanMatcher {
     /// Estimate covariance from the Hessian of the score function.
     fn estimate_covariance(
         &self,
-        scan: &LaserScan,
+        scan: &PointCloud,
         lookup: &LookupTable,
         pose: &Transform2D,
     ) -> Matrix3<f64> {
@@ -387,18 +397,29 @@ impl LookupTable {
 mod tests {
     use super::*;
 
-    fn make_test_scan(offset_x: f32, offset_y: f32) -> LaserScan {
-        let mut scan = LaserScan::default();
-        scan.angle_increment = std::f32::consts::PI * 2.0 / 360.0;
-        scan.ranges = (0..360)
+    fn make_test_scan(offset_x: f32, offset_y: f32) -> PointCloud {
+        use lidar::Point3D;
+
+        let angle_increment = std::f32::consts::PI * 2.0 / 360.0;
+        let points: Vec<Point3D> = (0..360)
             .map(|i| {
-                let angle = i as f32 * scan.angle_increment;
-                // Simple circular wall at 5m radius
-                5.0 + offset_x * angle.cos() + offset_y * angle.sin()
+                let angle = i as f32 * angle_increment;
+                // Simple circular wall at 5m radius with offsets
+                let range = 5.0 + offset_x * angle.cos() + offset_y * angle.sin();
+                Point3D {
+                    x: range * angle.cos(),
+                    y: range * angle.sin(),
+                    z: 0.5, // Mid-height for ground plane filter
+                    reflectivity: 128,
+                    tag: 0,
+                }
             })
             .collect();
-        scan.intensities = vec![128; 360];
-        scan
+
+        PointCloud {
+            points,
+            ..Default::default()
+        }
     }
 
     #[test]

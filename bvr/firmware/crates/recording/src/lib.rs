@@ -703,40 +703,39 @@ impl Recorder {
         Ok(())
     }
 
-    /// Log a LiDAR scan as a 2D point cloud.
+    /// Log a LiDAR point cloud (3D).
     ///
-    /// Converts polar coordinates (range, angle) to Cartesian (x, y).
-    pub fn log_lidar_scan(&self, scan: &lidar::LaserScan) -> Result<(), RecordingError> {
+    /// Logs the Livox Mid360 point cloud data as 3D points.
+    pub fn log_lidar_scan(&self, cloud: &lidar::PointCloud) -> Result<(), RecordingError> {
         let Some(ref stream) = self.stream else {
             return Ok(());
         };
 
-        let mut points = Vec::with_capacity(scan.ranges.len());
-        let mut colors = Vec::with_capacity(scan.ranges.len());
+        if cloud.points.is_empty() {
+            return Ok(());
+        }
 
-        for (i, &range) in scan.ranges.iter().enumerate() {
-            // Skip invalid ranges
-            if range < scan.range_min || range > scan.range_max || range == 0.0 {
+        let mut points = Vec::with_capacity(cloud.points.len());
+        let mut colors = Vec::with_capacity(cloud.points.len());
+
+        for p in &cloud.points {
+            // Skip invalid points (zero distance typically means no return)
+            let dist = (p.x * p.x + p.y * p.y + p.z * p.z).sqrt();
+            if dist < 0.1 || dist > 70.0 {
                 continue;
             }
 
-            // Convert polar → Cartesian
-            // Index 0 = 0°, increases counter-clockwise
-            let angle = i as f32 * scan.angle_increment;
-            let x = range * angle.cos();
-            let y = range * angle.sin();
+            points.push([p.x, p.y, p.z]);
 
-            points.push([x, y]);
-
-            // Color by intensity (if available) or distance
-            let intensity = scan.intensities.get(i).copied().unwrap_or(128);
-            colors.push([intensity, intensity, intensity, 255]);
+            // Color by reflectivity
+            let r = p.reflectivity;
+            colors.push([r, r, r, 255]);
         }
 
         if !points.is_empty() {
             stream.log(
-                "lidar/scan",
-                &rerun::Points2D::new(points)
+                "lidar/points",
+                &rerun::Points3D::new(points)
                     .with_colors(colors)
                     .with_radii([0.02]), // 2cm point size
             )?;

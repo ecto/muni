@@ -1,49 +1,68 @@
 # lidar
 
-RPLidar A1 driver for the BVR rover.
+Livox Mid360 LiDAR driver for the BVR rover.
 
 ## Overview
 
-This crate provides a Rust driver for the SLAMTEC RPLidar A1 sensor. It connects via serial port (USB) and produces 360-degree laser scans for SLAM and obstacle detection.
+This crate provides a Rust driver for the Livox Mid360 3D LiDAR sensor. It receives point cloud data over UDP using the Livox SDK2 protocol and produces 3D point clouds for SLAM, obstacle detection, and mapping.
 
 ## Features
 
-- Non-blocking serial I/O using a dedicated thread
-- Continuous 360-degree scans at ~5-10 Hz
-- Standard laser scan format with range and intensity data
-- Automatic packet parsing and scan assembly
-- Robust error handling and recovery
+- Async UDP receiver using Tokio
+- 3D point cloud frames (~10k points per frame at 10Hz)
+- Multiple point data formats (Cartesian 32-bit, 16-bit, Spherical)
+- Optional IMU data streaming
+- Frame assembly from multiple UDP packets
 
 ## Hardware Specifications
 
-**RPLidar A1:**
-- Range: 0.2m - 12m
-- Sample rate: 8000 samples/second
-- Scan rate: 5-10 Hz
-- Angular resolution: ~1°
-- Interface: USB (serial UART, 115200 baud)
+**Livox Mid360:**
+- Range: 0.1m - 70m
+- FOV: 360° × 59° (non-repetitive scanning)
+- Point rate: 200,000 points/second
+- Scan rate: ~10 Hz (full coverage)
+- Interface: Ethernet (100BASE-TX)
+- Power: PoE or 9-27V DC
+
+## Network Configuration
+
+The Mid360 uses fixed UDP ports:
+
+| Data Type | LiDAR Port | Host Port |
+|-----------|-----------|-----------|
+| Point Cloud | 56300 | 56301 |
+| IMU Data | 56400 | 56401 |
+| Commands | 56100 | 56101 |
+
+Default LiDAR IP: `192.168.1.1xx` (last two digits from serial number)
 
 ## Usage
 
 ```rust
-use lidar::{Config, LidarReader, LaserScan};
+use lidar::{Config, LidarReader, PointCloud};
+use std::net::Ipv4Addr;
 use tokio::sync::watch;
 
 #[tokio::main]
 async fn main() {
     let config = Config {
-        port: "/dev/ttyUSB0".into(),
-        baud_rate: 115200,
+        lidar_ip: Ipv4Addr::new(192, 168, 1, 100),
+        point_cloud_port: 56301,
+        imu_port: 56401,
+        ..Default::default()
     };
 
     let (tx, mut rx) = watch::channel(None);
     let reader = LidarReader::new(config);
-    let _handle = reader.spawn(tx).expect("Failed to spawn reader");
+    let _handle = reader.spawn(tx);
 
-    // Process scans
+    // Process point clouds
     while rx.changed().await.is_ok() {
-        if let Some(scan) = &*rx.borrow() {
-            println!("Received scan with {} points", scan.ranges.len());
+        if let Some(cloud) = &*rx.borrow() {
+            println!("Frame {}: {} points", cloud.frame_id, cloud.points.len());
+            for p in &cloud.points {
+                println!("  ({:.2}, {:.2}, {:.2})", p.x, p.y, p.z);
+            }
         }
     }
 }
@@ -51,43 +70,44 @@ async fn main() {
 
 ## Example
 
-Run the interactive scan viewer:
+Run the interactive point cloud viewer:
 
 ```bash
-# Default port (/dev/ttyUSB0)
-cargo run --example read_scans
+# Default IP (192.168.1.100)
+cargo run --example read_points
 
-# Custom port
-cargo run --example read_scans -- /dev/ttyUSB1
+# Custom IP
+cargo run --example read_points -- --ip 192.168.1.101
 ```
 
-The example displays:
-- Scan statistics (point count, range, quality)
-- ASCII visualization every 10 scans
+## PointCloud Format
 
-## LaserScan Format
+Each `PointCloud` contains:
+- `timestamp`: Local time when frame was received
+- `timestamp_ns`: LiDAR nanosecond timestamp (GPS synced if available)
+- `frame_id`: Monotonic frame counter
+- `points`: Vector of `Point3D`:
+  - `x`, `y`, `z`: Coordinates in meters (LiDAR frame)
+  - `reflectivity`: Surface reflectivity (0-255)
+  - `tag`: Classification flags
 
-Each `LaserScan` contains:
-- `timestamp`: When the scan was captured
-- `angle_increment`: Radians between consecutive measurements
-- `range_min`, `range_max`: Valid range limits (0.2m - 12m)
-- `ranges`: 360-element array of distances in meters (index = degrees)
-- `intensities`: 360-element array of signal quality (0-63)
+## Coordinate System
 
-## Protocol Details
+The Mid360 uses a right-handed coordinate system:
+- X: Forward (along the connector direction)
+- Y: Left
+- Z: Up
 
-The driver implements the RPLidar A1 binary protocol:
+## Configuration
 
-**Commands:**
-- `0xA5 0x20`: Start scan
-- `0xA5 0x25`: Stop scan
-- `0xA5 0x40`: Reset device
+In `bvr.toml`:
 
-**Packet Format (5 bytes):**
-```
-Byte 0: Quality (6 bits) + Start flag (1 bit)
-Byte 1-2: Angle (1/64 degree increments)
-Byte 3-4: Distance (1/4 mm increments)
+```toml
+[lidar]
+enabled = true
+lidar_ip = "192.168.1.100"
+point_cloud_port = 56301
+imu_port = 56401  # Set to 0 to disable IMU
 ```
 
 ## Integration
@@ -97,7 +117,7 @@ Add to your `Cargo.toml`:
 ```toml
 [dependencies]
 lidar = { path = "../lidar" }
-tokio = { version = "1", features = ["sync"] }
+tokio = { version = "1", features = ["net", "sync", "rt"] }
 ```
 
 Or use workspace dependencies:
@@ -119,6 +139,11 @@ cargo check -p lidar --all-targets
 
 ## Related Crates
 
-- `gps` - GPS receiver driver (similar architecture)
+- `gps` - GPS receiver driver (similar watch channel pattern)
 - `localization` - Sensor fusion for pose estimation
 - `recording` - Rerun integration for data capture
+- `slam` - SLAM processing using point clouds
+
+## Protocol Reference
+
+Based on [Livox Mid360 Ethernet Protocol](https://livox-wiki-en.readthedocs.io/en/latest/tutorials/new_product/mid360/livox_eth_protocol_mid360.html).

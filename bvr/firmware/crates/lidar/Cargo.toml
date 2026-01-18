@@ -4,15 +4,16 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
+description = "Livox Mid360 LiDAR driver"
 
 [dependencies]
-tokio.workspace = true
-tokio-serial = "5"
+tokio = { workspace = true, features = ["net", "sync", "rt"] }
 tracing.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]
 tracing-subscriber.workspace = true
+tokio = { workspace = true, features = ["net", "sync", "rt", "macros"] }
 
 [[example]]
-name = "read_scans"
+name = "read_points"

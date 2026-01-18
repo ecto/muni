@@ -1,76 +1,114 @@
-//! RPLidar A1 driver for bvr.
+//! Livox Mid360 LiDAR driver for bvr.
 //!
-//! Provides laser scan data from a serial-connected RPLidar A1 sensor.
-//! The driver parses the binary protocol and produces 360-degree scans
-//! as `LaserScan` structs.
+//! Provides 3D point cloud data from a Livox Mid360 sensor over UDP.
+//! The driver parses the Livox SDK2 protocol and produces point clouds
+//! as `PointCloud` structs.
 
+use std::net::Ipv4Addr;
 use std::time::Instant;
 use thiserror::Error;
 use tokio::sync::watch;
-use tracing::error;
 
 mod driver;
 
 #[derive(Error, Debug)]
 pub enum LidarError {
-    #[error("Serial port error: {0}")]
-    Serial(String),
+    #[error("Network error: {0}")]
+    Network(String),
     #[error("Parse error: {0}")]
     Parse(String),
     #[error("Timeout waiting for data")]
     Timeout,
+    #[error("Device not found")]
+    NotFound,
 }
 
-/// RPLidar A1 configuration.
+/// Livox Mid360 configuration.
 #[derive(Debug, Clone)]
 pub struct Config {
-    /// Serial port path (e.g., "/dev/ttyUSB0", "/dev/ttyUSB1")
-    pub port: String,
-    /// Baud rate (typically 115200 for RPLidar A1)
-    pub baud_rate: u32,
+    /// LiDAR IP address (default: 192.168.1.1xx based on SN)
+    pub lidar_ip: Ipv4Addr,
+    /// Host IP address to bind (default: 0.0.0.0)
+    pub host_ip: Ipv4Addr,
+    /// Point cloud data port (default: 56301)
+    pub point_cloud_port: u16,
+    /// IMU data port (default: 56401, 0 to disable)
+    pub imu_port: u16,
+    /// Command port for control messages (default: 56101)
+    pub cmd_port: u16,
 }
 
 impl Default for Config {
     fn default() -> Self {
         Self {
-            port: "/dev/ttyUSB0".into(),
-            baud_rate: 115200,
+            lidar_ip: Ipv4Addr::new(192, 168, 1, 100),
+            host_ip: Ipv4Addr::new(0, 0, 0, 0),
+            point_cloud_port: 56301,
+            imu_port: 56401,
+            cmd_port: 56101,
         }
     }
 }
 
-/// A complete 360-degree laser scan.
-#[derive(Debug, Clone)]
-pub struct LaserScan {
-    /// Timestamp when scan was captured
-    pub timestamp: Instant,
-    /// Angular resolution (radians between points)
-    pub angle_increment: f32,
-    /// Minimum range (meters, typically 0.2m for RPLidar A1)
-    pub range_min: f32,
-    /// Maximum range (meters, typically 12m for RPLidar A1)
-    pub range_max: f32,
-    /// Range measurements (meters), indexed by angle
-    /// Index 0 = 0°, increases counter-clockwise
-    pub ranges: Vec<f32>,
-    /// Intensity values (0-255), same length as ranges
-    pub intensities: Vec<u8>,
+/// A 3D point from the LiDAR.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct Point3D {
+    /// X coordinate in meters (forward)
+    pub x: f32,
+    /// Y coordinate in meters (left)
+    pub y: f32,
+    /// Z coordinate in meters (up)
+    pub z: f32,
+    /// Reflectivity (0-255)
+    pub reflectivity: u8,
+    /// Point tag (classification flags)
+    pub tag: u8,
 }
 
-impl Default for LaserScan {
+/// A complete point cloud frame from the LiDAR.
+#[derive(Debug, Clone)]
+pub struct PointCloud {
+    /// Timestamp when frame was captured
+    pub timestamp: Instant,
+    /// Nanosecond timestamp from LiDAR (GPS synced if available)
+    pub timestamp_ns: u64,
+    /// Frame sequence number
+    pub frame_id: u32,
+    /// Point cloud data
+    pub points: Vec<Point3D>,
+}
+
+impl Default for PointCloud {
     fn default() -> Self {
         Self {
             timestamp: Instant::now(),
-            angle_increment: 0.0,
-            range_min: 0.2,
-            range_max: 12.0,
-            ranges: Vec::new(),
-            intensities: Vec::new(),
+            timestamp_ns: 0,
+            frame_id: 0,
+            points: Vec::new(),
         }
     }
 }
 
-/// LiDAR reader that parses RPLidar A1 packets from a serial port.
+/// IMU data from the Mid360.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct ImuData {
+    /// Timestamp in nanoseconds
+    pub timestamp_ns: u64,
+    /// Gyroscope X (rad/s)
+    pub gyro_x: f32,
+    /// Gyroscope Y (rad/s)
+    pub gyro_y: f32,
+    /// Gyroscope Z (rad/s)
+    pub gyro_z: f32,
+    /// Accelerometer X (m/s²)
+    pub accel_x: f32,
+    /// Accelerometer Y (m/s²)
+    pub accel_y: f32,
+    /// Accelerometer Z (m/s²)
+    pub accel_z: f32,
+}
+
+/// LiDAR reader that receives Livox Mid360 point clouds over UDP.
 pub struct LidarReader {
     config: Config,
 }
@@ -80,24 +118,31 @@ impl LidarReader {
         Self { config }
     }
 
-    /// Run the LiDAR reader, sending scan updates to the provided channel.
+    /// Spawn the LiDAR reader as an async task.
     ///
-    /// This spawns a blocking thread for serial I/O.
+    /// Returns a handle that can be used to abort the task.
     pub fn spawn(
         self,
-        tx: watch::Sender<Option<LaserScan>>,
-    ) -> Result<std::thread::JoinHandle<()>, LidarError> {
-        let config = self.config.clone();
+        tx: watch::Sender<Option<PointCloud>>,
+    ) -> tokio::task::JoinHandle<Result<(), LidarError>> {
+        let config = self.config;
+        tokio::spawn(async move { driver::run_reader(config, tx).await })
+    }
 
-        let handle = std::thread::spawn(move || {
-            if let Err(e) = driver::run_reader(config, tx) {
-                error!(?e, "LiDAR reader error");
-            }
-        });
-
-        Ok(handle)
+    /// Spawn with IMU data channel.
+    pub fn spawn_with_imu(
+        self,
+        point_tx: watch::Sender<Option<PointCloud>>,
+        imu_tx: watch::Sender<Option<ImuData>>,
+    ) -> tokio::task::JoinHandle<Result<(), LidarError>> {
+        let config = self.config;
+        tokio::spawn(async move { driver::run_reader_with_imu(config, point_tx, imu_tx).await })
     }
 }
+
+// Re-export for backwards compatibility with code expecting LaserScan
+// (the recording crate uses this)
+pub use PointCloud as LaserScan;
 
 #[cfg(test)]
 mod tests {
@@ -106,16 +151,23 @@ mod tests {
     #[test]
     fn test_config_default() {
         let config = Config::default();
-        assert_eq!(config.port, "/dev/ttyUSB0");
-        assert_eq!(config.baud_rate, 115200);
+        assert_eq!(config.lidar_ip, Ipv4Addr::new(192, 168, 1, 100));
+        assert_eq!(config.point_cloud_port, 56301);
     }
 
     #[test]
-    fn test_laser_scan_default() {
-        let scan = LaserScan::default();
-        assert_eq!(scan.range_min, 0.2);
-        assert_eq!(scan.range_max, 12.0);
-        assert_eq!(scan.ranges.len(), 0);
-        assert_eq!(scan.intensities.len(), 0);
+    fn test_point_cloud_default() {
+        let cloud = PointCloud::default();
+        assert_eq!(cloud.points.len(), 0);
+        assert_eq!(cloud.frame_id, 0);
+    }
+
+    #[test]
+    fn test_point3d_default() {
+        let point = Point3D::default();
+        assert_eq!(point.x, 0.0);
+        assert_eq!(point.y, 0.0);
+        assert_eq!(point.z, 0.0);
+        assert_eq!(point.reflectivity, 0);
     }
 }

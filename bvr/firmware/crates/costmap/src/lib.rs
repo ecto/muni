@@ -7,7 +7,7 @@
 //!
 //! The costmap is used for path planning and obstacle avoidance.
 
-use lidar::LaserScan;
+use lidar::PointCloud;
 use nalgebra::Vector2;
 use thiserror::Error;
 use transforms::Transform2D;
@@ -157,24 +157,37 @@ impl OccupancyGrid {
         }
     }
 
-    /// Integrate a LiDAR scan into the grid using raycasting.
-    pub fn integrate_scan(&mut self, scan: &LaserScan, robot_pose: &Transform2D) {
+    /// Integrate a LiDAR point cloud into the grid using raycasting.
+    ///
+    /// Projects 3D points to 2D ground plane and filters by height.
+    pub fn integrate_scan(&mut self, cloud: &PointCloud, robot_pose: &Transform2D) {
         let sensor_pos = robot_pose.translation();
 
-        for (i, &range) in scan.ranges.iter().enumerate() {
-            // Skip invalid ranges
-            if !range.is_finite() || range < scan.range_min || range > scan.range_max {
+        // Height filter: only consider points near ground plane
+        // Mid360 is mounted at ~0.5m height, so filter for -0.3m to 1.5m
+        const MIN_Z: f32 = -0.3;
+        const MAX_Z: f32 = 1.5;
+        const MAX_RANGE: f32 = 50.0;
+
+        for point in &cloud.points {
+            // Skip points outside height range
+            if point.z < MIN_Z || point.z > MAX_Z {
                 continue;
             }
 
-            // Compute endpoint in world frame
-            let angle = i as f32 * scan.angle_increment;
-            let local_x = range * angle.cos();
-            let local_y = range * angle.sin();
-            let endpoint = robot_pose.transform_point(Vector2::new(local_x as f64, local_y as f64));
+            // Compute 2D range (distance in ground plane)
+            let range = (point.x * point.x + point.y * point.y).sqrt();
 
-            // Determine if we hit an obstacle (not max range)
-            let hit_obstacle = range < scan.range_max - 0.1;
+            // Skip invalid ranges
+            if !range.is_finite() || range < 0.1 || range > MAX_RANGE {
+                continue;
+            }
+
+            // Transform point from sensor frame to world frame
+            let endpoint = robot_pose.transform_point(Vector2::new(point.x as f64, point.y as f64));
+
+            // Points within max range are considered obstacle hits
+            let hit_obstacle = range < MAX_RANGE - 1.0;
 
             // Raytrace from sensor to endpoint
             self.raytrace(sensor_pos, endpoint, hit_obstacle);
@@ -353,8 +366,8 @@ impl Costmap {
         self.obstacle_layer.clear();
     }
 
-    /// Update obstacle layer from a LiDAR scan.
-    pub fn update_obstacles(&mut self, scan: &LaserScan, robot_pose: &Transform2D) {
+    /// Update obstacle layer from a LiDAR point cloud.
+    pub fn update_obstacles(&mut self, scan: &PointCloud, robot_pose: &Transform2D) {
         self.obstacle_layer.integrate_scan(scan, robot_pose);
         self.recompute();
     }

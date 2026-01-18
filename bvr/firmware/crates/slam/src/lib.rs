@@ -8,7 +8,7 @@
 //! The SLAM system runs at ~10Hz (scan rate) and outputs pose corrections
 //! that are applied to the odometry estimate.
 
-use lidar::LaserScan;
+use lidar::PointCloud;
 use nalgebra::{DMatrix, DVector, Matrix3, Vector3};
 use std::sync::Arc;
 use std::time::Instant;
@@ -75,7 +75,7 @@ pub struct Keyframe {
     /// Pose in world frame (optimized)
     pub pose: Transform2D,
     /// Associated LiDAR scan
-    pub scan: Arc<LaserScan>,
+    pub scan: Arc<PointCloud>,
     /// Timestamp when keyframe was created
     pub timestamp: Instant,
 }
@@ -129,7 +129,7 @@ pub struct SlamProcessor {
     /// Pose at last keyframe insertion
     last_keyframe_pose: Transform2D,
     /// Reference scan for scan-to-scan matching
-    reference_scan: Option<Arc<LaserScan>>,
+    reference_scan: Option<Arc<PointCloud>>,
     /// Total loop closures detected
     loop_closure_count: usize,
 }
@@ -174,7 +174,7 @@ impl SlamProcessor {
 
     /// Process a new LiDAR scan (lower frequency, ~10Hz).
     /// Returns update info if pose was refined or keyframe added.
-    pub fn process_scan(&mut self, scan: &LaserScan) -> Option<SlamUpdate> {
+    pub fn process_scan(&mut self, scan: &PointCloud) -> Option<SlamUpdate> {
         let scan = Arc::new(scan.clone());
 
         // Check if we should add a keyframe
@@ -527,26 +527,38 @@ impl SlamProcessor {
 mod tests {
     use super::*;
 
-    fn make_test_scan(angle_offset: f32) -> LaserScan {
-        // Create a simple scan with a few ranges
-        let mut scan = LaserScan::default();
-        scan.angle_increment = std::f32::consts::PI * 2.0 / 360.0;
-        scan.ranges = (0..360)
+    fn make_test_scan(angle_offset: f32) -> PointCloud {
+        // Create a simple point cloud simulating a box-like environment
+        use lidar::Point3D;
+
+        let angle_increment = std::f32::consts::PI * 2.0 / 360.0;
+        let points: Vec<Point3D> = (0..360)
             .map(|i| {
-                let angle = (i as f32) * scan.angle_increment + angle_offset;
-                // Simple box-like environment
-                let x = angle.cos();
-                let y = angle.sin();
-                let range = if x.abs() > y.abs() {
-                    5.0 / x.abs()
+                let angle = (i as f32) * angle_increment + angle_offset;
+                // Simple box-like environment at z=0
+                let dir_x = angle.cos();
+                let dir_y = angle.sin();
+                let range = if dir_x.abs() > dir_y.abs() {
+                    5.0 / dir_x.abs()
                 } else {
-                    5.0 / y.abs()
-                };
-                range.min(scan.range_max)
+                    5.0 / dir_y.abs()
+                }
+                .min(50.0);
+
+                Point3D {
+                    x: range * dir_x,
+                    y: range * dir_y,
+                    z: 0.5, // Mid-height
+                    reflectivity: 128,
+                    tag: 0,
+                }
             })
             .collect();
-        scan.intensities = vec![128; 360];
-        scan
+
+        PointCloud {
+            points,
+            ..Default::default()
+        }
     }
 
     #[test]
