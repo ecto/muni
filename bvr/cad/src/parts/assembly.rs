@@ -458,15 +458,8 @@ impl BVR1Assembly {
             .translate(0.0, -shell_cfg.shell_length() / 4.0, mast_base_z + mast_height);
         scene.add(lidar, "sensor_housing");
 
-        let camera = Camera::insta360_x4()
-            .generate()
-            .translate(0.0, -shell_cfg.shell_length() / 4.0, mast_base_z + mast_height - 80.0);
-        scene.add(camera, "sensor_housing");
-
-        let gps = GpsAntenna::default_rtk()
-            .generate()
-            .translate(80.0, -shell_cfg.shell_length() / 4.0, mast_base_z + mast_height + 30.0);
-        scene.add(gps, "abs_black");
+        // NOTE: Insta360 camera removed - using CSI stereo cameras in front face
+        // NOTE: GPS antenna removed - Proxicast 5-in-1 handles GPS (flush mounted)
 
         scene
     }
@@ -691,9 +684,10 @@ impl BVR1Assembly {
         let panel = AccessPanel::default_bvr1().generate()
             .translate(0.0, 0.0, panel_z);
 
-        // E-Stop on the panel (accessible through top lid hole)
+        // E-Stop aligned with the lid hole (front-left)
+        let lid_cfg = super::shell::TopLidConfig::default();
         let estop = EStopButton::new().generate()
-            .translate(-150.0, -200.0, panel_z + 20.0);
+            .translate(lid_cfg.estop_hole_offset.0, lid_cfg.estop_hole_offset.1, panel_z + 20.0);
 
         // Note: Sensors (LiDAR, camera, GPS) are now positioned inside
         // the sensor dome via add_dome_sensors()
@@ -729,21 +723,23 @@ impl BVR1Assembly {
     /// Add stereo cameras in the front face
     ///
     /// "The Face" - two cameras as "eyes" for pareidolia effect
-    /// Positioned in the raked forehead section, spaced at human IPD (63mm)
+    /// Positioned in the visor (forehead), spaced at human IPD (63mm)
+    /// NOTE: Cameras are now in the lid visor, so they lift with the lid
     fn add_front_cameras(&self) -> Part {
         let gc = self.ground_clearance();
         let shell_cfg = super::shell::ShellConfig::default();
-        let wall_cfg = super::shell::WallWrapConfig::default();
+        let lid_cfg = super::shell::TopLidConfig::default();
 
-        // Front face position
+        // Front face position (visor hangs from lid front edge)
         let shell_front_y = shell_cfg.shell_length() / 2.0;
         let shell_height = shell_cfg.shell_height();
 
-        // Camera Z position (in the forehead/rake section)
-        let camera_z = gc + shell_height - wall_cfg.camera_offset_from_top;
+        // Camera Z position (in the visor, which hangs below the lid)
+        // Visor is on the lid at height shell_height + thickness, cameras in visor
+        let camera_z = gc + shell_height - lid_cfg.visor_camera_offset_from_top;
 
         // Stereo cameras spaced at IPD (63mm)
-        let spacing = wall_cfg.camera_spacing;
+        let spacing = lid_cfg.visor_camera_spacing;
 
         // Left camera (simple representation)
         let left_cam = Camera::new(super::sensors::CameraConfig {
