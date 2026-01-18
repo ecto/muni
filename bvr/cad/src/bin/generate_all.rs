@@ -182,21 +182,22 @@ fn main() -> Result<()> {
     let wall_wrap = WallWrap::new(wall_wrap_config.clone());
     let part = wall_wrap.generate();
     export_part("shell_wall_wrap", &part, "shell_panel")?;
-    println!("  Wall Wrap (flat: ~{:.0}mm x {:.0}mm, 3 bends)",
-             wall_wrap_config.flat_width(), wall_wrap_config.panel_height());
-    println!("    - Front: nozzle slot + LED channel");
+    println!("  Wall Wrap (flat: ~{:.0}mm x {:.0}mm, {} bends)",
+             wall_wrap_config.flat_width(), wall_wrap_config.panel_height(),
+             wall_wrap_config.bend_count());
+    println!("    - Front: nozzle slot + LED channel + stereo cameras (\"eyes\")");
     println!("    - Rear: louver vents + drain holes");
     println!("    - Sides: clean panels with mount holes");
 
-    // Top Lid: Removable panel with sensor mast and e-stop
-    let top_lid = TopLid::new(top_lid_config);
+    // Top Lid: Removable panel with LiDAR dome, e-stop, and antenna
+    let top_lid = TopLid::new(top_lid_config.clone());
     let part = top_lid.generate();
     export_part("shell_top_lid", &part, "shell_panel")?;
     println!("  Top Lid ({:.0}mm x {:.0}mm, flat panel)",
              shell_config.shell_width(), shell_config.shell_length());
-    println!("    - Sensor mast hole: 150mm diameter");
-    println!("    - E-stop hole: 30mm diameter");
-    println!("    - GPS grommet: 12mm diameter");
+    println!("    - LiDAR dome hole: {:.0}mm diameter (centered)", top_lid_config.sensor_hole_diameter);
+    println!("    - E-stop hole: {:.0}mm diameter (front-left)", top_lid_config.estop_hole_diameter);
+    println!("    - Proxicast antenna: {:.0}mm diameter (rear-right)", top_lid_config.antenna_hole_diameter);
 
     // Skid Plate: Bottom protection panel (legacy, now integrated into wall wrap)
     let skid_plate = SkidPlate::new(skid_plate_config);
@@ -207,16 +208,16 @@ fn main() -> Result<()> {
     println!("    - 12 mounting holes");
     println!("    - 4 drain holes at corners");
 
-    // Sensor Dome: 3D printed cover for LiDAR and cameras
-    // "Subtle, not towering. Sits like a head without trying to be a head."
+    // Sensor Dome: 3D printed cover for LiDAR only
+    // Cameras are in front face ("eyes"), antenna is flush-mounted on lid
     let sensor_dome_config = SensorDomeConfig::default();
     let sensor_dome = SensorDome::new(sensor_dome_config.clone());
     let part = sensor_dome.generate();
     export_part("sensor_dome", &part, "3d_printed")?;
     println!("  Sensor Dome (3D printed, {:.0}mm diameter x {:.0}mm tall)",
              sensor_dome_config.base_diameter, sensor_dome_config.height);
+    println!("    - LiDAR-only: Livox Mid-360 fits inside");
     println!("    - Low profile: \"subtle, not towering\"");
-    println!("    - Camera window for forward visibility");
     println!("    - 4 mounting tabs with M4 holes");
 
     // Export DXF files for SendCutSend

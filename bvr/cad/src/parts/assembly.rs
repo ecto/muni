@@ -330,8 +330,11 @@ impl BVR1Assembly {
         // Shell enclosure (wall wrap + top lid + sensor dome)
         let shell = self.add_shell();
 
-        // Sensors inside the dome
+        // LiDAR in the dome
         let dome_sensors = self.add_dome_sensors();
+
+        // Stereo cameras in the front face ("eyes")
+        let front_cameras = self.add_front_cameras();
 
         frame
             .union(&motor_mounts)
@@ -340,6 +343,7 @@ impl BVR1Assembly {
             .union(&top_assembly)
             .union(&shell)
             .union(&dome_sensors)
+            .union(&front_cameras)
     }
 
     /// Generate simplified BVR1 assembly
@@ -696,12 +700,11 @@ impl BVR1Assembly {
         panel.union(&estop)
     }
 
-    /// Add sensors inside the shell's sensor dome
+    /// Add LiDAR inside the sensor dome
     ///
-    /// "Friendly Industrial" design: sensors housed under a low dome
-    /// "Subtle, not towering. Sits like a head without trying to be a head."
+    /// "Friendly Industrial" design: LiDAR only in the dome.
+    /// Cameras are in the front face ("eyes"), antenna is flush-mounted on lid.
     fn add_dome_sensors(&self) -> Part {
-        let cfg = &self.config;
         let gc = self.ground_clearance();
         let shell_cfg = super::shell::ShellConfig::default();
         let lid_cfg = super::shell::TopLidConfig::default();
@@ -710,28 +713,57 @@ impl BVR1Assembly {
         // Shell top lid Z position
         let lid_z = gc + shell_cfg.shell_height();
 
-        // Sensor positions inside dome
-        // Dome sits on top of lid at the sensor hole position
+        // LiDAR position inside dome
         let dome_center_x = lid_cfg.sensor_hole_offset.0;
         let dome_center_y = lid_cfg.sensor_hole_offset.1;
         let dome_base_z = lid_z + shell_cfg.thickness;
 
-        // LiDAR near top of dome interior (80mm dome height)
-        let lidar_z = dome_base_z + dome_cfg.height * 0.5;
+        // LiDAR centered in dome (Livox Mid-360: 77mm body + 10mm base)
+        let lidar_z = dome_base_z + dome_cfg.height * 0.4;
         let lidar = Lidar::mid360().generate()
             .translate(dome_center_x, dome_center_y, lidar_z);
 
-        // Camera below LiDAR (visible through camera window in dome)
-        let camera_z = dome_base_z + dome_cfg.height * 0.2;
-        let camera = Camera::insta360_x4().generate()
-            .translate(dome_center_x, dome_center_y, camera_z);
+        lidar
+    }
 
-        // GPS antenna offset to side
-        let gps_z = dome_base_z + dome_cfg.height * 0.4;
-        let gps = GpsAntenna::default_rtk().generate()
-            .translate(dome_center_x + 50.0, dome_center_y, gps_z);
+    /// Add stereo cameras in the front face
+    ///
+    /// "The Face" - two cameras as "eyes" for pareidolia effect
+    /// Positioned in the raked forehead section, spaced at human IPD (63mm)
+    fn add_front_cameras(&self) -> Part {
+        let gc = self.ground_clearance();
+        let shell_cfg = super::shell::ShellConfig::default();
+        let wall_cfg = super::shell::WallWrapConfig::default();
 
-        lidar.union(&camera).union(&gps)
+        // Front face position
+        let shell_front_y = shell_cfg.shell_length() / 2.0;
+        let shell_height = shell_cfg.shell_height();
+
+        // Camera Z position (in the forehead/rake section)
+        let camera_z = gc + shell_height - wall_cfg.camera_offset_from_top;
+
+        // Stereo cameras spaced at IPD (63mm)
+        let spacing = wall_cfg.camera_spacing;
+
+        // Left camera (simple representation)
+        let left_cam = Camera::new(super::sensors::CameraConfig {
+            diameter: 25.0,  // CSI camera module size
+            height: 25.0,
+            lens_diameter: 12.0,
+        }).generate()
+        .rotate(90.0, 0.0, 0.0)  // Point forward
+        .translate(-spacing / 2.0, shell_front_y, camera_z);
+
+        // Right camera
+        let right_cam = Camera::new(super::sensors::CameraConfig {
+            diameter: 25.0,
+            height: 25.0,
+            lens_diameter: 12.0,
+        }).generate()
+        .rotate(90.0, 0.0, 0.0)
+        .translate(spacing / 2.0, shell_front_y, camera_z);
+
+        left_cam.union(&right_cam)
     }
 
     /// Add 3-panel clam shell enclosure

@@ -7,12 +7,12 @@
 //! - **Matte orange** - municipal, visible, warm (RAL 2004)
 //! - **Gentle forehead slope** - 15° rake on front, welcoming not threatening
 //! - **Chamfered corners** - 45° transitions, softens the box without curves
-//! - **Single LED bar** - warm amber, steady gaze, the "face"
+//! - **The Face** - stereo cameras as "eyes", LED bar as "gaze" (pareidolia-friendly)
 //!
 //! Shell components:
-//! - **Wall Wrap**: Front + chamfers + sides + rear as single bent piece (7 bends)
-//! - **Top Lid**: Removable panel with sensor dome zone
-//! - **Sensor Dome**: 3D printed cover for sensor mast (subtle, not towering)
+//! - **Wall Wrap**: Front + sides + rear as single bent piece with stereo camera eyes
+//! - **Top Lid**: Removable panel with LiDAR dome hole and antenna mount
+//! - **Sensor Dome**: 3D printed cover for LiDAR only (cameras are in the face)
 //!
 //! Material: 5052-H32 Aluminum, 2mm thickness
 //! Finish: Matte orange powder coat (RAL 2004)
@@ -118,6 +118,23 @@ pub struct WallWrapConfig {
     pub led_mount_hole_diameter: f64,
     /// LED diffuser mounting hole spacing from channel ends (mm)
     pub led_mount_hole_inset: f64,
+    // --- Stereo Camera "Eyes" (pareidolia-friendly) ---
+    /// Enable stereo camera cutouts in front rake
+    pub stereo_cameras_enabled: bool,
+    /// Camera spacing (mm) - matches human IPD for natural stereo
+    /// 63mm is average human IPD, good for Vision Pro telepresence
+    pub camera_spacing: f64,
+    /// Camera window width (mm) - rectangular for weather seal gasket
+    pub camera_window_width: f64,
+    /// Camera window height (mm)
+    pub camera_window_height: f64,
+    /// Camera window corner radius (mm)
+    pub camera_window_radius: f64,
+    /// Camera vertical offset from top of rake section (mm)
+    /// Positioned in the "forehead" for the face effect
+    pub camera_offset_from_top: f64,
+    /// Camera tilt angle (degrees) - slight downward pitch to see ground
+    pub camera_tilt: f64,
     // --- Rear Vents ---
     /// Louver vent slot width (mm)
     pub louver_width: f64,
@@ -180,6 +197,15 @@ impl Default for WallWrapConfig {
             led_channel_gap: 15.0,    // 15mm above nozzle slot
             led_mount_hole_diameter: 3.5, // M3 mounting holes for diffuser clips
             led_mount_hole_inset: 20.0,   // Holes 20mm from channel ends
+            // --- Stereo Camera "Eyes" ---
+            // Two cameras spaced at human IPD for pareidolia + Vision Pro telepresence
+            stereo_cameras_enabled: true,
+            camera_spacing: 63.0,         // Human IPD average (54-74mm range)
+            camera_window_width: 30.0,    // Wide enough for CSI camera module
+            camera_window_height: 25.0,   // Slightly shorter for horizontal look
+            camera_window_radius: 5.0,    // Rounded corners
+            camera_offset_from_top: 30.0, // Centered in forehead section
+            camera_tilt: -5.0,            // 5° downward to see ground/snow
             // --- Rear Vents ---
             // Louver vents (8 slots, ~150mm² total area per artifact-plan)
             louver_width: 60.0,
@@ -359,6 +385,33 @@ impl WallWrap {
         )
         .translate(0.0, length / 2.0, led_z);
 
+        // Stereo camera "eyes" in the forehead section
+        // Positioned for pareidolia: two eyes above the LED "mouth"
+        let camera_cutouts = if cfg.stereo_cameras_enabled {
+            let cam_z = vertical_h + rake_h - cfg.camera_offset_from_top;
+            let cam_y = length / 2.0 - rake_setback / 2.0; // In the raked section
+
+            let left_eye = centered_cube(
+                "camera_left",
+                cfg.camera_window_width,
+                thickness * 3.0 + rake_setback,
+                cfg.camera_window_height,
+            )
+            .translate(-cfg.camera_spacing / 2.0, cam_y, cam_z);
+
+            let right_eye = centered_cube(
+                "camera_right",
+                cfg.camera_window_width,
+                thickness * 3.0 + rake_setback,
+                cfg.camera_window_height,
+            )
+            .translate(cfg.camera_spacing / 2.0, cam_y, cam_z);
+
+            left_eye.union(&right_eye)
+        } else {
+            Part::empty("no_cameras")
+        };
+
         // Louver vents in rear
         let mut louvers = Part::empty("louvers");
         let total_louver_width = (cfg.louver_count - 1) as f64 * cfg.louver_spacing;
@@ -404,6 +457,7 @@ impl WallWrap {
             .union(&rear)
             .difference(&nozzle_cutout)
             .difference(&led_cutout)
+            .difference(&camera_cutouts)
             .difference(&louvers)
             .difference(&drain1)
             .difference(&drain2)
@@ -598,6 +652,31 @@ impl WallWrap {
         dxf.add_circle(led_mount_left, led_mount_y + cfg.led_channel_height, cfg.led_mount_hole_diameter / 2.0);
         dxf.add_circle(led_mount_right, led_mount_y + cfg.led_channel_height, cfg.led_mount_hole_diameter / 2.0);
 
+        // Stereo camera "eyes" in the forehead section (pareidolia-friendly)
+        // Two rounded rectangles positioned for the "face" effect
+        if cfg.stereo_cameras_enabled {
+            // Camera Y position: in the rake section (above LED channel)
+            let cam_cy = wall_top - cfg.camera_offset_from_top;
+
+            // Left eye
+            dxf.add_rounded_rectangle(
+                cfg.camera_window_width,
+                cfg.camera_window_height,
+                front_cx - cfg.camera_spacing / 2.0,
+                cam_cy,
+                cfg.camera_window_radius,
+            );
+
+            // Right eye
+            dxf.add_rounded_rectangle(
+                cfg.camera_window_width,
+                cfg.camera_window_height,
+                front_cx + cfg.camera_spacing / 2.0,
+                cam_cy,
+                cfg.camera_window_radius,
+            );
+        }
+
         // Front mounting holes (in vertical section, clear of rake)
         let front_hx = front_w / 2.0 - inset;
         let hy_bottom = wall_bottom + inset;
@@ -713,20 +792,22 @@ impl WallWrap {
 #[derive(Debug, Clone)]
 pub struct TopLidConfig {
     pub shell: ShellConfig,
-    /// Sensor mast hole diameter (mm) - fits LiDAR base + camera clearance
+    /// LiDAR dome hole diameter (mm) - fits sensor dome base
     pub sensor_hole_diameter: f64,
-    /// Sensor mast hole position offset from center (x, y)
-    /// Rear-center position
+    /// LiDAR dome hole position offset from center (x, y)
+    /// Centered for the "head" effect
     pub sensor_hole_offset: (f64, f64),
-    /// E-stop hole diameter (mm)
+    /// E-stop hole diameter (mm) - prominent for safety
     pub estop_hole_diameter: f64,
     /// E-stop hole position offset from center (x, y)
-    /// Front-right position for accessibility
+    /// Front-left for accessibility, visible
     pub estop_hole_offset: (f64, f64),
-    /// GPS cable grommet hole diameter (mm)
-    pub gps_grommet_diameter: f64,
-    /// GPS grommet offset from sensor hole (x, y)
-    pub gps_grommet_offset: (f64, f64),
+    /// Proxicast 5-in-1 antenna mount hole diameter (mm)
+    /// 32mm (1.25") per Proxicast ANT-500-221 specs
+    pub antenna_hole_diameter: f64,
+    /// Antenna hole offset from center (x, y)
+    /// Rear-right, needs clear sky view
+    pub antenna_hole_offset: (f64, f64),
     // --- Knuckle hinge (mates with shell tabs) ---
     /// Number of hinge tabs on lid (shell has N+1 mating tabs)
     pub hinge_tab_count: usize,
@@ -754,12 +835,16 @@ impl Default for TopLidConfig {
     fn default() -> Self {
         let shell = ShellConfig::default();
         Self {
-            sensor_hole_diameter: 150.0,
-            sensor_hole_offset: (0.0, -shell.shell_length() / 4.0),
+            // LiDAR dome hole - centered, forms the "head"
+            sensor_hole_diameter: 160.0, // Slightly larger for dome lip
+            sensor_hole_offset: (0.0, 0.0), // Centered on lid
+            // E-stop - front-left, prominent and accessible
             estop_hole_diameter: 30.0,
-            estop_hole_offset: (shell.shell_width() / 4.0, shell.shell_length() / 4.0),
-            gps_grommet_diameter: 12.0,
-            gps_grommet_offset: (80.0, 20.0),
+            estop_hole_offset: (-shell.shell_width() / 3.0, shell.shell_length() / 3.0),
+            // Proxicast 5-in-1 antenna - rear-right, needs sky view
+            // 32mm (1.25") mounting hole per specs
+            antenna_hole_diameter: 32.0,
+            antenna_hole_offset: (shell.shell_width() / 3.0, -shell.shell_length() / 3.0),
             // Knuckle hinge (4 tabs on lid mate with 5 tabs on shell)
             hinge_tab_count: 4,
             hinge_tab_width: 40.0,
@@ -812,7 +897,7 @@ impl TopLid {
         )
         .translate(cfg.sensor_hole_offset.0, cfg.sensor_hole_offset.1, 0.0);
 
-        // E-stop hole
+        // E-stop hole (front-left, prominent for safety)
         let estop_hole = centered_cylinder(
             "estop_hole",
             cfg.estop_hole_diameter / 2.0,
@@ -821,18 +906,14 @@ impl TopLid {
         )
         .translate(cfg.estop_hole_offset.0, cfg.estop_hole_offset.1, 0.0);
 
-        // GPS grommet hole
-        let gps_hole = centered_cylinder(
-            "gps_grommet",
-            cfg.gps_grommet_diameter / 2.0,
+        // Proxicast 5-in-1 antenna hole (rear-right, needs sky view)
+        let antenna_hole = centered_cylinder(
+            "antenna_hole",
+            cfg.antenna_hole_diameter / 2.0,
             shell.thickness * 3.0,
             segments,
         )
-        .translate(
-            cfg.sensor_hole_offset.0 + cfg.gps_grommet_offset.0,
-            cfg.sensor_hole_offset.1 + cfg.gps_grommet_offset.1,
-            0.0,
-        );
+        .translate(cfg.antenna_hole_offset.0, cfg.antenna_hole_offset.1, 0.0);
 
         // Mounting holes
         let mounts = self.create_mount_holes(segments);
@@ -840,7 +921,7 @@ impl TopLid {
         panel
             .difference(&sensor_hole)
             .difference(&estop_hole)
-            .difference(&gps_hole)
+            .difference(&antenna_hole)
             .difference(&mounts)
     }
 
@@ -972,11 +1053,11 @@ impl TopLid {
             cfg.estop_hole_diameter / 2.0,
         );
 
-        // GPS grommet hole
+        // Proxicast 5-in-1 antenna hole (LTE + WiFi + GPS)
         dxf.add_circle(
-            cfg.sensor_hole_offset.0 + cfg.gps_grommet_offset.0,
-            cfg.sensor_hole_offset.1 + cfg.gps_grommet_offset.1,
-            cfg.gps_grommet_diameter / 2.0,
+            cfg.antenna_hole_offset.0,
+            cfg.antenna_hole_offset.1,
+            cfg.antenna_hole_diameter / 2.0,
         );
 
         // --- GAS STRUT MOUNTING HOLES ---
@@ -1020,16 +1101,18 @@ impl TopLid {
 
 /// Sensor Dome configuration
 ///
-/// "Subtle, not towering. Sits like a head without trying to be a head."
+/// LiDAR-only dome - cameras are now in the front face ("eyes").
+/// "Subtle, not towering" - just tall enough for Livox Mid-360.
 ///
-/// The sensor dome covers the LiDAR and camera mast, providing weather
-/// protection while maintaining the "friendly industrial" aesthetic.
+/// The sensor dome covers only the LiDAR, providing weather protection
+/// while maintaining the low-profile "friendly industrial" aesthetic.
 /// 3D printed to allow organic curves that would be expensive in sheet metal.
 #[derive(Debug, Clone)]
 pub struct SensorDomeConfig {
     /// Base diameter (matches top lid sensor hole)
     pub base_diameter: f64,
-    /// Overall height (kept low for "planted" look)
+    /// Overall height - sized for Livox Mid-360 (77mm body + 10mm base)
+    /// Kept minimal for "planted" look
     pub height: f64,
     /// Wall thickness (for 3D printing)
     pub wall_thickness: f64,
@@ -1044,12 +1127,6 @@ pub struct SensorDomeConfig {
     pub mount_tab_length: f64,
     /// Mounting hole diameter (M4)
     pub mount_hole_diameter: f64,
-    /// Camera window width (for forward-facing camera)
-    pub camera_window_width: f64,
-    /// Camera window height
-    pub camera_window_height: f64,
-    /// Camera window offset from front (degrees around circumference)
-    pub camera_window_angle: f64,
 }
 
 impl Default for SensorDomeConfig {
@@ -1057,9 +1134,9 @@ impl Default for SensorDomeConfig {
         Self {
             // Match top lid sensor hole (150mm) with slight overlap
             base_diameter: 155.0,
-            // Low profile - "subtle, not towering"
-            // Just tall enough for LiDAR (Mid-360 is ~60mm tall)
-            height: 80.0,
+            // Low profile - just tall enough for Livox Mid-360
+            // LiDAR is 77mm body + 10mm base = 87mm, add clearance = 95mm
+            height: 95.0,
             // 3mm walls for strength without excessive material
             wall_thickness: 3.0,
             // 10mm lip overlaps top lid for weather seal
@@ -1070,20 +1147,16 @@ impl Default for SensorDomeConfig {
             mount_tab_width: 20.0,
             mount_tab_length: 15.0,
             mount_hole_diameter: 4.5, // M4 clearance
-            // Camera window on front
-            camera_window_width: 40.0,
-            camera_window_height: 25.0,
-            camera_window_angle: 0.0, // Front-facing
         }
     }
 }
 
-/// Sensor Dome: 3D printed cover for LiDAR and camera mast
+/// Sensor Dome: 3D printed cover for LiDAR
 ///
 /// Design characteristics:
 /// - Organic dome shape (not a harsh cylinder)
 /// - Low profile to maintain "planted" aesthetic
-/// - Camera window for forward visibility
+/// - Sized for Livox Mid-360 only (cameras are in front face)
 /// - Mounting tabs with M4 holes
 /// - Lip for weather sealing against top lid
 pub struct SensorDome {
@@ -1157,14 +1230,8 @@ impl SensorDome {
 
         let lip = lip_outer.difference(&lip_inner);
 
-        // Camera window cutout (front-facing)
-        let camera_cutout = centered_cube(
-            "camera_window",
-            cfg.camera_window_width,
-            cfg.wall_thickness * 3.0,
-            cfg.camera_window_height,
-        )
-        .translate(0.0, outer_r, height * 0.4);
+        // Note: Camera window removed - cameras are now in the front face ("eyes")
+        // The dome is LiDAR-only for simplicity
 
         // Mounting tabs
         let mut tabs = Part::empty("mount_tabs");
@@ -1203,7 +1270,6 @@ impl SensorDome {
             .difference(&inner_cavity)
             .union(&lip)
             .union(&tabs)
-            .difference(&camera_cutout)
     }
 }
 
@@ -1649,9 +1715,9 @@ mod tests {
     fn test_sensor_dome_config() {
         let cfg = SensorDomeConfig::default();
 
-        // Low profile - subtle, not towering
-        assert_eq!(cfg.height, 80.0);
-        assert!(cfg.height < 100.0, "Dome should be low profile");
+        // Low profile - just tall enough for Livox Mid-360 (87mm + clearance)
+        assert_eq!(cfg.height, 95.0);
+        assert!(cfg.height < 120.0, "Dome should be low profile");
 
         // Matches top lid sensor hole (150mm) with slight overlap
         assert_eq!(cfg.base_diameter, 155.0);
@@ -1659,9 +1725,7 @@ mod tests {
         // 4 mounting tabs for secure attachment
         assert_eq!(cfg.mount_tab_count, 4);
 
-        // Camera window for forward visibility
-        assert!(cfg.camera_window_width > 0.0);
-        assert!(cfg.camera_window_height > 0.0);
+        // Note: Camera window removed - cameras are now in front face ("eyes")
     }
 
     #[test]
