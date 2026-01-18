@@ -48,7 +48,10 @@ pub use electronics_plate::ElectronicsPlate;
 pub use frame::{BVR1Frame, CornerBracket, Extrusion2020, TNut};
 pub use motor_mount::MotorMount;
 pub use sensor_mount::SensorMount;
-pub use shell::{ShellAssembly, ShellConfig, SkidPlate, SkidPlateConfig, TopLid, TopLidConfig, WallWrap, WallWrapConfig};
+pub use shell::{
+    ShellAssembly, ShellConfig, SkidPlate, SkidPlateConfig, TopLid, TopLidConfig,
+    WallWrap, WallWrapConfig, SensorDome, SensorDomeConfig,
+};
 // Legacy aliases for compatibility
 pub use shell::{FrontPanel, RearPanel, SidePanel, TopPanel};
 pub use uumotor::{LBracketMount, UUMotor, UUMotorMount};

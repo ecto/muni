@@ -1,17 +1,23 @@
-//! 2-Panel Clam Shell Design for BVR1 Rover
+//! Friendly Industrial Shell Design for BVR1 Rover
 //!
-//! Simplified shell design with 2 bent panels for SendCutSend order:
-//! - **Wall Wrap**: Front + sides + rear as single bent piece (3 bends)
-//! - **Top Lid**: Removable top panel with sensor mast and e-stop holes
+//! "Low to the ground. Wider than it is tall. Planted."
+//!
+//! Design language:
+//! - **Dignified, not performing** - not cute, not aggressive, just present
+//! - **Matte orange** - municipal, visible, warm (RAL 2004)
+//! - **Gentle forehead slope** - 15° rake on front, welcoming not threatening
+//! - **Chamfered corners** - 45° transitions, softens the box without curves
+//! - **Single LED bar** - warm amber, steady gaze, the "face"
+//!
+//! Shell components:
+//! - **Wall Wrap**: Front + chamfers + sides + rear as single bent piece (7 bends)
+//! - **Top Lid**: Removable panel with sensor dome zone
+//! - **Sensor Dome**: 3D printed cover for sensor mast (subtle, not towering)
 //!
 //! Material: 5052-H32 Aluminum, 2mm thickness
-//! Finish: Orange powder coat (RAL 2004)
+//! Finish: Matte orange powder coat (RAL 2004)
 //!
-//! Features:
-//! - LED channel parallel to blower nozzle (replaces headlights)
-//! - Louver vents (angled slots) for airflow
-//! - Drain holes at bottom corners
-//! - Security Torx fasteners + keyed quarter-turns for lid
+//! Manufacturing: SendCutSend laser cut + bend + powder coat
 
 use crate::export::DxfDocument;
 use crate::{centered_cube, centered_cylinder, Part};
@@ -77,9 +83,22 @@ impl ShellConfig {
 // =============================================================================
 
 /// Wall Wrap configuration
+///
+/// The "friendly industrial" wall wrap has:
+/// - Simple 90° corners (4 vertical bends)
+/// - Gentle front rake (15°) creating a "forehead" that's welcoming not aggressive
+/// - LED channel positioned as the robot's "face" - steady, aware
 #[derive(Debug, Clone)]
 pub struct WallWrapConfig {
     pub shell: ShellConfig,
+    // --- Friendly Industrial Design ---
+    /// Front rake angle (degrees) - gentle slope on upper front
+    /// 15° is welcoming, 45° would be aggressive
+    pub front_rake_angle: f64,
+    /// Height of the raked "forehead" portion (mm)
+    /// The lower portion stays vertical for the blower nozzle
+    pub front_rake_height: f64,
+    // --- Blower Integration ---
     /// Nozzle slot width (mm)
     pub nozzle_width: f64,
     /// Nozzle slot height (mm)
@@ -88,12 +107,18 @@ pub struct WallWrapConfig {
     pub nozzle_corner_radius: f64,
     /// Nozzle slot vertical offset from bottom (mm)
     pub nozzle_offset_y: f64,
-    /// LED channel slot width (mm)
+    // --- LED "Face" ---
+    /// LED channel slot width (mm) - the robot's "gaze"
     pub led_channel_width: f64,
-    /// LED channel slot height (mm)
+    /// LED channel slot height (mm) - sized for diffuser strip
     pub led_channel_height: f64,
     /// LED channel offset above nozzle (mm)
     pub led_channel_gap: f64,
+    /// LED diffuser mounting hole diameter (mm)
+    pub led_mount_hole_diameter: f64,
+    /// LED diffuser mounting hole spacing from channel ends (mm)
+    pub led_mount_hole_inset: f64,
+    // --- Rear Vents ---
     /// Louver vent slot width (mm)
     pub louver_width: f64,
     /// Louver vent slot height (mm)
@@ -136,20 +161,31 @@ impl Default for WallWrapConfig {
     fn default() -> Self {
         Self {
             shell: ShellConfig::default(),
+            // --- Friendly Industrial Design ---
+            // Front rake: 15° is gentle, welcoming - like a calm forehead
+            // (45° would be Cybertruck aggressive, 0° is the old box)
+            front_rake_angle: 15.0,
+            // Rake the upper 40% of front panel, keep lower 60% vertical for nozzle
+            front_rake_height: 80.0,
+            // --- Blower Integration ---
             // Nozzle slot (500mm blower nozzle + 2mm tolerance)
             nozzle_width: 502.0,
             nozzle_height: 52.0,
             nozzle_corner_radius: 15.0,
-            nozzle_offset_y: 60.0, // 60mm from bottom
-            // LED channel (500mm LED strip + 2mm tolerance)
-            led_channel_width: 502.0,
-            led_channel_height: 22.0,
-            led_channel_gap: 10.0, // 10mm above nozzle slot
+            nozzle_offset_y: 40.0, // 40mm from bottom (in vertical section)
+            // --- LED "Face" ---
+            // LED channel spans most of front width - the robot's steady gaze
+            led_channel_width: 480.0, // Slightly narrower than nozzle for visual balance
+            led_channel_height: 25.0, // Sized for standard diffuser strip
+            led_channel_gap: 15.0,    // 15mm above nozzle slot
+            led_mount_hole_diameter: 3.5, // M3 mounting holes for diffuser clips
+            led_mount_hole_inset: 20.0,   // Holes 20mm from channel ends
+            // --- Rear Vents ---
             // Louver vents (8 slots, ~150mm² total area per artifact-plan)
             louver_width: 60.0,
             louver_height: 8.0,
             louver_count: 8,
-            louver_spacing: 40.0, // Spread across 580mm rear panel
+            louver_spacing: 40.0, // Spread across rear panel
             // Drain holes
             drain_hole_diameter: 6.0,
             // Bend radius (standard for 2mm aluminum)
@@ -173,17 +209,17 @@ impl Default for WallWrapConfig {
 }
 
 impl WallWrapConfig {
-    /// Front section width (same as shell width)
+    /// Front section width (full shell width)
     pub fn front_width(&self) -> f64 {
         self.shell.shell_width()
     }
 
-    /// Side section length (same as shell length)
+    /// Side section length (full shell length)
     pub fn side_length(&self) -> f64 {
         self.shell.shell_length()
     }
 
-    /// Rear section width (same as shell width)
+    /// Rear section width (full shell width)
     pub fn rear_width(&self) -> f64 {
         self.shell.shell_width()
     }
@@ -193,18 +229,44 @@ impl WallWrapConfig {
         self.shell.shell_height()
     }
 
+    /// Front rake setback (how far the top of front panel moves back)
+    pub fn front_rake_setback(&self) -> f64 {
+        // tan(15°) ≈ 0.268
+        self.front_rake_height * (self.front_rake_angle * std::f64::consts::PI / 180.0).tan()
+    }
+
+    /// Height of vertical portion of front panel (below the rake)
+    pub fn front_vertical_height(&self) -> f64 {
+        self.panel_height() - self.front_rake_height
+    }
+
     /// Total flat pattern width (before bending)
-    /// Front + Left Side + Rear + Right Side + gap
+    ///
+    /// Simple 5-bend layout: [FRONT][LEFT][REAR][RIGHT][gap]
+    ///
+    /// - Front/Rear: 580mm each
+    /// - Sides: 580mm each
+    /// - Gap: 20mm
+    /// - Total: 580×4 + 20 = 2340mm
+    ///
+    /// Bend lines (5 total with bottom):
+    /// 1. Front rake (horizontal, 15° forward lean)
+    /// 2-4. Three 90° corner bends
+    /// 5. Bottom panel bend (if include_bottom)
     pub fn flat_width(&self) -> f64 {
-        // Using neutral axis for bend allowance: arc = pi * (r + k*t) * angle/180
-        // k-factor ~0.33 for aluminum, but for simplicity use inside dimension
-        let bend_allowance = std::f64::consts::PI * self.bend_radius * 0.5; // 90° bend
-        self.front_width()
-            + self.side_length()
-            + self.rear_width()
-            + self.side_length()
-            - 3.0 * bend_allowance // 3 bends consume material
-            + 20.0 // gap at end
+        let front = self.front_width();
+        let sides = self.side_length() * 2.0;
+        let rear = self.rear_width();
+
+        // Total (bend allowances are negligible for 2mm radius)
+        front + sides + rear + 20.0 // +20mm gap at end
+    }
+
+    /// Number of bend lines in the wall wrap
+    pub fn bend_count(&self) -> usize {
+        // 1 front rake + 3 corner bends = 4
+        // With integrated bottom: + 1 = 5
+        if self.include_bottom { 5 } else { 4 }
     }
 }
 
@@ -222,34 +284,59 @@ impl WallWrap {
         Self::new(WallWrapConfig::default())
     }
 
-    /// Generate 3D representation (simplified - just front panel for visualization)
+    /// Generate 3D representation with raked front
+    ///
+    /// The friendly industrial look:
+    /// - Simple 90° corners (clean box shape)
+    /// - Front panel has gentle 15° rake on upper portion
+    /// - LED channel is the robot's "face"
     pub fn generate(&self) -> Part {
         let cfg = &self.config;
         let height = cfg.panel_height();
         let thickness = cfg.shell.thickness;
-        let segments = 32;
 
-        // For 3D visualization, create assembled shell (bent into shape)
+        // Overall shell dimensions
         let width = cfg.shell.shell_width();
         let length = cfg.shell.shell_length();
 
-        // Front panel
-        let front = centered_cube("front_panel", width, thickness, height)
-            .translate(0.0, length / 2.0, height / 2.0);
+        // Front panel dimensions
+        let front_w = cfg.front_width();
+        let vertical_h = cfg.front_vertical_height();
+        let rake_h = cfg.front_rake_height;
+        let rake_setback = cfg.front_rake_setback();
 
-        // Rear panel
-        let rear = centered_cube("rear_panel", width, thickness, height)
-            .translate(0.0, -length / 2.0, height / 2.0);
+        // === FRONT PANEL (with rake) ===
+        // Lower vertical section (holds blower nozzle)
+        let front_lower = centered_cube("front_lower", front_w, thickness, vertical_h)
+            .translate(0.0, length / 2.0, vertical_h / 2.0);
+
+        // Upper raked section (the "forehead")
+        // For visualization, we approximate with a slightly set-back panel
+        let front_upper = centered_cube("front_upper", front_w, thickness + rake_setback, rake_h)
+            .translate(0.0, length / 2.0 - rake_setback / 2.0, vertical_h + rake_h / 2.0);
+
+        let front = front_lower.union(&front_upper);
+
+        // === SIDE PANELS ===
+        let side_l = cfg.side_length();
 
         // Left side
-        let left = centered_cube("left_panel", thickness, length, height)
+        let left = centered_cube("left_panel", thickness, side_l, height)
             .translate(-width / 2.0, 0.0, height / 2.0);
 
         // Right side
-        let right = centered_cube("right_panel", thickness, length, height)
+        let right = centered_cube("right_panel", thickness, side_l, height)
             .translate(width / 2.0, 0.0, height / 2.0);
 
-        // Nozzle cutout in front
+        // === REAR PANEL ===
+        let rear_w = cfg.rear_width();
+        let rear = centered_cube("rear_panel", rear_w, thickness, height)
+            .translate(0.0, -length / 2.0, height / 2.0);
+
+        // === CUTOUTS ===
+        let segments = 32; // for circular cutouts
+
+        // Nozzle cutout in front lower section
         let nozzle_cutout = centered_cube(
             "nozzle",
             cfg.nozzle_width,
@@ -262,21 +349,21 @@ impl WallWrap {
             cfg.nozzle_offset_y + cfg.nozzle_height / 2.0,
         );
 
-        // LED channel cutout
-        let led_offset_y = cfg.nozzle_offset_y + cfg.nozzle_height + cfg.led_channel_gap + cfg.led_channel_height / 2.0;
+        // LED channel cutout - the robot's steady gaze
+        let led_z = cfg.nozzle_offset_y + cfg.nozzle_height + cfg.led_channel_gap + cfg.led_channel_height / 2.0;
         let led_cutout = centered_cube(
             "led_channel",
             cfg.led_channel_width,
             thickness * 3.0,
             cfg.led_channel_height,
         )
-        .translate(0.0, length / 2.0, led_offset_y);
+        .translate(0.0, length / 2.0, led_z);
 
         // Louver vents in rear
         let mut louvers = Part::empty("louvers");
         let total_louver_width = (cfg.louver_count - 1) as f64 * cfg.louver_spacing;
         let start_x = -total_louver_width / 2.0;
-        let louver_y = height * 0.6; // Upper portion
+        let louver_z = height * 0.6;
 
         for i in 0..cfg.louver_count {
             let x = start_x + i as f64 * cfg.louver_spacing;
@@ -286,11 +373,11 @@ impl WallWrap {
                 thickness * 3.0,
                 cfg.louver_height,
             )
-            .translate(x, -length / 2.0, louver_y);
+            .translate(x, -length / 2.0, louver_z);
             louvers = louvers.union(&louver);
         }
 
-        // Drain holes
+        // Drain holes in rear corners
         let drain_inset = 20.0;
         let drain1 = centered_cylinder(
             "drain",
@@ -299,7 +386,7 @@ impl WallWrap {
             segments,
         )
         .rotate(90.0, 0.0, 0.0)
-        .translate(-width / 2.0 + drain_inset, -length / 2.0, drain_inset);
+        .translate(-rear_w / 2.0 + drain_inset, -length / 2.0, drain_inset);
 
         let drain2 = centered_cylinder(
             "drain",
@@ -308,12 +395,13 @@ impl WallWrap {
             segments,
         )
         .rotate(90.0, 0.0, 0.0)
-        .translate(width / 2.0 - drain_inset, -length / 2.0, drain_inset);
+        .translate(rear_w / 2.0 - drain_inset, -length / 2.0, drain_inset);
 
+        // Assemble the shell
         front
-            .union(&rear)
             .union(&left)
             .union(&right)
+            .union(&rear)
             .difference(&nozzle_cutout)
             .difference(&led_cutout)
             .difference(&louvers)
@@ -323,20 +411,29 @@ impl WallWrap {
 
     /// Generate 2D DXF flat pattern for laser cutting
     ///
-    /// Layout (with include_bottom=true):
+    /// Simple 5-bend layout with front rake:
+    ///
     /// ```text
-    ///                    ┌─────────────────────┐
-    ///                    │       BOTTOM        │
-    ///                    │      (580x580)      │
-    ///                    └──────────┬──────────┘
-    ///                               │ bend 4
-    /// ┌────────┬─────────┬──────────┴──────────┬─────────┬───┐
-    /// │ FRONT  │  LEFT   │ REAR (with tabs)    │  RIGHT  │gap│
-    /// │  580   │   580   │        580          │   580   │20 │
-    /// └────────┴─────────┴─────────────────────┴─────────┴───┘
-    ///          ↑         ↑                     ↑
-    ///        bend 1    bend 2               bend 3
+    ///                         ┌─────────────────────┐
+    ///                         │       BOTTOM        │
+    ///                         │      (580x580)      │
+    ///                         └──────────┬──────────┘
+    ///                                    │ bend 5
+    /// ┌─────────┬─────────┬──────────────┴──────────┬─────────┬───┐
+    /// │  FRONT  │  LEFT   │ REAR (with hinge tabs)  │  RIGHT  │gap│
+    /// │   580   │   580   │          580            │   580   │20 │
+    /// ├─────────┤         │                         │         │   │
+    /// │  rake   │         │                         │         │   │
+    /// └─────────┴─────────┴─────────────────────────┴─────────┴───┘
+    ///     ↑     ↑         ↑                         ↑
+    ///   rake   90°       90°                       90°
+    ///   bend   bend      bend                      bend
     /// ```
+    ///
+    /// Bend lines (5 total):
+    /// 1. Front rake (horizontal, 15° forward lean)
+    /// 2-4. Three 90° corner bends
+    /// 5. Bottom panel bend
     pub fn to_dxf(&self) -> DxfDocument {
         let cfg = &self.config;
         let mut dxf = DxfDocument::new();
@@ -345,77 +442,85 @@ impl WallWrap {
         let inset = cfg.shell.mount_hole_inset;
         let hole_r = cfg.shell.mount_hole_diameter / 2.0;
 
-        // Calculate section dimensions
-        let front_w = cfg.front_width();
-        let side_l = cfg.side_length();
-        let rear_w = cfg.rear_width();
-        let bottom_w = cfg.shell.shell_width();
-        let bottom_l = cfg.shell.shell_length();
+        // Panel dimensions (full shell dimensions, no chamfers)
+        let front_w = cfg.front_width();      // 580mm
+        let side_l = cfg.side_length();       // 580mm
+        let rear_w = cfg.rear_width();        // 580mm
+        let bottom_w = cfg.shell.shell_width();   // 580mm
+        let bottom_l = cfg.shell.shell_length();  // 580mm
 
-        // Section centers (X position) - walls are centered at y=0
-        // Layout: [FRONT][LEFT][REAR][RIGHT][gap]
-        let front_cx = -front_w / 2.0 - side_l - rear_w / 2.0;
-        let left_cx = -side_l / 2.0 - rear_w / 2.0;
-        let rear_cx = 0.0;
-        let right_cx = side_l / 2.0 + rear_w / 2.0;
+        // Front rake dimensions
+        let vertical_h = cfg.front_vertical_height(); // 120mm lower vertical section
+
+        // === FLAT PATTERN LAYOUT ===
+        // Simple layout: FRONT | LEFT | REAR | RIGHT | gap
+
+        // Calculate section X positions (cumulative)
+        let mut x = 0.0;
+        let front_start = x;
+        x += front_w;
+        let left_start = x;
+        x += side_l;
+        let rear_start = x;
+        x += rear_w;
+        let right_start = x;
+        x += side_l;
+        x += 20.0; // End gap
+        let total_width = x;
+
+        // Center the pattern horizontally
+        let offset_x = -total_width / 2.0;
+
+        // Section centers (for placing features)
+        let front_cx = offset_x + front_start + front_w / 2.0;
+        let left_cx = offset_x + left_start + side_l / 2.0;
+        let rear_cx = offset_x + rear_start + rear_w / 2.0;
+        let right_cx = offset_x + right_start + side_l / 2.0;
 
         // Wall strip boundaries
-        let wall_left = front_cx - front_w / 2.0;
-        let wall_right = right_cx + side_l / 2.0 + 20.0; // +20mm gap
+        let wall_left = offset_x;
+        let wall_right = offset_x + total_width;
         let wall_bottom = -wall_height / 2.0;
         let wall_top = wall_height / 2.0;
 
-        // Bottom panel (above rear section)
+        // Bottom panel (attached above rear section)
         let bottom_cx = rear_cx;
         let bottom_cy = wall_top + bottom_l / 2.0;
 
-        // --- OUTER BOUNDARY ---
+        // === OUTER BOUNDARY ===
         if cfg.include_bottom {
-            // L-shaped profile with knuckle tabs on rear top edge
+            // L-shaped profile with hinge tabs on rear top edge
             let tab_h = cfg.hinge_tab_height;
             let num_tabs = cfg.hinge_tab_count;
-            let rear_left = rear_cx - rear_w / 2.0;
-            let rear_right = rear_cx + rear_w / 2.0;
+            let rear_left_edge = offset_x + rear_start;
+            let rear_right_edge = offset_x + rear_start + rear_w;
 
-            // Build L-shaped outline with tabs
             let mut outline: Vec<(f64, f64)> = Vec::new();
 
-            // Start at bottom-left of front panel, go clockwise
+            // Start at bottom-left, go clockwise
             outline.push((wall_left, wall_bottom));
             outline.push((wall_right, wall_bottom));
             outline.push((wall_right, wall_top));
 
-            // Right side up to bottom panel connection
-            outline.push((rear_right, wall_top));
+            // Connect to bottom panel at rear section
+            outline.push((rear_right_edge, wall_top));
+            outline.push((rear_right_edge, wall_top + bottom_l));
+            outline.push((rear_left_edge, wall_top + bottom_l));
+            outline.push((rear_left_edge, wall_top));
 
-            // Bottom panel right edge (going up)
-            outline.push((rear_right, wall_top + bottom_l));
-
-            // Bottom panel top edge
-            outline.push((rear_left, wall_top + bottom_l));
-
-            // Bottom panel left edge (going down)
-            outline.push((rear_left, wall_top));
-
-            // Back along wall top to rear section with tabs
-            // We'll add tabs between rear_left and rear_right at wall_top
-            // For now, simplified - tabs will be added separately
+            // Complete the loop
             outline.push((wall_left, wall_top));
 
             dxf.add_polyline(outline, true);
 
-            // Knuckle tabs on rear section top edge
-            // Shell has tabs at positions 0, 2, 4 (if 5 tabs total)
-            // These extend upward from wall_top
+            // Hinge tabs on rear section (extend upward from wall_top)
             let tab_spacing = rear_w / (num_tabs as f64);
             for i in 0..num_tabs {
                 if i % 2 == 0 {
-                    // Tab on shell (extends up)
-                    let tab_x = rear_left + tab_spacing * (i as f64 + 0.5);
+                    let tab_x = rear_left_edge + tab_spacing * (i as f64 + 0.5);
                     let tab_left = tab_x - cfg.hinge_tab_width / 2.0;
                     let tab_right = tab_x + cfg.hinge_tab_width / 2.0;
 
-                    // Tab outline (rectangular)
                     dxf.add_polyline(
                         vec![
                             (tab_left, wall_top),
@@ -423,71 +528,101 @@ impl WallWrap {
                             (tab_right, wall_top + tab_h),
                             (tab_right, wall_top),
                         ],
-                        false, // Open polyline - connects to main outline
+                        false,
                     );
 
-                    // Hinge pin hole in tab
-                    let pin_y = wall_top + tab_h / 2.0;
-                    dxf.add_circle(tab_x, pin_y, cfg.hinge_pin_diameter / 2.0);
+                    // Hinge pin hole
+                    dxf.add_circle(tab_x, wall_top + tab_h / 2.0, cfg.hinge_pin_diameter / 2.0);
                 }
             }
         } else {
-            // Simple rectangle (original behavior)
-            let total_width = front_w + side_l * 2.0 + rear_w + 20.0;
-            dxf.add_rectangle(total_width, wall_height, (right_cx + front_cx) / 2.0, 0.0);
+            dxf.add_rectangle(total_width, wall_height, 0.0, 0.0);
         }
 
-        // --- BEND LINES ---
-        let bend1_x = front_cx + front_w / 2.0;
-        let bend2_x = left_cx + side_l / 2.0;
-        let bend3_x = rear_cx + rear_w / 2.0;
+        // === BEND LINES ===
+        // Bend 1: Front rake (horizontal, across front panel at rake height)
+        let rake_bend_y = wall_bottom + vertical_h;
+        dxf.add_bend_line(
+            offset_x + front_start,
+            rake_bend_y,
+            offset_x + front_start + front_w,
+            rake_bend_y,
+        );
 
-        dxf.add_bend_line(bend1_x, wall_bottom, bend1_x, wall_top);
-        dxf.add_bend_line(bend2_x, wall_bottom, bend2_x, wall_top);
-        dxf.add_bend_line(bend3_x, wall_bottom, bend3_x, wall_top);
+        // Bends 2-4: Three 90° corner bends (vertical)
+        let corner_bend_positions = [
+            left_start,   // Front -> Left
+            rear_start,   // Left -> Rear
+            right_start,  // Rear -> Right
+        ];
 
+        for bend_x in corner_bend_positions {
+            let x = offset_x + bend_x;
+            dxf.add_bend_line(x, wall_bottom, x, wall_top);
+        }
+
+        // Bottom panel bend (between rear wall top and bottom panel)
         if cfg.include_bottom {
-            // Bend 4: between rear wall top and bottom panel
-            let rear_left = rear_cx - rear_w / 2.0;
-            let rear_right = rear_cx + rear_w / 2.0;
-            dxf.add_bend_line(rear_left, wall_top, rear_right, wall_top);
+            let rear_left_edge = offset_x + rear_start;
+            let rear_right_edge = offset_x + rear_start + rear_w;
+            dxf.add_bend_line(rear_left_edge, wall_top, rear_right_edge, wall_top);
         }
 
-        // --- FRONT SECTION ---
+        // === FRONT SECTION (with nozzle and LED channel) ===
+        // Nozzle slot (in lower vertical section - for the blower "breath")
         let nozzle_cy = wall_bottom + cfg.nozzle_offset_y + cfg.nozzle_height / 2.0;
         dxf.add_rounded_rectangle(
-            cfg.nozzle_width,
+            cfg.nozzle_width.min(front_w - 20.0), // Ensure fits in panel
             cfg.nozzle_height,
             front_cx,
             nozzle_cy,
             cfg.nozzle_corner_radius,
         );
 
+        // LED channel (the robot's "face" - steady gaze)
         let led_cy = nozzle_cy + cfg.nozzle_height / 2.0 + cfg.led_channel_gap + cfg.led_channel_height / 2.0;
         dxf.add_rounded_rectangle(
-            cfg.led_channel_width,
+            cfg.led_channel_width.min(front_w - 20.0),
             cfg.led_channel_height,
             front_cx,
             led_cy,
             cfg.led_channel_height / 4.0,
         );
 
-        // Front mounting holes
+        // LED diffuser mounting holes (for the steady amber glow)
+        let led_mount_y = led_cy;
+        let led_mount_left = front_cx - cfg.led_channel_width / 2.0 + cfg.led_mount_hole_inset;
+        let led_mount_right = front_cx + cfg.led_channel_width / 2.0 - cfg.led_mount_hole_inset;
+        dxf.add_circle(led_mount_left, led_mount_y - cfg.led_channel_height, cfg.led_mount_hole_diameter / 2.0);
+        dxf.add_circle(led_mount_right, led_mount_y - cfg.led_channel_height, cfg.led_mount_hole_diameter / 2.0);
+        dxf.add_circle(led_mount_left, led_mount_y + cfg.led_channel_height, cfg.led_mount_hole_diameter / 2.0);
+        dxf.add_circle(led_mount_right, led_mount_y + cfg.led_channel_height, cfg.led_mount_hole_diameter / 2.0);
+
+        // Front mounting holes (in vertical section, clear of rake)
         let front_hx = front_w / 2.0 - inset;
-        let hy = wall_height / 2.0 - inset;
-        for (dx, dy) in [(-front_hx, hy), (front_hx, hy), (-front_hx, -hy), (front_hx, -hy)] {
+        let hy_bottom = wall_bottom + inset;
+        let hy_mid = wall_bottom + vertical_h / 2.0;
+        for (dx, dy) in [
+            (-front_hx, hy_bottom),
+            (front_hx, hy_bottom),
+            (-front_hx, hy_mid),
+            (front_hx, hy_mid),
+        ] {
             dxf.add_circle(front_cx + dx, dy, hole_r);
         }
 
-        // Quarter-turn latch holes on front (near top edge)
+        // Quarter-turn latch holes on front (in raked section, near top)
         let qt_y = wall_top - cfg.quarter_turn_inset;
         let qt_x_left = front_cx - front_w / 2.0 + cfg.quarter_turn_inset;
         let qt_x_right = front_cx + front_w / 2.0 - cfg.quarter_turn_inset;
         dxf.add_circle(qt_x_left, qt_y, cfg.quarter_turn_hole_diameter / 2.0);
         dxf.add_circle(qt_x_right, qt_y, cfg.quarter_turn_hole_diameter / 2.0);
 
-        // --- LEFT SIDE SECTION ---
+        // === SIDE SECTIONS (left and right) ===
         let side_hx = side_l / 2.0 - inset;
+        let hy = wall_height / 2.0 - inset;
+
+        // Left side mounting holes
         for (dx, dy) in [
             (-side_hx, hy), (side_hx, hy),
             (-side_hx, 0.0), (side_hx, 0.0),
@@ -496,33 +631,7 @@ impl WallWrap {
             dxf.add_circle(left_cx + dx, dy, hole_r);
         }
 
-        // Gas strut hole on left side
-        let gas_y = wall_top - cfg.gas_strut_offset_from_top;
-        let gas_x_left = left_cx + side_l / 2.0 - cfg.gas_strut_offset_from_rear;
-        dxf.add_circle(gas_x_left, gas_y, cfg.gas_strut_hole_diameter / 2.0);
-
-        // --- REAR SECTION ---
-        let total_louver_span = (cfg.louver_count - 1) as f64 * cfg.louver_spacing;
-        let louver_start_x = rear_cx - total_louver_span / 2.0;
-        let louver_cy = wall_height / 4.0;
-
-        for i in 0..cfg.louver_count {
-            let lx = louver_start_x + i as f64 * cfg.louver_spacing;
-            dxf.add_slot(cfg.louver_width, cfg.louver_height, lx, louver_cy);
-        }
-
-        let drain_inset = 20.0;
-        let rear_hx = rear_w / 2.0 - drain_inset;
-        let drain_y = wall_bottom + drain_inset;
-        dxf.add_circle(rear_cx - rear_hx, drain_y, cfg.drain_hole_diameter / 2.0);
-        dxf.add_circle(rear_cx + rear_hx, drain_y, cfg.drain_hole_diameter / 2.0);
-
-        let rear_mount_hx = rear_w / 2.0 - inset;
-        for (dx, dy) in [(-rear_mount_hx, hy), (rear_mount_hx, hy), (-rear_mount_hx, -hy), (rear_mount_hx, -hy)] {
-            dxf.add_circle(rear_cx + dx, dy, hole_r);
-        }
-
-        // --- RIGHT SIDE SECTION ---
+        // Right side mounting holes
         for (dx, dy) in [
             (-side_hx, hy), (side_hx, hy),
             (-side_hx, 0.0), (side_hx, 0.0),
@@ -531,15 +640,47 @@ impl WallWrap {
             dxf.add_circle(right_cx + dx, dy, hole_r);
         }
 
-        // Gas strut hole on right side
-        let gas_x_right = right_cx - side_l / 2.0 + cfg.gas_strut_offset_from_rear;
-        dxf.add_circle(gas_x_right, gas_y, cfg.gas_strut_hole_diameter / 2.0);
+        // Gas strut holes on sides (near rear)
+        let gas_y = wall_top - cfg.gas_strut_offset_from_top;
+        let gas_x_offset = side_l / 2.0 - cfg.gas_strut_offset_from_rear;
+        dxf.add_circle(left_cx + gas_x_offset, gas_y, cfg.gas_strut_hole_diameter / 2.0);
+        dxf.add_circle(right_cx - gas_x_offset, gas_y, cfg.gas_strut_hole_diameter / 2.0);
 
-        // --- BOTTOM PANEL (if included) ---
+        // === REAR SECTION (squared off, honest about being the working end) ===
+        // Louver vents
+        let total_louver_span = (cfg.louver_count - 1) as f64 * cfg.louver_spacing;
+        let louver_start_x = rear_cx - total_louver_span / 2.0;
+        let louver_cy = wall_height / 4.0;
+
+        for i in 0..cfg.louver_count {
+            let lx = louver_start_x + i as f64 * cfg.louver_spacing;
+            dxf.add_slot(cfg.louver_width.min(rear_w - 40.0), cfg.louver_height, lx, louver_cy);
+        }
+
+        // Drain holes
+        let drain_inset = 20.0;
+        let rear_hx = rear_w / 2.0 - drain_inset;
+        let drain_y = wall_bottom + drain_inset;
+        dxf.add_circle(rear_cx - rear_hx, drain_y, cfg.drain_hole_diameter / 2.0);
+        dxf.add_circle(rear_cx + rear_hx, drain_y, cfg.drain_hole_diameter / 2.0);
+
+        // Rear mounting holes
+        let rear_mount_hx = rear_w / 2.0 - inset;
+        for (dx, dy) in [
+            (-rear_mount_hx, hy),
+            (rear_mount_hx, hy),
+            (-rear_mount_hx, -hy),
+            (rear_mount_hx, -hy),
+        ] {
+            dxf.add_circle(rear_cx + dx, dy, hole_r);
+        }
+
+        // === BOTTOM PANEL ===
         if cfg.include_bottom {
-            // Mounting holes around bottom perimeter
             let bx = bottom_w / 2.0 - inset;
             let by = bottom_l / 2.0 - inset;
+
+            // Mounting holes around perimeter
             for (dx, dy) in [
                 (-bx, by), (0.0, by), (bx, by),
                 (-bx, 0.0), (bx, 0.0),
@@ -548,9 +689,14 @@ impl WallWrap {
                 dxf.add_circle(bottom_cx + dx, bottom_cy + dy, hole_r);
             }
 
-            // Drain holes in bottom corners
-            let bd = 30.0; // Drain inset
-            for (dx, dy) in [(-bx + bd, -by + bd), (bx - bd, -by + bd), (-bx + bd, by - bd), (bx - bd, by - bd)] {
+            // Drain holes in corners
+            let bd = 30.0;
+            for (dx, dy) in [
+                (-bx + bd, -by + bd),
+                (bx - bd, -by + bd),
+                (-bx + bd, by - bd),
+                (bx - bd, by - bd),
+            ] {
                 dxf.add_circle(bottom_cx + dx, bottom_cy + dy, cfg.drain_hole_diameter / 2.0);
             }
         }
@@ -869,6 +1015,199 @@ impl TopLid {
 }
 
 // =============================================================================
+// Sensor Dome (3D Printed Cover)
+// =============================================================================
+
+/// Sensor Dome configuration
+///
+/// "Subtle, not towering. Sits like a head without trying to be a head."
+///
+/// The sensor dome covers the LiDAR and camera mast, providing weather
+/// protection while maintaining the "friendly industrial" aesthetic.
+/// 3D printed to allow organic curves that would be expensive in sheet metal.
+#[derive(Debug, Clone)]
+pub struct SensorDomeConfig {
+    /// Base diameter (matches top lid sensor hole)
+    pub base_diameter: f64,
+    /// Overall height (kept low for "planted" look)
+    pub height: f64,
+    /// Wall thickness (for 3D printing)
+    pub wall_thickness: f64,
+    /// Lip height (overlaps top lid edge)
+    pub lip_height: f64,
+    /// Lip inset (how far lip extends inward)
+    pub lip_inset: f64,
+    /// Number of mounting tabs around base
+    pub mount_tab_count: usize,
+    /// Mounting tab dimensions
+    pub mount_tab_width: f64,
+    pub mount_tab_length: f64,
+    /// Mounting hole diameter (M4)
+    pub mount_hole_diameter: f64,
+    /// Camera window width (for forward-facing camera)
+    pub camera_window_width: f64,
+    /// Camera window height
+    pub camera_window_height: f64,
+    /// Camera window offset from front (degrees around circumference)
+    pub camera_window_angle: f64,
+}
+
+impl Default for SensorDomeConfig {
+    fn default() -> Self {
+        Self {
+            // Match top lid sensor hole (150mm) with slight overlap
+            base_diameter: 155.0,
+            // Low profile - "subtle, not towering"
+            // Just tall enough for LiDAR (Mid-360 is ~60mm tall)
+            height: 80.0,
+            // 3mm walls for strength without excessive material
+            wall_thickness: 3.0,
+            // 10mm lip overlaps top lid for weather seal
+            lip_height: 10.0,
+            lip_inset: 5.0,
+            // 4 mounting tabs at 90° intervals
+            mount_tab_count: 4,
+            mount_tab_width: 20.0,
+            mount_tab_length: 15.0,
+            mount_hole_diameter: 4.5, // M4 clearance
+            // Camera window on front
+            camera_window_width: 40.0,
+            camera_window_height: 25.0,
+            camera_window_angle: 0.0, // Front-facing
+        }
+    }
+}
+
+/// Sensor Dome: 3D printed cover for LiDAR and camera mast
+///
+/// Design characteristics:
+/// - Organic dome shape (not a harsh cylinder)
+/// - Low profile to maintain "planted" aesthetic
+/// - Camera window for forward visibility
+/// - Mounting tabs with M4 holes
+/// - Lip for weather sealing against top lid
+pub struct SensorDome {
+    config: SensorDomeConfig,
+}
+
+impl SensorDome {
+    pub fn new(config: SensorDomeConfig) -> Self {
+        Self { config }
+    }
+
+    pub fn default_bvr1() -> Self {
+        Self::new(SensorDomeConfig::default())
+    }
+
+    /// Generate 3D representation of the sensor dome
+    ///
+    /// The dome uses a gentle curve - more "forehead" than "tower"
+    pub fn generate(&self) -> Part {
+        let cfg = &self.config;
+        let segments = 48; // Smooth curves for 3D printing
+
+        let outer_r = cfg.base_diameter / 2.0;
+        let inner_r = outer_r - cfg.wall_thickness;
+        let height = cfg.height;
+
+        // Outer dome shell (cylinder with rounded top approximation)
+        // For now, simplified as cylinder + hemisphere
+        let outer_cylinder = centered_cylinder(
+            "dome_outer",
+            outer_r,
+            height * 0.7, // Lower cylinder portion
+            segments,
+        )
+        .translate(0.0, 0.0, height * 0.35);
+
+        // Dome top (hemisphere, approximated as squashed sphere)
+        let dome_top = centered_cylinder(
+            "dome_top",
+            outer_r,
+            height * 0.4,
+            segments,
+        )
+        .translate(0.0, 0.0, height * 0.7);
+
+        // Inner cavity
+        let inner_cavity = centered_cylinder(
+            "dome_inner",
+            inner_r,
+            height - cfg.wall_thickness,
+            segments,
+        )
+        .translate(0.0, 0.0, (height - cfg.wall_thickness) / 2.0);
+
+        // Lip (for weather seal against top lid)
+        let lip_outer = centered_cylinder(
+            "lip_outer",
+            outer_r + cfg.lip_inset,
+            cfg.lip_height,
+            segments,
+        )
+        .translate(0.0, 0.0, -cfg.lip_height / 2.0);
+
+        let lip_inner = centered_cylinder(
+            "lip_inner",
+            inner_r,
+            cfg.lip_height + 1.0,
+            segments,
+        )
+        .translate(0.0, 0.0, -cfg.lip_height / 2.0);
+
+        let lip = lip_outer.difference(&lip_inner);
+
+        // Camera window cutout (front-facing)
+        let camera_cutout = centered_cube(
+            "camera_window",
+            cfg.camera_window_width,
+            cfg.wall_thickness * 3.0,
+            cfg.camera_window_height,
+        )
+        .translate(0.0, outer_r, height * 0.4);
+
+        // Mounting tabs
+        let mut tabs = Part::empty("mount_tabs");
+        let tab_angle_step = 360.0 / cfg.mount_tab_count as f64;
+
+        for i in 0..cfg.mount_tab_count {
+            let angle = i as f64 * tab_angle_step + 45.0; // Offset from cardinal directions
+            let rad = angle * std::f64::consts::PI / 180.0;
+            let tab_x = (outer_r + cfg.mount_tab_length / 2.0) * rad.cos();
+            let tab_y = (outer_r + cfg.mount_tab_length / 2.0) * rad.sin();
+
+            let tab = centered_cube(
+                "mount_tab",
+                cfg.mount_tab_width,
+                cfg.mount_tab_length,
+                cfg.wall_thickness,
+            )
+            .rotate(0.0, 0.0, angle)
+            .translate(tab_x, tab_y, -cfg.lip_height + cfg.wall_thickness / 2.0);
+
+            // Mounting hole in tab
+            let hole = centered_cylinder(
+                "mount_hole",
+                cfg.mount_hole_diameter / 2.0,
+                cfg.wall_thickness * 3.0,
+                16,
+            )
+            .translate(tab_x, tab_y, -cfg.lip_height);
+
+            tabs = tabs.union(&tab.difference(&hole));
+        }
+
+        // Assemble the dome
+        outer_cylinder
+            .union(&dome_top)
+            .difference(&inner_cavity)
+            .union(&lip)
+            .union(&tabs)
+            .difference(&camera_cutout)
+    }
+}
+
+// =============================================================================
 // Skid Plate (Panel 3 - Bottom)
 // =============================================================================
 
@@ -1055,10 +1394,20 @@ impl ShellAssembly {
         Self::new(ShellConfig::default())
     }
 
-    /// Generate complete shell assembly (big shell + hinged top lid)
+    /// Generate complete shell assembly (big shell + hinged top lid + sensor dome)
+    ///
+    /// "Friendly Industrial" shell with:
+    /// - Chamfered corners (softened, not boxy)
+    /// - Gentle front rake (welcoming forehead)
+    /// - LED bar face (steady amber gaze)
+    /// - Sensor dome (subtle, not towering)
     pub fn generate(&self) -> Part {
         let shell = &self.config;
         let height = shell.shell_height();
+        let lid_cfg = TopLidConfig {
+            shell: self.config.clone(),
+            ..Default::default()
+        };
 
         // Big shell with integrated bottom (wall wrap with include_bottom=true)
         let big_shell = WallWrap::new(WallWrapConfig {
@@ -1069,17 +1418,27 @@ impl ShellAssembly {
         .generate();
 
         // Top lid (positioned on top, hinged at rear)
-        let top_lid = TopLid::new(TopLidConfig {
-            shell: self.config.clone(),
-            ..Default::default()
-        })
-        .generate()
-        .translate(0.0, 0.0, height);
+        let top_lid = TopLid::new(lid_cfg.clone())
+            .generate()
+            .translate(0.0, 0.0, height);
+
+        // Sensor dome (positioned over sensor hole in lid)
+        // "Sits like a head without trying to be a head"
+        let sensor_dome = SensorDome::default_bvr1()
+            .generate()
+            .translate(
+                lid_cfg.sensor_hole_offset.0,
+                lid_cfg.sensor_hole_offset.1,
+                height + shell.thickness,
+            );
 
         // Gas struts (simplified representation)
         let gas_struts = self.generate_gas_struts();
 
-        big_shell.union(&top_lid).union(&gas_struts)
+        big_shell
+            .union(&top_lid)
+            .union(&sensor_dome)
+            .union(&gas_struts)
     }
 
     /// Generate simplified gas strut representation for visualization
@@ -1129,6 +1488,13 @@ impl ShellAssembly {
             shell: self.config.clone(),
             ..Default::default()
         })
+    }
+
+    /// Get sensor dome (3D printed cover for sensor mast)
+    ///
+    /// "Subtle, not towering. Sits like a head without trying to be a head."
+    pub fn sensor_dome(&self) -> SensorDome {
+        SensorDome::default_bvr1()
     }
 
     /// Get skid plate for individual export (legacy, now integrated into wall_wrap)
@@ -1194,14 +1560,24 @@ mod tests {
     #[test]
     fn test_wall_wrap_config() {
         let cfg = WallWrapConfig::default();
-        // With 540mm frame + 20mm clearance each side = 580mm
+
+        // Simple 5-panel design (no chamfers):
+        // All panels = shell_width/length = 580mm
         assert_eq!(cfg.front_width(), 580.0);
         assert_eq!(cfg.side_length(), 580.0);
+        assert_eq!(cfg.rear_width(), 580.0);
         assert_eq!(cfg.panel_height(), 200.0);
 
-        // Flat width: 580 + 580 + 580 + 580 + 20 - bend allowances
+        // Front rake: 80mm raked section, 120mm vertical
+        assert_eq!(cfg.front_rake_height, 80.0);
+        assert_eq!(cfg.front_vertical_height(), 120.0);
+
+        // Flat width: 580*4 + 20 = 2340mm
         let flat_w = cfg.flat_width();
-        assert!(flat_w > 2300.0 && flat_w < 2400.0, "Flat width: {}", flat_w);
+        assert_eq!(flat_w, 2340.0, "Flat width should be 2340mm");
+
+        // Bend count: 1 rake + 3 corners + 1 bottom = 5
+        assert_eq!(cfg.bend_count(), 5);
     }
 
     #[test]
@@ -1259,6 +1635,33 @@ mod tests {
         // 8 louvers = 3840mm² > 150mm² minimum from artifact-plan
         let area = cfg.louver_width * cfg.louver_height * cfg.louver_count as f64;
         assert!(area >= 150.0, "Louver area {} should be >= 150mm²", area);
+    }
+
+    #[test]
+    fn test_sensor_dome_generation() {
+        // "Subtle, not towering. Sits like a head without trying to be a head."
+        let dome = SensorDome::default_bvr1();
+        let part = dome.generate();
+        assert!(!part.is_empty());
+    }
+
+    #[test]
+    fn test_sensor_dome_config() {
+        let cfg = SensorDomeConfig::default();
+
+        // Low profile - subtle, not towering
+        assert_eq!(cfg.height, 80.0);
+        assert!(cfg.height < 100.0, "Dome should be low profile");
+
+        // Matches top lid sensor hole (150mm) with slight overlap
+        assert_eq!(cfg.base_diameter, 155.0);
+
+        // 4 mounting tabs for secure attachment
+        assert_eq!(cfg.mount_tab_count, 4);
+
+        // Camera window for forward visibility
+        assert!(cfg.camera_window_width > 0.0);
+        assert!(cfg.camera_window_height > 0.0);
     }
 
     #[test]

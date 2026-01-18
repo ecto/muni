@@ -303,11 +303,11 @@ impl BVR1Assembly {
 
     /// Generate complete BVR1 assembly
     ///
-    /// New design:
+    /// "Friendly Industrial" design:
     /// - All electronics and battery on bottom tray (coplanar)
-    /// - Top access panel with sensor mast
-    /// - 3-panel clam shell enclosure (wall wrap + top lid + skid plate)
-    /// - Clean, serviceable layout
+    /// - Top access panel with e-stop
+    /// - Shell enclosure with chamfered corners and sensor dome
+    /// - Sensors housed in low dome ("subtle, not towering")
     pub fn generate(&self) -> Part {
         let cfg = &self.config;
         let gc = self.ground_clearance();
@@ -324,11 +324,14 @@ impl BVR1Assembly {
         // Bottom: base tray with all electronics and battery
         let base_assembly = self.add_base_tray_assembly();
 
-        // Top: access panel with sensors
+        // Top: access panel (sensors now in dome)
         let top_assembly = self.add_access_panel_assembly();
 
-        // Shell enclosure (wall wrap + top lid + skid plate)
+        // Shell enclosure (wall wrap + top lid + sensor dome)
         let shell = self.add_shell();
+
+        // Sensors inside the dome
+        let dome_sensors = self.add_dome_sensors();
 
         frame
             .union(&motor_mounts)
@@ -336,6 +339,7 @@ impl BVR1Assembly {
             .union(&base_assembly)
             .union(&top_assembly)
             .union(&shell)
+            .union(&dome_sensors)
     }
 
     /// Generate simplified BVR1 assembly
@@ -668,54 +672,66 @@ impl BVR1Assembly {
             .union(&vesc_rr)
     }
 
-    /// Add access panel on top with sensors
+    /// Add access panel on top of frame (inside shell)
     ///
-    /// Sensor heights are optimized per bvr/docs/hardware/bvr1-dimensions.md:
-    /// - LiDAR at mast top: 700mm from ground (min 620mm for camera visibility)
-    /// - Camera 100mm below LiDAR: 600mm from ground (min 520mm to see near ground)
-    /// - GPS offset to side, 50mm below LiDAR
+    /// Note: Sensors are now housed in the shell's sensor dome, not on a tall mast.
+    /// The "friendly industrial" design keeps sensors low and protected.
     fn add_access_panel_assembly(&self) -> Part {
         let cfg = &self.config;
         let gc = self.ground_clearance();
 
-        // Access panel sits on top of frame
+        // Access panel sits on top of frame (inside the shell)
         let panel_thickness = 4.0;
         let panel_z = gc + cfg.frame.height + panel_thickness / 2.0;
 
         let panel = AccessPanel::default_bvr1().generate()
             .translate(0.0, 0.0, panel_z);
 
-        // Sensor mast position (from AccessPanel config)
-        let access_panel = AccessPanel::default_bvr1();
-        let (mast_x, mast_y) = access_panel.mast_position();
-
-        // Mast top height
-        // With gc=120, frame.height=180, panel=4, mast=400:
-        // mast_top = 120 + 180 + 4 + 400 = 704mm from ground
-        let mast_top_z = panel_z + panel_thickness / 2.0 + cfg.mast_height;
-
-        // LiDAR on top of mast (at 700mm, must be >620mm for camera ground visibility)
-        let lidar = Lidar::mid360().generate()
-            .translate(mast_x, mast_y, mast_top_z);
-
-        // Camera 100mm below LiDAR (at 600mm, must be >520mm to see ground at body edge)
-        let camera = Camera::insta360_x4().generate()
-            .translate(mast_x, mast_y, mast_top_z - 100.0);
-
-        // GPS antenna offset 80mm to side of mast, 50mm below LiDAR
-        // (offset reduces multipath from mast structure)
-        let gps = GpsAntenna::default_rtk().generate()
-            .translate(mast_x + 80.0, mast_y, mast_top_z - 50.0);
-
-        // E-Stop on the panel (accessible from top)
+        // E-Stop on the panel (accessible through top lid hole)
         let estop = EStopButton::new().generate()
             .translate(-150.0, -200.0, panel_z + 20.0);
 
-        panel
-            .union(&lidar)
-            .union(&camera)
-            .union(&gps)
-            .union(&estop)
+        // Note: Sensors (LiDAR, camera, GPS) are now positioned inside
+        // the sensor dome via add_dome_sensors()
+        panel.union(&estop)
+    }
+
+    /// Add sensors inside the shell's sensor dome
+    ///
+    /// "Friendly Industrial" design: sensors housed under a low dome
+    /// "Subtle, not towering. Sits like a head without trying to be a head."
+    fn add_dome_sensors(&self) -> Part {
+        let cfg = &self.config;
+        let gc = self.ground_clearance();
+        let shell_cfg = super::shell::ShellConfig::default();
+        let lid_cfg = super::shell::TopLidConfig::default();
+        let dome_cfg = super::shell::SensorDomeConfig::default();
+
+        // Shell top lid Z position
+        let lid_z = gc + shell_cfg.shell_height();
+
+        // Sensor positions inside dome
+        // Dome sits on top of lid at the sensor hole position
+        let dome_center_x = lid_cfg.sensor_hole_offset.0;
+        let dome_center_y = lid_cfg.sensor_hole_offset.1;
+        let dome_base_z = lid_z + shell_cfg.thickness;
+
+        // LiDAR near top of dome interior (80mm dome height)
+        let lidar_z = dome_base_z + dome_cfg.height * 0.5;
+        let lidar = Lidar::mid360().generate()
+            .translate(dome_center_x, dome_center_y, lidar_z);
+
+        // Camera below LiDAR (visible through camera window in dome)
+        let camera_z = dome_base_z + dome_cfg.height * 0.2;
+        let camera = Camera::insta360_x4().generate()
+            .translate(dome_center_x, dome_center_y, camera_z);
+
+        // GPS antenna offset to side
+        let gps_z = dome_base_z + dome_cfg.height * 0.4;
+        let gps = GpsAntenna::default_rtk().generate()
+            .translate(dome_center_x + 50.0, dome_center_y, gps_z);
+
+        lidar.union(&camera).union(&gps)
     }
 
     /// Add 3-panel clam shell enclosure
@@ -725,16 +741,29 @@ impl BVR1Assembly {
     /// - Top Lid: Removable panel for maintenance access
     /// - Skid Plate: Bottom protection panel
     fn add_shell(&self) -> Part {
-        // Shell assembly positioned to enclose the frame
-        // The shell's Z=0 is at ground level, frame sits inside at gc height
+        let cfg = &self.config;
+        let gc = self.ground_clearance();
+
+        // Shell assembly wraps around the frame
+        // Frame is at Z=gc (120mm) to Z=gc+frame.height (300mm)
+        // Shell walls should start below frame bottom to fully enclose it
+
+        // The shell's wall wrap starts at its Z=0 and extends to shell_height (200mm)
+        // Position shell so its walls wrap the frame:
+        // - Shell bottom at gc - some_margin (to cover frame bottom rail)
+        // - Shell top at gc + frame.height + lid_clearance
+
+        // For BVR1: gc=120, frame.height=180, shell_height=200
+        // Shell walls go from shell_z to shell_z+200
+        // We want walls to cover frame (120-300), so shell_z should be ~100mm
+        // But the shell is designed for the frame dimensions, so position it at gc
+
         let shell = ShellAssembly::default_bvr1().generate();
 
-        // Position shell so it encloses the frame
-        // Shell's skid plate is at Z=0 (ground level) + small offset to clear ground
-        // Shell's wall wrap starts at skid plate level
-        // Shell's top lid is at shell_height above skid plate
-        let skid_clearance = 5.0; // 5mm clearance above ground for skid plate
-        shell.translate(0.0, 0.0, skid_clearance)
+        // Position shell bottom at ground clearance level
+        // The shell's integrated bottom sits at gc level (on top of wheels)
+        // Wall wrap wraps the frame from gc to gc+shell_height
+        shell.translate(0.0, 0.0, gc)
     }
 }
 

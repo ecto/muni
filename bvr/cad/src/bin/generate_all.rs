@@ -14,8 +14,9 @@ use bvr_cad::parts::{
     // Custom fabricated
     BVR1Frame, CornerBracket, ElectronicsPlate, Extrusion2020, MotorMount, SensorMount, TNut,
     WheelSpacer, BatteryTray, BaseTray, AccessPanel, UUMotor, UUMotorMount,
-    // 3-Panel Shell (Wall Wrap + Top Lid + Skid Plate)
-    ShellConfig, ShellAssembly, WallWrap, WallWrapConfig, TopLid, TopLidConfig, SkidPlate, SkidPlateConfig,
+    // "Friendly Industrial" Shell (Wall Wrap + Top Lid + Sensor Dome)
+    ShellConfig, ShellAssembly, WallWrap, WallWrapConfig, TopLid, TopLidConfig,
+    SkidPlate, SkidPlateConfig, SensorDome, SensorDomeConfig,
     // Reference parts
     HubMotor, Lidar, Camera, GpsAntenna, Vesc, Jetson, DcDc, EStopButton,
     DowntubeBattery, CustomBattery,
@@ -197,7 +198,7 @@ fn main() -> Result<()> {
     println!("    - E-stop hole: 30mm diameter");
     println!("    - GPS grommet: 12mm diameter");
 
-    // Skid Plate: Bottom protection panel
+    // Skid Plate: Bottom protection panel (legacy, now integrated into wall wrap)
     let skid_plate = SkidPlate::new(skid_plate_config);
     let part = skid_plate.generate();
     export_part("shell_skid_plate", &part, "shell_panel")?;
@@ -205,6 +206,18 @@ fn main() -> Result<()> {
              shell_config.shell_width(), shell_config.shell_length());
     println!("    - 12 mounting holes");
     println!("    - 4 drain holes at corners");
+
+    // Sensor Dome: 3D printed cover for LiDAR and cameras
+    // "Subtle, not towering. Sits like a head without trying to be a head."
+    let sensor_dome_config = SensorDomeConfig::default();
+    let sensor_dome = SensorDome::new(sensor_dome_config.clone());
+    let part = sensor_dome.generate();
+    export_part("sensor_dome", &part, "3d_printed")?;
+    println!("  Sensor Dome (3D printed, {:.0}mm diameter x {:.0}mm tall)",
+             sensor_dome_config.base_diameter, sensor_dome_config.height);
+    println!("    - Low profile: \"subtle, not towering\"");
+    println!("    - Camera window for forward visibility");
+    println!("    - 4 mounting tabs with M4 holes");
 
     // Export DXF files for SendCutSend
     let shell_assembly = ShellAssembly::default_bvr1();
