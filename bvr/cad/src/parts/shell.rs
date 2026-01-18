@@ -816,12 +816,6 @@ impl TopLid {
         Self::new(TopLidConfig::default())
     }
 
-    /// Calculate visor setback (how far the bottom of visor moves back)
-    fn visor_setback(&self) -> f64 {
-        let cfg = &self.config;
-        cfg.visor_height * (cfg.visor_rake_angle * std::f64::consts::PI / 180.0).tan()
-    }
-
     /// Generate 3D representation (flat panel)
     pub fn generate(&self) -> Part {
         let cfg = &self.config;
@@ -1463,8 +1457,6 @@ impl ShellAssembly {
         let shell = &self.config;
         let height = shell.shell_height();
         let length = shell.shell_length();
-        let wall_cfg = WallWrapConfig::default();
-        let lid_cfg = TopLidConfig::default();
 
         // Gas strut parameters - sized to fit inside shell
         let strut_diameter = 10.0;

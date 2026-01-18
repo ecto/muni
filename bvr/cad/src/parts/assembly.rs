@@ -769,7 +769,6 @@ impl BVR1Assembly {
     /// - Top Lid: Removable panel for maintenance access
     /// - Skid Plate: Bottom protection panel
     fn add_shell(&self) -> Part {
-        let cfg = &self.config;
         let gc = self.ground_clearance();
 
         // Shell assembly wraps around the frame
