@@ -1,8 +1,5 @@
 import {
-  ShieldCheck,
-  Snowflake,
   BookOpen,
-  Robot,
   MapPin,
   ArrowDown,
 } from "@phosphor-icons/react/dist/ssr";
@@ -81,8 +78,8 @@ export default function HomePage() {
       </section>
 
       {/* ═══════════════════════════════════════════════════════════════════════
-          FRAME 3: THE SOLUTION
-          Goal: Show the product in action, make it feel real
+          FRAME 3: THE PROOF
+          Goal: Close the loop - answer the problem stats with solution stats
           ═══════════════════════════════════════════════════════════════════════ */}
       <section className="frame frame-solution">
         <div className="frame-background">
@@ -92,22 +89,25 @@ export default function HomePage() {
           <div className="solution-message">
             <p className="solution-eyebrow">The solution</p>
             <h2 className="solution-headline">
-              Autonomous navigation. Zero supervision.
+              The math works.
             </h2>
-            <div className="solution-features">
-              <div className="solution-feature">
-                <Robot size={24} aria-hidden="true" />
-                <span>Autonomous path planning with real-time obstacle avoidance</span>
+            <div className="solution-stats">
+              <div className="solution-stat">
+                <span className="solution-stat-value">$38/day</span>
+                <span className="solution-stat-label">vs $960 for manual crews</span>
               </div>
-              <div className="solution-feature">
-                <ShieldCheck size={24} aria-hidden="true" />
-                <span>Multi-layer safety: LiDAR + computer vision + e-stop</span>
+              <div className="solution-stat">
+                <span className="solution-stat-value">50 mi/night</span>
+                <span className="solution-stat-label">per rover</span>
               </div>
-              <div className="solution-feature">
-                <Snowflake size={24} aria-hidden="true" />
-                <span>Operates 24/7 in active snowfall, day or night</span>
+              <div className="solution-stat">
+                <span className="solution-stat-value">Cleared by 6AM</span>
+                <span className="solution-stat-label">before the morning commute</span>
               </div>
             </div>
+            <p className="solution-tagline">
+              One rover. No overtime. No 3AM callouts.
+            </p>
           </div>
         </div>
       </section>

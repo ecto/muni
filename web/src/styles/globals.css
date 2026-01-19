@@ -1713,7 +1713,46 @@ body > div:not(.frame-footer):not([class*="frame"]) > .formkit-form[data-uid="cb
 }
 
 .solution-headline {
-  margin-bottom: 20px;
+  margin-bottom: 32px;
+}
+
+.solution-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 32px;
+  max-width: 750px;
+  margin: 0 auto 32px;
+}
+
+.solution-stat {
+  text-align: center;
+}
+
+.solution-stat-value {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: clamp(1.5rem, 3.5vw, 2.25rem);
+  font-weight: 700;
+  color: var(--orange);
+  line-height: 1;
+  margin-bottom: 8px;
+  letter-spacing: -0.02em;
+}
+
+.solution-stat-label {
+  display: block;
+  font-family: var(--font-display);
+  font-size: var(--text-sm);
+  color: var(--fg-muted);
+  line-height: 1.4;
+}
+
+.solution-tagline {
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  color: var(--fg);
+  font-weight: 500;
+  margin: 0;
 }
 
 .solution-features {
@@ -2117,6 +2156,11 @@ body > div:not(.frame-footer):not([class*="frame"]) > .formkit-form[data-uid="cb
   }
 
   .problem-stats {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+
+  .solution-stats {
     grid-template-columns: 1fr;
     gap: 24px;
   }
