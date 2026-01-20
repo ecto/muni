@@ -5,18 +5,21 @@ RUN apk add --no-cache musl-dev
 
 WORKDIR /app
 
-# Copy manifests
-COPY Cargo.toml Cargo.lock* ./
+# Copy shared types crate (map-api depends on ../types)
+COPY types ./types
 
-# Create dummy main.rs to cache dependencies
-RUN mkdir src && echo "fn main() {}" > src/main.rs
+# Copy map-api crate
+COPY map-api ./map-api
+
+WORKDIR /app/map-api
+
+# Cache dependencies with dummy build
+RUN mkdir -p src && echo "fn main() {}" > src/main.rs
 RUN cargo build --release 2>/dev/null || true
 
-# Copy actual source and force rebuild by touching files
-COPY src ./src
+# Copy actual source and rebuild
+COPY map-api/src ./src
 RUN touch src/main.rs
-
-# Build for release
 RUN cargo build --release
 
 # Runtime stage
@@ -24,7 +27,7 @@ FROM alpine:3.21
 
 RUN apk add --no-cache ca-certificates
 
-COPY --from=builder /app/target/release/map-api /usr/local/bin/map-api
+COPY --from=builder /app/map-api/target/release/map-api /usr/local/bin/map-api
 
 ENV MAPS_DIR=/data/maps
 ENV PORT=4870

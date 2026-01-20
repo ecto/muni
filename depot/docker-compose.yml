@@ -113,8 +113,8 @@ services:
   # Map processing service - watches sessions, builds maps
   mapper:
     build:
-      context: ./mapper
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: mapper/Dockerfile
     container_name: depot-mapper
     restart: unless-stopped
     volumes:
@@ -205,8 +205,8 @@ services:
   # Map API service - serves maps to console app
   map-api:
     build:
-      context: ./map-api
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: map-api/Dockerfile
     container_name: depot-map-api
     restart: unless-stopped
     ports:
