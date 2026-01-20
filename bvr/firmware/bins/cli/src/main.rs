@@ -5,7 +5,10 @@
 //!   muni rover scan --interface can0
 //!   muni gps monitor --port /dev/ttyUSB0
 //!   muni gps configure-base --port /dev/ttyUSB0
+//!   muni deploy depot
+//!   muni deploy rover frog-0
 
+mod deploy;
 mod gps;
 mod rover;
 
@@ -30,6 +33,10 @@ enum Commands {
     /// GPS/GNSS receiver configuration and monitoring
     #[command(subcommand)]
     Gps(gps::GpsCommands),
+
+    /// Deploy to depot or rovers
+    #[command(subcommand)]
+    Deploy(deploy::DeployCommands),
 }
 
 #[tokio::main]
@@ -39,5 +46,6 @@ async fn main() -> Result<()> {
     match args.command {
         Commands::Rover(cmd) => rover::run(cmd).await,
         Commands::Gps(cmd) => gps::run(cmd).await,
+        Commands::Deploy(cmd) => deploy::run(cmd).await,
     }
 }
