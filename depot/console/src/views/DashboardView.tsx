@@ -39,27 +39,31 @@ export function DashboardView() {
 
         {/* Depot/Base Station marker */}
         {hasDepotPosition && (
-          <MapMarker position={[gpsStatus.latitude!, gpsStatus.longitude!]}>
-            <div className="relative group">
-              <div
-                className={`flex items-center justify-center w-10 h-10 rounded-full border-3 border-white shadow-lg ${
-                  gpsOk
-                    ? "bg-green-500 ring-2 ring-green-500/30"
-                    : "bg-yellow-500 ring-2 ring-yellow-500/30"
-                }`}
-              >
-                <CellTower className="w-5 h-5 text-white" weight="bold" />
+          <MapMarker
+            position={[gpsStatus.latitude!, gpsStatus.longitude!]}
+            iconAnchor={[20, 20]}
+            icon={
+              <div className="relative group">
+                <div
+                  className={`flex items-center justify-center w-10 h-10 rounded-full border-3 border-white shadow-lg ${
+                    gpsOk
+                      ? "bg-green-500 ring-2 ring-green-500/30"
+                      : "bg-yellow-500 ring-2 ring-yellow-500/30"
+                  }`}
+                >
+                  <CellTower className="w-5 h-5 text-white" weight="bold" />
+                </div>
+                {/* Tooltip */}
+                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-background border border-border rounded text-xs whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                  <span className="font-medium">Depot Base Station</span>
+                  <br />
+                  <span className="text-muted-foreground">
+                    {gpsStatus.satellites} sats · {(gpsStatus.fixQuality ?? "no_fix").replace("_", " ")}
+                  </span>
+                </div>
               </div>
-              {/* Tooltip */}
-              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-background border border-border rounded text-xs whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                <span className="font-medium">Depot Base Station</span>
-                <br />
-                <span className="text-muted-foreground">
-                  {gpsStatus.satellites} sats · {(gpsStatus.fixQuality ?? "no_fix").replace("_", " ")}
-                </span>
-              </div>
-            </div>
-          </MapMarker>
+            }
+          />
         )}
 
         {/* Online rover markers */}
@@ -75,21 +79,26 @@ export function DashboardView() {
           const roverLon = gpsStatus.longitude! + offset;
 
           return (
-            <MapMarker key={rover.id} position={[roverLat, roverLon]}>
-              <Link to={`/fleet/${rover.id}`} className="relative group">
-                <div className="flex items-center justify-center w-8 h-8 bg-primary rounded-full border-2 border-white shadow-lg ring-2 ring-primary/30">
-                  <Robot className="w-4 h-4 text-primary-foreground" weight="bold" />
-                </div>
-                {/* Tooltip */}
-                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-background border border-border rounded text-xs whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
-                  <span className="font-medium">{rover.name || rover.id}</span>
-                  <br />
-                  <span className="text-muted-foreground">
-                    {ModeLabels[rover.mode as Mode]} · {getBatteryPercent(rover.batteryVoltage).toFixed(0)}%
-                  </span>
-                </div>
-              </Link>
-            </MapMarker>
+            <MapMarker
+              key={rover.id}
+              position={[roverLat, roverLon]}
+              iconAnchor={[16, 16]}
+              icon={
+                <Link to={`/fleet/${rover.id}`} className="relative group">
+                  <div className="flex items-center justify-center w-8 h-8 bg-primary rounded-full border-2 border-white shadow-lg ring-2 ring-primary/30">
+                    <Robot className="w-4 h-4 text-primary-foreground" weight="bold" />
+                  </div>
+                  {/* Tooltip */}
+                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-background border border-border rounded text-xs whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
+                    <span className="font-medium">{rover.name || rover.id}</span>
+                    <br />
+                    <span className="text-muted-foreground">
+                      {ModeLabels[rover.mode as Mode]} · {getBatteryPercent(rover.batteryVoltage).toFixed(0)}%
+                    </span>
+                  </div>
+                </Link>
+              }
+            />
           );
         })}
 
