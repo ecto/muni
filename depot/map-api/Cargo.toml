@@ -5,6 +5,7 @@ edition = "2021"
 description = "Map serving API for Depot"
 
 [dependencies]
+depot-types = { path = "../types" }
 tokio = { version = "1", features = ["rt-multi-thread", "sync", "time", "macros", "fs"] }
 axum = { version = "0.8", features = ["multipart"] }
 tower-http = { version = "0.6", features = ["cors", "fs"] }

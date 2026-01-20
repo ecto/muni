@@ -20,13 +20,9 @@ use axum::{
     Json, Router,
 };
 use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize};
-use std::{
-    collections::HashMap,
-    net::SocketAddr,
-    path::PathBuf,
-    sync::Arc,
-};
+use depot_types::{GpsBounds, MapIndex, MapManifest, Session};
+use serde::Serialize;
+use std::{collections::HashMap, net::SocketAddr, path::PathBuf, sync::Arc};
 use thiserror::Error;
 use tokio::sync::RwLock;
 use tower_http::cors::CorsLayer;
@@ -34,7 +30,7 @@ use tracing::{info, warn};
 use uuid::Uuid;
 
 // =============================================================================
-// Types (shared with mapper, ideally in a common crate)
+// Local Types (API-specific)
 // =============================================================================
 
 #[derive(Error, Debug)]
@@ -57,99 +53,6 @@ impl IntoResponse for ApiError {
 
         (status, Json(serde_json::json!({ "error": message }))).into_response()
     }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
-pub struct GpsBounds {
-    pub min_lat: f64,
-    pub max_lat: f64,
-    pub min_lon: f64,
-    pub max_lon: f64,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct MapManifest {
-    pub id: Uuid,
-    pub name: String,
-    pub description: Option<String>,
-    pub bounds: GpsBounds,
-    pub version: u32,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
-    pub assets: MapAssets,
-    pub sessions: Vec<MapSessionRef>,
-    pub stats: MapStats,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct MapAssets {
-    pub splat: Option<String>,
-    pub pointcloud: Option<String>,
-    pub mesh: Option<String>,
-    pub thumbnail: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct MapSessionRef {
-    pub session_id: Uuid,
-    pub rover_id: String,
-    pub date: DateTime<Utc>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
-#[serde(rename_all = "camelCase")]
-pub struct MapStats {
-    pub total_points: u64,
-    pub total_splats: u64,
-    pub coverage_pct: f32,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct MapIndex {
-    pub maps: Vec<MapIndexEntry>,
-    pub updated_at: DateTime<Utc>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct MapIndexEntry {
-    pub id: Uuid,
-    pub name: String,
-    pub bounds: GpsBounds,
-    pub version: u32,
-    pub updated_at: DateTime<Utc>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "snake_case")]
-pub enum SessionStatus {
-    Pending,
-    Queued,
-    Processing,
-    Processed,
-    Failed,
-    Invalid,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct Session {
-    pub id: Uuid,
-    pub rover_id: String,
-    pub path: PathBuf,
-    pub started_at: DateTime<Utc>,
-    pub ended_at: Option<DateTime<Utc>>,
-    pub gps_bounds: Option<GpsBounds>,
-    pub lidar_frames: u32,
-    pub camera_frames: u32,
-    pub status: SessionStatus,
-    pub map_id: Option<Uuid>,
-    pub discovered_at: DateTime<Utc>,
-    pub processed_at: Option<DateTime<Utc>>,
-    pub error: Option<String>,
 }
 
 // =============================================================================

@@ -10,7 +10,11 @@
 //! - Update map registry with results
 //! - Merge new sessions into existing maps when regions overlap
 
-use chrono::{DateTime, Utc};
+use chrono::Utc;
+use depot_types::{
+    GpsBounds, MapAssets, MapIndex, MapIndexEntry, MapManifest, MapSessionRef, MapStats, Session,
+    SessionMetadata, SessionStatus,
+};
 use notify::{Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use serde::{Deserialize, Serialize};
 use std::{
@@ -26,7 +30,7 @@ use uuid::Uuid;
 use walkdir::WalkDir;
 
 // =============================================================================
-// Types
+// Local Types (not shared with other services)
 // =============================================================================
 
 #[derive(Error, Debug)]
@@ -41,146 +45,6 @@ pub enum MapperError {
     IncompleteSession(String),
     #[error("Processing failed: {0}")]
     ProcessingFailed(String),
-}
-
-/// GPS bounding box
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
-pub struct GpsBounds {
-    pub min_lat: f64,
-    pub max_lat: f64,
-    pub min_lon: f64,
-    pub max_lon: f64,
-}
-
-impl GpsBounds {
-    pub fn center(&self) -> (f64, f64) {
-        (
-            (self.min_lat + self.max_lat) / 2.0,
-            (self.min_lon + self.max_lon) / 2.0,
-        )
-    }
-
-    pub fn overlaps(&self, other: &GpsBounds) -> bool {
-        self.min_lat <= other.max_lat
-            && self.max_lat >= other.min_lat
-            && self.min_lon <= other.max_lon
-            && self.max_lon >= other.min_lon
-    }
-
-    pub fn expand(&mut self, other: &GpsBounds) {
-        self.min_lat = self.min_lat.min(other.min_lat);
-        self.max_lat = self.max_lat.max(other.max_lat);
-        self.min_lon = self.min_lon.min(other.min_lon);
-        self.max_lon = self.max_lon.max(other.max_lon);
-    }
-}
-
-/// Session metadata (written by rover)
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SessionMetadata {
-    pub session_id: Uuid,
-    pub rover_id: String,
-    pub started_at: DateTime<Utc>,
-    pub ended_at: Option<DateTime<Utc>>,
-    pub gps_bounds: Option<GpsBounds>,
-    pub lidar_frames: u32,
-    pub camera_frames: u32,
-    /// Number of pose samples recorded (for LiDAR alignment)
-    #[serde(default)]
-    pub pose_samples: u32,
-    pub telemetry_file: String,
-}
-
-/// Session processing status
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "snake_case")]
-pub enum SessionStatus {
-    /// Just discovered, not yet validated
-    Pending,
-    /// Validated and queued for processing
-    Queued,
-    /// Currently being processed
-    Processing,
-    /// Successfully processed and merged into a map
-    Processed,
-    /// Processing failed
-    Failed,
-    /// Incomplete or invalid session
-    Invalid,
-}
-
-/// Session record in our database
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Session {
-    pub id: Uuid,
-    pub rover_id: String,
-    pub path: PathBuf,
-    pub started_at: DateTime<Utc>,
-    pub ended_at: Option<DateTime<Utc>>,
-    pub gps_bounds: Option<GpsBounds>,
-    pub lidar_frames: u32,
-    pub camera_frames: u32,
-    /// Number of pose samples for LiDAR alignment
-    #[serde(default)]
-    pub pose_samples: u32,
-    pub status: SessionStatus,
-    pub map_id: Option<Uuid>,
-    pub discovered_at: DateTime<Utc>,
-    pub processed_at: Option<DateTime<Utc>>,
-    pub error: Option<String>,
-}
-
-/// Map metadata
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct MapManifest {
-    pub id: Uuid,
-    pub name: String,
-    pub description: Option<String>,
-    pub bounds: GpsBounds,
-    pub version: u32,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
-    pub assets: MapAssets,
-    pub sessions: Vec<MapSessionRef>,
-    pub stats: MapStats,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct MapAssets {
-    pub splat: Option<String>,
-    pub pointcloud: Option<String>,
-    pub mesh: Option<String>,
-    pub thumbnail: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct MapSessionRef {
-    pub session_id: Uuid,
-    pub rover_id: String,
-    pub date: DateTime<Utc>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
-pub struct MapStats {
-    pub total_points: u64,
-    pub total_splats: u64,
-    pub coverage_pct: f32,
-}
-
-/// Map index (list of all maps)
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
-pub struct MapIndex {
-    pub maps: Vec<MapIndexEntry>,
-    pub updated_at: DateTime<Utc>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct MapIndexEntry {
-    pub id: Uuid,
-    pub name: String,
-    pub bounds: GpsBounds,
-    pub version: u32,
-    pub updated_at: DateTime<Utc>,
 }
 
 // =============================================================================

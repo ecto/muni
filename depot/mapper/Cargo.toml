@@ -5,6 +5,7 @@ edition = "2021"
 description = "Session processing and map building service for Depot"
 
 [dependencies]
+depot-types = { path = "../types" }
 tokio = { version = "1", features = ["rt-multi-thread", "sync", "time", "macros", "fs", "signal"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
