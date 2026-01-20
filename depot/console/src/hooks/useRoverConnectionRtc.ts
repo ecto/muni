@@ -238,11 +238,7 @@ export function useRoverConnectionRtc() {
             // Claim operator and enable teleop
             isOperatorRef.current = true;
             commandChannelRef.current.send(encodeSetMode(Mode.Idle));
-            setTimeout(() => {
-              if (commandChannelRef.current?.readyState === "open") {
-                commandChannelRef.current.send(encodeSetMode(Mode.Teleop));
-              }
-            }, 50);
+            commandChannelRef.current.send(encodeSetMode(Mode.Teleop));
           }
 
           // Handle disable rising edge (Backspace key)
@@ -254,6 +250,16 @@ export function useRoverConnectionRtc() {
             commandChannelRef.current.send(encodeSetMode(Mode.Disabled));
           }
         }, INPUT_UPDATE_INTERVAL_MS);
+
+        // Handle enable key held during connection (fixes race condition where
+        // user presses Enter before WebRTC is ready)
+        const { input } = useConsoleStore.getState();
+        if (input.enable && !isOperatorRef.current) {
+          isOperatorRef.current = true;
+          commandChannelRef.current!.send(encodeSetMode(Mode.Idle));
+          commandChannelRef.current!.send(encodeSetMode(Mode.Teleop));
+          prevEnableRef.current = true;
+        }
       };
 
       commandChannel.onclose = () => {

@@ -168,7 +168,7 @@ export const useConsoleStore = create<ConsoleState>()(
 
   // Input
   input: defaultInput,
-  inputSource: InputSource.None,
+  inputSource: InputSource.Keyboard, // Default to keyboard (gamepad overrides on activity)
   setInput: (input) => set({ input }),
   setInputSource: (source) => set({ inputSource: source }),
 
