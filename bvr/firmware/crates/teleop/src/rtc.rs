@@ -8,10 +8,18 @@
 //! - WebSocket is used only for signaling (SDP offer/answer, ICE candidates)
 //! - DataChannel "commands" carries teleop commands (unreliable)
 //! - DataChannel "telemetry" sends rover state back (unreliable)
+//!
+//! Operator Exclusivity:
+//! - Only one connection can be the "operator" at a time
+//! - Operator is claimed via SetMode(Teleop) command
+//! - Movement commands (Twist, Tool) only accepted from operator
+//! - Safety commands (EStop) accepted from anyone
+//! - Operator status released on disconnect or after 5s inactivity
 
 use crate::video::VideoFrame;
 use crate::{Telemetry, TeleopError};
 use futures_util::{SinkExt, StreamExt};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::net::{TcpListener, TcpStream};
@@ -28,6 +36,103 @@ use webrtc::interceptor::registry::Registry;
 use webrtc::peer_connection::configuration::RTCConfiguration;
 use webrtc::peer_connection::peer_connection_state::RTCPeerConnectionState;
 use webrtc::peer_connection::sdp::session_description::RTCSessionDescription;
+
+/// Timeout for operator inactivity (milliseconds).
+const OPERATOR_TIMEOUT_MS: u64 = 5000;
+
+/// Global connection ID counter.
+static NEXT_CONNECTION_ID: AtomicU64 = AtomicU64::new(1);
+
+/// Shared state tracking the current operator across all connections.
+#[derive(Debug)]
+pub struct OperatorState {
+    /// Connection ID of the current operator (0 = none).
+    operator_id: AtomicU64,
+    /// Last command timestamp as milliseconds since UNIX epoch.
+    last_activity_ms: AtomicU64,
+}
+
+impl Default for OperatorState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl OperatorState {
+    pub fn new() -> Self {
+        Self {
+            operator_id: AtomicU64::new(0),
+            last_activity_ms: AtomicU64::new(0),
+        }
+    }
+
+    fn now_ms() -> u64 {
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis() as u64
+    }
+
+    /// Try to claim operator status. Returns true if successful.
+    pub fn try_claim(&self, conn_id: u64) -> bool {
+        let current = self.operator_id.load(Ordering::SeqCst);
+        let now = Self::now_ms();
+
+        if current == 0 || current == conn_id {
+            // No operator or we're already the operator
+            self.operator_id.store(conn_id, Ordering::SeqCst);
+            self.last_activity_ms.store(now, Ordering::SeqCst);
+            true
+        } else {
+            // Check if previous operator timed out
+            let last = self.last_activity_ms.load(Ordering::SeqCst);
+            if now.saturating_sub(last) > OPERATOR_TIMEOUT_MS {
+                // Previous operator timed out, take over
+                info!(
+                    prev_operator = current,
+                    new_operator = conn_id,
+                    "Operator takeover due to inactivity timeout"
+                );
+                self.operator_id.store(conn_id, Ordering::SeqCst);
+                self.last_activity_ms.store(now, Ordering::SeqCst);
+                true
+            } else {
+                warn!(
+                    current_operator = current,
+                    requesting_conn = conn_id,
+                    "Operator claim rejected - another operator is active"
+                );
+                false
+            }
+        }
+    }
+
+    /// Check if this connection is the operator.
+    pub fn is_operator(&self, conn_id: u64) -> bool {
+        self.operator_id.load(Ordering::SeqCst) == conn_id
+    }
+
+    /// Get the current operator ID (0 if none).
+    pub fn current_operator(&self) -> u64 {
+        self.operator_id.load(Ordering::SeqCst)
+    }
+
+    /// Update last activity timestamp (called on any valid command from operator).
+    pub fn touch(&self) {
+        self.last_activity_ms.store(Self::now_ms(), Ordering::SeqCst);
+    }
+
+    /// Release operator status (on disconnect or explicit release).
+    pub fn release(&self, conn_id: u64) {
+        if self
+            .operator_id
+            .compare_exchange(conn_id, 0, Ordering::SeqCst, Ordering::SeqCst)
+            .is_ok()
+        {
+            info!(conn_id, "Operator released");
+        }
+    }
+}
 
 /// WebRTC server configuration.
 #[derive(Debug, Clone)]
@@ -59,6 +164,7 @@ pub struct RtcServer {
     command_tx: mpsc::Sender<Command>,
     telemetry_rx: watch::Receiver<Telemetry>,
     video_rx: Option<watch::Receiver<Option<VideoFrame>>>,
+    operator_state: Arc<OperatorState>,
 }
 
 impl RtcServer {
@@ -72,6 +178,7 @@ impl RtcServer {
             command_tx,
             telemetry_rx,
             video_rx: None,
+            operator_state: Arc::new(OperatorState::new()),
         }
     }
 
@@ -87,7 +194,13 @@ impl RtcServer {
             command_tx,
             telemetry_rx,
             video_rx: Some(video_rx),
+            operator_state: Arc::new(OperatorState::new()),
         }
+    }
+
+    /// Get a reference to the operator state (for external monitoring).
+    pub fn operator_state(&self) -> Arc<OperatorState> {
+        self.operator_state.clone()
     }
 
     /// Run the WebRTC signaling server.
@@ -100,21 +213,31 @@ impl RtcServer {
         let telemetry_rx = self.telemetry_rx;
         let video_rx = self.video_rx;
         let config = Arc::new(self.config);
+        let operator_state = self.operator_state;
 
         loop {
             match listener.accept().await {
                 Ok((stream, addr)) => {
-                    info!(%addr, "WebRTC signaling client connected");
+                    // Assign unique connection ID
+                    let conn_id = NEXT_CONNECTION_ID.fetch_add(1, Ordering::SeqCst);
+                    info!(%addr, conn_id, "WebRTC signaling client connected");
+
                     let cmd_tx = command_tx.clone();
                     let telem_rx = telemetry_rx.clone();
                     let vid_rx = video_rx.clone();
                     let cfg = config.clone();
+                    let op_state = operator_state.clone();
 
                     tokio::spawn(async move {
-                        if let Err(e) = handle_signaling(stream, cmd_tx, telem_rx, vid_rx, cfg).await {
-                            error!(?e, "WebRTC connection error");
+                        if let Err(e) =
+                            handle_signaling(stream, cmd_tx, telem_rx, vid_rx, cfg, conn_id, op_state.clone())
+                                .await
+                        {
+                            error!(?e, conn_id, "WebRTC connection error");
                         }
-                        info!(%addr, "WebRTC client disconnected");
+                        // Release operator status if this connection was the operator
+                        op_state.release(conn_id);
+                        info!(%addr, conn_id, "WebRTC client disconnected");
                     });
                 }
                 Err(e) => {
@@ -152,6 +275,8 @@ async fn handle_signaling(
     telemetry_rx: watch::Receiver<Telemetry>,
     video_rx: Option<watch::Receiver<Option<VideoFrame>>>,
     config: Arc<RtcConfig>,
+    conn_id: u64,
+    operator_state: Arc<OperatorState>,
 ) -> Result<(), TeleopError> {
     let _ = stream.set_nodelay(true);
 
@@ -313,28 +438,39 @@ async fn handle_signaling(
 
     // Handle incoming DataChannels from browser (browser creates "commands" channel)
     let cmd_tx_clone = command_tx.clone();
+    let op_state_clone = operator_state.clone();
     peer_connection.on_data_channel(Box::new(move |channel| {
         let cmd_tx = cmd_tx_clone.clone();
+        let op_state = op_state_clone.clone();
         let label = channel.label().to_string();
 
         Box::pin(async move {
-            info!(label, "WebRTC received data channel from browser");
+            info!(label, conn_id, "WebRTC received data channel from browser");
 
             if label == "commands" {
                 // Set up command handler for browser's commands channel
-                channel.on_open(Box::new(|| {
-                    info!("WebRTC command channel (from browser) opened");
+                channel.on_open(Box::new(move || {
+                    info!(conn_id, "WebRTC command channel (from browser) opened");
                     Box::pin(async {})
                 }));
 
                 channel.on_message(Box::new(move |msg| {
                     let cmd_tx = cmd_tx.clone();
+                    let op_state = op_state.clone();
                     Box::pin(async move {
                         if let Some(cmd) = parse_command(&msg.data) {
-                            trace!(?cmd, "WebRTC command received");
-                            let _ = cmd_tx.send(cmd).await;
+                            // Filter commands based on operator status
+                            match filter_command(&cmd, conn_id, &op_state) {
+                                CommandFilter::Allow => {
+                                    trace!(?cmd, conn_id, "WebRTC command accepted");
+                                    let _ = cmd_tx.send(cmd).await;
+                                }
+                                CommandFilter::Reject(reason) => {
+                                    debug!(?cmd, conn_id, reason, "WebRTC command rejected");
+                                }
+                            }
                         } else {
-                            warn!(len = msg.data.len(), "Failed to parse WebRTC command");
+                            warn!(len = msg.data.len(), conn_id, "Failed to parse WebRTC command");
                         }
                     })
                 }));
@@ -464,6 +600,101 @@ async fn handle_signaling(
     Ok(())
 }
 
+/// Result of command filtering.
+enum CommandFilter {
+    Allow,
+    Reject(&'static str),
+}
+
+/// Filter commands based on operator status.
+///
+/// Rules:
+/// - EStop: Always allowed (safety critical)
+/// - Heartbeat: Always allowed (keepalive)
+/// - SetMode(Disabled/Idle): Always allowed (safe to disable)
+/// - SetMode(Teleop): Requires claiming operator status
+/// - SetMode(Autonomous): Operator only
+/// - Twist, Tool, EStopRelease: Operator only
+fn filter_command(cmd: &Command, conn_id: u64, op_state: &OperatorState) -> CommandFilter {
+    match cmd {
+        // Safety: Anyone can e-stop
+        Command::EStop => CommandFilter::Allow,
+
+        // Keepalive: Always allowed
+        Command::Heartbeat => {
+            // If this connection is the operator, update activity timestamp
+            if op_state.is_operator(conn_id) {
+                op_state.touch();
+            }
+            CommandFilter::Allow
+        }
+
+        // Mode changes
+        Command::SetMode(mode) => match mode {
+            // Safe to disable from anyone
+            Mode::Disabled | Mode::Idle => {
+                // If operator is disabling, release operator status
+                if op_state.is_operator(conn_id) {
+                    op_state.release(conn_id);
+                }
+                CommandFilter::Allow
+            }
+            // Teleop requires claiming operator status
+            Mode::Teleop => {
+                if op_state.try_claim(conn_id) {
+                    info!(conn_id, "Operator claimed");
+                    CommandFilter::Allow
+                } else {
+                    CommandFilter::Reject("another operator is active")
+                }
+            }
+            // Autonomous mode is operator-only
+            Mode::Autonomous => {
+                if op_state.is_operator(conn_id) {
+                    op_state.touch();
+                    CommandFilter::Allow
+                } else {
+                    CommandFilter::Reject("not the operator")
+                }
+            }
+            // E-Stop mode shouldn't be set directly
+            Mode::EStop => CommandFilter::Reject("cannot set EStop mode directly"),
+            // Fault mode shouldn't be set directly
+            Mode::Fault => CommandFilter::Reject("cannot set Fault mode directly"),
+        },
+
+        // Movement commands: Operator only
+        Command::Twist(_) => {
+            if op_state.is_operator(conn_id) {
+                op_state.touch();
+                CommandFilter::Allow
+            } else {
+                CommandFilter::Reject("not the operator")
+            }
+        }
+
+        // Tool commands: Operator only
+        Command::Tool(_) => {
+            if op_state.is_operator(conn_id) {
+                op_state.touch();
+                CommandFilter::Allow
+            } else {
+                CommandFilter::Reject("not the operator")
+            }
+        }
+
+        // E-Stop release: Operator only (deliberate action)
+        Command::EStopRelease => {
+            if op_state.is_operator(conn_id) {
+                op_state.touch();
+                CommandFilter::Allow
+            } else {
+                CommandFilter::Reject("not the operator")
+            }
+        }
+    }
+}
+
 /// Parse a command from raw bytes (same format as UDP/WebSocket).
 fn parse_command(data: &[u8]) -> Option<Command> {
     if data.is_empty() {
@@ -553,6 +784,9 @@ fn serialize_telemetry(telemetry: &Telemetry) -> Option<Vec<u8>> {
     for current in &telemetry.motor_currents {
         buf.extend_from_slice(&current.to_le_bytes());
     }
+
+    // Subsystem health (2 bytes)
+    buf.extend_from_slice(&telemetry.health.to_bits().to_le_bytes());
 
     Some(buf)
 }
