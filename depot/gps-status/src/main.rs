@@ -67,7 +67,7 @@ impl From<u8> for FixQuality {
 }
 
 /// GNSS constellation type
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum Constellation {
     #[default]
@@ -358,6 +358,9 @@ async fn run_serial_reader(port: &str, baud_rate: u32, state: SharedState) -> Re
                     last_history = Instant::now();
                 }
 
+                // Update satellites on each GGA (once per NMEA cycle)
+                update_satellites(&state, &gps_gsv, &glonass_gsv, &galileo_gsv, &beidou_gsv, &used_prns).await;
+
                 debug!(
                     fix = ?gga.fix_quality,
                     sats = gga.satellites,
@@ -378,30 +381,18 @@ async fn run_serial_reader(port: &str, baud_rate: u32, state: SharedState) -> Re
                     .await;
             }
         }
-        // Parse GSV for satellite details
+        // Parse GSV for satellite details (accumulate, update on GGA)
         else if line.starts_with("$GPGSV") {
             parse_gsv(&line, &mut gps_gsv, Constellation::Gps);
-            if gps_gsv.received_messages >= gps_gsv.total_messages && gps_gsv.total_messages > 0 {
-                update_satellites(&state, &gps_gsv, &glonass_gsv, &galileo_gsv, &beidou_gsv, &used_prns).await;
-            }
         }
         else if line.starts_with("$GLGSV") {
             parse_gsv(&line, &mut glonass_gsv, Constellation::Glonass);
-            if glonass_gsv.received_messages >= glonass_gsv.total_messages && glonass_gsv.total_messages > 0 {
-                update_satellites(&state, &gps_gsv, &glonass_gsv, &galileo_gsv, &beidou_gsv, &used_prns).await;
-            }
         }
         else if line.starts_with("$GAGSV") {
             parse_gsv(&line, &mut galileo_gsv, Constellation::Galileo);
-            if galileo_gsv.received_messages >= galileo_gsv.total_messages && galileo_gsv.total_messages > 0 {
-                update_satellites(&state, &gps_gsv, &glonass_gsv, &galileo_gsv, &beidou_gsv, &used_prns).await;
-            }
         }
         else if line.starts_with("$GBGSV") || line.starts_with("$BDGSV") {
             parse_gsv(&line, &mut beidou_gsv, Constellation::BeiDou);
-            if beidou_gsv.received_messages >= beidou_gsv.total_messages && beidou_gsv.total_messages > 0 {
-                update_satellites(&state, &gps_gsv, &glonass_gsv, &galileo_gsv, &beidou_gsv, &used_prns).await;
-            }
         }
 
         // Check for stale data
@@ -425,28 +416,58 @@ async fn update_satellites(
     beidou: &GsvAccumulator,
     used_prns: &[u16],
 ) {
-    let mut all_sats: Vec<SatelliteInfo> = Vec::new();
+    use std::collections::HashMap;
+
+    // Use HashMap to deduplicate by (constellation, prn)
+    let mut sat_map: HashMap<(Constellation, u16), SatelliteInfo> = HashMap::new();
 
     for sat in &gps.satellites {
         let mut sat = sat.clone();
         sat.used = used_prns.contains(&sat.prn);
-        all_sats.push(sat);
+        // Keep the entry with higher SNR if duplicate
+        sat_map.entry((sat.constellation, sat.prn))
+            .and_modify(|existing| {
+                if sat.snr.unwrap_or(0) > existing.snr.unwrap_or(0) {
+                    *existing = sat.clone();
+                }
+            })
+            .or_insert(sat);
     }
     for sat in &glonass.satellites {
         let mut sat = sat.clone();
         sat.used = used_prns.contains(&(sat.prn + 64)); // GLONASS PRNs offset
-        all_sats.push(sat);
+        sat_map.entry((sat.constellation, sat.prn))
+            .and_modify(|existing| {
+                if sat.snr.unwrap_or(0) > existing.snr.unwrap_or(0) {
+                    *existing = sat.clone();
+                }
+            })
+            .or_insert(sat);
     }
     for sat in &galileo.satellites {
         let mut sat = sat.clone();
         sat.used = used_prns.contains(&sat.prn);
-        all_sats.push(sat);
+        sat_map.entry((sat.constellation, sat.prn))
+            .and_modify(|existing| {
+                if sat.snr.unwrap_or(0) > existing.snr.unwrap_or(0) {
+                    *existing = sat.clone();
+                }
+            })
+            .or_insert(sat);
     }
     for sat in &beidou.satellites {
         let mut sat = sat.clone();
         sat.used = used_prns.contains(&sat.prn);
-        all_sats.push(sat);
+        sat_map.entry((sat.constellation, sat.prn))
+            .and_modify(|existing| {
+                if sat.snr.unwrap_or(0) > existing.snr.unwrap_or(0) {
+                    *existing = sat.clone();
+                }
+            })
+            .or_insert(sat);
     }
+
+    let mut all_sats: Vec<SatelliteInfo> = sat_map.into_values().collect();
 
     // Sort by SNR descending
     all_sats.sort_by(|a, b| b.snr.unwrap_or(0).cmp(&a.snr.unwrap_or(0)));
