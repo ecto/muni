@@ -14,6 +14,7 @@ export function useDiscovery() {
     null
   );
   const connectRef = useRef<() => void>(() => {});
+  const intentionalCloseRef = useRef(false);
 
   const getDiscoveryUrl = useCallback(() => {
     if (window.location.hostname === "localhost") {
@@ -33,6 +34,7 @@ export function useDiscovery() {
       wsRef.current = null;
     }
 
+    intentionalCloseRef.current = false;
     const url = getDiscoveryUrl();
     console.debug("[discovery] Connecting to", url);
 
@@ -80,6 +82,14 @@ export function useDiscovery() {
       };
 
       ws.onclose = () => {
+        // If a new connection has already been started, ignore this close event
+        if (wsRef.current !== ws) {
+          return;
+        }
+        if (intentionalCloseRef.current) {
+          console.debug("[discovery] Disconnected (intentional)");
+          return;
+        }
         console.debug("[discovery] Disconnected, reconnecting...");
         reconnectTimeoutRef.current = setTimeout(() => {
           connectRef.current();
@@ -87,6 +97,8 @@ export function useDiscovery() {
       };
 
       ws.onerror = (e) => {
+        // Ignore errors from stale connections
+        if (wsRef.current !== ws) return;
         console.error("[discovery] WebSocket error:", e);
       };
 
@@ -104,6 +116,8 @@ export function useDiscovery() {
   }, [connect]);
 
   const disconnect = useCallback(() => {
+    intentionalCloseRef.current = true;
+
     if (reconnectTimeoutRef.current) {
       clearTimeout(reconnectTimeoutRef.current);
       reconnectTimeoutRef.current = null;

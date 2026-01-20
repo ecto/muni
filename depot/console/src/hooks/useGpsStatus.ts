@@ -9,6 +9,7 @@ export function useGpsStatus() {
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const connectRef = useRef<() => void>(() => {});
+  const intentionalCloseRef = useRef(false);
   const { setGpsStatus } = useConsoleStore();
 
   const connect = useCallback(() => {
@@ -17,6 +18,8 @@ export function useGpsStatus() {
       wsRef.current.close();
       wsRef.current = null;
     }
+
+    intentionalCloseRef.current = false;
 
     // Determine WebSocket URL - always use the proxy path
     const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
@@ -35,6 +38,10 @@ export function useGpsStatus() {
       try {
         const msg = JSON.parse(event.data);
         if (msg.type === "gps_status" && msg.data) {
+          // Get current state to preserve satellite data if new data is empty
+          const currentStatus = useConsoleStore.getState().gpsStatus;
+          const newSatelliteInfo = msg.data.satelliteInfo ?? [];
+
           const status: GpsStatus = {
             connected: msg.data.connected ?? false,
             mode: msg.data.mode ?? "unknown",
@@ -46,7 +53,10 @@ export function useGpsStatus() {
             hdop: msg.data.hdop,
             vdop: msg.data.vdop,
             pdop: msg.data.pdop,
-            satelliteInfo: msg.data.satelliteInfo ?? [],
+            // Preserve previous satellite info if new data is empty
+            satelliteInfo: newSatelliteInfo.length > 0
+              ? newSatelliteInfo
+              : (currentStatus?.satelliteInfo ?? []),
             history: msg.data.history ?? [],
             surveyIn: msg.data.surveyIn,
             rtcmMessages: msg.data.rtcmMessages ?? [],
@@ -61,12 +71,22 @@ export function useGpsStatus() {
     };
 
     ws.onerror = (error) => {
+      // Ignore errors from stale connections
+      if (wsRef.current !== ws) return;
       console.error("[GPS] WebSocket error:", error);
     };
 
     ws.onclose = () => {
-      console.debug("[GPS] Disconnected, reconnecting in 3s...");
+      // If a new connection has already been started, ignore this close event
+      if (wsRef.current !== ws) {
+        return;
+      }
       wsRef.current = null;
+      if (intentionalCloseRef.current) {
+        console.debug("[GPS] Disconnected (intentional)");
+        return;
+      }
+      console.debug("[GPS] Disconnected, reconnecting in 3s...");
       // Mark as disconnected
       setGpsStatus({ connected: false } as GpsStatus);
       // Schedule reconnect using ref to avoid stale closure
@@ -84,11 +104,14 @@ export function useGpsStatus() {
     connect();
 
     return () => {
+      intentionalCloseRef.current = true;
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);
+        reconnectTimeoutRef.current = null;
       }
       if (wsRef.current) {
         wsRef.current.close();
+        wsRef.current = null;
       }
     };
   }, [connect]);
