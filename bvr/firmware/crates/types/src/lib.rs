@@ -2,8 +2,13 @@
 
 use serde::{Deserialize, Serialize};
 
+#[cfg(feature = "ts")]
+use ts_rs::TS;
+
 /// Velocity command: linear (m/s) and angular (rad/s).
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(TS))]
+#[cfg_attr(feature = "ts", ts(export, export_to = "generated/"))]
 pub struct Twist {
     /// Linear velocity in m/s (positive = forward)
     pub linear: f64,
@@ -16,6 +21,8 @@ pub struct Twist {
 
 /// Individual wheel velocity command (rad/s).
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(TS))]
+#[cfg_attr(feature = "ts", ts(export, export_to = "generated/"))]
 pub struct WheelVelocities {
     pub front_left: f64,
     pub front_right: f64,
@@ -45,6 +52,8 @@ impl WheelVelocities {
 
 /// System operating mode.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(TS))]
+#[cfg_attr(feature = "ts", ts(export, export_to = "generated/"))]
 pub enum Mode {
     /// Powered off / safe state
     #[default]
@@ -63,6 +72,8 @@ pub enum Mode {
 
 /// Power system status.
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(TS))]
+#[cfg_attr(feature = "ts", ts(export, export_to = "generated/"))]
 pub struct PowerStatus {
     /// Main battery voltage (V)
     pub battery_voltage: f64,
@@ -74,6 +85,8 @@ pub struct PowerStatus {
 /// Origin is where the rover was powered on (or last reset).
 /// In production, this would be augmented with GPS coordinates.
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(TS))]
+#[cfg_attr(feature = "ts", ts(export, export_to = "generated/"))]
 pub struct Pose {
     /// X position in meters (positive = forward at theta=0)
     pub x: f64,
@@ -85,6 +98,8 @@ pub struct Pose {
 
 /// GPS coordinates (WGS84).
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(TS))]
+#[cfg_attr(feature = "ts", ts(export, export_to = "generated/"))]
 pub struct GpsCoord {
     /// Latitude in degrees
     pub lat: f64,
@@ -98,6 +113,8 @@ pub struct GpsCoord {
 
 /// SLAM system status for telemetry.
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(TS))]
+#[cfg_attr(feature = "ts", ts(export, export_to = "generated/"))]
 pub struct SlamStatus {
     /// Current pose from SLAM (world frame)
     pub pose: Pose,
@@ -111,8 +128,92 @@ pub struct SlamStatus {
     pub mapping_active: bool,
 }
 
+/// Subsystem health flags for telemetry.
+///
+/// Each flag indicates whether a subsystem is operating normally.
+/// These are encoded as 2 bytes (16 bits) in the binary telemetry protocol.
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(TS))]
+#[cfg_attr(feature = "ts", ts(export, export_to = "generated/"))]
+pub struct SubsystemHealth {
+    /// CAN bus communication is healthy (heartbeats received from all VESCs)
+    pub can_healthy: bool,
+    /// Recording subsystem is active and writing data
+    pub recording_active: bool,
+    /// GPS has a valid fix (RTK fixed or float)
+    pub gps_fix: bool,
+    /// Camera is streaming frames
+    pub camera_active: bool,
+    /// Connected to dispatch service
+    pub dispatch_connected: bool,
+    /// Registered with discovery service
+    pub discovery_connected: bool,
+    /// LiDAR sensor is active and providing data
+    pub lidar_active: bool,
+    /// SLAM/localization is running
+    pub slam_running: bool,
+}
+
+impl SubsystemHealth {
+    /// Encode health flags as a u16 bitmask.
+    pub fn to_bits(&self) -> u16 {
+        let mut bits = 0u16;
+        if self.can_healthy {
+            bits |= 1 << 0;
+        }
+        if self.recording_active {
+            bits |= 1 << 1;
+        }
+        if self.gps_fix {
+            bits |= 1 << 2;
+        }
+        if self.camera_active {
+            bits |= 1 << 3;
+        }
+        if self.dispatch_connected {
+            bits |= 1 << 4;
+        }
+        if self.discovery_connected {
+            bits |= 1 << 5;
+        }
+        if self.lidar_active {
+            bits |= 1 << 6;
+        }
+        if self.slam_running {
+            bits |= 1 << 7;
+        }
+        bits
+    }
+
+    /// Decode health flags from a u16 bitmask.
+    pub fn from_bits(bits: u16) -> Self {
+        Self {
+            can_healthy: bits & (1 << 0) != 0,
+            recording_active: bits & (1 << 1) != 0,
+            gps_fix: bits & (1 << 2) != 0,
+            camera_active: bits & (1 << 3) != 0,
+            dispatch_connected: bits & (1 << 4) != 0,
+            discovery_connected: bits & (1 << 5) != 0,
+            lidar_active: bits & (1 << 6) != 0,
+            slam_running: bits & (1 << 7) != 0,
+        }
+    }
+
+    /// Check if all critical subsystems are healthy.
+    pub fn is_operational(&self) -> bool {
+        self.can_healthy
+    }
+
+    /// Count how many subsystems are healthy.
+    pub fn healthy_count(&self) -> u8 {
+        self.to_bits().count_ones() as u8
+    }
+}
+
 /// Command from operator/autonomy to rover.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(TS))]
+#[cfg_attr(feature = "ts", ts(export, export_to = "generated/"))]
 pub enum Command {
     /// Set velocity
     Twist(Twist),
@@ -130,6 +231,8 @@ pub enum Command {
 
 /// Command for the active tool.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(TS))]
+#[cfg_attr(feature = "ts", ts(export, export_to = "generated/"))]
 pub struct ToolCommand {
     /// Axis input (-1.0 to 1.0, e.g., lift up/down)
     pub axis: f32,
@@ -391,6 +494,106 @@ mod tests {
             let recovered = WheelPosition::from_index(idx).unwrap();
             assert_eq!(recovered, pos);
         }
+    }
+
+    #[test]
+    fn test_subsystem_health_default() {
+        let health = SubsystemHealth::default();
+        assert!(!health.can_healthy);
+        assert!(!health.recording_active);
+        assert!(!health.gps_fix);
+        assert!(!health.camera_active);
+        assert!(!health.dispatch_connected);
+        assert!(!health.discovery_connected);
+        assert!(!health.lidar_active);
+        assert!(!health.slam_running);
+        assert_eq!(health.to_bits(), 0);
+        assert_eq!(health.healthy_count(), 0);
+    }
+
+    #[test]
+    fn test_subsystem_health_to_bits() {
+        let health = SubsystemHealth {
+            can_healthy: true,
+            recording_active: false,
+            gps_fix: true,
+            camera_active: false,
+            dispatch_connected: true,
+            discovery_connected: false,
+            lidar_active: true,
+            slam_running: false,
+        };
+        // Bits: 0b01010101 = 0x55 = 85
+        assert_eq!(health.to_bits(), 0b01010101);
+        assert_eq!(health.healthy_count(), 4);
+    }
+
+    #[test]
+    fn test_subsystem_health_from_bits() {
+        let bits = 0b11111111u16;
+        let health = SubsystemHealth::from_bits(bits);
+        assert!(health.can_healthy);
+        assert!(health.recording_active);
+        assert!(health.gps_fix);
+        assert!(health.camera_active);
+        assert!(health.dispatch_connected);
+        assert!(health.discovery_connected);
+        assert!(health.lidar_active);
+        assert!(health.slam_running);
+        assert_eq!(health.healthy_count(), 8);
+    }
+
+    #[test]
+    fn test_subsystem_health_roundtrip() {
+        let original = SubsystemHealth {
+            can_healthy: true,
+            recording_active: true,
+            gps_fix: false,
+            camera_active: true,
+            dispatch_connected: false,
+            discovery_connected: true,
+            lidar_active: false,
+            slam_running: true,
+        };
+        let bits = original.to_bits();
+        let decoded = SubsystemHealth::from_bits(bits);
+        assert_eq!(decoded.can_healthy, original.can_healthy);
+        assert_eq!(decoded.recording_active, original.recording_active);
+        assert_eq!(decoded.gps_fix, original.gps_fix);
+        assert_eq!(decoded.camera_active, original.camera_active);
+        assert_eq!(decoded.dispatch_connected, original.dispatch_connected);
+        assert_eq!(decoded.discovery_connected, original.discovery_connected);
+        assert_eq!(decoded.lidar_active, original.lidar_active);
+        assert_eq!(decoded.slam_running, original.slam_running);
+    }
+
+    #[test]
+    fn test_subsystem_health_is_operational() {
+        let mut health = SubsystemHealth::default();
+        assert!(!health.is_operational());
+
+        health.can_healthy = true;
+        assert!(health.is_operational());
+    }
+
+    #[test]
+    fn test_subsystem_health_serde() {
+        let health = SubsystemHealth {
+            can_healthy: true,
+            recording_active: true,
+            gps_fix: true,
+            camera_active: false,
+            dispatch_connected: true,
+            discovery_connected: true,
+            lidar_active: false,
+            slam_running: true,
+        };
+        let json = serde_json::to_string(&health).unwrap();
+        let decoded: SubsystemHealth = serde_json::from_str(&json).unwrap();
+        assert_eq!(decoded.can_healthy, health.can_healthy);
+        assert_eq!(decoded.recording_active, health.recording_active);
+        assert_eq!(decoded.gps_fix, health.gps_fix);
+        assert_eq!(decoded.slam_running, health.slam_running);
     }
 }
 

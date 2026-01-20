@@ -5,8 +5,13 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 
+[features]
+default = []
+ts = ["ts-rs"]
+
 [dependencies]
 serde = { workspace = true }
+ts-rs = { workspace = true, optional = true }
 
 [dev-dependencies]
 serde_json = { workspace = true }
