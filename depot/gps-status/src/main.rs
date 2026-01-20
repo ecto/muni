@@ -20,6 +20,7 @@ use axum::{
 use futures_util::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
 use std::{
+    collections::VecDeque,
     net::SocketAddr,
     sync::Arc,
     time::{Duration, Instant},
@@ -29,6 +30,9 @@ use tokio::sync::{broadcast, RwLock};
 use tokio_serial::SerialPortBuilderExt;
 use tower_http::cors::CorsLayer;
 use tracing::{debug, info, warn};
+
+/// Maximum history points to keep for charts
+const MAX_HISTORY_POINTS: usize = 60;
 
 /// GPS fix quality from NMEA GGA
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
@@ -62,6 +66,51 @@ impl From<u8> for FixQuality {
     }
 }
 
+/// GNSS constellation type
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum Constellation {
+    #[default]
+    Gps,
+    Glonass,
+    Galileo,
+    BeiDou,
+    Qzss,
+    Unknown,
+}
+
+/// Individual satellite information from GSV sentences
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SatelliteInfo {
+    /// Satellite PRN number
+    pub prn: u16,
+    /// Constellation type
+    pub constellation: Constellation,
+    /// Elevation in degrees (0-90)
+    pub elevation: Option<u8>,
+    /// Azimuth in degrees (0-359)
+    pub azimuth: Option<u16>,
+    /// Signal-to-noise ratio in dB-Hz
+    pub snr: Option<u8>,
+    /// Whether this satellite is being used in the fix
+    pub used: bool,
+}
+
+/// Historical data point for charts
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HistoryPoint {
+    /// Timestamp in unix ms
+    pub timestamp: u64,
+    /// HDOP value
+    pub hdop: Option<f64>,
+    /// Number of satellites
+    pub satellites: u8,
+    /// Fix quality
+    pub fix_quality: FixQuality,
+}
+
 /// GPS status information
 #[derive(Debug, Clone, Serialize, Default)]
 #[serde(rename_all = "camelCase")]
@@ -82,6 +131,14 @@ pub struct GpsStatus {
     pub altitude: Option<f64>,
     /// Horizontal dilution of precision
     pub hdop: Option<f64>,
+    /// Vertical dilution of precision
+    pub vdop: Option<f64>,
+    /// Position dilution of precision
+    pub pdop: Option<f64>,
+    /// Individual satellite details
+    pub satellite_info: Vec<SatelliteInfo>,
+    /// Historical data for charts (last 60 seconds)
+    pub history: Vec<HistoryPoint>,
     /// Survey-in status (for base station mode)
     pub survey_in: Option<SurveyInStatus>,
     /// RTCM message statistics (for base station mode)
@@ -122,6 +179,7 @@ struct WsMessage {
 /// Shared application state
 struct AppState {
     status: RwLock<GpsStatus>,
+    history: RwLock<VecDeque<HistoryPoint>>,
     broadcast_tx: broadcast::Sender<()>,
 }
 
@@ -130,6 +188,7 @@ impl AppState {
         let (broadcast_tx, _) = broadcast::channel(16);
         Self {
             status: RwLock::new(GpsStatus::default()),
+            history: RwLock::new(VecDeque::with_capacity(MAX_HISTORY_POINTS)),
             broadcast_tx,
         }
     }
@@ -148,8 +207,19 @@ impl AppState {
         let _ = self.broadcast_tx.send(());
     }
 
+    async fn add_history_point(&self, point: HistoryPoint) {
+        let mut history = self.history.write().await;
+        if history.len() >= MAX_HISTORY_POINTS {
+            history.pop_front();
+        }
+        history.push_back(point);
+    }
+
     async fn get_status(&self) -> GpsStatus {
-        self.status.read().await.clone()
+        let mut status = self.status.read().await.clone();
+        let history = self.history.read().await;
+        status.history = history.iter().cloned().collect();
+        status
     }
 }
 
@@ -216,6 +286,15 @@ async fn main() {
     axum::serve(listener, app).await.unwrap();
 }
 
+/// Temporary storage for GSV parsing (satellites come in multiple messages)
+#[derive(Default)]
+struct GsvAccumulator {
+    satellites: Vec<SatelliteInfo>,
+    total_messages: u8,
+    received_messages: u8,
+    constellation: Constellation,
+}
+
 /// Run the serial reader loop
 async fn run_serial_reader(port: &str, baud_rate: u32, state: SharedState) -> Result<(), String> {
     info!(port = %port, baud = baud_rate, "Opening serial port");
@@ -229,13 +308,23 @@ async fn run_serial_reader(port: &str, baud_rate: u32, state: SharedState) -> Re
     state
         .update_status(|s| {
             s.connected = true;
-            s.mode = "base".to_string(); // Assume base station mode
+            s.mode = "base".to_string();
         })
         .await;
 
     let reader = BufReader::new(serial);
     let mut lines = reader.lines();
     let mut last_gga = Instant::now();
+    let mut last_history = Instant::now();
+
+    // GSV accumulators for each constellation
+    let mut gps_gsv = GsvAccumulator::default();
+    let mut glonass_gsv = GsvAccumulator::default();
+    let mut galileo_gsv = GsvAccumulator::default();
+    let mut beidou_gsv = GsvAccumulator::default();
+
+    // Satellites used in current fix (from GSA)
+    let mut used_prns: Vec<u16> = Vec::new();
 
     while let Ok(Some(line)) = lines.next_line().await {
         // Parse NMEA sentences
@@ -253,11 +342,65 @@ async fn run_serial_reader(port: &str, baud_rate: u32, state: SharedState) -> Re
                     })
                     .await;
                 last_gga = Instant::now();
+
+                // Add history point every second
+                if last_history.elapsed() >= Duration::from_secs(1) {
+                    let now = std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .unwrap()
+                        .as_millis() as u64;
+                    state.add_history_point(HistoryPoint {
+                        timestamp: now,
+                        hdop: gga.hdop,
+                        satellites: gga.satellites,
+                        fix_quality: gga.fix_quality,
+                    }).await;
+                    last_history = Instant::now();
+                }
+
                 debug!(
                     fix = ?gga.fix_quality,
                     sats = gga.satellites,
                     "GGA update"
                 );
+            }
+        }
+        // Parse GSA for DOP values and used satellites
+        else if line.starts_with("$GNGSA") || line.starts_with("$GPGSA") {
+            if let Some(gsa) = parse_gsa(&line) {
+                used_prns = gsa.used_prns;
+                state
+                    .update_status(|s| {
+                        s.pdop = gsa.pdop;
+                        s.hdop = gsa.hdop.or(s.hdop);
+                        s.vdop = gsa.vdop;
+                    })
+                    .await;
+            }
+        }
+        // Parse GSV for satellite details
+        else if line.starts_with("$GPGSV") {
+            parse_gsv(&line, &mut gps_gsv, Constellation::Gps);
+            if gps_gsv.received_messages >= gps_gsv.total_messages && gps_gsv.total_messages > 0 {
+                update_satellites(&state, &gps_gsv, &glonass_gsv, &galileo_gsv, &beidou_gsv, &used_prns).await;
+            }
+        }
+        else if line.starts_with("$GLGSV") {
+            parse_gsv(&line, &mut glonass_gsv, Constellation::Glonass);
+            if glonass_gsv.received_messages >= glonass_gsv.total_messages && glonass_gsv.total_messages > 0 {
+                update_satellites(&state, &gps_gsv, &glonass_gsv, &galileo_gsv, &beidou_gsv, &used_prns).await;
+            }
+        }
+        else if line.starts_with("$GAGSV") {
+            parse_gsv(&line, &mut galileo_gsv, Constellation::Galileo);
+            if galileo_gsv.received_messages >= galileo_gsv.total_messages && galileo_gsv.total_messages > 0 {
+                update_satellites(&state, &gps_gsv, &glonass_gsv, &galileo_gsv, &beidou_gsv, &used_prns).await;
+            }
+        }
+        else if line.starts_with("$GBGSV") || line.starts_with("$BDGSV") {
+            parse_gsv(&line, &mut beidou_gsv, Constellation::BeiDou);
+            if beidou_gsv.received_messages >= beidou_gsv.total_messages && beidou_gsv.total_messages > 0 {
+                update_satellites(&state, &gps_gsv, &glonass_gsv, &galileo_gsv, &beidou_gsv, &used_prns).await;
             }
         }
 
@@ -274,6 +417,45 @@ async fn run_serial_reader(port: &str, baud_rate: u32, state: SharedState) -> Re
     Ok(())
 }
 
+async fn update_satellites(
+    state: &SharedState,
+    gps: &GsvAccumulator,
+    glonass: &GsvAccumulator,
+    galileo: &GsvAccumulator,
+    beidou: &GsvAccumulator,
+    used_prns: &[u16],
+) {
+    let mut all_sats: Vec<SatelliteInfo> = Vec::new();
+
+    for sat in &gps.satellites {
+        let mut sat = sat.clone();
+        sat.used = used_prns.contains(&sat.prn);
+        all_sats.push(sat);
+    }
+    for sat in &glonass.satellites {
+        let mut sat = sat.clone();
+        sat.used = used_prns.contains(&(sat.prn + 64)); // GLONASS PRNs offset
+        all_sats.push(sat);
+    }
+    for sat in &galileo.satellites {
+        let mut sat = sat.clone();
+        sat.used = used_prns.contains(&sat.prn);
+        all_sats.push(sat);
+    }
+    for sat in &beidou.satellites {
+        let mut sat = sat.clone();
+        sat.used = used_prns.contains(&sat.prn);
+        all_sats.push(sat);
+    }
+
+    // Sort by SNR descending
+    all_sats.sort_by(|a, b| b.snr.unwrap_or(0).cmp(&a.snr.unwrap_or(0)));
+
+    state.update_status(|s| {
+        s.satellite_info = all_sats;
+    }).await;
+}
+
 /// Parsed GGA data
 struct GgaData {
     fix_quality: FixQuality,
@@ -284,35 +466,27 @@ struct GgaData {
     hdop: Option<f64>,
 }
 
+/// Parsed GSA data
+struct GsaData {
+    pdop: Option<f64>,
+    hdop: Option<f64>,
+    vdop: Option<f64>,
+    used_prns: Vec<u16>,
+}
+
 /// Parse a GGA NMEA sentence
 fn parse_gga(sentence: &str) -> Option<GgaData> {
-    // Remove checksum and split by comma
-    let parts: Vec<&str> = sentence
-        .split('*')
-        .next()?
-        .split(',')
-        .collect();
+    let parts: Vec<&str> = sentence.split('*').next()?.split(',').collect();
 
     if parts.len() < 15 {
         return None;
     }
 
-    // Parse fix quality (field 6)
     let fix_quality: FixQuality = parts.get(6)?.parse::<u8>().ok()?.into();
-
-    // Parse satellites (field 7)
     let satellites: u8 = parts.get(7)?.parse().unwrap_or(0);
-
-    // Parse HDOP (field 8)
     let hdop: Option<f64> = parts.get(8).and_then(|s| s.parse().ok());
-
-    // Parse latitude (fields 2,3)
     let latitude = parse_nmea_coord(parts.get(2).copied(), parts.get(3).copied());
-
-    // Parse longitude (fields 4,5)
     let longitude = parse_nmea_coord(parts.get(4).copied(), parts.get(5).copied());
-
-    // Parse altitude (field 9)
     let altitude: Option<f64> = parts.get(9).and_then(|s| s.parse().ok());
 
     Some(GgaData {
@@ -325,6 +499,81 @@ fn parse_gga(sentence: &str) -> Option<GgaData> {
     })
 }
 
+/// Parse a GSA NMEA sentence
+fn parse_gsa(sentence: &str) -> Option<GsaData> {
+    let parts: Vec<&str> = sentence.split('*').next()?.split(',').collect();
+
+    if parts.len() < 18 {
+        return None;
+    }
+
+    let pdop: Option<f64> = parts.get(15).and_then(|s| s.parse().ok());
+    let hdop: Option<f64> = parts.get(16).and_then(|s| s.parse().ok());
+    let vdop: Option<f64> = parts.get(17).and_then(|s| s.parse().ok());
+
+    // PRNs are in fields 3-14
+    let mut used_prns = Vec::new();
+    for i in 3..15 {
+        if let Some(prn_str) = parts.get(i) {
+            if let Ok(prn) = prn_str.parse::<u16>() {
+                if prn > 0 {
+                    used_prns.push(prn);
+                }
+            }
+        }
+    }
+
+    Some(GsaData { pdop, hdop, vdop, used_prns })
+}
+
+/// Parse a GSV NMEA sentence
+fn parse_gsv(sentence: &str, acc: &mut GsvAccumulator, constellation: Constellation) {
+    let parts: Vec<&str> = sentence.split('*').next().unwrap_or("").split(',').collect();
+
+    if parts.len() < 4 {
+        return;
+    }
+
+    let total_messages: u8 = parts.get(1).and_then(|s| s.parse().ok()).unwrap_or(0);
+    let message_num: u8 = parts.get(2).and_then(|s| s.parse().ok()).unwrap_or(0);
+
+    // Reset accumulator on first message
+    if message_num == 1 {
+        acc.satellites.clear();
+        acc.total_messages = total_messages;
+        acc.received_messages = 0;
+        acc.constellation = constellation;
+    }
+
+    acc.received_messages = message_num;
+
+    // Each GSV message can have up to 4 satellites (fields 4-7, 8-11, 12-15, 16-19)
+    for sat_idx in 0..4 {
+        let base = 4 + sat_idx * 4;
+        if base >= parts.len() {
+            break;
+        }
+
+        let prn: u16 = match parts.get(base).and_then(|s| s.parse().ok()) {
+            Some(p) if p > 0 => p,
+            _ => continue,
+        };
+
+        let elevation: Option<u8> = parts.get(base + 1).and_then(|s| s.parse().ok());
+        let azimuth: Option<u16> = parts.get(base + 2).and_then(|s| s.parse().ok());
+        let snr: Option<u8> = parts.get(base + 3).and_then(|s| s.parse().ok());
+
+        acc.satellites.push(SatelliteInfo {
+            prn,
+            constellation,
+            elevation,
+            azimuth,
+            snr,
+            used: false, // Will be set later from GSA
+        });
+    }
+}
+
 /// Parse NMEA coordinate (DDMM.MMMM format) to decimal degrees
 fn parse_nmea_coord(coord: Option<&str>, direction: Option<&str>) -> Option<f64> {
     let coord_str = coord?;
@@ -334,7 +583,6 @@ fn parse_nmea_coord(coord: Option<&str>, direction: Option<&str>) -> Option<f64>
         return None;
     }
 
-    // Find the decimal point to split degrees and minutes
     let dot_pos = coord_str.find('.')?;
     if dot_pos < 2 {
         return None;
@@ -380,10 +628,8 @@ async fn ws_handler(
 async fn handle_ws(socket: WebSocket, state: SharedState) {
     let (mut sender, mut receiver) = socket.split();
 
-    // Subscribe to updates
     let mut rx = state.broadcast_tx.subscribe();
 
-    // Send initial status
     let status = state.get_status().await;
     let msg = WsMessage {
         msg_type: "gps_status".to_string(),
@@ -397,7 +643,6 @@ async fn handle_ws(socket: WebSocket, state: SharedState) {
 
     loop {
         tokio::select! {
-            // Handle broadcast updates
             Ok(()) = rx.recv() => {
                 let status = state.get_status().await;
                 let msg = WsMessage {
@@ -411,7 +656,6 @@ async fn handle_ws(socket: WebSocket, state: SharedState) {
                 }
             }
 
-            // Handle incoming messages
             msg = receiver.next() => {
                 match msg {
                     Some(Ok(Message::Close(_))) | None => break,
