@@ -10,7 +10,7 @@
  * - 0x06 E-Stop Release: [type:u8]
  *
  * Telemetry (Rover -> Operator):
- * - 0x10 Telemetry: [type:u8] [mode:u8] [pose:24B] [voltage:f64] [timestamp:u64] [velocity:16B] [temps:16B] [currents:16B]
+ * - 0x10 Telemetry: [type:u8] [mode:u8] [pose:24B] [voltage:f64] [timestamp:u64] [velocity:16B] [temps:16B] [currents:16B] [health:2B]
  */
 
 import {
@@ -102,6 +102,18 @@ export function encodeTool(
 // Telemetry Decoding (Rover -> Operator)
 // ============================================================================
 
+// Subsystem health flags (decoded from 2-byte bit field)
+export interface SubsystemHealth {
+  can_healthy: boolean;
+  recording_active: boolean;
+  gps_fix: boolean;
+  camera_active: boolean;
+  dispatch_connected: boolean;
+  discovery_connected: boolean;
+  lidar_active: boolean;
+  slam_running: boolean;
+}
+
 export interface DecodedTelemetry {
   mode: Mode;
   pose: Pose;
@@ -110,13 +122,14 @@ export interface DecodedTelemetry {
   motor_temps: [number, number, number, number];
   motor_currents: [number, number, number, number];
   timestamp_ms: number;
+  health: SubsystemHealth;
 }
 
 export function decodeTelemetry(data: ArrayBuffer): DecodedTelemetry | null {
   const view = new DataView(data);
 
-  // Minimum size check
-  if (data.byteLength < 90) {
+  // Minimum size check (90 bytes + 2 bytes health = 92)
+  if (data.byteLength < 92) {
     return null;
   }
 
@@ -172,6 +185,20 @@ export function decodeTelemetry(data: ArrayBuffer): DecodedTelemetry | null {
     view.getFloat32(offset + 8, true),
     view.getFloat32(offset + 12, true),
   ];
+  offset += 16;
+
+  // Subsystem health (2 bytes, little-endian u16)
+  const healthBits = view.getUint16(offset, true);
+  const health: SubsystemHealth = {
+    can_healthy: (healthBits & (1 << 0)) !== 0,
+    recording_active: (healthBits & (1 << 1)) !== 0,
+    gps_fix: (healthBits & (1 << 2)) !== 0,
+    camera_active: (healthBits & (1 << 3)) !== 0,
+    dispatch_connected: (healthBits & (1 << 4)) !== 0,
+    discovery_connected: (healthBits & (1 << 5)) !== 0,
+    lidar_active: (healthBits & (1 << 6)) !== 0,
+    slam_running: (healthBits & (1 << 7)) !== 0,
+  };
 
   return {
     mode,
@@ -181,6 +208,7 @@ export function decodeTelemetry(data: ArrayBuffer): DecodedTelemetry | null {
     motor_temps,
     motor_currents,
     timestamp_ms,
+    health,
   };
 }
 
@@ -203,6 +231,7 @@ export function telemetryFromDecoded(decoded: DecodedTelemetry): Telemetry {
     motor_temps: decoded.motor_temps,
     connected: true,
     latency_ms: 0, // Computed by caller
+    health: decoded.health,
   };
 }
 

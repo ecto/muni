@@ -9,6 +9,9 @@ import {
   Lightning,
   Gauge,
   MapTrifold,
+  Heart,
+  CheckCircle,
+  XCircle,
 } from "@phosphor-icons/react";
 import { useConsoleStore } from "@/store";
 import { Mode, ModeLabels } from "@/lib/types";
@@ -38,6 +41,19 @@ function BatteryIcon({ voltage }: { voltage: number }) {
   if (voltage < 45)
     return <BatteryLow className="h-4 w-4 text-orange-500" weight="fill" />;
   return <BatteryFull className="h-4 w-4 text-green-500" weight="fill" />;
+}
+
+function HealthIndicator({ label, healthy }: { label: string; healthy: boolean }) {
+  return (
+    <div className="flex items-center justify-between text-xs">
+      <span className="text-muted-foreground">{label}</span>
+      {healthy ? (
+        <CheckCircle className="h-3.5 w-3.5 text-green-500" weight="fill" />
+      ) : (
+        <XCircle className="h-3.5 w-3.5 text-muted-foreground/50" weight="fill" />
+      )}
+    </div>
+  );
 }
 
 export function TelemetryPanel() {
@@ -147,6 +163,29 @@ export function TelemetryPanel() {
                 <span className="font-mono">
                   {(telemetry.slamStatus.confidence * 100).toFixed(0)}%
                 </span>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* Subsystem Health */}
+        {connected && (
+          <>
+            <Separator />
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Heart className="h-4 w-4" weight="fill" />
+                Health
+              </div>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+                <HealthIndicator label="CAN" healthy={telemetry.health.can_healthy} />
+                <HealthIndicator label="Camera" healthy={telemetry.health.camera_active} />
+                <HealthIndicator label="GPS" healthy={telemetry.health.gps_fix} />
+                <HealthIndicator label="LiDAR" healthy={telemetry.health.lidar_active} />
+                <HealthIndicator label="SLAM" healthy={telemetry.health.slam_running} />
+                <HealthIndicator label="Recording" healthy={telemetry.health.recording_active} />
+                <HealthIndicator label="Discovery" healthy={telemetry.health.discovery_connected} />
+                <HealthIndicator label="Dispatch" healthy={telemetry.health.dispatch_connected} />
               </div>
             </div>
           </>

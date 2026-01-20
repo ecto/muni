@@ -20,7 +20,7 @@ use thiserror::Error;
 use tokio::net::UdpSocket;
 use tokio::sync::{mpsc, watch};
 use tracing::{debug, error, info, trace, warn};
-use types::{Command, Mode, Pose, PowerStatus, SlamStatus, ToolCommand, Twist};
+use types::{Command, Mode, Pose, PowerStatus, SlamStatus, SubsystemHealth, ToolCommand, Twist};
 
 #[derive(Error, Debug)]
 pub enum TeleopError {
@@ -65,6 +65,9 @@ pub struct Telemetry {
     /// SLAM status (optional, only when SLAM is enabled)
     #[serde(default)]
     pub slam_status: Option<SlamStatus>,
+    /// Subsystem health flags
+    #[serde(default)]
+    pub health: SubsystemHealth,
 }
 
 /// Tool status for telemetry.
@@ -238,6 +241,9 @@ impl Server {
             buf.extend_from_slice(&current.to_le_bytes());
         }
 
+        // Subsystem health (2 bytes)
+        buf.extend_from_slice(&telemetry.health.to_bits().to_le_bytes());
+
         Some(buf)
     }
 }
@@ -265,7 +271,7 @@ pub async fn send_estop(addr: &str) -> Result<(), TeleopError> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use types::{Mode, Pose, PowerStatus, Twist};
+    use types::{Mode, Pose, PowerStatus, SubsystemHealth, Twist};
 
     #[test]
     fn test_parse_twist_command() {
@@ -407,6 +413,7 @@ mod tests {
             active_tool: None,
             tool_status: None,
             slam_status: None,
+            health: SubsystemHealth::default(),
         };
 
         let data = Server::serialize_telemetry(&telemetry);

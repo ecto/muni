@@ -43,6 +43,29 @@ export interface SlamStatus {
   mappingActive: boolean;
 }
 
+// Subsystem health flags from telemetry
+export interface SubsystemHealth {
+  can_healthy: boolean;
+  recording_active: boolean;
+  gps_fix: boolean;
+  camera_active: boolean;
+  dispatch_connected: boolean;
+  discovery_connected: boolean;
+  lidar_active: boolean;
+  slam_running: boolean;
+}
+
+export const defaultHealth: SubsystemHealth = {
+  can_healthy: false,
+  recording_active: false,
+  gps_fix: false,
+  camera_active: false,
+  dispatch_connected: false,
+  discovery_connected: false,
+  lidar_active: false,
+  slam_running: false,
+};
+
 export interface Telemetry {
   mode: Mode;
   pose: Pose;
@@ -52,6 +75,7 @@ export interface Telemetry {
   connected: boolean;
   latency_ms: number;
   slamStatus?: SlamStatus;
+  health: SubsystemHealth;
 }
 
 export interface GamepadInput {

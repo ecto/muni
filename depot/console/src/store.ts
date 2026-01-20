@@ -11,6 +11,7 @@ import {
   type GpsStatus,
   InputSource,
   CameraMode,
+  defaultHealth,
 } from "@/lib/types";
 
 export type Theme = "light" | "dark" | "system";
@@ -95,6 +96,7 @@ const defaultTelemetry: Telemetry = {
   motor_temps: [0, 0, 0, 0],
   connected: false,
   latency_ms: 0,
+  health: defaultHealth,
 };
 
 const defaultInput: GamepadInput = {
