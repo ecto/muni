@@ -29,17 +29,40 @@ import {
   Moon,
   WifiHigh,
   HardDrive,
+  Broadcast,
+  Cube,
+  Plugs,
 } from "@phosphor-icons/react";
 import { useConsoleStore } from "@/store";
 import { useDiscovery } from "@/hooks/useDiscovery";
-import { useServiceHealth } from "@/hooks/useServiceHealth";
+import { useServiceHealth, type ServiceStatus } from "@/hooks/useServiceHealth";
 import { useTheme } from "@/hooks/useTheme";
+
+// Map service IDs to icons
+const serviceIcons: Record<string, React.ReactNode> = {
+  discovery: <WifiHigh className="h-3.5 w-3.5" />,
+  dispatch: <NavigationArrow className="h-3.5 w-3.5" />,
+  "gps-status": <CellTower className="h-3.5 w-3.5" />,
+  "map-api": <MapTrifold className="h-3.5 w-3.5" />,
+  mapper: <Cube className="h-3.5 w-3.5" />,
+  grafana: <ChartBar className="h-3.5 w-3.5" />,
+  influxdb: <Database className="h-3.5 w-3.5" />,
+  sftp: <HardDrive className="h-3.5 w-3.5" />,
+  ntrip: <Broadcast className="h-3.5 w-3.5" />,
+  postgres: <Plugs className="h-3.5 w-3.5" />,
+};
+
+// External links for services
+const serviceLinks: Record<string, string> = {
+  grafana: "/grafana/",
+  influxdb: `${window.location.protocol}//${window.location.hostname}:8086/`,
+};
 
 export function AppSidebar() {
   const location = useLocation();
   const { rovers, gpsStatus } = useConsoleStore();
   const { theme, cycleTheme } = useTheme();
-  const { getStatus, healthyCount, totalCount } = useServiceHealth();
+  const { services, healthyCount, totalCount } = useServiceHealth();
 
   // Connect to discovery service for live rover updates
   useDiscovery();
@@ -98,77 +121,6 @@ export function AppSidebar() {
               </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>
-        </SidebarGroup>
-
-        {/* Services */}
-        <SidebarGroup>
-          <SidebarGroupLabel>
-            Services ({healthyCount}/{totalCount})
-          </SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  asChild
-                  isActive={isActive("/base-station")}
-                  tooltip="Base Station"
-                >
-                  <Link to="/base-station">
-                    <CellTower className="h-4 w-4" />
-                    <span>Base Station</span>
-                    <StatusDot status={gpsOk ? "ok" : gpsStatus?.connected ? "warning" : "offline"} />
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton tooltip="Discovery">
-                  <WifiHigh className="h-4 w-4" />
-                  <span>Discovery</span>
-                  <StatusDot status={serviceStatusToDot(getStatus("Discovery"))} />
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton tooltip="Dispatch">
-                  <NavigationArrow className="h-4 w-4" />
-                  <span>Dispatch</span>
-                  <StatusDot status={serviceStatusToDot(getStatus("Dispatch"))} />
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton tooltip="Map API">
-                  <HardDrive className="h-4 w-4" />
-                  <span>Map API</span>
-                  <StatusDot status={serviceStatusToDot(getStatus("Map API"))} />
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild tooltip="Grafana">
-                  <a href="/grafana/" target="_blank" rel="noopener noreferrer">
-                    <ChartBar className="h-4 w-4" />
-                    <span>Grafana</span>
-                    <StatusDot status={serviceStatusToDot(getStatus("Grafana"))} />
-                    <ArrowSquareOut className="h-3 w-3 opacity-50" />
-                  </a>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  asChild
-                  tooltip="InfluxDB"
-                >
-                  <a
-                    href={`//${window.location.hostname}:8086/`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <Database className="h-4 w-4" />
-                    <span>InfluxDB</span>
-                    <ArrowSquareOut className="h-3 w-3 opacity-50" />
-                  </a>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarGroupContent>
         </SidebarGroup>
 
         {/* Fleet */}
@@ -233,6 +185,19 @@ export function AppSidebar() {
               <SidebarMenuItem>
                 <SidebarMenuButton
                   asChild
+                  isActive={isActive("/base-station")}
+                  tooltip="Base Station"
+                >
+                  <Link to="/base-station">
+                    <CellTower className="h-4 w-4" />
+                    <span>Base Station</span>
+                    <StatusDot status={gpsOk ? "ok" : gpsStatus?.connected ? "warning" : "offline"} />
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
                   isActive={isActive("/sessions")}
                   tooltip="Sessions"
                 >
@@ -257,6 +222,18 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+
+        {/* Services HUD */}
+        <SidebarGroup>
+          <SidebarGroupLabel>
+            Services ({healthyCount}/{totalCount})
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            <div className="px-2 py-1">
+              <ServiceGrid services={services} />
+            </div>
+          </SidebarGroupContent>
+        </SidebarGroup>
       </SidebarContent>
 
       <SidebarFooter className="border-t border-sidebar-border">
@@ -270,6 +247,49 @@ export function AppSidebar() {
         </SidebarMenu>
       </SidebarFooter>
     </Sidebar>
+  );
+}
+
+function ServiceGrid({ services }: { services: ServiceStatus[] }) {
+  return (
+    <div className="grid grid-cols-2 gap-1">
+      {services.map((service) => {
+        const link = serviceLinks[service.id];
+        const icon = serviceIcons[service.id] || <Desktop className="h-3.5 w-3.5" />;
+
+        const content = (
+          <div
+            className={`flex items-center gap-1.5 px-2 py-1.5 rounded text-xs transition-colors ${
+              service.status === "healthy"
+                ? "bg-green-500/10 text-green-600 dark:text-green-400"
+                : service.status === "unhealthy"
+                ? "bg-red-500/10 text-red-600 dark:text-red-400"
+                : "bg-muted text-muted-foreground"
+            } ${link ? "hover:bg-opacity-20 cursor-pointer" : ""}`}
+          >
+            <StatusDot status={serviceStatusToDot(service.status)} />
+            {icon}
+            <span className="truncate flex-1">{service.name}</span>
+            {link && <ArrowSquareOut className="h-2.5 w-2.5 opacity-50" />}
+          </div>
+        );
+
+        if (link) {
+          return (
+            <a
+              key={service.id}
+              href={link}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {content}
+            </a>
+          );
+        }
+
+        return <div key={service.id}>{content}</div>;
+      })}
+    </div>
   );
 }
 
@@ -289,7 +309,7 @@ function StatusDot({ status }: { status: "ok" | "offline" | "warning" | "unknown
 
   return (
     <span
-      className={`ml-auto h-2 w-2 rounded-full ${colors[status]}`}
+      className={`h-1.5 w-1.5 rounded-full ${colors[status]} flex-shrink-0`}
       aria-label={status}
     />
   );
