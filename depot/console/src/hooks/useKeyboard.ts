@@ -18,22 +18,28 @@ const KEYS: Record<string, readonly string[]> = {
   cameraFree: ["KeyV"],
 };
 
-// Track pressed keys
+// Track pressed keys (module-level singleton)
 const pressedKeys = new Set<string>();
 
-function handleKeyUp(e: KeyboardEvent) {
+// Module-level key tracking (never removed)
+function globalKeyDown(e: KeyboardEvent) {
+  pressedKeys.add(e.code);
+}
+
+function globalKeyUp(e: KeyboardEvent) {
   pressedKeys.delete(e.code);
 }
 
-// Add to keydown handler
-const originalHandleKeyDown = (e: KeyboardEvent) => {
-  pressedKeys.add(e.code);
-};
+// Clear all keys on blur (prevents stuck keys)
+function globalBlur() {
+  pressedKeys.clear();
+}
 
-// Initialize key tracking
+// Initialize key tracking once at module load
 if (typeof window !== "undefined") {
-  window.addEventListener("keydown", originalHandleKeyDown);
-  window.addEventListener("keyup", handleKeyUp);
+  window.addEventListener("keydown", globalKeyDown);
+  window.addEventListener("keyup", globalKeyUp);
+  window.addEventListener("blur", globalBlur);
 }
 
 export function useKeyboard() {
@@ -137,15 +143,15 @@ export function useKeyboard() {
   }, [setInput]);
 
   useEffect(() => {
+    // Only add the component-level keydown handler (for input source switching)
+    // Key tracking is handled by module-level globalKeyDown/globalKeyUp
     window.addEventListener("keydown", handleKeyDown);
-    window.addEventListener("keyup", handleKeyUp);
 
     // Poll at 60Hz for smooth input
     const interval = setInterval(updateInput, 16);
 
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
-      window.removeEventListener("keyup", handleKeyUp);
       clearInterval(interval);
     };
   }, [handleKeyDown, updateInput]);

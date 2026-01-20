@@ -2,7 +2,7 @@
  * Binary protocol matching bvrd teleop crate.
  *
  * Commands (Operator -> Rover):
- * - 0x01 Twist: [type:u8] [linear:f64 LE] [angular:f64 LE]
+ * - 0x01 Twist: [type:u8] [linear:f64 LE] [angular:f64 LE] [boost:u8] [timestamp:u64 LE]
  * - 0x02 E-Stop: [type:u8]
  * - 0x03 Heartbeat: [type:u8]
  * - 0x04 SetMode: [type:u8] [mode:u8]
@@ -40,12 +40,16 @@ export function encodeTwist(
   angular: number,
   boost: boolean = false
 ): ArrayBuffer {
-  const buf = new ArrayBuffer(18);
+  // 1 (type) + 8 (linear) + 8 (angular) + 1 (boost) + 8 (timestamp) = 26 bytes
+  const buf = new ArrayBuffer(26);
   const view = new DataView(buf);
   view.setUint8(0, MSG_TWIST);
   view.setFloat64(1, linear, true); // little-endian
   view.setFloat64(9, angular, true);
   view.setUint8(17, boost ? 1 : 0);
+  // Timestamp in milliseconds since epoch
+  const timestamp = BigInt(Date.now());
+  view.setBigUint64(18, timestamp, true);
   return buf;
 }
 
