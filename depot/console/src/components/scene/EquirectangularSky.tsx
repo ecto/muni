@@ -43,16 +43,32 @@ export function EquirectangularSky() {
     "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
   );
 
+  // Track load state to avoid stale updates
+  const loadingUrlRef = useRef<string | null>(null);
+  const frameCountRef = useRef(0);
+
   // Update texture when video frame changes
   useEffect(() => {
     if (!materialRef.current) return;
 
     if (videoFrame && videoConnected) {
+      // Skip if we're already loading this frame
+      if (loadingUrlRef.current === videoFrame) return;
+      loadingUrlRef.current = videoFrame;
+
       // Load new texture from blob URL
       const loader = new TextureLoader();
+      const frameUrl = videoFrame;
+
       loader.load(
-        videoFrame,
+        frameUrl,
         (texture) => {
+          // Check this is still the latest frame we want
+          if (loadingUrlRef.current !== frameUrl) {
+            texture.dispose();
+            return;
+          }
+
           texture.colorSpace = SRGBColorSpace;
 
           // Dispose old texture
@@ -61,16 +77,25 @@ export function EquirectangularSky() {
           }
 
           textureRef.current = texture;
-          materialRef.current!.map = texture;
-          materialRef.current!.needsUpdate = true;
+          if (materialRef.current) {
+            materialRef.current.map = texture;
+            materialRef.current.needsUpdate = true;
+          }
+
+          // Log first frame for debugging
+          frameCountRef.current++;
+          if (frameCountRef.current === 1) {
+            console.log("[EquirectangularSky] First video texture loaded");
+          }
         },
         undefined,
-        () => {
-          // Failed to load video frame texture: silently ignore
+        (error) => {
+          console.error("[EquirectangularSky] Failed to load video texture:", error);
         }
       );
     } else {
       // Use placeholder
+      loadingUrlRef.current = null;
       if (textureRef.current && textureRef.current !== placeholderTexture) {
         textureRef.current.dispose();
       }

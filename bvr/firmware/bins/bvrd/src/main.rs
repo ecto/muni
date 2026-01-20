@@ -845,12 +845,27 @@ async fn main() -> Result<()> {
             jpeg_quality: 60,
         };
 
-        // Auto-detect cameras
-        let cameras = camera::detect_cameras();
+        // Auto-detect cameras with timeout (GStreamer init can hang on some systems)
+        let cameras = match tokio::time::timeout(
+            Duration::from_secs(10),
+            tokio::task::spawn_blocking(camera::detect_cameras),
+        )
+        .await
+        {
+            Ok(Ok(cams)) => cams,
+            Ok(Err(e)) => {
+                warn!(?e, "Camera detection task panicked");
+                Vec::new()
+            }
+            Err(_) => {
+                warn!("Camera detection timed out - continuing without cameras");
+                Vec::new()
+            }
+        };
         if cameras.is_empty() {
-            info!("No cameras detected");
+            debug!("No cameras detected");
         } else {
-            info!(count = cameras.len(), "Detected cameras");
+            info!(count = cameras.len(), "Cameras detected");
             for cam in &cameras {
                 info!(name = %cam.name, "  - {:?}", cam.camera_type);
             }

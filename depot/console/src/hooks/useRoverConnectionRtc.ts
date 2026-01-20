@@ -189,10 +189,10 @@ export function useRoverConnectionRtc() {
       });
       peerConnectionRef.current = pc;
 
-      // Create command channel (unreliable, unordered - like UDP)
+      // Create command channel (reliable, ordered)
+      // SetMode commands are critical and must not be dropped
       const commandChannel = pc.createDataChannel("commands", {
-        ordered: false,
-        maxRetransmits: 0, // Truly unreliable
+        ordered: true,
       });
       commandChannelRef.current = commandChannel;
       commandChannel.binaryType = "arraybuffer";
@@ -237,7 +237,6 @@ export function useRoverConnectionRtc() {
           if (enableRising && commandChannelRef.current?.readyState === "open") {
             // Claim operator and enable teleop
             isOperatorRef.current = true;
-            console.log("[WebRTC] Enable key pressed - claiming operator control");
             commandChannelRef.current.send(encodeSetMode(Mode.Idle));
             setTimeout(() => {
               if (commandChannelRef.current?.readyState === "open") {
@@ -252,7 +251,6 @@ export function useRoverConnectionRtc() {
           if (disableRising && isOperatorRef.current && commandChannelRef.current?.readyState === "open") {
             // Release operator and disable
             isOperatorRef.current = false;
-            console.log("[WebRTC] Disable key pressed - releasing operator control");
             commandChannelRef.current.send(encodeSetMode(Mode.Disabled));
           }
         }, INPUT_UPDATE_INTERVAL_MS);
@@ -271,11 +269,9 @@ export function useRoverConnectionRtc() {
       // Handle incoming data channels (created by server)
       pc.ondatachannel = (event) => {
         const channel = event.channel;
-        console.log(`[WebRTC] Received data channel: ${channel.label}`);
 
         if (channel.label === "telemetry") {
           channel.binaryType = "arraybuffer";
-          console.log("[WebRTC] Telemetry channel established");
           channel.onmessage = (msgEvent) => {
             if (msgEvent.data instanceof ArrayBuffer) {
               const decoded = decodeTelemetry(msgEvent.data);
@@ -298,15 +294,31 @@ export function useRoverConnectionRtc() {
           };
         } else if (channel.label === "video") {
           channel.binaryType = "arraybuffer";
-          setVideoConnected(true);
-          videoFrameCountRef.current = 0;
-          lastVideoFpsUpdateRef.current = performance.now();
+
+          const setupVideoChannel = () => {
+            setVideoConnected(true);
+            videoFrameCountRef.current = 0;
+            lastVideoFpsUpdateRef.current = performance.now();
+          };
+
+          // Channel might already be open or need to wait for open event
+          if (channel.readyState === "open") {
+            setupVideoChannel();
+          } else {
+            channel.onopen = () => setupVideoChannel();
+          }
 
           channel.onmessage = (msgEvent) => {
-            if (!(msgEvent.data instanceof ArrayBuffer)) return;
+            if (!(msgEvent.data instanceof ArrayBuffer)) {
+              console.warn("[WebRTC] Video message not ArrayBuffer:", typeof msgEvent.data);
+              return;
+            }
 
             const frame = decodeVideoFrame(msgEvent.data);
-            if (!frame) return;
+            if (!frame) {
+              console.warn("[WebRTC] Failed to decode video frame, size:", msgEvent.data.byteLength);
+              return;
+            }
 
             // Revoke previous blob URL to avoid memory leaks
             if (lastVideoBlobUrlRef.current) {
@@ -317,6 +329,11 @@ export function useRoverConnectionRtc() {
             const blobUrl = videoFrameToBlobUrl(frame);
             lastVideoBlobUrlRef.current = blobUrl;
             setVideoFrame(blobUrl, frame.timestamp_ms);
+
+            // Log first frame received for debugging
+            if (videoFrameCountRef.current === 0) {
+              console.log(`[WebRTC] First video frame received: ${frame.width}x${frame.height}, ${frame.jpegData.length} bytes`);
+            }
 
             // Update FPS counter
             videoFrameCountRef.current++;
@@ -332,7 +349,6 @@ export function useRoverConnectionRtc() {
           };
 
           channel.onclose = () => {
-            console.log("[WebRTC] Video channel closed");
             setVideoConnected(false);
             setVideoFps(0);
           };
@@ -356,7 +372,6 @@ export function useRoverConnectionRtc() {
 
       // Handle connection state changes
       pc.onconnectionstatechange = () => {
-        console.log(`[WebRTC] Connection state: ${pc.connectionState}`);
         if (
           pc.connectionState === "failed" ||
           pc.connectionState === "disconnected"
@@ -371,8 +386,6 @@ export function useRoverConnectionRtc() {
 
       // WebSocket signaling handlers
       ws.onopen = async () => {
-        console.log("[WebRTC] Signaling WebSocket connected");
-
         try {
           // Create and send offer
           const offer = await pc.createOffer();
@@ -383,7 +396,6 @@ export function useRoverConnectionRtc() {
             data: offer.sdp!,
           };
           ws.send(JSON.stringify(msg));
-          console.log("[WebRTC] Sent SDP offer");
         } catch (err) {
           console.error("[WebRTC] Failed to create offer:", err);
         }
@@ -395,7 +407,6 @@ export function useRoverConnectionRtc() {
 
           switch (msg.type) {
             case "answer":
-              console.log("[WebRTC] Received SDP answer");
               await pc.setRemoteDescription({
                 type: "answer",
                 sdp: msg.data as string,
@@ -404,7 +415,6 @@ export function useRoverConnectionRtc() {
 
             case "candidate": {
               const candidate = msg.data as IceCandidate;
-              console.log("[WebRTC] Received ICE candidate");
               await pc.addIceCandidate({
                 candidate: candidate.candidate,
                 sdpMid: candidate.sdpMid,
@@ -418,8 +428,7 @@ export function useRoverConnectionRtc() {
         }
       };
 
-      ws.onclose = (event) => {
-        console.log("[WebRTC] Signaling WebSocket closed, code:", event.code, "reason:", event.reason);
+      ws.onclose = () => {
         // Don't reconnect here - let the PC connection state handler do it
       };
 
@@ -491,10 +500,8 @@ export function useRoverConnectionRtc() {
 
   // Connect when RTC address changes
   useEffect(() => {
-    console.log("[WebRTC] rtcAddress changed to:", rtcAddress);
     // Don't connect to default localhost - wait for real rover address from discovery
     if (rtcAddress === "ws://localhost:4852") {
-      console.log("[WebRTC] Skipping connection - still default localhost");
       return;
     }
 
@@ -524,35 +531,31 @@ export function useRoverConnectionRtc() {
     sendEStopRelease: useCallback(() => {
       currentInputRef.current.estop = false;
       if (commandChannelRef.current?.readyState === "open") {
-        console.log("[WebRTC] Sending E-Stop Release");
         commandChannelRef.current.send(encodeEStopRelease());
       }
     }, []),
     sendEnable: useCallback(() => {
       const channel = commandChannelRef.current;
       if (channel?.readyState !== "open") {
-        console.warn("[WebRTC] Cannot send - channel not open");
         return;
       }
       // Claim operator status - we're taking control
       isOperatorRef.current = true;
-      console.log("[WebRTC] Claiming operator control");
 
       // State machine requires: Disabled -> Idle -> Teleop
       // Send Enable (Idle) first, then TeleopCommand (Teleop)
       channel.send(encodeSetMode(Mode.Idle));
+
       // Small delay to ensure state machine processes first command
       setTimeout(() => {
         if (commandChannelRef.current?.readyState === "open") {
           commandChannelRef.current.send(encodeSetMode(Mode.Teleop));
-          console.log("[WebRTC] Enable sequence sent");
         }
       }, 50);
     }, []),
     sendDisable: useCallback(() => {
       // Release operator status
       isOperatorRef.current = false;
-      console.log("[WebRTC] Releasing operator control");
 
       if (commandChannelRef.current?.readyState === "open") {
         commandChannelRef.current.send(encodeSetMode(Mode.Disabled));

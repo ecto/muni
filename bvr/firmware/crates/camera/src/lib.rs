@@ -282,11 +282,16 @@ fn detect_usb_cameras() -> Vec<DetectedCamera> {
 /// Checks for:
 /// 1. CSI cameras (Jetson only, via nvarguscamerasrc)
 /// 2. USB cameras (via v4l2src)
+///
+/// Note: GStreamer initialization can hang on some systems (especially Jetson with NVIDIA plugins).
+/// Consider using `--no-camera` flag if this causes issues.
 pub fn detect_cameras() -> Vec<DetectedCamera> {
+    debug!("Starting GStreamer init...");
     if let Err(e) = ensure_gst_init() {
         error!(?e, "Failed to initialize GStreamer");
         return Vec::new();
     }
+    debug!("GStreamer initialized");
 
     let mut cameras = Vec::new();
 

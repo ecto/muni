@@ -25,7 +25,7 @@ use std::time::Duration;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::{mpsc, watch, Mutex};
 use tokio_tungstenite::{accept_async, tungstenite::Message};
-use tracing::{debug, error, info, trace, warn};
+use tracing::{debug, error, info, warn};
 use types::{Command, Mode, ToolCommand, Twist};
 use webrtc::api::interceptor_registry::register_default_interceptors;
 use webrtc::api::media_engine::MediaEngine;
@@ -400,19 +400,32 @@ async fn handle_signaling(
             let channel = video_channel_clone.clone();
             let mut rx = vid_rx.clone();
             Box::pin(async move {
-                info!("WebRTC video channel opened");
+                info!("WebRTC video channel opened, waiting for camera frames");
                 let mut interval = tokio::time::interval(video_interval);
+                let mut frame_count: u64 = 0;
                 loop {
                     interval.tick().await;
                     if channel.ready_state()
                         != webrtc::data_channel::data_channel_state::RTCDataChannelState::Open
                     {
+                        info!("WebRTC video channel no longer open, stopping");
                         break;
                     }
 
-                    // Wait for new frame
-                    if rx.changed().await.is_err() {
-                        break;
+                    // Wait for new frame with timeout for debugging
+                    tokio::select! {
+                        result = rx.changed() => {
+                            if result.is_err() {
+                                info!("Video frame sender dropped, stopping");
+                                break;
+                            }
+                        }
+                        _ = tokio::time::sleep(Duration::from_secs(5)) => {
+                            if frame_count == 0 {
+                                warn!("No video frames received after 5s - is camera connected?");
+                            }
+                            continue;
+                        }
                     }
 
                     let frame = rx.borrow_and_update().clone();
@@ -429,9 +442,19 @@ async fn handle_signaling(
                             debug!(?e, "Failed to send video frame (channel closing?)");
                             break;
                         }
+
+                        frame_count += 1;
+                        if frame_count == 1 {
+                            info!(
+                                width = frame.width,
+                                height = frame.height,
+                                size = frame.data.len(),
+                                "First video frame sent via WebRTC"
+                            );
+                        }
                     }
                 }
-                info!("WebRTC video channel closed");
+                info!(frames_sent = frame_count, "WebRTC video channel closed");
             })
         }));
     }
@@ -444,38 +467,47 @@ async fn handle_signaling(
         let op_state = op_state_clone.clone();
         let label = channel.label().to_string();
 
-        Box::pin(async move {
-            info!(label, conn_id, "WebRTC received data channel from browser");
+        info!(label, conn_id, "WebRTC received data channel from browser");
 
-            if label == "commands" {
-                // Set up command handler for browser's commands channel
-                channel.on_open(Box::new(move || {
-                    info!(conn_id, "WebRTC command channel (from browser) opened");
-                    Box::pin(async {})
-                }));
+        if label == "commands" {
+            // Set up command handler SYNCHRONOUSLY to avoid missing early messages
+            channel.on_open(Box::new(move || {
+                info!(conn_id, "WebRTC command channel (from browser) opened");
+                Box::pin(async {})
+            }));
 
-                channel.on_message(Box::new(move |msg| {
-                    let cmd_tx = cmd_tx.clone();
-                    let op_state = op_state.clone();
-                    Box::pin(async move {
-                        if let Some(cmd) = parse_command(&msg.data) {
-                            // Filter commands based on operator status
-                            match filter_command(&cmd, conn_id, &op_state) {
-                                CommandFilter::Allow => {
-                                    trace!(?cmd, conn_id, "WebRTC command accepted");
-                                    let _ = cmd_tx.send(cmd).await;
+            channel.on_message(Box::new(move |msg| {
+                let cmd_tx = cmd_tx.clone();
+                let op_state = op_state.clone();
+                Box::pin(async move {
+                    if let Some(cmd) = parse_command(&msg.data) {
+                        // Filter commands based on operator status
+                        match filter_command(&cmd, conn_id, &op_state) {
+                            CommandFilter::Allow => {
+                                // Only log mode changes and important commands
+                                match &cmd {
+                                    Command::SetMode(mode) => {
+                                        info!(?mode, conn_id, "Mode change accepted");
+                                    }
+                                    Command::EStop => {
+                                        info!(conn_id, "E-Stop command accepted");
+                                    }
+                                    _ => {}
                                 }
-                                CommandFilter::Reject(reason) => {
-                                    debug!(?cmd, conn_id, reason, "WebRTC command rejected");
-                                }
+                                let _ = cmd_tx.send(cmd).await;
                             }
-                        } else {
-                            warn!(len = msg.data.len(), conn_id, "Failed to parse WebRTC command");
+                            CommandFilter::Reject(reason) => {
+                                debug!(?cmd, conn_id, reason, "Command rejected");
+                            }
                         }
-                    })
-                }));
-            }
-        })
+                    } else {
+                        warn!(len = msg.data.len(), conn_id, "Failed to parse WebRTC command");
+                    }
+                })
+            }));
+        }
+
+        Box::pin(async {})
     }));
 
     // Handle ICE candidates
