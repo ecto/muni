@@ -17,7 +17,7 @@ import { ArrowLeft, Warning, Play, Stop, CircleNotch } from "@phosphor-icons/rea
 export function TeleopView() {
   const navigate = useNavigate();
   const { roverId } = useParams();
-  const { rovers, telemetry, selectRover, rtcAddress, connected } = useConsoleStore();
+  const { rovers, telemetry, selectRover, rtcAddress, connecting, connected } = useConsoleStore();
 
   // Initialize input and connection hooks
   useKeyboard();
@@ -104,8 +104,20 @@ export function TeleopView() {
         </div>
       )}
 
+      {/* Connecting Overlay */}
+      {connecting && !connected && (
+        <div className="absolute inset-0 flex items-center justify-center z-40 pointer-events-none">
+          <div className="flex flex-col items-center gap-3">
+            <CircleNotch className="h-12 w-12 animate-spin text-primary" />
+            <span className="text-lg text-muted-foreground">
+              Connecting to {selectedRover?.name ?? "rover"}...
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* Disabled Mode Overlay */}
-      {isDisabled && !enabling && (
+      {isDisabled && !enabling && !connecting && (
         <div className="absolute inset-0 flex items-center justify-center z-40 pointer-events-none">
           <div className="flex flex-col items-center gap-4">
             <Button

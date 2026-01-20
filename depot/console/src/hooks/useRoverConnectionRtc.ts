@@ -54,6 +54,7 @@ interface IceCandidate {
 export function useRoverConnectionRtc() {
   const {
     rtcAddress,
+    setConnecting,
     setConnected,
     setLatency,
     updateTelemetry,
@@ -170,6 +171,9 @@ export function useRoverConnectionRtc() {
       signalingWsRef.current = null;
     }
     clearIntervals();
+
+    // Mark as connecting
+    setConnecting(true);
 
     // rtcAddress comes directly from discovery - no conversion needed
     console.log(`[WebRTC] Connecting to signaling server: ${rtcAddress}`);
@@ -435,6 +439,7 @@ export function useRoverConnectionRtc() {
     }
   }, [
     rtcAddress,
+    setConnecting,
     setConnected,
     setLatency,
     updateTelemetry,

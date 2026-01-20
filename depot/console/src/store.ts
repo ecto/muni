@@ -27,9 +27,11 @@ interface ConsoleState {
   // Connection (for teleop)
   /** WebRTC signaling address for the selected rover */
   rtcAddress: string;
+  connecting: boolean;
   connected: boolean;
   latencyMs: number;
   setRtcAddress: (address: string) => void;
+  setConnecting: (connecting: boolean) => void;
   setConnected: (connected: boolean) => void;
   setLatency: (ms: number) => void;
 
@@ -138,10 +140,12 @@ export const useConsoleStore = create<ConsoleState>()(
 
   // Connection
   rtcAddress: "ws://localhost:4852",
+  connecting: false,
   connected: false,
   latencyMs: 0,
   setRtcAddress: (address) => set({ rtcAddress: address }),
-  setConnected: (connected) => set({ connected }),
+  setConnecting: (connecting) => set({ connecting }),
+  setConnected: (connected) => set({ connected, connecting: false }),
   setLatency: (ms) =>
     set((state) => {
       if (ms === 0) return { latencyMs: 0 };

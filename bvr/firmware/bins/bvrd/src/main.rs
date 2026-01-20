@@ -496,6 +496,8 @@ struct SharedState {
     commanded_twist: Twist,
     drivetrain: Drivetrain,
     tool_registry: ToolRegistry,
+    /// Subsystem health status (updated by various components)
+    health: SubsystemHealth,
 }
 
 #[tokio::main]
@@ -746,6 +748,7 @@ async fn main() -> Result<()> {
         commanded_twist: Twist::default(),
         drivetrain,
         tool_registry: ToolRegistry::new(),
+        health: SubsystemHealth::default(),
     }));
 
     // Channels
@@ -862,6 +865,9 @@ async fn main() -> Result<()> {
                         height,
                         args.camera_fps
                     );
+
+                    // Mark camera as active in health status
+                    shared.lock().unwrap().health.camera_active = true;
 
                     // Use the pre-created video_tx channel (shared with RTC server)
                     let video_tx_camera = video_tx.clone();
@@ -1013,6 +1019,10 @@ async fn main() -> Result<()> {
             warn!("Hardware e-stop enabled in config but compiled without 'gpio' feature");
         }
     }
+
+    // Track which subsystems are enabled for health reporting
+    let lidar_enabled = file_config.lidar.enabled;
+    let recording_enabled = !args.no_recording && recorder.is_active();
 
     // Control loop setup
     let mixer = DiffDriveMixer::new(chassis);
@@ -1734,7 +1744,23 @@ async fn main() -> Result<()> {
             mapping_active: true,
         });
 
-        let state = shared.lock().unwrap();
+        // Update health status based on current subsystem states
+        let gps_state = gps_rx.borrow();
+        let has_gps_fix = gps_state.coord.is_some() && gps_state.fix_quality > 0;
+        drop(gps_state);
+
+        let mut state = shared.lock().unwrap();
+
+        // Update health from available state
+        state.health.can_healthy = state.drivetrain.battery_voltage() > 0.0;
+        state.health.gps_fix = has_gps_fix;
+        state.health.slam_running = slam_processor.is_some();
+        state.health.lidar_active = lidar_enabled;
+        state.health.recording_active = recording_enabled;
+        state.health.discovery_connected = discovery_enabled;
+        state.health.dispatch_connected = dispatch_enabled;
+        // Note: camera_active is set when camera starts successfully
+
         let telemetry = Telemetry {
             timestamp_ms: std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
@@ -1752,7 +1778,7 @@ async fn main() -> Result<()> {
             active_tool,
             tool_status,
             slam_status,
-            health: SubsystemHealth::default(), // TODO: populate from actual subsystem states
+            health: state.health,
         };
 
         let _ = telemetry_tx.send(telemetry.clone());
