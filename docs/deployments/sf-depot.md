@@ -305,14 +305,16 @@ cd ~/depot && docker compose up -d --force-recreate console
 
 ### Updating Code
 
-```bash
-# From development machine
-rsync -avz --exclude node_modules --exclude target \
-  ~/Developer/muni/depot/ depot@depot:~/depot/
+Use the `muni` CLI to deploy updates:
 
-# On depot
-cd ~/depot && docker compose up -d --build
+```bash
+# From development machine (muni repo root)
+muni deploy depot                    # Sync + rebuild all containers
+muni deploy depot --service console  # Rebuild only console
+muni deploy depot --sync-only        # Sync files without rebuilding
 ```
+
+The CLI handles rsync exclusions (.env, node_modules, target, etc.) automatically.
 
 ### Checking Services
 

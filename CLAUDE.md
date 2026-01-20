@@ -112,19 +112,43 @@ cargo build
 # Run tests
 cargo test
 
-# Cross-compile for Jetson (aarch64)
-cargo build --release --target aarch64-unknown-linux-gnu
-
-# Deploy to rover
-./deploy.sh <rover-hostname>           # bvrd only
-./deploy.sh <rover-hostname> --cli     # bvrd + CLI
-./deploy.sh <rover-hostname> --restart # Deploy and restart service
-
 # Run locally with mock CAN
 cargo run --bin bvrd
 ```
 
 Cross-compilation uses `cross` (install: `cargo install cross --git https://github.com/cross-rs/cross`).
+
+### Deployment (muni CLI)
+
+The `muni` CLI is the primary tool for deployment. Install globally with:
+```bash
+cargo install --path bvr/firmware/bins/cli
+```
+
+**Deploy to rovers:**
+```bash
+muni deploy rover <hostname>       # Cross-compile bvrd, upload, restart
+muni deploy rover frog-0 --cli     # Also deploy muni CLI to rover
+muni deploy rover frog-0 --all     # Full deploy: bvrd + CLI + config
+muni deploy rover frog-0 --no-restart  # Deploy without restarting service
+```
+
+**Deploy to depot:**
+```bash
+muni deploy depot                  # Rsync + docker compose build/up
+muni deploy depot --sync-only      # Only sync files, no rebuild
+muni deploy depot --service console  # Rebuild specific service
+```
+
+**Other muni commands:**
+```bash
+muni rover scan                    # Scan CAN bus for VESCs
+muni rover drive --linear 0.5      # Send velocity command
+muni rover estop                   # Send e-stop
+muni gps monitor                   # GPS status TUI
+muni gps configure-base            # Configure GPS as RTK base station
+muni gps configure-rover           # Configure GPS as RTK rover
+```
 
 ### Depot Console (depot/console)
 
@@ -238,6 +262,7 @@ Requires Typst installed.
 |---------|------|
 | BVR firmware workspace | `bvr/firmware/Cargo.toml` |
 | Main daemon entry | `bvr/firmware/bins/bvrd/src/main.rs` |
+| Muni CLI (deploy, rover, gps) | `bvr/firmware/bins/cli/src/main.rs` |
 | Motor control logic | `bvr/firmware/crates/control/src/lib.rs` |
 | State machine | `bvr/firmware/crates/state/src/lib.rs` |
 | Dispatch client | `bvr/firmware/crates/dispatch/src/lib.rs` |
