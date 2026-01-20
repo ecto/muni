@@ -6,6 +6,8 @@ export interface PlaceAutocompleteProps extends ComponentProps<typeof Input> {
   onPlaceSelect?: (place: { lat: number; lng: number; address: string }) => void
 }
 
-export function PlaceAutocomplete({ onPlaceSelect, ...props }: PlaceAutocompleteProps) {
-  return <Input placeholder="Search location..." {...props} />
+export function PlaceAutocomplete(props: PlaceAutocompleteProps) {
+  const { onPlaceSelect: _, ...rest } = props
+  void _
+  return <Input placeholder="Search location..." {...rest} />
 }
