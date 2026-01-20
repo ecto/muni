@@ -22,9 +22,7 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use teleop::video::{VideoConfig, VideoFrame, VideoServer};
-use teleop::video_ws::{WsVideoConfig, WsVideoServer};
 use teleop::rtc::{RtcConfig, RtcServer};
-use teleop::ws::{WsConfig, WsServer};
 use teleop::{Config as TeleopConfig, Server as TeleopServer, Telemetry};
 use tokio::sync::{mpsc, watch};
 use tools::{protocol, Registry as ToolRegistry, ToolOutput};
@@ -239,8 +237,8 @@ struct DiscoveryFileConfig {
     endpoint: String,
     rover_id: Option<String>,
     rover_name: Option<String>,
-    ws_port: u16,
-    ws_video_port: u16,
+    /// WebRTC signaling port to advertise (default: 4852)
+    rtc_port: u16,
     heartbeat_secs: u32,
     /// Hostname to advertise instead of auto-detected IP (e.g., "frog-0" for Tailscale)
     advertise_host: Option<String>,
@@ -253,8 +251,7 @@ impl Default for DiscoveryFileConfig {
             endpoint: "depot.local:4860".to_string(),
             rover_id: None,
             rover_name: None,
-            ws_port: 4850,
-            ws_video_port: 4851,
+            rtc_port: 4852,
             heartbeat_secs: 2,
             advertise_host: None,
         }
@@ -301,15 +298,7 @@ struct Args {
     #[arg(long, default_value = "8080")]
     ui_port: u16,
 
-    /// WebSocket teleop port for browser-based operators
-    #[arg(long, default_value = "4850")]
-    ws_port: u16,
-
-    /// WebSocket video streaming port for browser-based operators
-    #[arg(long, default_value = "4851")]
-    ws_video_port: u16,
-
-    /// WebRTC signaling port for low-latency teleop (0 to disable)
+    /// WebRTC signaling port for teleop (0 to disable)
     #[arg(long, default_value = "4852")]
     rtc_port: u16,
 
@@ -606,8 +595,7 @@ async fn main() -> Result<()> {
             heartbeat_secs: file_config.discovery.heartbeat_secs,
             rover_id: discovery_rover_id,
             rover_name: discovery_rover_name,
-            ws_port: file_config.discovery.ws_port,
-            ws_video_port: file_config.discovery.ws_video_port,
+            rtc_port: args.rtc_port,
             advertise_host: file_config.discovery.advertise_host.clone(),
         };
 
@@ -795,24 +783,7 @@ async fn main() -> Result<()> {
         }
     });
 
-    // Spawn WebSocket teleop server (for browser-based operators)
-    if args.ws_port > 0 {
-        let ws_config = WsConfig {
-            port: args.ws_port,
-            ..Default::default()
-        };
-        let ws_server = WsServer::new(ws_config, cmd_tx.clone(), telemetry_rx.clone());
-
-        tokio::spawn(async move {
-            if let Err(e) = ws_server.run().await {
-                error!(?e, "WebSocket teleop server error");
-            }
-        });
-
-        info!(port = args.ws_port, "WebSocket teleop server started");
-    }
-
-    // Spawn WebRTC teleop server (low-latency unreliable DataChannel)
+    // Spawn WebRTC teleop server (primary browser teleop with video)
     if args.rtc_port > 0 {
         let rtc_config = RtcConfig {
             signaling_port: args.rtc_port,
@@ -911,7 +882,7 @@ async fn main() -> Result<()> {
                         }
                     });
 
-                    // Spawn UDP video server (for native operator)
+                    // Spawn UDP video server (for native operator CLI)
                     let video_config = VideoConfig::default();
                     let video_rx_udp = video_rx.clone();
                     let video_server = VideoServer::new(video_config.clone(), video_rx_udp);
@@ -922,24 +893,6 @@ async fn main() -> Result<()> {
                             error!(?e, "UDP video server error");
                         }
                     });
-
-                    // Spawn WebSocket video server (for browser-based operator)
-                    // Note: WebRTC video is now preferred, but keep WS for fallback
-                    if args.ws_video_port > 0 {
-                        let ws_video_config = WsVideoConfig {
-                            port: args.ws_video_port,
-                            ..Default::default()
-                        };
-                        let video_rx_ws = video_rx.clone();
-                        let ws_video_server = WsVideoServer::new(ws_video_config, video_rx_ws);
-                        info!(port = args.ws_video_port, "WebSocket video server starting (fallback)");
-
-                        tokio::spawn(async move {
-                            if let Err(e) = ws_video_server.run().await {
-                                error!(?e, "WebSocket video server error");
-                            }
-                        });
-                    }
                 }
                 Err(e) => {
                     warn!(?e, "Failed to start camera - continuing without video");
@@ -1106,15 +1059,9 @@ async fn main() -> Result<()> {
     info!("Entering control loop");
     info!("Dashboard available at http://localhost:{}", args.ui_port);
     info!("Send commands to UDP port 4840");
-    if args.ws_port > 0 {
-        info!("WebSocket teleop at ws://localhost:{}", args.ws_port);
-    }
-    if args.ws_video_port > 0 {
-        info!("WebSocket video at ws://localhost:{}", args.ws_video_port);
-    }
     if args.rtc_port > 0 {
         info!(
-            "WebRTC teleop (recommended) at ws://localhost:{} for signaling",
+            "WebRTC teleop at ws://localhost:{} for signaling",
             args.rtc_port
         );
     }

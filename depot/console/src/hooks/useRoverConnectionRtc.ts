@@ -53,7 +53,7 @@ interface IceCandidate {
 
 export function useRoverConnectionRtc() {
   const {
-    roverAddress,
+    rtcAddress,
     setConnected,
     setLatency,
     updateTelemetry,
@@ -171,21 +171,7 @@ export function useRoverConnectionRtc() {
     }
     clearIntervals();
 
-    // Convert rover address to RTC signaling address
-    // ws://host:4850 -> ws://host:4852
-    // Also resolve Tailscale MagicDNS hostnames to IPs (browsers can't resolve them)
-    const tailscaleHosts: Record<string, string> = {
-      "frog-0": "100.127.211.5",
-      // Add more rovers here as needed
-    };
-
-    let rtcAddress = roverAddress.replace(/:4850\b/, ":4852");
-
-    // Replace Tailscale hostnames with IPs
-    for (const [hostname, ip] of Object.entries(tailscaleHosts)) {
-      rtcAddress = rtcAddress.replace(`://${hostname}:`, `://${ip}:`);
-    }
-
+    // rtcAddress comes directly from discovery - no conversion needed
     console.log(`[WebRTC] Connecting to signaling server: ${rtcAddress}`);
 
     try {
@@ -448,7 +434,7 @@ export function useRoverConnectionRtc() {
       }, RECONNECT_DELAY_MS);
     }
   }, [
-    roverAddress,
+    rtcAddress,
     setConnected,
     setLatency,
     updateTelemetry,
@@ -498,11 +484,11 @@ export function useRoverConnectionRtc() {
     setVideoFps(0);
   }, [clearIntervals, setConnected, setVideoConnected, setVideoFrame, setVideoFps]);
 
-  // Connect when rover address changes
+  // Connect when RTC address changes
   useEffect(() => {
-    console.log("[WebRTC] roverAddress changed to:", roverAddress);
-    // Don't connect to default localhost - wait for real rover address
-    if (roverAddress === "ws://localhost:4850") {
+    console.log("[WebRTC] rtcAddress changed to:", rtcAddress);
+    // Don't connect to default localhost - wait for real rover address from discovery
+    if (rtcAddress === "ws://localhost:4852") {
       console.log("[WebRTC] Skipping connection - still default localhost");
       return;
     }
@@ -519,7 +505,7 @@ export function useRoverConnectionRtc() {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       disconnect();
     };
-  }, [roverAddress, connect, disconnect]);
+  }, [rtcAddress, connect, disconnect]);
 
   return {
     connect,

@@ -129,9 +129,8 @@ endpoint = "192.168.1.129:4860"
 # Rover identity (defaults to identity.rover_id if not set)
 rover_id = "frog-0"
 rover_name = "Frog-0"
-# WebSocket ports for operators to connect
-ws_port = 4850
-ws_video_port = 4851
+# WebRTC signaling port (advertised to operators via discovery)
+# Note: actual port is set via --rtc-port CLI arg (default 4852)
 # Heartbeat interval in seconds
 heartbeat_secs = 2
 

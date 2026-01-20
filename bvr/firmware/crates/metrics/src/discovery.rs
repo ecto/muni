@@ -30,13 +30,10 @@ pub struct DiscoveryConfig {
     /// Human-readable rover name
     pub rover_name: String,
 
-    /// WebSocket teleop port (for building connection URL)
-    pub ws_port: u16,
+    /// WebRTC signaling port for teleop connections
+    pub rtc_port: u16,
 
-    /// WebSocket video port
-    pub ws_video_port: u16,
-
-    /// Hostname to advertise for WebSocket connections.
+    /// Hostname to advertise for connections.
     /// If set, uses this instead of auto-detecting local IP.
     /// Useful for Tailscale/VPN setups (e.g., "frog-0" for MagicDNS).
     #[serde(default)]
@@ -55,8 +52,7 @@ impl Default for DiscoveryConfig {
             heartbeat_secs: 2,
             rover_id: "bvr-01".to_string(),
             rover_name: "Beaver-01".to_string(),
-            ws_port: 4850,
-            ws_video_port: 4851,
+            rtc_port: 4852,
             advertise_host: None,
         }
     }
@@ -77,8 +73,8 @@ pub enum DiscoveryError {
 struct RegistrationPayload {
     id: String,
     name: String,
-    address: String,
-    video_address: String,
+    /// WebRTC signaling address (e.g., "ws://192.168.1.100:4852")
+    rtc_address: String,
 }
 
 /// Heartbeat payload sent to discovery service.
@@ -169,8 +165,7 @@ impl DiscoveryClient {
         let payload = RegistrationPayload {
             id: self.config.rover_id.clone(),
             name: self.config.rover_name.clone(),
-            address: format!("ws://{}:{}", host, self.config.ws_port),
-            video_address: format!("ws://{}:{}", host, self.config.ws_video_port),
+            rtc_address: format!("ws://{}:{}", host, self.config.rtc_port),
         };
 
         let url = format!("{}/register", self.base_url);
@@ -181,7 +176,7 @@ impl DiscoveryClient {
                 if resp.status().is_success() {
                     info!(
                         rover = %self.config.rover_id,
-                        address = %payload.address,
+                        rtc_address = %payload.rtc_address,
                         "Registered with discovery service"
                     );
                     Ok(())

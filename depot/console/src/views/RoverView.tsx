@@ -100,12 +100,8 @@ export function RoverView() {
               <p className="font-mono text-foreground">{rover.id}</p>
             </div>
             <div>
-              <p className="text-muted-foreground mb-1">WebSocket Address</p>
-              <p className="font-mono text-foreground">{rover.address}</p>
-            </div>
-            <div>
-              <p className="text-muted-foreground mb-1">Video Address</p>
-              <p className="font-mono text-foreground">{rover.videoAddress}</p>
+              <p className="text-muted-foreground mb-1">WebRTC Address</p>
+              <p className="font-mono text-foreground">{rover.rtcAddress}</p>
             </div>
             <div>
               <p className="text-muted-foreground mb-1">Last Seen</p>

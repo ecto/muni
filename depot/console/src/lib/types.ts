@@ -185,8 +185,8 @@ export interface MapManifest {
 export interface RoverInfo {
   id: string;
   name: string;
-  address: string;
-  videoAddress: string;
+  /** WebRTC signaling address (e.g., "ws://192.168.1.100:4852") */
+  rtcAddress: string;
   online: boolean;
   batteryVoltage: number;
   lastPose: Pose;

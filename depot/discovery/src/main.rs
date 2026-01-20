@@ -54,8 +54,8 @@ struct Pose {
 struct RoverInfo {
     id: String,
     name: String,
-    address: String,
-    video_address: String,
+    /// WebRTC signaling address (e.g., "ws://192.168.1.100:4852")
+    rtc_address: String,
     online: bool,
     battery_voltage: f64,
     last_pose: Pose,
@@ -70,8 +70,8 @@ struct RoverInfo {
 struct RegisterPayload {
     id: String,
     name: String,
-    address: String,
-    video_address: Option<String>,
+    /// WebRTC signaling address (e.g., "ws://192.168.1.100:4852")
+    rtc_address: String,
     battery_voltage: Option<f64>,
     mode: Option<u8>,
     pose: Option<Pose>,
@@ -271,15 +271,10 @@ async fn register(
         .unwrap()
         .as_millis() as u64;
 
-    let video_address = payload
-        .video_address
-        .unwrap_or_else(|| payload.address.replace(":4850", ":4851"));
-
     let rover = RoverInfo {
         id: payload.id.clone(),
         name: payload.name.clone(),
-        address: payload.address.clone(),
-        video_address,
+        rtc_address: payload.rtc_address.clone(),
         online: true,
         battery_voltage: payload.battery_voltage.unwrap_or(0.0),
         last_pose: payload.pose.unwrap_or_default(),
@@ -298,7 +293,7 @@ async fn register(
     info!(
         id = %payload.id,
         name = %payload.name,
-        address = %payload.address,
+        rtc_address = %payload.rtc_address,
         new = is_new,
         "Rover registered"
     );

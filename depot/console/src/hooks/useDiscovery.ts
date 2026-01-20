@@ -54,8 +54,7 @@ export function useDiscovery() {
               (r: {
                 id: string;
                 name: string;
-                address: string;
-                videoAddress: string;
+                rtcAddress: string;
                 online: boolean;
                 batteryVoltage: number;
                 lastPose: { x: number; y: number; theta: number };
@@ -64,8 +63,7 @@ export function useDiscovery() {
               }) => ({
                 id: r.id,
                 name: r.name,
-                address: r.address,
-                videoAddress: r.videoAddress,
+                rtcAddress: r.rtcAddress,
                 online: r.online,
                 batteryVoltage: r.batteryVoltage,
                 lastPose: r.lastPose,

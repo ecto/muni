@@ -17,7 +17,7 @@ import { ArrowLeft, Warning, Play, Stop, CircleNotch } from "@phosphor-icons/rea
 export function TeleopView() {
   const navigate = useNavigate();
   const { roverId } = useParams();
-  const { rovers, telemetry, selectRover, roverAddress, connected } = useConsoleStore();
+  const { rovers, telemetry, selectRover, rtcAddress, connected } = useConsoleStore();
 
   // Initialize input and connection hooks
   useKeyboard();
@@ -58,12 +58,12 @@ export function TeleopView() {
 
   // Select rover on mount and when rovers list updates
   // (rover might not be available immediately if discovery data hasn't arrived)
-  // Only re-select if the rover address hasn't been set yet
+  // Only re-select if the rtc address hasn't been set yet
   useEffect(() => {
-    if (roverId && roverAddress === "ws://localhost:4850") {
+    if (roverId && rtcAddress === "ws://localhost:4852") {
       selectRover(roverId);
     }
-  }, [roverId, selectRover, rovers, roverAddress]);
+  }, [roverId, selectRover, rovers, rtcAddress]);
 
   // Check for WebXR support
   const [xrSupported, setXrSupported] = useState(false);
