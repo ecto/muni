@@ -1,5 +1,6 @@
+import { useMemo, useRef } from "react";
 import { useConsoleStore } from "@/store";
-import { CellTower, Broadcast, MapPin as MapPinIcon, Heartbeat, Planet, Crosshair, CellSignalFull, CellSignalMedium, CellSignalLow, CellSignalSlash } from "@phosphor-icons/react";
+import { CellTower, Broadcast, Heartbeat, Planet, Crosshair, CellSignalFull, CellSignalMedium, CellSignalLow, CellSignalSlash } from "@phosphor-icons/react";
 import type { GpsStatus, SatelliteInfo, Constellation } from "@/lib/types";
 import {
   Map,
@@ -81,37 +82,86 @@ function SignalIcon({ snr }: { snr?: number }) {
   return <CellSignalLow className="h-4 w-4 text-orange-500" />;
 }
 
+// Type for SNR chart data
+type SnrDataPoint = {
+  prn: string;
+  snr: number;
+  constellation: Constellation;
+  used: boolean;
+};
+
 export function BaseStationView() {
   const { gpsStatus } = useConsoleStore();
   const status: GpsStatus = gpsStatus ?? defaultStatus;
 
+  // Refs to preserve last good data
+  const lastSnrDataRef = useRef<SnrDataPoint[]>([]);
+  const lastSatellitesRef = useRef<SatelliteInfo[]>([]);
+  const lastConstellationsRef = useRef<Partial<Record<Constellation, SatelliteInfo[]>>>({});
+
   const fixConfig = fixQualityConfig[status.fixQuality ?? "no_fix"] ?? fixQualityConfig.no_fix;
 
-  // Format history data for chart
-  const historyData = (status.history ?? []).map((point) => ({
-    time: new Date(point.timestamp).toLocaleTimeString([], { minute: "2-digit", second: "2-digit" }),
-    hdop: point.hdop ?? 0,
-    satellites: point.satellites,
-  }));
+  // Format history data for chart - memoized
+  const historyData = useMemo(() =>
+    (status.history ?? []).map((point) => ({
+      time: new Date(point.timestamp).toLocaleTimeString([], { minute: "2-digit", second: "2-digit" }),
+      hdop: point.hdop ?? 0,
+      satellites: point.satellites,
+    })),
+    [status.history]
+  );
 
-  // Group satellites by constellation
-  const satellitesByConstellation = (status.satelliteInfo ?? []).reduce((acc, sat) => {
-    const key = sat.constellation;
-    if (!acc[key]) acc[key] = [];
-    acc[key].push(sat);
-    return acc;
-  }, {} as Record<Constellation, SatelliteInfo[]>);
+  // Deduplicate satellites by constellation+prn - memoized
+  const uniqueSatellites = useMemo(() => {
+    const result = (status.satelliteInfo ?? []).reduce((acc, sat) => {
+      const key = `${sat.constellation}-${sat.prn}`;
+      if (!acc.seen.has(key)) {
+        acc.seen.add(key);
+        acc.list.push(sat);
+      }
+      return acc;
+    }, { seen: new Set<string>(), list: [] as SatelliteInfo[] }).list;
 
-  // Prepare satellite SNR data for bar chart
-  const satelliteSnrData = (status.satelliteInfo ?? [])
-    .filter((sat) => sat.snr != null && sat.snr > 0)
-    .slice(0, 16) // Show top 16 by SNR
-    .map((sat) => ({
-      prn: `${constellationLabels[sat.constellation].charAt(0)}${sat.prn}`,
-      snr: sat.snr ?? 0,
-      constellation: sat.constellation,
-      used: sat.used,
-    }));
+    // Preserve last good data if current is empty
+    if (result.length > 0) {
+      lastSatellitesRef.current = result;
+    }
+    return result.length > 0 ? result : lastSatellitesRef.current;
+  }, [status.satelliteInfo]);
+
+  // Group satellites by constellation - memoized
+  const satellitesByConstellation = useMemo(() => {
+    const result = uniqueSatellites.reduce((acc, sat) => {
+      const key = sat.constellation;
+      if (!acc[key]) acc[key] = [];
+      acc[key]!.push(sat);
+      return acc;
+    }, {} as Partial<Record<Constellation, SatelliteInfo[]>>);
+
+    if (Object.keys(result).length > 0) {
+      lastConstellationsRef.current = result;
+    }
+    return Object.keys(result).length > 0 ? result : lastConstellationsRef.current;
+  }, [uniqueSatellites]);
+
+  // Prepare satellite SNR data for bar chart - memoized with preservation
+  const satelliteSnrData = useMemo(() => {
+    const result = uniqueSatellites
+      .filter((sat) => sat.snr != null && sat.snr > 0)
+      .slice(0, 16)
+      .map((sat) => ({
+        prn: `${constellationLabels[sat.constellation].charAt(0)}${sat.prn}`,
+        snr: sat.snr ?? 0,
+        constellation: sat.constellation,
+        used: sat.used,
+      }));
+
+    // Preserve last good SNR data if current is empty
+    if (result.length > 0) {
+      lastSnrDataRef.current = result;
+    }
+    return result.length > 0 ? result : lastSnrDataRef.current;
+  }, [uniqueSatellites]);
 
   const snrChartConfig: ChartConfig = {
     snr: {
@@ -131,8 +181,8 @@ export function BaseStationView() {
           </p>
         </div>
 
-        {/* Connection Status Card */}
-        <Card>
+        {/* Connection Status Card with Map */}
+        <Card className="overflow-hidden">
           <CardHeader className="pb-4">
             <div className="flex items-center gap-3">
               <div
@@ -166,7 +216,7 @@ export function BaseStationView() {
           </CardHeader>
 
           {status.connected && (
-            <CardContent className="pt-0">
+            <CardContent className="pt-0 space-y-4">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-6 pt-4 border-t border-border">
                 <div className="space-y-1">
                   <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
@@ -213,6 +263,40 @@ export function BaseStationView() {
                   </div>
                 )}
               </div>
+
+              {/* Map with position */}
+              {status.latitude != null && status.longitude != null && (
+                <div className="relative h-64 rounded-lg overflow-hidden border border-border">
+                  <Map
+                    center={[status.latitude, status.longitude]}
+                    zoom={18}
+                    className="h-full w-full"
+                  >
+                    <MapTileLayer />
+                    <MapMarker
+                      position={[status.latitude, status.longitude]}
+                      iconAnchor={[16, 16]}
+                      icon={
+                        <div className="flex items-center justify-center w-8 h-8 bg-green-500 rounded-full border-2 border-white shadow-lg ring-2 ring-green-500/30">
+                          <CellTower className="w-4 h-4 text-white" weight="bold" />
+                        </div>
+                      }
+                    />
+                    <MapControlContainer className="top-2 right-2 flex flex-col gap-1">
+                      <MapZoomControl />
+                      <MapFullscreenControl />
+                    </MapControlContainer>
+                  </Map>
+                  {/* Coordinates overlay */}
+                  <div className="absolute bottom-2 left-2 bg-background/90 backdrop-blur-sm rounded px-2 py-1 text-xs font-mono border border-border">
+                    <span className="text-muted-foreground">Lat:</span> {status.latitude.toFixed(7)}°{" "}
+                    <span className="text-muted-foreground ml-2">Lng:</span> {status.longitude.toFixed(7)}°
+                    {status.altitude != null && (
+                      <span className="ml-2"><span className="text-muted-foreground">Alt:</span> {status.altitude.toFixed(1)}m</span>
+                    )}
+                  </div>
+                </div>
+              )}
             </CardContent>
           )}
         </Card>
@@ -254,6 +338,7 @@ export function BaseStationView() {
                     stroke="hsl(var(--chart-1))"
                     fill="url(#hdopGradient)"
                     strokeWidth={2}
+                    isAnimationActive={false}
                   />
                 </AreaChart>
               </ChartContainer>
@@ -262,7 +347,7 @@ export function BaseStationView() {
         )}
 
         {/* Satellite Signal Strength Card */}
-        {status.connected && satelliteSnrData.length > 0 && (
+        {status.connected && (
           <Card>
             <CardHeader>
               <CardTitle>Satellite Signal Strength</CardTitle>
@@ -288,7 +373,7 @@ export function BaseStationView() {
                     domain={[0, 60]}
                   />
                   <ChartTooltip content={<ChartTooltipContent />} />
-                  <Bar dataKey="snr" radius={[4, 4, 0, 0]}>
+                  <Bar dataKey="snr" radius={[4, 4, 0, 0]} isAnimationActive={false}>
                     {satelliteSnrData.map((entry, index) => (
                       <Cell
                         key={`cell-${index}`}
@@ -301,35 +386,37 @@ export function BaseStationView() {
               </ChartContainer>
 
               {/* Constellation Legend */}
-              <div className="flex flex-wrap gap-4 mt-4 pt-4 border-t border-border">
-                {Object.entries(satellitesByConstellation).map(([constellation, sats]) => (
-                  <div key={constellation} className="flex items-center gap-2">
-                    <div
-                      className="w-3 h-3 rounded-full"
-                      style={{ backgroundColor: constellationColors[constellation as Constellation] }}
-                    />
-                    <span className="text-xs text-muted-foreground">
-                      {constellationLabels[constellation as Constellation]} ({sats.length})
-                    </span>
-                  </div>
-                ))}
-              </div>
+              {Object.keys(satellitesByConstellation).length > 0 && (
+                <div className="flex flex-wrap gap-4 mt-4 pt-4 border-t border-border">
+                  {Object.entries(satellitesByConstellation).map(([constellation, sats]) => (
+                    <div key={constellation} className="flex items-center gap-2">
+                      <div
+                        className="w-3 h-3 rounded-full"
+                        style={{ backgroundColor: constellationColors[constellation as Constellation] }}
+                      />
+                      <span className="text-xs text-muted-foreground">
+                        {constellationLabels[constellation as Constellation]} ({sats.length})
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         )}
 
         {/* Satellite Details Card */}
-        {status.connected && status.satelliteInfo && status.satelliteInfo.length > 0 && (
+        {status.connected && uniqueSatellites.length > 0 && (
           <Card>
             <CardHeader>
               <CardTitle>Satellites in View</CardTitle>
               <CardDescription>
-                {status.satelliteInfo.filter((s) => s.used).length} used in fix · {status.satelliteInfo.length} total visible
+                {uniqueSatellites.filter((s) => s.used).length} used in fix · {uniqueSatellites.length} total visible
               </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                {status.satelliteInfo.slice(0, 16).map((sat) => (
+                {uniqueSatellites.slice(0, 16).map((sat) => (
                   <div
                     key={`${sat.constellation}-${sat.prn}`}
                     className={`p-3 rounded-lg border ${
@@ -361,68 +448,6 @@ export function BaseStationView() {
                     )}
                   </div>
                 ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Position & Map Card */}
-        {status.connected && status.latitude != null && status.longitude != null && (
-          <Card className="overflow-hidden">
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <MapPinIcon className="h-5 w-5 text-foreground" weight="duotone" />
-                <CardTitle>Position</CardTitle>
-              </div>
-            </CardHeader>
-
-            <CardContent className="p-0">
-              {/* Map */}
-              <div className="h-80 relative">
-                <Map
-                  center={[status.latitude, status.longitude]}
-                  zoom={18}
-                  className="h-full w-full"
-                >
-                  <MapTileLayer />
-                  <MapMarker position={[status.latitude, status.longitude]}>
-                    <div className="flex items-center justify-center w-8 h-8 bg-green-500 rounded-full border-3 border-white shadow-lg ring-2 ring-green-500/30">
-                      <CellTower className="w-4 h-4 text-white" weight="bold" />
-                    </div>
-                  </MapMarker>
-                  <MapControlContainer className="top-3 right-3 flex flex-col gap-2">
-                    <MapZoomControl />
-                    <MapFullscreenControl />
-                  </MapControlContainer>
-                </Map>
-              </div>
-
-              {/* Coordinates */}
-              <div className="grid grid-cols-3 divide-x divide-border border-t border-border">
-                <div className="p-4 text-center">
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
-                    Latitude
-                  </p>
-                  <p className="font-mono text-sm text-foreground">
-                    {status.latitude?.toFixed(8)}°
-                  </p>
-                </div>
-                <div className="p-4 text-center">
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
-                    Longitude
-                  </p>
-                  <p className="font-mono text-sm text-foreground">
-                    {status.longitude?.toFixed(8)}°
-                  </p>
-                </div>
-                <div className="p-4 text-center">
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
-                    Altitude
-                  </p>
-                  <p className="font-mono text-sm text-foreground">
-                    {status.altitude?.toFixed(2)} m
-                  </p>
-                </div>
               </div>
             </CardContent>
           </Card>
