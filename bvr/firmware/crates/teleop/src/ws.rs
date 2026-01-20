@@ -256,5 +256,8 @@ fn serialize_telemetry(telemetry: &Telemetry) -> Option<Vec<u8>> {
         buf.extend_from_slice(&current.to_le_bytes());
     }
 
+    // Subsystem health (2 bytes)
+    buf.extend_from_slice(&telemetry.health.to_bits().to_le_bytes());
+
     Some(buf)
 }
