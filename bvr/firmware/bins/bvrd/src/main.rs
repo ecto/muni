@@ -22,6 +22,7 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use teleop::video::{VideoConfig, VideoFrame, VideoServer};
 use teleop::video_ws::{WsVideoConfig, WsVideoServer};
+use teleop::rtc::{RtcConfig, RtcServer};
 use teleop::ws::{WsConfig, WsServer};
 use teleop::{Config as TeleopConfig, Server as TeleopServer, Telemetry};
 use tokio::sync::{mpsc, watch};
@@ -208,6 +209,8 @@ struct DiscoveryFileConfig {
     ws_port: u16,
     ws_video_port: u16,
     heartbeat_secs: u32,
+    /// Hostname to advertise instead of auto-detected IP (e.g., "frog-0" for Tailscale)
+    advertise_host: Option<String>,
 }
 
 impl Default for DiscoveryFileConfig {
@@ -220,6 +223,7 @@ impl Default for DiscoveryFileConfig {
             ws_port: 4850,
             ws_video_port: 4851,
             heartbeat_secs: 2,
+            advertise_host: None,
         }
     }
 }
@@ -271,6 +275,10 @@ struct Args {
     /// WebSocket video streaming port for browser-based operators
     #[arg(long, default_value = "4851")]
     ws_video_port: u16,
+
+    /// WebRTC signaling port for low-latency teleop (0 to disable)
+    #[arg(long, default_value = "4852")]
+    rtc_port: u16,
 
     /// Disable camera auto-detection
     #[arg(long)]
@@ -567,6 +575,7 @@ async fn main() -> Result<()> {
             rover_name: discovery_rover_name,
             ws_port: file_config.discovery.ws_port,
             ws_video_port: file_config.discovery.ws_video_port,
+            advertise_host: file_config.discovery.advertise_host.clone(),
         };
 
         let discovery_client = DiscoveryClient::new(discovery_config);
@@ -738,6 +747,10 @@ async fn main() -> Result<()> {
     };
     let (telemetry_tx, telemetry_rx) = watch::channel(initial_telemetry);
 
+    // Video frame channel (for WebRTC video streaming)
+    // Created early so it can be shared with RTC server before camera setup
+    let (video_tx, video_rx) = watch::channel::<Option<teleop::video::VideoFrame>>(None);
+
     // Spawn teleop server (UDP)
     let teleop_config = TeleopConfig::default();
     let teleop = TeleopServer::new(teleop_config, cmd_tx.clone(), telemetry_rx.clone());
@@ -763,6 +776,29 @@ async fn main() -> Result<()> {
         });
 
         info!(port = args.ws_port, "WebSocket teleop server started");
+    }
+
+    // Spawn WebRTC teleop server (low-latency unreliable DataChannel)
+    if args.rtc_port > 0 {
+        let rtc_config = RtcConfig {
+            signaling_port: args.rtc_port,
+            ..Default::default()
+        };
+        // Use with_video to enable WebRTC video streaming
+        let rtc_server = RtcServer::with_video(
+            rtc_config,
+            cmd_tx.clone(),
+            telemetry_rx.clone(),
+            video_rx.clone(),
+        );
+
+        tokio::spawn(async move {
+            if let Err(e) = rtc_server.run().await {
+                error!(?e, "WebRTC teleop server error");
+            }
+        });
+
+        info!(port = args.rtc_port, "WebRTC teleop server started (low-latency + video)");
     }
 
     // Spawn dashboard if enabled
@@ -822,8 +858,8 @@ async fn main() -> Result<()> {
                         args.camera_fps
                     );
 
-                    // Create video frame channel
-                    let (video_tx, video_rx) = watch::channel(None);
+                    // Use the pre-created video_tx channel (shared with RTC server)
+                    let video_tx_camera = video_tx.clone();
 
                     // Spawn task to bridge sync camera frames to async video server
                     std::thread::spawn(move || {
@@ -835,7 +871,7 @@ async fn main() -> Result<()> {
                                 sequence: frame.sequence,
                                 timestamp_ms: frame.timestamp_ms,
                             };
-                            if video_tx.send(Some(video_frame)).is_err() {
+                            if video_tx_camera.send(Some(video_frame)).is_err() {
                                 break;
                             }
                         }
@@ -854,13 +890,15 @@ async fn main() -> Result<()> {
                     });
 
                     // Spawn WebSocket video server (for browser-based operator)
+                    // Note: WebRTC video is now preferred, but keep WS for fallback
                     if args.ws_video_port > 0 {
                         let ws_video_config = WsVideoConfig {
                             port: args.ws_video_port,
                             ..Default::default()
                         };
-                        let ws_video_server = WsVideoServer::new(ws_video_config, video_rx);
-                        info!(port = args.ws_video_port, "WebSocket video server starting");
+                        let video_rx_ws = video_rx.clone();
+                        let ws_video_server = WsVideoServer::new(ws_video_config, video_rx_ws);
+                        info!(port = args.ws_video_port, "WebSocket video server starting (fallback)");
 
                         tokio::spawn(async move {
                             if let Err(e) = ws_video_server.run().await {
@@ -970,6 +1008,14 @@ async fn main() -> Result<()> {
     // Diagnostic counter for battery logging
     let mut loop_count: u64 = 0;
 
+    // CAN bus health tracking - avoid overwhelming driver when bus is unhealthy
+    let mut can_errors_active = false;
+    let mut can_backoff_active = false;
+    let mut can_error_count: u64 = 0;
+    let mut consecutive_can_errors: u32 = 0;
+    const CAN_ERROR_BACKOFF_THRESHOLD: u32 = 10; // Skip commands after 10 consecutive errors
+    const CAN_RETRY_INTERVAL: u64 = 100; // Retry every 100 loops (1 second at 100Hz)
+
     info!("Entering control loop");
     info!("Dashboard available at http://localhost:{}", args.ui_port);
     info!("Send commands to UDP port 4840");
@@ -978,6 +1024,12 @@ async fn main() -> Result<()> {
     }
     if args.ws_video_port > 0 {
         info!("WebSocket video at ws://localhost:{}", args.ws_video_port);
+    }
+    if args.rtc_port > 0 {
+        info!(
+            "WebRTC teleop (recommended) at ws://localhost:{} for signaling",
+            args.rtc_port
+        );
     }
     if args.gps_port.is_some() {
         info!("GPS enabled");
@@ -1015,57 +1067,77 @@ async fn main() -> Result<()> {
             }
         }
 
-        // Process incoming commands (non-blocking)
-        while let Ok(cmd) = cmd_rx.try_recv() {
-            let mut state = shared.lock().unwrap();
+        // Process incoming commands (non-blocking, "latest Twist wins")
+        // Drain all commands first, keeping only the latest Twist
+        let mut latest_twist: Option<Twist> = None;
+        let mut other_commands: Vec<Command> = Vec::new();
 
+        while let Ok(cmd) = cmd_rx.try_recv() {
             match cmd {
                 Command::Twist(twist) => {
-                    watchdog.feed();
-                    if twist.angular.abs() > 0.1 {
-                        info!(linear = twist.linear, angular = twist.angular, "Twist command with angular");
-                    }
-                    state.commanded_twist = twist;
+                    // Always overwrite - only the latest Twist matters
+                    latest_twist = Some(twist);
+                }
+                other => {
+                    // Queue non-Twist commands for ordered processing
+                    other_commands.push(other);
+                }
+            }
+        }
 
-                    // Auto-transition to teleop when receiving commands
-                    match state.state_machine.mode() {
-                        Mode::Disabled => {
-                            state.state_machine.transition(Event::Enable);
-                            state.state_machine.transition(Event::TeleopCommand);
-                        }
-                        Mode::Idle => {
-                            state.state_machine.transition(Event::TeleopCommand);
-                        }
-                        _ => {}
+        // Process non-Twist commands (order matters for these)
+        if !other_commands.is_empty() {
+            let mut state = shared.lock().unwrap();
+            for cmd in other_commands {
+                match cmd {
+                    Command::EStop => {
+                        warn!("E-Stop command received");
+                        state.state_machine.transition(Event::EStop);
+                        rate_limiter.reset();
                     }
+                    Command::EStopRelease => {
+                        info!("E-Stop release command received");
+                        state.state_machine.transition(Event::EStopRelease);
+                    }
+                    Command::SetMode(mode) => {
+                        let event = match mode {
+                            Mode::Disabled => Event::Disable,
+                            Mode::Idle => Event::Enable,
+                            Mode::Teleop => Event::TeleopCommand,
+                            Mode::Autonomous => Event::AutonomousRequest,
+                            Mode::EStop => Event::EStop,
+                            _ => continue,
+                        };
+                        state.state_machine.transition(event);
+                    }
+                    Command::Heartbeat => {
+                        watchdog.feed();
+                    }
+                    Command::Tool(tc) => {
+                        watchdog.feed();
+                        tool_command = tc;
+                    }
+                    Command::Twist(_) => unreachable!(), // Already handled above
                 }
-                Command::EStop => {
-                    warn!("E-Stop command received");
-                    state.state_machine.transition(Event::EStop);
-                    rate_limiter.reset();
+            }
+        }
+
+        // Apply latest Twist command (single lock, latest value only)
+        if let Some(twist) = latest_twist {
+            watchdog.feed();
+            let mut state = shared.lock().unwrap();
+            state.commanded_twist = twist;
+
+            // Auto-transition to teleop when receiving commands
+            match state.state_machine.mode() {
+                Mode::Disabled => {
+                    state.state_machine.transition(Event::Enable);
+                    state.state_machine.transition(Event::TeleopCommand);
                 }
-                Command::EStopRelease => {
-                    info!("E-Stop release command received");
-                    state.state_machine.transition(Event::EStopRelease);
+                Mode::Idle => {
+                    state.state_machine.transition(Event::TeleopCommand);
                 }
-                Command::SetMode(mode) => {
-                    let event = match mode {
-                        Mode::Disabled => Event::Disable,
-                        Mode::Idle => Event::Enable,
-                        Mode::Teleop => Event::TeleopCommand,
-                        Mode::Autonomous => Event::AutonomousRequest,
-                        Mode::EStop => Event::EStop,
-                        _ => continue,
-                    };
-                    state.state_machine.transition(event);
-                }
-                Command::Heartbeat => {
-                    watchdog.feed();
-                }
-                Command::Tool(tc) => {
-                    watchdog.feed();
-                    tool_command = tc;
-                }
+                _ => {}
             }
         }
 
@@ -1333,11 +1405,47 @@ async fn main() -> Result<()> {
         }
 
         // Send to VESCs using duty cycle control (smoother than RPM at low speeds)
-        let vesc_cmds = state.drivetrain.build_duty_commands(wheel_duties);
-        for frame in vesc_cmds {
-            if let Err(e) = can_interface.send(&frame) {
-                error!(?e, "Failed to send duty to drivetrain");
+        // Skip VESC commands when CAN bus is unhealthy to avoid overwhelming the driver
+        // (which can cause kernel-level issues on Jetson)
+        let should_send_vesc = consecutive_can_errors < CAN_ERROR_BACKOFF_THRESHOLD
+            || loop_count % CAN_RETRY_INTERVAL == 0;
+
+        let mut send_failed = false;
+        if should_send_vesc {
+            let vesc_cmds = state.drivetrain.build_duty_commands(wheel_duties);
+            for frame in vesc_cmds {
+                if let Err(_e) = can_interface.send(&frame) {
+                    send_failed = true;
+                    can_error_count += 1;
+                }
             }
+        }
+
+        // Track consecutive errors for backoff
+        if send_failed {
+            consecutive_can_errors = consecutive_can_errors.saturating_add(1);
+        } else if should_send_vesc {
+            // Only reset on successful send (not when skipping)
+            consecutive_can_errors = 0;
+        }
+
+        // Rate-limited CAN error logging - only log state transitions
+        if send_failed && !can_errors_active {
+            error!(
+                "CAN bus errors started - drivetrain commands failing (VESCs powered?)"
+            );
+            can_errors_active = true;
+        } else if consecutive_can_errors >= CAN_ERROR_BACKOFF_THRESHOLD && !can_backoff_active {
+            warn!(
+                "CAN bus unhealthy - backing off motor commands (retrying every {}ms)",
+                CAN_RETRY_INTERVAL * 10
+            );
+            can_backoff_active = true;
+        } else if !send_failed && should_send_vesc && can_errors_active {
+            info!(errors = can_error_count, "CAN bus recovered - drivetrain commands succeeding");
+            can_errors_active = false;
+            can_backoff_active = false;
+            can_error_count = 0;
         }
 
         // Update active tool
@@ -1596,8 +1704,9 @@ fn init_logging(
     let (non_blocking_file, guard) = tracing_appender::non_blocking(file_appender);
 
     // Build filter from level string, with fallback
+    // Include teleop for WebSocket command timing diagnostics
     let filter = EnvFilter::try_from_default_env()
-        .unwrap_or_else(|_| EnvFilter::new(format!("bvrd={},recording=info", level)));
+        .unwrap_or_else(|_| EnvFilter::new(format!("bvrd={},teleop={},recording=info", level, level)));
 
     // Stdout layer: human-readable, colored
     let stdout_layer = tracing_subscriber::fmt::layer()

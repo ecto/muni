@@ -1,7 +1,13 @@
 //! LTE teleop communications for bvr.
 //!
 //! Handles command reception and telemetry transmission over unreliable links.
+//!
+//! Three transport options:
+//! - `Server` (lib.rs): UDP - best for native clients
+//! - `WsServer` (ws.rs): WebSocket/TCP - works in browsers but has latency issues
+//! - `RtcServer` (rtc.rs): WebRTC DataChannel - UDP-like for browsers (recommended)
 
+pub mod rtc;
 pub mod video;
 pub mod video_ws;
 pub mod ws;
