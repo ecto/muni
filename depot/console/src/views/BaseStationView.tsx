@@ -46,13 +46,14 @@ const fixQualityConfig: Record<string, { label: string; variant: "default" | "se
   simulation: { label: "Simulation", variant: "outline" },
 };
 
+// Direct colors for chart legibility in both light and dark mode
 const constellationColors: Record<Constellation, string> = {
-  gps: "hsl(var(--chart-1))",
-  glonass: "hsl(var(--chart-2))",
-  galileo: "hsl(var(--chart-3))",
-  beidou: "hsl(var(--chart-4))",
-  qzss: "hsl(var(--chart-5))",
-  unknown: "hsl(var(--muted-foreground))",
+  gps: "#f59e0b",      // Amber
+  glonass: "#06b6d4",  // Cyan
+  galileo: "#84cc16",  // Lime
+  beidou: "#a855f7",   // Purple
+  qzss: "#f43f5e",     // Rose
+  unknown: "#71717a",  // Zinc
 };
 
 const constellationLabels: Record<Constellation, string> = {
@@ -67,11 +68,11 @@ const constellationLabels: Record<Constellation, string> = {
 const hdopChartConfig: ChartConfig = {
   hdop: {
     label: "HDOP",
-    color: "hsl(var(--chart-1))",
+    color: "#f59e0b",  // Amber - matches GPS constellation
   },
   satellites: {
     label: "Satellites",
-    color: "hsl(var(--chart-2))",
+    color: "#06b6d4",  // Cyan
   },
 };
 
@@ -313,8 +314,8 @@ export function BaseStationView() {
                 <AreaChart data={historyData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                   <defs>
                     <linearGradient id="hdopGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="hsl(var(--chart-1))" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="hsl(var(--chart-1))" stopOpacity={0} />
+                      <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.6} />
+                      <stop offset="95%" stopColor="#f59e0b" stopOpacity={0.1} />
                     </linearGradient>
                   </defs>
                   <XAxis
@@ -335,7 +336,7 @@ export function BaseStationView() {
                   <Area
                     type="monotone"
                     dataKey="hdop"
-                    stroke="hsl(var(--chart-1))"
+                    stroke="#f59e0b"
                     fill="url(#hdopGradient)"
                     strokeWidth={2}
                     isAnimationActive={false}
@@ -377,7 +378,7 @@ export function BaseStationView() {
                     {satelliteSnrData.map((entry, index) => (
                       <Cell
                         key={`cell-${index}`}
-                        fill={entry.used ? constellationColors[entry.constellation] : "hsl(var(--muted))"}
+                        fill={entry.used ? constellationColors[entry.constellation] : "#52525b"}
                         opacity={entry.used ? 1 : 0.5}
                       />
                     ))}

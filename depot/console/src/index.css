@@ -121,11 +121,12 @@
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.705 0.191 47.604);
-  --chart-1: oklch(0.705 0.191 47.604);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
+  /* Brighter chart colors for dark mode legibility */
+  --chart-1: oklch(0.78 0.18 55);      /* Bright amber/orange */
+  --chart-2: oklch(0.75 0.15 175);     /* Bright cyan */
+  --chart-3: oklch(0.82 0.16 85);      /* Bright yellow */
+  --chart-4: oklch(0.72 0.2 290);      /* Bright purple */
+  --chart-5: oklch(0.7 0.22 25);       /* Bright coral/red */
   --sidebar: oklch(0.18 0.005 49.25);
   --sidebar-foreground: oklch(0.985 0.001 106.423);
   --sidebar-primary: oklch(0.705 0.191 47.604);
