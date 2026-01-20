@@ -27,15 +27,19 @@ import {
   NavigationArrow,
   Sun,
   Moon,
+  WifiHigh,
+  HardDrive,
 } from "@phosphor-icons/react";
 import { useConsoleStore } from "@/store";
 import { useDiscovery } from "@/hooks/useDiscovery";
+import { useServiceHealth } from "@/hooks/useServiceHealth";
 import { useTheme } from "@/hooks/useTheme";
 
 export function AppSidebar() {
   const location = useLocation();
   const { rovers, gpsStatus } = useConsoleStore();
   const { theme, cycleTheme } = useTheme();
+  const { getStatus, healthyCount, totalCount } = useServiceHealth();
 
   // Connect to discovery service for live rover updates
   useDiscovery();
@@ -96,9 +100,11 @@ export function AppSidebar() {
           </SidebarMenu>
         </SidebarGroup>
 
-        {/* Infrastructure */}
+        {/* Services */}
         <SidebarGroup>
-          <SidebarGroupLabel>Infrastructure</SidebarGroupLabel>
+          <SidebarGroupLabel>
+            Services ({healthyCount}/{totalCount})
+          </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
@@ -110,20 +116,55 @@ export function AppSidebar() {
                   <Link to="/base-station">
                     <CellTower className="h-4 w-4" />
                     <span>Base Station</span>
-                    <StatusDot status={gpsOk ? "ok" : "unknown"} />
+                    <StatusDot status={gpsOk ? "ok" : gpsStatus?.connected ? "warning" : "offline"} />
                   </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton tooltip="Discovery">
+                  <WifiHigh className="h-4 w-4" />
+                  <span>Discovery</span>
+                  <StatusDot status={serviceStatusToDot(getStatus("Discovery"))} />
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton tooltip="Dispatch">
+                  <NavigationArrow className="h-4 w-4" />
+                  <span>Dispatch</span>
+                  <StatusDot status={serviceStatusToDot(getStatus("Dispatch"))} />
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton tooltip="Map API">
+                  <HardDrive className="h-4 w-4" />
+                  <span>Map API</span>
+                  <StatusDot status={serviceStatusToDot(getStatus("Map API"))} />
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild tooltip="Grafana">
+                  <a href="/grafana/" target="_blank" rel="noopener noreferrer">
+                    <ChartBar className="h-4 w-4" />
+                    <span>Grafana</span>
+                    <StatusDot status={serviceStatusToDot(getStatus("Grafana"))} />
+                    <ArrowSquareOut className="h-3 w-3 opacity-50" />
+                  </a>
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
                 <SidebarMenuButton
                   asChild
-                  isActive={isActive("/services")}
-                  tooltip="Services"
+                  tooltip="InfluxDB"
                 >
-                  <Link to="/services">
-                    <Desktop className="h-4 w-4" />
-                    <span>Services</span>
-                  </Link>
+                  <a
+                    href={`//${window.location.hostname}:8086/`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <Database className="h-4 w-4" />
+                    <span>InfluxDB</span>
+                    <ArrowSquareOut className="h-3 w-3 opacity-50" />
+                  </a>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>
@@ -221,28 +262,6 @@ export function AppSidebar() {
       <SidebarFooter className="border-t border-sidebar-border">
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton asChild tooltip="Grafana Dashboards">
-              <a href="/grafana/" target="_blank" rel="noopener noreferrer">
-                <ChartBar className="h-4 w-4" />
-                <span>Dashboards</span>
-                <ArrowSquareOut className="ml-auto h-3 w-3 opacity-50" />
-              </a>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-          <SidebarMenuItem>
-            <SidebarMenuButton asChild tooltip="InfluxDB">
-              <a
-                href={`//${window.location.hostname}:8086/`}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <Database className="h-4 w-4" />
-                <span>Database</span>
-                <ArrowSquareOut className="ml-auto h-3 w-3 opacity-50" />
-              </a>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-          <SidebarMenuItem>
             <SidebarMenuButton onClick={cycleTheme} tooltip={`Theme: ${themeLabel}`}>
               {themeIcon}
               <span>{themeLabel}</span>
@@ -254,10 +273,17 @@ export function AppSidebar() {
   );
 }
 
-function StatusDot({ status }: { status: "ok" | "offline" | "unknown" }) {
+function serviceStatusToDot(status: "healthy" | "unhealthy" | "checking"): "ok" | "offline" | "unknown" {
+  if (status === "healthy") return "ok";
+  if (status === "unhealthy") return "offline";
+  return "unknown";
+}
+
+function StatusDot({ status }: { status: "ok" | "offline" | "warning" | "unknown" }) {
   const colors = {
     ok: "bg-green-500",
     offline: "bg-red-500",
+    warning: "bg-yellow-500",
     unknown: "bg-muted-foreground",
   };
 

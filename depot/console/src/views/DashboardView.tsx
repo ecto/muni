@@ -212,10 +212,10 @@ export function DashboardView() {
               <ArrowRight className="h-3 w-3" />
             </Link>
             <Link
-              to="/services"
+              to="/fleet"
               className="px-3 py-1.5 text-xs font-medium bg-secondary text-secondary-foreground rounded hover:bg-secondary/80 transition-colors"
             >
-              Services
+              Fleet
             </Link>
           </CardContent>
         </Card>

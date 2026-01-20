@@ -9,7 +9,6 @@ import { useTheme } from "@/hooks/useTheme";
 // Views
 import { DashboardView } from "@/views/DashboardView";
 import { BaseStationView } from "@/views/BaseStationView";
-import { ServicesView } from "@/views/ServicesView";
 import { FleetView } from "@/views/FleetView";
 import { RoverView } from "@/views/RoverView";
 import { TeleopView } from "@/views/TeleopView";
@@ -48,7 +47,6 @@ function App() {
           <Routes>
             <Route path="/" element={<DashboardView />} />
             <Route path="/base-station" element={<BaseStationView />} />
-            <Route path="/services" element={<ServicesView />} />
             <Route path="/fleet" element={<FleetView />} />
             <Route path="/fleet/:roverId" element={<RoverView />} />
             <Route path="/sessions" element={<SessionsView />} />
