@@ -40,10 +40,10 @@ function App() {
   }
 
   return (
-    <div className={themeClass}>
+    <div className={`${themeClass} h-svh`}>
       <SidebarProvider>
         <AppSidebar />
-        <SidebarInset>
+        <SidebarInset className="h-full overflow-auto">
           <Routes>
             <Route path="/" element={<DashboardView />} />
             <Route path="/base-station" element={<BaseStationView />} />

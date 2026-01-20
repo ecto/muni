@@ -40,7 +40,7 @@ export function DashboardView() {
   const mapZoom = hasDepotPosition ? 18 : DEFAULT_ZOOM;
 
   return (
-    <div className="absolute inset-0">
+    <div className="h-full relative">
       {/* Full-page map */}
       <Map center={mapCenter} zoom={mapZoom} className="h-full w-full">
         <MapTileLayer />
