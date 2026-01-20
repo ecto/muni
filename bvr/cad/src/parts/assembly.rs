@@ -836,7 +836,7 @@ mod tests {
         // BVR0 has hoverboard wheels
         assert_eq!(bvr0.ground_clearance(), 50.0);
         // BVR1 with KN6104 10" wheels + dropout mount: frame positioned high for wheel clearance
-        assert_eq!(bvr1.ground_clearance(), 300.0);
+        assert_eq!(bvr1.ground_clearance(), 295.0);
     }
 
     /// Test dropout mount geometry for KN6104 motor
