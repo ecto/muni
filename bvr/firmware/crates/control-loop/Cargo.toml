@@ -1,0 +1,22 @@
+[package]
+name = "control-loop"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+# Workspace crates
+types = { path = "../types" }
+control = { path = "../control" }
+can = { path = "../can" }
+hal = { path = "../hal" }
+teleop = { path = "../teleop" }
+dispatch = { path = "../dispatch" }
+
+# External dependencies
+tokio = { workspace = true, features = ["sync"] }
+tracing = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["rt", "macros"] }
