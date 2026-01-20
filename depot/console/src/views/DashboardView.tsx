@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useConsoleStore } from "@/store";
 import { CellTower, Robot } from "@phosphor-icons/react";
 import { ModeLabels, type Mode } from "@/lib/types";
@@ -18,6 +18,7 @@ const DEFAULT_CENTER: [number, number] = [37.7749, -122.4194];
 const DEFAULT_ZOOM = 12;
 
 export function DashboardView() {
+  const navigate = useNavigate();
   const { rovers, gpsStatus } = useConsoleStore();
 
   const onlineRovers = rovers.filter((r) => r.online);
@@ -83,20 +84,21 @@ export function DashboardView() {
               key={rover.id}
               position={[roverLat, roverLon]}
               iconAnchor={[16, 16]}
+              eventHandlers={{ click: () => navigate(`/fleet/${rover.id}`) }}
               icon={
-                <Link to={`/fleet/${rover.id}`} className="relative group">
+                <div className="relative group cursor-pointer">
                   <div className="flex items-center justify-center w-8 h-8 bg-primary rounded-full border-2 border-white shadow-lg ring-2 ring-primary/30">
                     <Robot className="w-4 h-4 text-primary-foreground" weight="bold" />
                   </div>
                   {/* Tooltip */}
-                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-background border border-border rounded text-xs whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-background border border-border rounded text-xs whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
                     <span className="font-medium">{rover.name || rover.id}</span>
                     <br />
                     <span className="text-muted-foreground">
                       {ModeLabels[rover.mode as Mode]} · {getBatteryPercent(rover.batteryVoltage).toFixed(0)}%
                     </span>
                   </div>
-                </Link>
+                </div>
               }
             />
           );
