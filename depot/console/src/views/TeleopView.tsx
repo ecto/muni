@@ -12,29 +12,58 @@ import { useGamepad } from "@/hooks/useGamepad";
 import { useRoverConnectionRtc } from "@/hooks/useRoverConnectionRtc";
 import { useConsoleStore } from "@/store";
 import { Mode } from "@/lib/types";
-import { ArrowLeft, Warning } from "@phosphor-icons/react";
+import { ArrowLeft, Warning, Play, Stop, CircleNotch } from "@phosphor-icons/react";
 
 export function TeleopView() {
   const navigate = useNavigate();
   const { roverId } = useParams();
-  const { rovers, telemetry, selectRover } = useConsoleStore();
+  const { rovers, telemetry, selectRover, roverAddress, connected } = useConsoleStore();
 
   // Initialize input and connection hooks
   useKeyboard();
   useGamepad();
   // WebRTC handles both commands and video streaming
-  const { disconnect, sendEStopRelease } = useRoverConnectionRtc();
+  const { disconnect, sendEStopRelease, sendEnable, sendDisable } = useRoverConnectionRtc();
 
   // Get selected rover info
   const selectedRover = rovers.find((r) => r.id === roverId);
   const isEStop = telemetry.mode === Mode.EStop;
+  const isDisabled = telemetry.mode === Mode.Disabled || telemetry.mode === Mode.Idle;
+  const isTeleop = telemetry.mode === Mode.Teleop;
 
-  // Select rover on mount
+  // Loading states for enable/disable actions
+  const [enabling, setEnabling] = useState(false);
+  const [disabling, setDisabling] = useState(false);
+
+  // Clear loading states when mode changes or after timeout
   useEffect(() => {
-    if (roverId) {
+    if (isTeleop) setEnabling(false);
+    if (isDisabled) setDisabling(false);
+  }, [isTeleop, isDisabled]);
+
+  // Timeout to clear loading states if command fails
+  useEffect(() => {
+    if (enabling) {
+      const timeout = setTimeout(() => setEnabling(false), 3000);
+      return () => clearTimeout(timeout);
+    }
+  }, [enabling]);
+
+  useEffect(() => {
+    if (disabling) {
+      const timeout = setTimeout(() => setDisabling(false), 3000);
+      return () => clearTimeout(timeout);
+    }
+  }, [disabling]);
+
+  // Select rover on mount and when rovers list updates
+  // (rover might not be available immediately if discovery data hasn't arrived)
+  // Only re-select if the rover address hasn't been set yet
+  useEffect(() => {
+    if (roverId && roverAddress === "ws://localhost:4850") {
       selectRover(roverId);
     }
-  }, [roverId, selectRover]);
+  }, [roverId, selectRover, rovers, roverAddress]);
 
   // Check for WebXR support
   const [xrSupported, setXrSupported] = useState(false);
@@ -75,16 +104,52 @@ export function TeleopView() {
         </div>
       )}
 
+      {/* Disabled Mode Overlay */}
+      {isDisabled && !enabling && (
+        <div className="absolute inset-0 flex items-center justify-center z-40 pointer-events-none">
+          <div className="flex flex-col items-center gap-4">
+            <Button
+              variant="default"
+              size="lg"
+              disabled={!connected}
+              onClick={() => {
+                setEnabling(true);
+                sendEnable();
+              }}
+              className="pointer-events-auto gap-3 text-lg px-8 py-6 bg-green-600 hover:bg-green-500 disabled:bg-gray-600"
+            >
+              <Play className="h-6 w-6" weight="fill" />
+              Enable Teleop
+            </Button>
+            {!connected && (
+              <span className="text-sm text-muted-foreground">
+                Waiting for connection...
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Enabling state */}
+      {enabling && (
+        <div className="absolute inset-0 flex items-center justify-center z-40 pointer-events-none">
+          <div className="flex items-center gap-3 text-lg text-muted-foreground">
+            <CircleNotch className="h-6 w-6 animate-spin" />
+            Enabling...
+          </div>
+        </div>
+      )}
+
       {/* UI Overlay */}
       <div className="absolute inset-0 pointer-events-none">
-        {/* Top left panels */}
-        <div className="absolute top-4 left-4 flex flex-col gap-4 pointer-events-auto">
+        {/* Top left panels - scrollable for shorter windows */}
+        <div className="absolute top-4 left-4 bottom-16 flex flex-col gap-3 pointer-events-auto overflow-y-auto overflow-x-hidden pr-2 scrollbar-thin">
           {/* Exit button */}
           <Button
             variant="secondary"
             size="sm"
             onClick={handleExit}
-            className="w-fit gap-2"
+            className="w-fit gap-2 shrink-0"
           >
             <ArrowLeft className="h-4 w-4" weight="bold" />
             <span>{selectedRover?.name ?? "Fleet"}</span>
@@ -92,6 +157,27 @@ export function TeleopView() {
           <TelemetryPanel />
           <InputPanel />
           <PositionPanel />
+          {/* Disable button when in teleop */}
+          {isTeleop && !disabling && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setDisabling(true);
+                sendDisable();
+              }}
+              className="w-fit gap-2 shrink-0"
+            >
+              <Stop className="h-4 w-4" weight="fill" />
+              Disable
+            </Button>
+          )}
+          {disabling && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground shrink-0">
+              <CircleNotch className="h-4 w-4 animate-spin" />
+              Disabling...
+            </div>
+          )}
         </div>
 
         {/* Top right status and VR button */}

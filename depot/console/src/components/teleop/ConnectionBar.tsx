@@ -25,8 +25,8 @@ export function ConnectionBar() {
         </span>
       </div>
 
-      {/* Input hints based on source */}
-      <div className="flex-1 flex items-center justify-center gap-6 text-muted-foreground">
+      {/* Input hints based on source - right aligned for stability */}
+      <div className="flex-1 flex items-center justify-end gap-6 text-muted-foreground">
         {inputSource === InputSource.Gamepad ? (
           <>
             <span className="flex items-center gap-1">
@@ -34,7 +34,7 @@ export function ConnectionBar() {
               L-Stick: Drive
             </span>
             <span>R-Stick: Camera</span>
-            <span>Triggers: Tool</span>
+            <span>Start: Enable · R3: Disable</span>
             <span className="text-destructive flex items-center gap-1">
               <Warning className="h-4 w-4" weight="fill" />
               Select: E-STOP
@@ -46,7 +46,7 @@ export function ConnectionBar() {
               <Keyboard className="h-4 w-4" weight="fill" />
               WASD: Drive
             </span>
-            <span>RMB+Drag: Camera</span>
+            <span>Enter: Enable · Bksp: Disable</span>
             <span>C: View · V: Free</span>
             <span className="text-destructive flex items-center gap-1">
               <Warning className="h-4 w-4" weight="fill" />
@@ -55,9 +55,6 @@ export function ConnectionBar() {
           </>
         )}
       </div>
-
-      {/* Spacer for symmetry */}
-      <div className="w-24" />
     </div>
   );
 }
