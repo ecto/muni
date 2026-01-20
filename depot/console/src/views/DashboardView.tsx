@@ -1,14 +1,8 @@
 import { Link } from "react-router-dom";
 import { useConsoleStore } from "@/store";
-import {
-  CellTower,
-  Robot,
-  Warning,
-  GameController,
-  BatteryHigh,
-  ArrowRight,
-} from "@phosphor-icons/react";
+import { CellTower, Robot } from "@phosphor-icons/react";
 import { ModeLabels, type Mode } from "@/lib/types";
+import { getBatteryPercent } from "@/lib/utils";
 import {
   Map,
   MapTileLayer,
@@ -17,8 +11,7 @@ import {
   MapFullscreenControl,
   MapControlContainer,
 } from "@/components/ui/map";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 
 // Default center (San Francisco) when no GPS data
 const DEFAULT_CENTER: [number, number] = [37.7749, -122.4194];
@@ -28,7 +21,6 @@ export function DashboardView() {
   const { rovers, gpsStatus } = useConsoleStore();
 
   const onlineRovers = rovers.filter((r) => r.online);
-  const offlineRovers = rovers.filter((r) => !r.online);
 
   const gpsOk = gpsStatus?.connected && gpsStatus.fixQuality !== "no_fix";
 
@@ -40,9 +32,9 @@ export function DashboardView() {
   const mapZoom = hasDepotPosition ? 18 : DEFAULT_ZOOM;
 
   return (
-    <div className="flex-1 h-0 relative">
+    <div className="relative min-h-full">
       {/* Full-page map */}
-      <Map center={mapCenter} zoom={mapZoom} className="h-full w-full">
+      <Map center={mapCenter} zoom={mapZoom} className="!z-0 absolute inset-0">
         <MapTileLayer />
 
         {/* Depot/Base Station marker */}
@@ -93,7 +85,7 @@ export function DashboardView() {
                   <span className="font-medium">{rover.name || rover.id}</span>
                   <br />
                   <span className="text-muted-foreground">
-                    {ModeLabels[rover.mode as Mode]} · {rover.batteryVoltage.toFixed(1)}V
+                    {ModeLabels[rover.mode as Mode]} · {getBatteryPercent(rover.batteryVoltage).toFixed(0)}%
                   </span>
                 </div>
               </Link>
@@ -106,120 +98,6 @@ export function DashboardView() {
           <MapFullscreenControl />
         </MapControlContainer>
       </Map>
-
-      {/* Overlay cards */}
-      <div className="absolute top-4 left-4 z-[1000] flex flex-col gap-3 max-w-xs">
-        {/* Alert card */}
-        {offlineRovers.length > 0 && (
-          <Card className="bg-destructive/90 backdrop-blur-sm border-destructive">
-            <CardContent className="p-3 flex items-center gap-2">
-              <Warning className="h-5 w-5 text-destructive-foreground" />
-              <div>
-                <p className="text-sm font-medium text-destructive-foreground">
-                  {offlineRovers.length} rover{offlineRovers.length > 1 ? "s" : ""} offline
-                </p>
-                <p className="text-xs text-destructive-foreground/80">
-                  {offlineRovers.map((r) => r.name || r.id).join(", ")}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Base Station status */}
-        <Link to="/base-station">
-          <Card className="bg-background/90 backdrop-blur-sm hover:bg-background transition-colors">
-            <CardHeader className="p-3 pb-2">
-              <CardTitle className="text-sm flex items-center justify-between">
-                <span className="flex items-center gap-2">
-                  <CellTower className="h-4 w-4" />
-                  Base Station
-                </span>
-                <Badge variant={gpsOk ? "default" : "secondary"} className="text-[10px]">
-                  {gpsOk ? "OK" : "No Fix"}
-                </Badge>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-3 pt-0">
-              {gpsStatus ? (
-                <div className="text-xs text-muted-foreground space-y-0.5">
-                  <p>{gpsStatus.satellites} satellites</p>
-                  <p className="font-mono">
-                    {(gpsStatus.fixQuality ?? "no_fix").replace("_", " ").toUpperCase()}
-                  </p>
-                </div>
-              ) : (
-                <p className="text-xs text-muted-foreground">Not connected</p>
-              )}
-            </CardContent>
-          </Card>
-        </Link>
-
-        {/* Fleet status */}
-        <Link to="/fleet">
-          <Card className="bg-background/90 backdrop-blur-sm hover:bg-background transition-colors">
-            <CardHeader className="p-3 pb-2">
-              <CardTitle className="text-sm flex items-center justify-between">
-                <span className="flex items-center gap-2">
-                  <Robot className="h-4 w-4" />
-                  Fleet
-                </span>
-                <span className="text-xs">
-                  <span className="text-green-500">{onlineRovers.length}</span>
-                  <span className="text-muted-foreground">/{rovers.length}</span>
-                </span>
-              </CardTitle>
-            </CardHeader>
-            {onlineRovers.length > 0 && (
-              <CardContent className="p-3 pt-0 space-y-2">
-                {onlineRovers.slice(0, 3).map((rover) => (
-                  <div
-                    key={rover.id}
-                    className="flex items-center justify-between text-xs"
-                  >
-                    <span className="text-foreground">{rover.name || rover.id}</span>
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <span className="flex items-center gap-1">
-                        <BatteryHigh className="h-3 w-3" />
-                        {rover.batteryVoltage.toFixed(1)}V
-                      </span>
-                      {rover.mode === 2 && (
-                        <GameController className="h-3 w-3 text-primary" />
-                      )}
-                    </div>
-                  </div>
-                ))}
-                {onlineRovers.length > 3 && (
-                  <p className="text-xs text-muted-foreground">
-                    +{onlineRovers.length - 3} more
-                  </p>
-                )}
-              </CardContent>
-            )}
-          </Card>
-        </Link>
-      </div>
-
-      {/* Quick actions */}
-      <div className="absolute bottom-4 left-4 z-[1000]">
-        <Card className="bg-background/90 backdrop-blur-sm">
-          <CardContent className="p-2 flex gap-2">
-            <Link
-              to="/dispatch"
-              className="px-3 py-1.5 text-xs font-medium bg-primary text-primary-foreground rounded hover:bg-primary/90 transition-colors flex items-center gap-1"
-            >
-              Dispatch
-              <ArrowRight className="h-3 w-3" />
-            </Link>
-            <Link
-              to="/fleet"
-              className="px-3 py-1.5 text-xs font-medium bg-secondary text-secondary-foreground rounded hover:bg-secondary/80 transition-colors"
-            >
-              Fleet
-            </Link>
-          </CardContent>
-        </Card>
-      </div>
 
       {/* No position fallback */}
       {!hasDepotPosition && (

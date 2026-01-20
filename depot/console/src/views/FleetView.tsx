@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { useConsoleStore } from "@/store";
 import { Robot, BatteryHigh, MapPin, GameController } from "@phosphor-icons/react";
 import { ModeLabels, type Mode } from "@/lib/types";
+import { getBatteryPercent } from "@/lib/utils";
 
 export function FleetView() {
   const { rovers } = useConsoleStore();
@@ -71,7 +72,8 @@ export function FleetView() {
                   <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
                     <span className="flex items-center gap-1">
                       <BatteryHigh className="h-3 w-3" />
-                      {rover.batteryVoltage.toFixed(1)}V
+                      {getBatteryPercent(rover.batteryVoltage).toFixed(0)}%
+                      <span className="text-xs">({rover.batteryVoltage.toFixed(1)}V)</span>
                     </span>
                     <span className="flex items-center gap-1 font-mono text-xs">
                       <MapPin className="h-3 w-3" />

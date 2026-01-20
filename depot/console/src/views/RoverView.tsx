@@ -2,6 +2,7 @@ import { useParams, Link } from "react-router-dom";
 import { useConsoleStore } from "@/store";
 import { Robot, BatteryHigh, MapPin, GameController, ArrowLeft, Thermometer } from "@phosphor-icons/react";
 import { ModeLabels, type Mode } from "@/lib/types";
+import { getBatteryPercent } from "@/lib/utils";
 
 export function RoverView() {
   const { roverId } = useParams<{ roverId: string }>();
@@ -63,7 +64,8 @@ export function RoverView() {
               <BatteryHigh className="h-4 w-4 text-muted-foreground" />
               <span className="text-sm text-muted-foreground">Battery</span>
             </div>
-            <p className="text-2xl font-mono text-foreground">{rover.batteryVoltage.toFixed(1)}V</p>
+            <p className="text-2xl font-mono text-foreground">{getBatteryPercent(rover.batteryVoltage).toFixed(0)}%</p>
+            <p className="text-sm text-muted-foreground font-mono">{rover.batteryVoltage.toFixed(1)}V</p>
           </div>
 
           <div className="bg-card border border-border p-4">

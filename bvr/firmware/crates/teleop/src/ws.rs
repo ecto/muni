@@ -199,6 +199,12 @@ fn parse_command(data: &[u8]) -> Option<Command> {
                 3 => Mode::Autonomous,
                 _ => return None,
             };
+            tracing::warn!(
+                mode_byte = data[1],
+                data_len = data.len(),
+                ?mode,
+                "SetMode command parsed from WebSocket"
+            );
             Some(Command::SetMode(mode))
         }
         // Tool command

@@ -31,7 +31,7 @@ use tools::{protocol, Registry as ToolRegistry, ToolOutput};
 use tracing::{debug, error, info, warn};
 use tracing_appender::rolling::{RollingFileAppender, Rotation};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
-use types::{Command, Mode, Pose, PowerStatus, SlamStatus, Twist};
+use types::{Command, Mode, Pose, PowerStatus, SlamStatus, SubsystemHealth, Twist};
 use ui::{Config as UiConfig, Dashboard};
 
 /// Configuration file structure (bvr.toml).
@@ -777,6 +777,7 @@ async fn main() -> Result<()> {
         active_tool: None,
         tool_status: None,
         slam_status: None,
+        health: SubsystemHealth::default(),
     };
     let (telemetry_tx, telemetry_rx) = watch::channel(initial_telemetry);
 
@@ -1233,6 +1234,12 @@ async fn main() -> Result<()> {
                         state.state_machine.transition(Event::EStopRelease);
                     }
                     Command::SetMode(mode) => {
+                        // Debug: log all SetMode commands to trace source of mode flipping
+                        warn!(
+                            requested_mode = ?mode,
+                            current_mode = ?state.state_machine.mode(),
+                            "SetMode command received"
+                        );
                         let event = match mode {
                             Mode::Disabled => Event::Disable,
                             Mode::Idle => Event::Enable,
@@ -1798,6 +1805,7 @@ async fn main() -> Result<()> {
             active_tool,
             tool_status,
             slam_status,
+            health: SubsystemHealth::default(), // TODO: populate from actual subsystem states
         };
 
         let _ = telemetry_tx.send(telemetry.clone());

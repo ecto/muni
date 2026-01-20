@@ -15,6 +15,7 @@ import {
 } from "@phosphor-icons/react";
 import { useConsoleStore } from "@/store";
 import { Mode, ModeLabels } from "@/lib/types";
+import { getBatteryPercent } from "@/lib/utils";
 
 function getModeVariant(
   mode: Mode
@@ -59,11 +60,7 @@ function HealthIndicator({ label, healthy }: { label: string; healthy: boolean }
 export function TelemetryPanel() {
   const { telemetry, connected } = useConsoleStore();
 
-  // Battery percentage (48V system: 39V empty, 54.6V full)
-  const batteryPercent = Math.max(
-    0,
-    Math.min(100, ((telemetry.power.battery_voltage - 39) / (54.6 - 39)) * 100)
-  );
+  const batteryPercent = getBatteryPercent(telemetry.power.battery_voltage);
 
   return (
     <Card className="w-64 bg-card/90 backdrop-blur">
@@ -94,7 +91,10 @@ export function TelemetryPanel() {
               Battery
             </span>
             <span className="font-mono">
-              {telemetry.power.battery_voltage.toFixed(1)}V
+              {batteryPercent.toFixed(0)}%
+              <span className="text-muted-foreground text-xs ml-1">
+                ({telemetry.power.battery_voltage.toFixed(1)}V)
+              </span>
             </span>
           </div>
           <Progress value={batteryPercent} className="h-2" />

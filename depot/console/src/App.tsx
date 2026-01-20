@@ -40,7 +40,7 @@ function App() {
   }
 
   return (
-    <div className={`${themeClass} h-svh`}>
+    <div className={themeClass}>
       <SidebarProvider>
         <AppSidebar />
         <SidebarInset>

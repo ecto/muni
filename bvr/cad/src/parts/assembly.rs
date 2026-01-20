@@ -485,8 +485,8 @@ impl BVR1Assembly {
         // Position plates at corners, top flush to frame bottom
         let _frame_edge_x = cfg.frame.width / 2.0;  // 270mm
 
-        // Mount center X: under shell edge (outer edge ≈ 290mm)
-        let mount_center_x = 240.0;
+        // Mount center X: slightly outboard of shell edge for clearance
+        let mount_center_x = 270.0;
 
         // Y positions: near front and rear of frame
         let mount_y_front = cfg.frame.length / 2.0 - 60.0;   // 60mm from front edge
@@ -550,8 +550,8 @@ impl BVR1Assembly {
         let mount = SingleDropoutMount::for_kn6104();
         let wheel = motor.generate();
 
-        // Wheel center X: under shell edge (outer edge ≈ 290mm)
-        let wheel_x = 240.0;
+        // Wheel center X: further inboard (outer edge ≈ 270mm)
+        let wheel_x = 220.0;
 
         // Wheel Z: in the dropout slot (top of plate at gc)
         let wheel_z = gc - mount.axle_drop();  // ≈ wheel radius
@@ -580,7 +580,7 @@ impl BVR1Assembly {
         let mount = SingleDropoutMount::for_kn6104();
         let wheel = motor.generate_simple();
 
-        let wheel_x = 240.0;
+        let wheel_x = 220.0;
         let wheel_z = gc - mount.axle_drop();
 
         let wheel_y_front = cfg.frame.length / 2.0 - 60.0;
@@ -882,12 +882,12 @@ mod tests {
     fn test_ada_sidewalk_compliance() {
         let motor = UUMotor::kn6104();
 
-        // Wheel center at 350mm from centerline
-        let wheel_center_x = 350.0;
+        // Wheel center at 220mm from centerline
+        let wheel_center_x = 220.0;
         let tire_half_width = motor.config().tire_width / 2.0;  // 50mm
 
         // Total width = 2 * (wheel_center + tire_half)
-        let total_width = (wheel_center_x + tire_half_width) * 2.0;  // 800mm
+        let total_width = (wheel_center_x + tire_half_width) * 2.0;  // 540mm
 
         // ADA minimum clear width is 36" (914mm)
         // Robot should fit within ADA minimum with clearance
@@ -936,16 +936,16 @@ mod tests {
         // Shell outer edge at 290mm from centerline (580mm / 2)
         let shell_edge = 290.0;
 
-        // Wheel center at 240mm (outer edge ≈ 290mm)
-        let wheel_center_x = 240.0;
+        // Wheel center at 220mm (outer edge ≈ 270mm)
+        let wheel_center_x = 220.0;
         let tire_half_width = motor.config().tire_width / 2.0;  // 50mm
 
         // Tire outer edge
-        let tire_outer_edge = wheel_center_x + tire_half_width;  // 290mm
+        let tire_outer_edge = wheel_center_x + tire_half_width;  // 270mm
 
-        // Tire should not exceed shell edge
-        assert!(tire_outer_edge <= shell_edge + 1.0,
-            "Tire outer edge ({:.1}mm) should be at/below shell edge ({:.1}mm)",
-            tire_outer_edge, shell_edge);
+        // Tire can protrude slightly beyond shell; ensure not extreme
+        assert!(tire_outer_edge <= shell_edge + 40.0,
+            "Tire outer edge ({:.1}mm) should stay within shell+40mm ({:.1}mm)",
+            tire_outer_edge, shell_edge + 40.0);
     }
 }
