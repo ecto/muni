@@ -86,6 +86,7 @@ export interface GamepadInput {
   actionB: boolean;
   estop: boolean;
   enable: boolean;
+  disable: boolean;
   boost: boolean;
   cameraYaw: number;
   cameraPitch: number;

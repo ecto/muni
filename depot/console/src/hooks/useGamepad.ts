@@ -62,6 +62,8 @@ export function useGamepad() {
           const estop = gp.buttons[8]?.pressed || false;
           // Start/Menu = Enable
           const enable = gp.buttons[9]?.pressed || false;
+          // R3 (Right stick click) = Disable/release control
+          const disable = gp.buttons[11]?.pressed || false;
           // L3 (Left stick click) = Boost mode
           const boost = gp.buttons[10]?.pressed || false;
 
@@ -73,6 +75,7 @@ export function useGamepad() {
             actionB,
             estop,
             enable,
+            disable,
             boost,
             cameraYaw,
             cameraPitch,

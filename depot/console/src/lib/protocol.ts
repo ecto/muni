@@ -128,8 +128,8 @@ export interface DecodedTelemetry {
 export function decodeTelemetry(data: ArrayBuffer): DecodedTelemetry | null {
   const view = new DataView(data);
 
-  // Minimum size check (90 bytes + 2 bytes health = 92)
-  if (data.byteLength < 92) {
+  // Minimum size check: 90 bytes base, optionally +2 bytes for health
+  if (data.byteLength < 90) {
     return null;
   }
 
@@ -187,18 +187,33 @@ export function decodeTelemetry(data: ArrayBuffer): DecodedTelemetry | null {
   ];
   offset += 16;
 
-  // Subsystem health (2 bytes, little-endian u16)
-  const healthBits = view.getUint16(offset, true);
-  const health: SubsystemHealth = {
-    can_healthy: (healthBits & (1 << 0)) !== 0,
-    recording_active: (healthBits & (1 << 1)) !== 0,
-    gps_fix: (healthBits & (1 << 2)) !== 0,
-    camera_active: (healthBits & (1 << 3)) !== 0,
-    dispatch_connected: (healthBits & (1 << 4)) !== 0,
-    discovery_connected: (healthBits & (1 << 5)) !== 0,
-    lidar_active: (healthBits & (1 << 6)) !== 0,
-    slam_running: (healthBits & (1 << 7)) !== 0,
-  };
+  // Subsystem health (2 bytes, little-endian u16) - optional for backwards compatibility
+  let health: SubsystemHealth;
+  if (data.byteLength >= offset + 2) {
+    const healthBits = view.getUint16(offset, true);
+    health = {
+      can_healthy: (healthBits & (1 << 0)) !== 0,
+      recording_active: (healthBits & (1 << 1)) !== 0,
+      gps_fix: (healthBits & (1 << 2)) !== 0,
+      camera_active: (healthBits & (1 << 3)) !== 0,
+      dispatch_connected: (healthBits & (1 << 4)) !== 0,
+      discovery_connected: (healthBits & (1 << 5)) !== 0,
+      lidar_active: (healthBits & (1 << 6)) !== 0,
+      slam_running: (healthBits & (1 << 7)) !== 0,
+    };
+  } else {
+    // Default health for older firmware without health field
+    health = {
+      can_healthy: false,
+      recording_active: false,
+      gps_fix: false,
+      camera_active: false,
+      dispatch_connected: false,
+      discovery_connected: false,
+      lidar_active: false,
+      slam_running: false,
+    };
+  }
 
   return {
     mode,

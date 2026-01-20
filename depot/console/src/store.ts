@@ -107,6 +107,7 @@ const defaultInput: GamepadInput = {
   actionB: false,
   estop: false,
   enable: false,
+  disable: false,
   boost: false,
   cameraYaw: 0,
   cameraPitch: 0,
@@ -145,7 +146,14 @@ export const useConsoleStore = create<ConsoleState>()(
   setRoverAddress: (address) => set({ roverAddress: address }),
   setVideoAddress: (address) => set({ videoAddress: address }),
   setConnected: (connected) => set({ connected }),
-  setLatency: (ms) => set({ latencyMs: ms }),
+  setLatency: (ms) =>
+    set((state) => {
+      if (ms === 0) return { latencyMs: 0 };
+      // Exponential moving average for smooth display
+      const alpha = 0.15;
+      const smoothed = alpha * ms + (1 - alpha) * state.latencyMs;
+      return { latencyMs: Math.round(smoothed) };
+    }),
 
   // Telemetry
   telemetry: defaultTelemetry,

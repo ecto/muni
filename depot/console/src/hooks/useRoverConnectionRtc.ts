@@ -15,13 +15,16 @@ import { useConsoleStore } from "@/store";
 import {
   encodeTwist,
   encodeEStop,
+  encodeEStopRelease,
   encodeHeartbeat,
   encodeTool,
+  encodeSetMode,
   decodeTelemetry,
   telemetryFromDecoded,
   decodeVideoFrame,
   videoFrameToBlobUrl,
 } from "@/lib/protocol";
+import { Mode } from "@/lib/types";
 
 const RECONNECT_DELAY_MS = 2000;
 const COMMAND_INTERVAL_MS = 10; // 100Hz - matches rover control loop
@@ -86,10 +89,20 @@ export function useRoverConnectionRtc() {
     angular: 0,
     boost: false,
     estop: false,
+    enable: false,
+    disable: false,
     toolAxis: 0,
     actionA: false,
     actionB: false,
   });
+
+  // Track previous enable/disable state for edge detection
+  const prevEnableRef = useRef(false);
+  const prevDisableRef = useRef(false);
+
+  // Track if this console is the active operator (has control)
+  // Only operators can send commands - observers can watch but not control
+  const isOperatorRef = useRef(false);
 
   const clearIntervals = useCallback(() => {
     if (commandIntervalRef.current) {
@@ -109,6 +122,12 @@ export function useRoverConnectionRtc() {
   const sendCommands = useCallback(() => {
     const channel = commandChannelRef.current;
     if (!channel || channel.readyState !== "open") return;
+
+    // Only send commands if we are the active operator
+    // This prevents observers from accidentally sending commands
+    if (!isOperatorRef.current) {
+      return;
+    }
 
     const input = currentInputRef.current;
 
@@ -209,15 +228,43 @@ export function useRoverConnectionRtc() {
         // Start polling input state
         inputIntervalRef.current = setInterval(() => {
           const { input } = useConsoleStore.getState();
+          // Update input state
           currentInputRef.current = {
             linear: input.linear,
             angular: input.angular,
             boost: input.boost,
             estop: input.estop,
+            enable: input.enable,
+            disable: input.disable,
             toolAxis: input.toolAxis,
             actionA: input.actionA,
             actionB: input.actionB,
           };
+
+          // Handle enable rising edge (Enter key)
+          const enableRising = input.enable && !prevEnableRef.current;
+          prevEnableRef.current = input.enable;
+          if (enableRising && commandChannelRef.current?.readyState === "open") {
+            // Claim operator and enable teleop
+            isOperatorRef.current = true;
+            console.log("[WebRTC] Enable key pressed - claiming operator control");
+            commandChannelRef.current.send(encodeSetMode(Mode.Idle));
+            setTimeout(() => {
+              if (commandChannelRef.current?.readyState === "open") {
+                commandChannelRef.current.send(encodeSetMode(Mode.Teleop));
+              }
+            }, 50);
+          }
+
+          // Handle disable rising edge (Backspace key)
+          const disableRising = input.disable && !prevDisableRef.current;
+          prevDisableRef.current = input.disable;
+          if (disableRising && isOperatorRef.current && commandChannelRef.current?.readyState === "open") {
+            // Release operator and disable
+            isOperatorRef.current = false;
+            console.log("[WebRTC] Disable key pressed - releasing operator control");
+            commandChannelRef.current.send(encodeSetMode(Mode.Disabled));
+          }
         }, INPUT_UPDATE_INTERVAL_MS);
       };
 
@@ -238,6 +285,7 @@ export function useRoverConnectionRtc() {
 
         if (channel.label === "telemetry") {
           channel.binaryType = "arraybuffer";
+          console.log("[WebRTC] Telemetry channel established");
           channel.onmessage = (msgEvent) => {
             if (msgEvent.data instanceof ArrayBuffer) {
               const decoded = decodeTelemetry(msgEvent.data);
@@ -253,6 +301,8 @@ export function useRoverConnectionRtc() {
                   connected: true,
                   latency_ms: latency,
                 });
+              } else {
+                console.warn("[WebRTC] Failed to decode telemetry, size:", msgEvent.data.byteLength);
               }
             }
           };
@@ -378,13 +428,13 @@ export function useRoverConnectionRtc() {
         }
       };
 
-      ws.onclose = () => {
-        console.log("[WebRTC] Signaling WebSocket closed");
+      ws.onclose = (event) => {
+        console.log("[WebRTC] Signaling WebSocket closed, code:", event.code, "reason:", event.reason);
         // Don't reconnect here - let the PC connection state handler do it
       };
 
-      ws.onerror = (err) => {
-        console.error("[WebRTC] Signaling WebSocket error:", err);
+      ws.onerror = () => {
+        console.error("[WebRTC] Signaling WebSocket error - connection refused or unreachable");
         setConnected(false);
         reconnectTimeoutRef.current = setTimeout(() => {
           connectRef.current();
@@ -417,6 +467,9 @@ export function useRoverConnectionRtc() {
   const disconnect = useCallback(() => {
     clearIntervals();
 
+    // Release operator status on disconnect
+    isOperatorRef.current = false;
+
     if (reconnectTimeoutRef.current) {
       clearTimeout(reconnectTimeoutRef.current);
       reconnectTimeoutRef.current = null;
@@ -447,8 +500,10 @@ export function useRoverConnectionRtc() {
 
   // Connect when rover address changes
   useEffect(() => {
+    console.log("[WebRTC] roverAddress changed to:", roverAddress);
     // Don't connect to default localhost - wait for real rover address
     if (roverAddress === "ws://localhost:4850") {
+      console.log("[WebRTC] Skipping connection - still default localhost");
       return;
     }
 
@@ -477,10 +532,40 @@ export function useRoverConnectionRtc() {
     }, []),
     sendEStopRelease: useCallback(() => {
       currentInputRef.current.estop = false;
-      // Note: E-Stop release requires a special message
-      console.warn(
-        "E-Stop release: clearing estop state, but dedicated message not implemented"
-      );
+      if (commandChannelRef.current?.readyState === "open") {
+        console.log("[WebRTC] Sending E-Stop Release");
+        commandChannelRef.current.send(encodeEStopRelease());
+      }
+    }, []),
+    sendEnable: useCallback(() => {
+      const channel = commandChannelRef.current;
+      if (channel?.readyState !== "open") {
+        console.warn("[WebRTC] Cannot send - channel not open");
+        return;
+      }
+      // Claim operator status - we're taking control
+      isOperatorRef.current = true;
+      console.log("[WebRTC] Claiming operator control");
+
+      // State machine requires: Disabled -> Idle -> Teleop
+      // Send Enable (Idle) first, then TeleopCommand (Teleop)
+      channel.send(encodeSetMode(Mode.Idle));
+      // Small delay to ensure state machine processes first command
+      setTimeout(() => {
+        if (commandChannelRef.current?.readyState === "open") {
+          commandChannelRef.current.send(encodeSetMode(Mode.Teleop));
+          console.log("[WebRTC] Enable sequence sent");
+        }
+      }, 50);
+    }, []),
+    sendDisable: useCallback(() => {
+      // Release operator status
+      isOperatorRef.current = false;
+      console.log("[WebRTC] Releasing operator control");
+
+      if (commandChannelRef.current?.readyState === "open") {
+        commandChannelRef.current.send(encodeSetMode(Mode.Disabled));
+      }
     }, []),
   };
 }
