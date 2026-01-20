@@ -277,6 +277,24 @@ export interface ConnectedRover {
 }
 
 // GPS/Base station status
+export type Constellation = "gps" | "glonass" | "galileo" | "beidou" | "qzss" | "unknown";
+
+export interface SatelliteInfo {
+  prn: number;
+  constellation: Constellation;
+  elevation?: number;
+  azimuth?: number;
+  snr?: number;
+  used: boolean;
+}
+
+export interface HistoryPoint {
+  timestamp: number;
+  hdop?: number;
+  satellites: number;
+  fixQuality: string;
+}
+
 export interface GpsStatus {
   connected: boolean;
   mode: string;
@@ -286,6 +304,10 @@ export interface GpsStatus {
   longitude?: number;
   altitude?: number;
   hdop?: number;
+  vdop?: number;
+  pdop?: number;
+  satelliteInfo?: SatelliteInfo[];
+  history?: HistoryPoint[];
   // Base station specific
   surveyIn?: {
     active: boolean;

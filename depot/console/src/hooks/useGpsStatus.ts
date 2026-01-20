@@ -18,13 +18,9 @@ export function useGpsStatus() {
       wsRef.current = null;
     }
 
-    // Determine WebSocket URL
-    // In development, connect directly; in production, use the proxy
-    const isDev = import.meta.env.DEV;
+    // Determine WebSocket URL - always use the proxy path
     const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const wsUrl = isDev
-      ? `${wsProtocol}//${window.location.hostname}:4880/ws`
-      : `${wsProtocol}//${window.location.host}/api/gps/ws`;
+    const wsUrl = `${wsProtocol}//${window.location.host}/api/gps/ws`;
 
     console.debug("[GPS] Connecting to", wsUrl);
 
@@ -48,6 +44,10 @@ export function useGpsStatus() {
             longitude: msg.data.longitude,
             altitude: msg.data.altitude,
             hdop: msg.data.hdop,
+            vdop: msg.data.vdop,
+            pdop: msg.data.pdop,
+            satelliteInfo: msg.data.satelliteInfo ?? [],
+            history: msg.data.history ?? [],
             surveyIn: msg.data.surveyIn,
             rtcmMessages: msg.data.rtcmMessages ?? [],
             clients: msg.data.clients,
