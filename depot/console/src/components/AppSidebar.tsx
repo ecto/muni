@@ -25,13 +25,17 @@ import {
   ChartBar,
   Database,
   NavigationArrow,
+  Sun,
+  Moon,
 } from "@phosphor-icons/react";
 import { useConsoleStore } from "@/store";
 import { useDiscovery } from "@/hooks/useDiscovery";
+import { useTheme } from "@/hooks/useTheme";
 
 export function AppSidebar() {
   const location = useLocation();
   const { rovers, gpsStatus } = useConsoleStore();
+  const { theme, cycleTheme } = useTheme();
 
   // Connect to discovery service for live rover updates
   useDiscovery();
@@ -42,6 +46,18 @@ export function AppSidebar() {
 
   const onlineRovers = rovers.filter((r) => r.online);
   const gpsOk = gpsStatus?.connected && gpsStatus.fixQuality !== "no_fix";
+
+  // Theme toggle icon and label
+  const themeIcon =
+    theme === "light" ? (
+      <Sun className="h-4 w-4" />
+    ) : theme === "dark" ? (
+      <Moon className="h-4 w-4" />
+    ) : (
+      <Desktop className="h-4 w-4" />
+    );
+  const themeLabel =
+    theme === "light" ? "Light" : theme === "dark" ? "Dark" : "System";
 
   return (
     <Sidebar>
@@ -224,6 +240,12 @@ export function AppSidebar() {
                 <span>Database</span>
                 <ArrowSquareOut className="ml-auto h-3 w-3 opacity-50" />
               </a>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton onClick={cycleTheme} tooltip={`Theme: ${themeLabel}`}>
+              {themeIcon}
+              <span>{themeLabel}</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>

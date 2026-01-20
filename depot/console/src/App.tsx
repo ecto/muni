@@ -4,6 +4,7 @@ import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { Toast } from "@/components/ui/Toast";
 import { useDiscovery } from "@/hooks/useDiscovery";
 import { useGpsStatus } from "@/hooks/useGpsStatus";
+import { useTheme } from "@/hooks/useTheme";
 
 // Views
 import { DashboardView } from "@/views/DashboardView";
@@ -21,13 +22,16 @@ function App() {
   useDiscovery();
   useGpsStatus();
 
+  const { resolvedTheme } = useTheme();
   const location = useLocation();
   const isTeleop = location.pathname.endsWith("/teleop");
+
+  const themeClass = resolvedTheme === "dark" ? "dark" : "";
 
   // Teleop gets full-screen treatment without sidebar
   if (isTeleop) {
     return (
-      <div className="dark h-screen w-screen">
+      <div className={`${themeClass} h-screen w-screen`}>
         <Routes>
           <Route path="/fleet/:roverId/teleop" element={<TeleopView />} />
         </Routes>
@@ -37,7 +41,7 @@ function App() {
   }
 
   return (
-    <div className="dark">
+    <div className={themeClass}>
       <SidebarProvider>
         <AppSidebar />
         <SidebarInset>

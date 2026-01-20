@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { persist } from "zustand/middleware";
 import {
   Mode,
   type Telemetry,
@@ -11,6 +12,8 @@ import {
   InputSource,
   CameraMode,
 } from "@/lib/types";
+
+export type Theme = "light" | "dark" | "system";
 
 interface ConsoleState {
   // Fleet management
@@ -78,6 +81,10 @@ interface ConsoleState {
   gpsStatus: GpsStatus | null;
   setServices: (services: ServiceHealth[]) => void;
   setGpsStatus: (status: GpsStatus | null) => void;
+
+  // Theme
+  theme: Theme;
+  setTheme: (theme: Theme) => void;
 }
 
 const defaultTelemetry: Telemetry = {
@@ -103,7 +110,9 @@ const defaultInput: GamepadInput = {
   cameraPitch: 0,
 };
 
-export const useConsoleStore = create<ConsoleState>((set) => ({
+export const useConsoleStore = create<ConsoleState>()(
+  persist(
+    (set) => ({
   // Fleet management
   rovers: [],
   selectedRoverId: null,
@@ -191,4 +200,14 @@ export const useConsoleStore = create<ConsoleState>((set) => ({
   gpsStatus: null,
   setServices: (services) => set({ services }),
   setGpsStatus: (status) => set({ gpsStatus: status }),
-}));
+
+  // Theme
+  theme: "system",
+  setTheme: (theme) => set({ theme }),
+    }),
+    {
+      name: "console-storage",
+      partialize: (state) => ({ theme: state.theme }),
+    }
+  )
+);
