@@ -27,10 +27,19 @@
 //! └─────────────────────────────────────────────────────────────────┘
 //! ```
 
+mod autonomous_controller;
 mod command_processor;
+mod dispatch_handler;
+mod motor_controller;
 mod telemetry_builder;
 
+pub use autonomous_controller::{
+    AutonomousController, AutonomousOutput, Policy, PolicyAction, PolicyError, PolicyObservation,
+    POLICY_ERROR_THRESHOLD, POLICY_WARN_THRESHOLD, WAYPOINT_REACHED_THRESHOLD,
+};
 pub use command_processor::{CommandProcessor, ProcessedCommands};
+pub use dispatch_handler::{DispatchHandler, DispatchResult};
+pub use motor_controller::{MotorController, MotorOutput};
 pub use telemetry_builder::TelemetryBuilder;
 
 use std::time::{Duration, Instant};
