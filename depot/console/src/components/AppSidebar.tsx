@@ -34,7 +34,6 @@ import {
   Plugs,
 } from "@phosphor-icons/react";
 import { useConsoleStore } from "@/store";
-import { useDiscovery } from "@/hooks/useDiscovery";
 import { useServiceHealth, type ServiceStatus } from "@/hooks/useServiceHealth";
 import { useTheme } from "@/hooks/useTheme";
 
@@ -63,9 +62,6 @@ export function AppSidebar() {
   const { rovers, gpsStatus } = useConsoleStore();
   const { theme, cycleTheme } = useTheme();
   const { services, healthyCount, totalCount } = useServiceHealth();
-
-  // Connect to discovery service for live rover updates
-  useDiscovery();
 
   const isActive = (path: string) => location.pathname === path;
   const isActivePrefix = (prefix: string) =>
