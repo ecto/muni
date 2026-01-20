@@ -130,9 +130,12 @@ export function useDiscovery() {
   }, []);
 
   useEffect(() => {
-    connect();
+    // Defer connection to next tick - allows StrictMode's immediate
+    // cleanup to cancel before we actually open the WebSocket
+    const timeoutId = setTimeout(connect, 0);
 
     return () => {
+      clearTimeout(timeoutId);
       disconnect();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps

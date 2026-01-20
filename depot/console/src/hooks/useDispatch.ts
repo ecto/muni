@@ -429,15 +429,18 @@ export function useDispatch() {
   // ==========================================================================
 
   useEffect(() => {
-    // Connect WebSocket
-    connect();
-
-    // Fetch initial data
-    fetchZones();
-    fetchMissions();
-    fetchTasks();
+    // Defer connection to next tick - allows StrictMode's immediate
+    // cleanup to cancel before we actually open the WebSocket
+    const timeoutId = setTimeout(() => {
+      connect();
+      // Fetch initial data after connection starts
+      fetchZones();
+      fetchMissions();
+      fetchTasks();
+    }, 0);
 
     return () => {
+      clearTimeout(timeoutId);
       disconnect();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps

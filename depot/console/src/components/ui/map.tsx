@@ -1511,5 +1511,4 @@ export {
     MapTileLayer,
     MapTooltip,
     MapZoomControl,
-    useLeaflet,
 }

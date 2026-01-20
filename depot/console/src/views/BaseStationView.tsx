@@ -1,4 +1,4 @@
-import { useMemo, useRef } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useConsoleStore } from "@/store";
 import { CellTower, Broadcast, Heartbeat, Planet, Crosshair, CellSignalFull, CellSignalMedium, CellSignalLow, CellSignalSlash } from "@phosphor-icons/react";
 import type { GpsStatus, SatelliteInfo, Constellation } from "@/lib/types";
@@ -95,10 +95,10 @@ export function BaseStationView() {
   const { gpsStatus } = useConsoleStore();
   const status: GpsStatus = gpsStatus ?? defaultStatus;
 
-  // Refs to preserve last good data
-  const lastSnrDataRef = useRef<SnrDataPoint[]>([]);
-  const lastSatellitesRef = useRef<SatelliteInfo[]>([]);
-  const lastConstellationsRef = useRef<Partial<Record<Constellation, SatelliteInfo[]>>>({});
+  // State to preserve last good data (prevents flashing when data temporarily empty)
+  const [cachedSatellites, setCachedSatellites] = useState<SatelliteInfo[]>([]);
+  const [cachedConstellations, setCachedConstellations] = useState<Partial<Record<Constellation, SatelliteInfo[]>>>({});
+  const [cachedSnrData, setCachedSnrData] = useState<SnrDataPoint[]>([]);
 
   const fixConfig = fixQualityConfig[status.fixQuality ?? "no_fix"] ?? fixQualityConfig.no_fix;
 
@@ -112,9 +112,9 @@ export function BaseStationView() {
     [status.history]
   );
 
-  // Deduplicate satellites by constellation+prn - memoized
-  const uniqueSatellites = useMemo(() => {
-    const result = (status.satelliteInfo ?? []).reduce((acc, sat) => {
+  // Deduplicate satellites by constellation+prn - pure computation
+  const computedSatellites = useMemo(() => {
+    return (status.satelliteInfo ?? []).reduce((acc, sat) => {
       const key = `${sat.constellation}-${sat.prn}`;
       if (!acc.seen.has(key)) {
         acc.seen.add(key);
@@ -122,32 +122,46 @@ export function BaseStationView() {
       }
       return acc;
     }, { seen: new Set<string>(), list: [] as SatelliteInfo[] }).list;
-
-    // Preserve last good data if current is empty
-    if (result.length > 0) {
-      lastSatellitesRef.current = result;
-    }
-    return result.length > 0 ? result : lastSatellitesRef.current;
   }, [status.satelliteInfo]);
 
-  // Group satellites by constellation - memoized
-  const satellitesByConstellation = useMemo(() => {
-    const result = uniqueSatellites.reduce((acc, sat) => {
+  // Update cached satellites when we have good data
+  // (intentional state sync to prevent UI flashing when data temporarily empty)
+  useEffect(() => {
+    if (computedSatellites.length > 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setCachedSatellites(computedSatellites);
+    }
+  }, [computedSatellites]);
+
+  // Display computed data or fall back to cached
+  const uniqueSatellites = computedSatellites.length > 0 ? computedSatellites : cachedSatellites;
+
+  // Group satellites by constellation - pure computation
+  const computedConstellations = useMemo(() => {
+    return uniqueSatellites.reduce((acc, sat) => {
       const key = sat.constellation;
       if (!acc[key]) acc[key] = [];
       acc[key]!.push(sat);
       return acc;
     }, {} as Partial<Record<Constellation, SatelliteInfo[]>>);
-
-    if (Object.keys(result).length > 0) {
-      lastConstellationsRef.current = result;
-    }
-    return Object.keys(result).length > 0 ? result : lastConstellationsRef.current;
   }, [uniqueSatellites]);
 
-  // Prepare satellite SNR data for bar chart - memoized with preservation
-  const satelliteSnrData = useMemo(() => {
-    const result = uniqueSatellites
+  // Update cached constellations when we have good data
+  useEffect(() => {
+    if (Object.keys(computedConstellations).length > 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setCachedConstellations(computedConstellations);
+    }
+  }, [computedConstellations]);
+
+  // Display computed data or fall back to cached
+  const satellitesByConstellation = Object.keys(computedConstellations).length > 0
+    ? computedConstellations
+    : cachedConstellations;
+
+  // Prepare satellite SNR data for bar chart - pure computation
+  const computedSnrData = useMemo(() => {
+    return uniqueSatellites
       .filter((sat) => sat.snr != null && sat.snr > 0)
       .slice(0, 16)
       .map((sat) => ({
@@ -156,13 +170,18 @@ export function BaseStationView() {
         constellation: sat.constellation,
         used: sat.used,
       }));
-
-    // Preserve last good SNR data if current is empty
-    if (result.length > 0) {
-      lastSnrDataRef.current = result;
-    }
-    return result.length > 0 ? result : lastSnrDataRef.current;
   }, [uniqueSatellites]);
+
+  // Update cached SNR data when we have good data
+  useEffect(() => {
+    if (computedSnrData.length > 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setCachedSnrData(computedSnrData);
+    }
+  }, [computedSnrData]);
+
+  // Display computed data or fall back to cached
+  const satelliteSnrData = computedSnrData.length > 0 ? computedSnrData : cachedSnrData;
 
   const snrChartConfig: ChartConfig = {
     snr: {
