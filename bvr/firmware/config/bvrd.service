@@ -11,20 +11,21 @@ Restart=on-failure
 RestartSec=3
 User=root
 
-# Watchdog disabled - bvrd doesn't implement sd_notify yet
-# WatchdogSec=10
-
 # Environment
 Environment=RUST_LOG=info
 Environment=RUST_BACKTRACE=1
+Environment=HOME=/root
 
 # Resource limits
 LimitNOFILE=65536
 
-# Security (relaxed for hardware access)
+# Security - fully relaxed for hardware access and GStreamer
+# ProtectHome=no is required for GStreamer to access registry cache in /root
 ProtectSystem=false
-ProtectHome=true
+ProtectHome=no
 NoNewPrivileges=false
+PrivateTmp=no
+PrivateDevices=no
 
 [Install]
 WantedBy=multi-user.target

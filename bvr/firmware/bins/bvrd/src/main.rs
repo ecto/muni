@@ -845,25 +845,12 @@ async fn main() -> Result<()> {
             jpeg_quality: 60,
         };
 
-        // Auto-detect cameras with timeout (GStreamer init can hang on some systems)
-        let cameras = match tokio::time::timeout(
-            Duration::from_secs(10),
-            tokio::task::spawn_blocking(camera::detect_cameras),
-        )
-        .await
-        {
-            Ok(Ok(cams)) => cams,
-            Ok(Err(e)) => {
-                warn!(?e, "Camera detection task panicked");
-                Vec::new()
-            }
-            Err(_) => {
-                warn!("Camera detection timed out - continuing without cameras");
-                Vec::new()
-            }
-        };
+        // Auto-detect cameras (fast filesystem scan, no GStreamer init needed)
+        info!("Detecting cameras...");
+        let cameras = camera::detect_cameras();
+
         if cameras.is_empty() {
-            debug!("No cameras detected");
+            info!("No cameras detected");
         } else {
             info!(count = cameras.len(), "Cameras detected");
             for cam in &cameras {
@@ -871,11 +858,22 @@ async fn main() -> Result<()> {
             }
 
             // Start capture on first available camera
-            match camera::spawn_capture(&cameras[0], camera_config) {
-                Ok((frame_rx, _camera_handle)) => {
+            // GStreamer init happens here and can hang on Jetson, so wrap in timeout
+            info!("Starting camera capture (GStreamer init may hang)...");
+            let first_camera = cameras[0].clone();
+            let capture_result = tokio::time::timeout(
+                Duration::from_secs(15),
+                tokio::task::spawn_blocking(move || {
+                    camera::spawn_capture(&first_camera, camera_config)
+                }),
+            )
+            .await;
+
+            match capture_result {
+                Ok(Ok(Ok((frame_rx, _camera_handle)))) => {
                     info!(
                         camera = %cameras[0].name,
-                        "{}x{} @ {}fps",
+                        "Camera started: {}x{} @ {}fps",
                         width,
                         height,
                         args.camera_fps
@@ -915,8 +913,14 @@ async fn main() -> Result<()> {
                         }
                     });
                 }
-                Err(e) => {
+                Ok(Ok(Err(e))) => {
                     warn!(?e, "Failed to start camera - continuing without video");
+                }
+                Ok(Err(e)) => {
+                    warn!(?e, "Camera capture task panicked");
+                }
+                Err(_) => {
+                    warn!("Camera capture timed out (GStreamer init hung) - continuing without video");
                 }
             }
         }

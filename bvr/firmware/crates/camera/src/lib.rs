@@ -127,8 +127,16 @@ impl CameraMount {
 }
 
 /// Initialize GStreamer (safe to call multiple times).
+///
+/// Note: This can hang on Jetson with NVIDIA plugins if the registry is
+/// not properly initialized. The hang occurs during plugin scanning.
 fn ensure_gst_init() -> Result<(), CameraError> {
-    gst::init().map_err(|e| CameraError::GStreamer(e.to_string()))
+    info!("Initializing GStreamer (may hang on Jetson with NVIDIA plugins)...");
+    let result = gst::init().map_err(|e| CameraError::GStreamer(e.to_string()));
+    if result.is_ok() {
+        info!("GStreamer initialized successfully");
+    }
+    result
 }
 
 /// Check if nvarguscamerasrc is available (Jetson-specific).
@@ -279,14 +287,117 @@ fn detect_usb_cameras() -> Vec<DetectedCamera> {
 
 /// Auto-detect available cameras on the system.
 ///
-/// Checks for:
-/// 1. CSI cameras (Jetson only, via nvarguscamerasrc)
-/// 2. USB cameras (via v4l2src)
+/// Uses lightweight filesystem scanning for V4L2 devices to avoid GStreamer
+/// initialization overhead (which can hang on Jetson with NVIDIA plugins).
+/// GStreamer is only initialized when actually starting capture.
 ///
-/// Note: GStreamer initialization can hang on some systems (especially Jetson with NVIDIA plugins).
-/// Consider using `--no-camera` flag if this causes issues.
+/// Checks for:
+/// 1. CSI cameras (Jetson only, via nvarguscamerasrc) - detected via sysfs device name
+/// 2. USB cameras (via v4l2src) - detected via /dev/video* devices
 pub fn detect_cameras() -> Vec<DetectedCamera> {
-    debug!("Starting GStreamer init...");
+    debug!("Detecting cameras via filesystem scan (avoiding GStreamer init)...");
+
+    let mut cameras = Vec::new();
+
+    #[cfg(target_os = "linux")]
+    {
+        // Track CSI sensor IDs we've found (to avoid duplicates from multiple /dev/video* entries)
+        let mut found_csi_sensors: std::collections::HashSet<u32> = std::collections::HashSet::new();
+
+        // Scan /dev/video* devices without using GStreamer
+        for entry in std::fs::read_dir("/dev").into_iter().flatten() {
+            let entry = match entry {
+                Ok(e) => e,
+                Err(_) => continue,
+            };
+
+            let path = entry.path();
+            let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+
+            if !name.starts_with("video") {
+                continue;
+            }
+
+            // Extract video device number
+            let num_str = name.strip_prefix("video").unwrap_or("");
+            let device_num: u32 = match num_str.parse() {
+                Ok(n) => n,
+                Err(_) => continue,
+            };
+
+            let device = path.to_string_lossy().to_string();
+
+            // Check if device is accessible
+            if std::fs::metadata(&path).is_err() {
+                continue;
+            }
+
+            // Check sysfs for device name to identify CSI vs USB cameras
+            let sysfs_name_path = format!("/sys/class/video4linux/{}/name", name);
+            if let Ok(device_name) = std::fs::read_to_string(&sysfs_name_path) {
+                let device_name = device_name.trim();
+
+                // Check if this is a Jetson CSI camera (NVIDIA VI, IMX sensor, etc.)
+                if device_name.contains("vi-output") || device_name.contains("imx") {
+                    // CSI cameras on Jetson use sensor IDs 0, 1, etc.
+                    // The /dev/video number doesn't directly map to sensor ID
+                    // Typically video0 = sensor 0, video1 = sensor 1
+                    let sensor_id = device_num;
+
+                    if !found_csi_sensors.contains(&sensor_id) {
+                        found_csi_sensors.insert(sensor_id);
+                        cameras.push(DetectedCamera {
+                            camera_type: CameraType::Csi { sensor_id },
+                            name: format!("CSI Camera {} ({})", sensor_id, device_name),
+                        });
+                        info!(sensor_id, device_name, "Found CSI camera");
+                    }
+                    continue;
+                }
+            }
+
+            // Not a CSI camera, treat as USB/V4L2
+            cameras.push(DetectedCamera {
+                camera_type: CameraType::Usb { device: device.clone() },
+                name: format!("V4L2 Camera ({})", name),
+            });
+            debug!(device = %device, "Found V4L2 device");
+        }
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        // On macOS, we can't easily detect cameras without AVFoundation/GStreamer
+        // Try device indices 0-2 and let capture validate them
+        for device_index in 0..3 {
+            cameras.push(DetectedCamera {
+                camera_type: CameraType::Avf { device_index },
+                name: format!("Camera {}", device_index),
+            });
+        }
+    }
+
+    // Sort by camera type (CSI first) then name for consistent ordering
+    cameras.sort_by(|a, b| {
+        match (&a.camera_type, &b.camera_type) {
+            (CameraType::Csi { sensor_id: a_id }, CameraType::Csi { sensor_id: b_id }) => a_id.cmp(b_id),
+            (CameraType::Csi { .. }, _) => std::cmp::Ordering::Less,
+            (_, CameraType::Csi { .. }) => std::cmp::Ordering::Greater,
+            _ => a.name.cmp(&b.name),
+        }
+    });
+
+    info!(count = cameras.len(), "Camera detection complete");
+    cameras
+}
+
+/// Auto-detect cameras using full GStreamer probing.
+///
+/// This is more thorough than `detect_cameras()` but requires GStreamer
+/// initialization which can hang on some systems.
+#[allow(dead_code)]
+pub fn detect_cameras_gstreamer() -> Vec<DetectedCamera> {
+    debug!("Starting GStreamer init for camera detection...");
     if let Err(e) = ensure_gst_init() {
         error!(?e, "Failed to initialize GStreamer");
         return Vec::new();
