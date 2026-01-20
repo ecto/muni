@@ -150,6 +150,23 @@ max_angular_vel = 1.5
 # Goal waypoint [x, y] for testing (optional, can be set via command)
 # goal = [5.0, 0.0]
 
+[estop]
+# Hardware e-stop GPIO configuration (Jetson only)
+# Requires building with --features gpio
+enabled = false  # Set to true when hardware e-stop button is connected
+# GPIO chip device name
+gpio_chip = "gpiochip0"
+# GPIO line number (Pin 36 on Jetson 40-pin header = GPIO16)
+gpio_line = 16
+# Active-low logic (true = button connects GPIO to GND when pressed)
+active_low = true
+# Debounce time in milliseconds
+debounce_ms = 50
+# Require operator confirmation to release e-stop (latch behavior)
+# When true: button release alone won't clear e-stop, operator must send EStopRelease command
+# When false: button release immediately clears e-stop
+require_confirmation = true
+
 [lidar]
 # Enable LiDAR sensor (Livox Mid360)
 enabled = true

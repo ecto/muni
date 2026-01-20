@@ -8,6 +8,7 @@ use can::Bus;
 use clap::Parser;
 use control::{ChassisParams, DiffDriveMixer, Limits, RateLimiter, Watchdog};
 use gps::{Config as GpsConfig, GpsReader, GpsState};
+use hal::EStopEvent;
 use lidar::{Config as LidarConfig, LidarReader};
 use localization::{PoseEstimator, WheelOdometry};
 use slam::{SlamConfig, SlamProcessor};
@@ -45,6 +46,38 @@ struct FileConfig {
     dispatch: DispatchFileConfig,
     lidar: LidarFileConfig,
     slam: SlamFileConfig,
+    estop: EStopFileConfig,
+}
+
+/// Hardware e-stop configuration.
+#[derive(Debug, Deserialize)]
+#[serde(default)]
+struct EStopFileConfig {
+    /// Enable hardware e-stop GPIO monitoring
+    enabled: bool,
+    /// GPIO chip device name (e.g., "gpiochip0")
+    gpio_chip: String,
+    /// GPIO line number (e.g., 16 for Pin 36 on Jetson 40-pin header)
+    gpio_line: u32,
+    /// Active-low logic (true = button connects GPIO to GND when pressed)
+    active_low: bool,
+    /// Debounce time in milliseconds
+    debounce_ms: u64,
+    /// Require operator confirmation to release e-stop (not just button release)
+    require_confirmation: bool,
+}
+
+impl Default for EStopFileConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false, // Disabled by default - opt-in when hardware is connected
+            gpio_chip: "gpiochip0".to_string(),
+            gpio_line: 16,
+            active_low: true,
+            debounce_ms: 50,
+            require_confirmation: true,
+        }
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -979,6 +1012,54 @@ async fn main() -> Result<()> {
         None
     };
 
+    // Hardware e-stop GPIO monitoring (Jetson only, requires gpio feature)
+    let (estop_tx, mut estop_rx) = mpsc::channel::<EStopEvent>(8);
+    let mut hardware_estop_latched = false; // Latches until explicit release confirmation
+
+    #[cfg(feature = "gpio")]
+    {
+        if file_config.estop.enabled {
+            use hal::{EStopConfig, EStopInput};
+
+            let estop_config = EStopConfig {
+                gpio_chip: file_config.estop.gpio_chip.clone(),
+                gpio_line: file_config.estop.gpio_line,
+                active_low: file_config.estop.active_low,
+                debounce_ms: file_config.estop.debounce_ms,
+            };
+
+            let estop_input = EStopInput::new(estop_config.clone());
+
+            match estop_input.spawn(estop_tx).await {
+                Ok(handle) => {
+                    info!(
+                        gpio_chip = %estop_config.gpio_chip,
+                        gpio_line = estop_config.gpio_line,
+                        active_low = estop_config.active_low,
+                        require_confirmation = file_config.estop.require_confirmation,
+                        "Hardware e-stop GPIO monitoring started"
+                    );
+                    // Let the handle run in the background
+                    drop(handle);
+                }
+                Err(e) => {
+                    warn!(?e, "Failed to start hardware e-stop GPIO - continuing without hardware e-stop");
+                }
+            }
+        } else {
+            drop(estop_tx); // Not using GPIO, drop the sender
+            info!("Hardware e-stop disabled in config");
+        }
+    }
+
+    #[cfg(not(feature = "gpio"))]
+    {
+        drop(estop_tx); // Not using GPIO, drop the sender
+        if file_config.estop.enabled {
+            warn!("Hardware e-stop enabled in config but compiled without 'gpio' feature");
+        }
+    }
+
     // Control loop setup
     let mixer = DiffDriveMixer::new(chassis);
     let mut rate_limiter = RateLimiter::new(limits);
@@ -1016,6 +1097,11 @@ async fn main() -> Result<()> {
     const CAN_ERROR_BACKOFF_THRESHOLD: u32 = 10; // Skip commands after 10 consecutive errors
     const CAN_RETRY_INTERVAL: u64 = 100; // Retry every 100 loops (1 second at 100Hz)
 
+    // Policy execution timeout tracking for autonomous mode safety
+    const POLICY_WARN_THRESHOLD: Duration = Duration::from_millis(20); // Warn if >20ms (2x control period)
+    const POLICY_ERROR_THRESHOLD: Duration = Duration::from_millis(50); // Error if >50ms (5x control period)
+    let mut policy_slow_count: u32 = 0;
+
     info!("Entering control loop");
     info!("Dashboard available at http://localhost:{}", args.ui_port);
     info!("Send commands to UDP port 4840");
@@ -1052,6 +1138,47 @@ async fn main() -> Result<()> {
             let mut state = shared.lock().unwrap();
             state.drivetrain.process_frame(&frame);
             state.tool_registry.process_frame(&frame);
+        }
+
+        // Process hardware e-stop events (highest priority - before any other commands)
+        while let Ok(event) = estop_rx.try_recv() {
+            match event {
+                EStopEvent::Pressed => {
+                    warn!("Hardware e-stop button PRESSED");
+                    let mut state = shared.lock().unwrap();
+                    state.state_machine.transition(Event::EStop);
+                    state.commanded_twist = Twist::default();
+                    rate_limiter.reset();
+                    hardware_estop_latched = true;
+
+                    // Send e-stop LED pattern
+                    let led_cmd = state.state_machine.led_command();
+                    if let Err(e) = can_interface.send(&led_cmd.to_frame()) {
+                        debug!(?e, "Failed to send e-stop LED command");
+                    }
+                }
+                EStopEvent::Released => {
+                    if file_config.estop.require_confirmation {
+                        // Latch semantics: button release doesn't auto-clear e-stop
+                        // Operator must send explicit EStopRelease command via teleop
+                        info!(
+                            "Hardware e-stop button released (awaiting operator confirmation to resume)"
+                        );
+                    } else {
+                        // Auto-release: button release clears e-stop immediately
+                        info!("Hardware e-stop button released (auto-release enabled)");
+                        let mut state = shared.lock().unwrap();
+                        state.state_machine.transition(Event::EStopRelease);
+                        hardware_estop_latched = false;
+
+                        // Send idle LED pattern
+                        let led_cmd = state.state_machine.led_command();
+                        if let Err(e) = can_interface.send(&led_cmd.to_frame()) {
+                            debug!(?e, "Failed to send e-stop release LED command");
+                        }
+                    }
+                }
+            }
         }
 
         loop_count += 1;
@@ -1096,7 +1223,13 @@ async fn main() -> Result<()> {
                         rate_limiter.reset();
                     }
                     Command::EStopRelease => {
-                        info!("E-Stop release command received");
+                        if hardware_estop_latched {
+                            // This is the operator confirmation to clear hardware e-stop
+                            info!("E-Stop release confirmed by operator (clearing hardware latch)");
+                            hardware_estop_latched = false;
+                        } else {
+                            info!("E-Stop release command received");
+                        }
                         state.state_machine.transition(Event::EStopRelease);
                     }
                     Command::SetMode(mode) => {
@@ -1122,22 +1255,12 @@ async fn main() -> Result<()> {
             }
         }
 
-        // Apply latest Twist command (single lock, latest value only)
+        // Apply latest Twist command only if in Teleop mode (requires explicit control takeover)
         if let Some(twist) = latest_twist {
-            watchdog.feed();
             let mut state = shared.lock().unwrap();
-            state.commanded_twist = twist;
-
-            // Auto-transition to teleop when receiving commands
-            match state.state_machine.mode() {
-                Mode::Disabled => {
-                    state.state_machine.transition(Event::Enable);
-                    state.state_machine.transition(Event::TeleopCommand);
-                }
-                Mode::Idle => {
-                    state.state_machine.transition(Event::TeleopCommand);
-                }
-                _ => {}
+            if state.state_machine.mode() == Mode::Teleop {
+                watchdog.feed();
+                state.commanded_twist = twist;
             }
         }
 
@@ -1203,13 +1326,57 @@ async fn main() -> Result<()> {
             }
         }
 
-        // Check watchdog
+        // Check watchdog - different handling for teleop vs autonomous
         {
-            let mut state = shared.lock().unwrap();
-            if watchdog.is_timed_out() && state.state_machine.is_driving() {
-                warn!("Command watchdog timeout");
-                state.state_machine.transition(Event::CommandTimeout);
-                state.commanded_twist = Twist::default();
+            let is_timed_out;
+            let current_mode;
+            {
+                let state = shared.lock().unwrap();
+                is_timed_out = watchdog.is_timed_out() && state.state_machine.is_driving();
+                current_mode = state.state_machine.mode();
+            }
+
+            if is_timed_out {
+                match current_mode {
+                    Mode::Teleop => {
+                        // Teleop timeout: operator stopped sending commands, return to Idle
+                        warn!("Command watchdog timeout in teleop mode");
+                        let mut state = shared.lock().unwrap();
+                        state.state_machine.transition(Event::CommandTimeout);
+                        state.commanded_twist = Twist::default();
+                    }
+                    Mode::Autonomous => {
+                        // Autonomous timeout: control loop or policy hung - this is critical
+                        // Since watchdog is fed on successful policy inference, timeout means
+                        // either policy is hanging or control loop stopped executing
+                        error!("Watchdog timeout in autonomous mode - control loop or policy hung");
+
+                        // Report failure if executing dispatch task
+                        if let Some(ref task) = *current_dispatch_task.lock().unwrap() {
+                            if let Some(ref client) = dispatch_client {
+                                let task_id = task.task_id;
+                                let client_clone = client.clone();
+                                tokio::spawn(async move {
+                                    let _ = client_clone
+                                        .report_failed(task_id, "Watchdog timeout - control loop hung")
+                                        .await;
+                                });
+                            }
+                        }
+
+                        // Transition to Fault (more severe than Idle) for autonomous failures
+                        let mut state = shared.lock().unwrap();
+                        state.state_machine.transition(Event::Fault);
+                        state.commanded_twist = Twist::default();
+                    }
+                    _ => {
+                        // Shouldn't happen (is_driving only true for Teleop/Autonomous)
+                        warn!("Unexpected watchdog timeout in mode {:?}", current_mode);
+                        let mut state = shared.lock().unwrap();
+                        state.state_machine.transition(Event::CommandTimeout);
+                        state.commanded_twist = Twist::default();
+                    }
+                }
                 rate_limiter.reset();
             }
         }
@@ -1258,15 +1425,42 @@ async fn main() -> Result<()> {
                         &norm_config,
                     );
 
-                    // Run policy inference
+                    // Run policy inference with timing
+                    let policy_start = Instant::now();
                     match policy.infer(&obs) {
                         Ok(action) => {
+                            let inference_time = policy_start.elapsed();
+
+                            // Track slow policy inference (safety monitoring)
+                            if inference_time > POLICY_ERROR_THRESHOLD {
+                                policy_slow_count += 1;
+                                error!(
+                                    duration_ms = inference_time.as_millis(),
+                                    slow_count = policy_slow_count,
+                                    "Policy inference critically slow - may cause control issues"
+                                );
+                            } else if inference_time > POLICY_WARN_THRESHOLD {
+                                policy_slow_count += 1;
+                                warn!(
+                                    duration_ms = inference_time.as_millis(),
+                                    slow_count = policy_slow_count,
+                                    "Policy inference slow"
+                                );
+                            } else {
+                                policy_slow_count = 0; // Reset counter on normal execution
+                            }
+
+                            // Feed watchdog on successful autonomous control loop
+                            // This ensures we detect control loop hangs, not just teleop command absence
+                            watchdog.feed();
+
                             let twist = action.to_twist(autonomous_max_linear, autonomous_max_angular);
                             debug!(
                                 linear = twist.linear,
                                 angular = twist.angular,
                                 goal_x = goal[0],
                                 goal_y = goal[1],
+                                inference_ms = inference_time.as_micros() as f64 / 1000.0,
                                 "Autonomous policy output"
                             );
 

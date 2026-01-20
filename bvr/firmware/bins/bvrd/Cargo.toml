@@ -5,6 +5,11 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 
+[features]
+default = []
+# Enable hardware GPIO support (Jetson Orin NX) for hardware e-stop
+gpio = ["hal/gpio"]
+
 [dependencies]
 types = { workspace = true }
 can = { workspace = true }
