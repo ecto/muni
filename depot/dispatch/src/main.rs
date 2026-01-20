@@ -348,6 +348,12 @@ async fn main() {
 
     let state = Arc::new(AppState::new(pool));
 
+    // Spawn background task to detect and recover orphaned tasks
+    let cleanup_state = state.clone();
+    tokio::spawn(async move {
+        task_cleanup_loop(cleanup_state).await;
+    });
+
     let app = Router::new()
         // Zone endpoints
         .route("/zones", post(create_zone))
@@ -408,6 +414,71 @@ async fn run_migrations(pool: &PgPool) {
         info!("Migration complete");
     } else {
         info!("Database already initialized");
+    }
+}
+
+// =============================================================================
+// Task Cleanup (Orphaned Task Recovery)
+// =============================================================================
+
+/// Background loop that detects and fails orphaned tasks.
+///
+/// Tasks are considered orphaned if:
+/// - Status is 'assigned' or 'active' AND
+/// - The rover is not currently connected AND
+/// - The task has been in that state for > TASK_TIMEOUT_MINUTES
+async fn task_cleanup_loop(state: SharedState) {
+    use std::time::Duration;
+    use tokio::time::interval;
+
+    // Check every minute
+    let mut ticker = interval(Duration::from_secs(60));
+    // Configurable timeout (default 5 minutes)
+    let timeout_minutes: i64 = std::env::var("TASK_TIMEOUT_MINUTES")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(5);
+
+    info!(timeout_minutes, "Starting task cleanup loop");
+
+    loop {
+        ticker.tick().await;
+
+        // Get list of currently connected rover IDs
+        let connected_rovers: Vec<String> = {
+            let rovers = state.rovers.read().await;
+            rovers.keys().cloned().collect()
+        };
+
+        // Find orphaned tasks: active/assigned tasks for rovers that are NOT connected
+        // and have been stuck for longer than the timeout
+        let orphaned_tasks: Vec<Task> = sqlx::query_as(
+            r#"
+            UPDATE tasks
+            SET status = 'failed', error = 'Task timeout - rover not connected', ended_at = now()
+            WHERE status IN ('assigned', 'active')
+              AND rover_id != ALL($1)
+              AND (
+                  (started_at IS NOT NULL AND started_at < now() - make_interval(mins => $2))
+                  OR (started_at IS NULL AND created_at < now() - make_interval(mins => $2))
+              )
+            RETURNING id, mission_id, rover_id, status, progress, waypoint, lap, error, created_at, started_at, ended_at
+            "#,
+        )
+        .bind(&connected_rovers)
+        .bind(timeout_minutes)
+        .fetch_all(&state.db)
+        .await
+        .unwrap_or_default();
+
+        for task in orphaned_tasks {
+            warn!(
+                task_id = %task.id,
+                rover_id = %task.rover_id,
+                "Marked orphaned task as failed"
+            );
+            state.broadcast(BroadcastMessage::TaskUpdate { task });
+        }
     }
 }
 
@@ -1157,6 +1228,26 @@ async fn handle_rover_ws(socket: WebSocket, state: SharedState) {
     // Cleanup on disconnect
     if let Some(id) = rover_id {
         info!(rover_id = %id, "Rover disconnected");
+
+        // Mark any active/assigned tasks for this rover as failed
+        let failed_tasks: Vec<Task> = sqlx::query_as(
+            r#"
+            UPDATE tasks
+            SET status = 'failed', error = 'Rover disconnected', ended_at = now()
+            WHERE rover_id = $1 AND status IN ('assigned', 'active')
+            RETURNING id, mission_id, rover_id, status, progress, waypoint, lap, error, created_at, started_at, ended_at
+            "#,
+        )
+        .bind(&id)
+        .fetch_all(&state.db)
+        .await
+        .unwrap_or_default();
+
+        for task in failed_tasks {
+            warn!(task_id = %task.id, rover_id = %id, "Task failed due to rover disconnect");
+            state.broadcast(BroadcastMessage::TaskUpdate { task });
+        }
+
         let mut rovers = state.rovers.write().await;
         rovers.remove(&id);
         drop(rovers);
