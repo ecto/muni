@@ -157,19 +157,19 @@ export function DashboardView() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
             <div>
               <p className="text-muted-foreground">Discovery</p>
-              <p className="font-mono">● Connected</p>
+              <p className="font-mono text-foreground">● Connected</p>
             </div>
             <div>
               <p className="text-muted-foreground">InfluxDB</p>
-              <p className="font-mono">● Healthy</p>
+              <p className="font-mono text-foreground">● Healthy</p>
             </div>
             <div>
               <p className="text-muted-foreground">SFTP</p>
-              <p className="font-mono">● Running</p>
+              <p className="font-mono text-foreground">● Running</p>
             </div>
             <div>
               <p className="text-muted-foreground">NTRIP</p>
-              <p className="font-mono">
+              <p className="font-mono text-foreground">
                 {gpsStatus?.clients !== undefined
                   ? `● ${gpsStatus.clients} clients`
                   : "○ Unknown"}

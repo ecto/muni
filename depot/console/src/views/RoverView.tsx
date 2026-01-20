@@ -34,12 +34,12 @@ export function RoverView() {
           <div className="flex items-center gap-4">
             <Link
               to="/fleet"
-              className="h-10 w-10 flex items-center justify-center border border-border hover:border-primary transition-colors"
+              className="h-10 w-10 flex items-center justify-center border border-border hover:border-primary transition-colors text-foreground"
             >
               <ArrowLeft className="h-4 w-4" />
             </Link>
             <div>
-              <h1 className="text-2xl font-bold">{rover.name || rover.id}</h1>
+              <h1 className="text-2xl font-bold text-foreground">{rover.name || rover.id}</h1>
               <p className="text-muted-foreground">
                 {rover.online ? "Online" : "Offline"} · {ModeLabels[rover.mode as Mode]}
               </p>
@@ -63,7 +63,7 @@ export function RoverView() {
               <BatteryHigh className="h-4 w-4 text-muted-foreground" />
               <span className="text-sm text-muted-foreground">Battery</span>
             </div>
-            <p className="text-2xl font-mono">{rover.batteryVoltage.toFixed(1)}V</p>
+            <p className="text-2xl font-mono text-foreground">{rover.batteryVoltage.toFixed(1)}V</p>
           </div>
 
           <div className="bg-card border border-border p-4">
@@ -71,7 +71,7 @@ export function RoverView() {
               <MapPin className="h-4 w-4 text-muted-foreground" />
               <span className="text-sm text-muted-foreground">Position</span>
             </div>
-            <p className="text-lg font-mono">
+            <p className="text-lg font-mono text-foreground">
               ({rover.lastPose.x.toFixed(2)}, {rover.lastPose.y.toFixed(2)})
             </p>
             <p className="text-sm text-muted-foreground font-mono">
@@ -84,30 +84,30 @@ export function RoverView() {
               <Thermometer className="h-4 w-4 text-muted-foreground" />
               <span className="text-sm text-muted-foreground">Motors</span>
             </div>
-            <p className="text-lg font-mono">--°C</p>
+            <p className="text-lg font-mono text-foreground">--°C</p>
             <p className="text-sm text-muted-foreground">Telemetry not connected</p>
           </div>
         </div>
 
         {/* Connection Info */}
         <div className="bg-card border border-border p-6">
-          <h2 className="font-medium mb-4">Connection Details</h2>
+          <h2 className="font-medium text-foreground mb-4">Connection Details</h2>
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
               <p className="text-muted-foreground mb-1">Rover ID</p>
-              <p className="font-mono">{rover.id}</p>
+              <p className="font-mono text-foreground">{rover.id}</p>
             </div>
             <div>
               <p className="text-muted-foreground mb-1">WebSocket Address</p>
-              <p className="font-mono">{rover.address}</p>
+              <p className="font-mono text-foreground">{rover.address}</p>
             </div>
             <div>
               <p className="text-muted-foreground mb-1">Video Address</p>
-              <p className="font-mono">{rover.videoAddress}</p>
+              <p className="font-mono text-foreground">{rover.videoAddress}</p>
             </div>
             <div>
               <p className="text-muted-foreground mb-1">Last Seen</p>
-              <p className="font-mono">
+              <p className="font-mono text-foreground">
                 {new Date(rover.lastSeen).toLocaleTimeString()}
               </p>
             </div>
@@ -118,7 +118,7 @@ export function RoverView() {
         <div className="flex gap-4">
           <Link
             to={`/sessions?rover=${rover.id}`}
-            className="px-4 py-2 border border-border hover:border-primary transition-colors"
+            className="px-4 py-2 border border-border hover:border-primary transition-colors text-foreground"
           >
             View Sessions
           </Link>
