@@ -91,7 +91,8 @@ export function useDispatch() {
 
   const getDispatchUrl = useCallback((path: string) => {
     if (window.location.hostname === "localhost") {
-      return `http://localhost:4890${path}`;
+      // Dev mode: connect to depot
+      return `http://depot:4890${path}`;
     }
     const protocol = window.location.protocol;
     return `${protocol}//${window.location.hostname}:4890${path}`;
@@ -99,7 +100,9 @@ export function useDispatch() {
 
   const getDispatchWsUrl = useCallback(() => {
     if (window.location.hostname === "localhost") {
-      return "ws://localhost:4890/ws/console";
+      // Dev mode: use VITE_DEPOT_HOST env var, or fall back to depot hostname
+      const depotHost = import.meta.env.VITE_DEPOT_HOST || "depot";
+      return `ws://${depotHost}:4890/ws/console`;
     }
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
     return `${protocol}//${window.location.hostname}:4890/ws/console`;

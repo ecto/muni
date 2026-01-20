@@ -9,8 +9,7 @@ import { ConnectionBar } from "@/components/teleop/ConnectionBar";
 import { Button } from "@/components/ui/button";
 import { useKeyboard } from "@/hooks/useKeyboard";
 import { useGamepad } from "@/hooks/useGamepad";
-import { useRoverConnection } from "@/hooks/useRoverConnection";
-import { useVideoStream } from "@/hooks/useVideoStream";
+import { useRoverConnectionRtc } from "@/hooks/useRoverConnectionRtc";
 import { useConsoleStore } from "@/store";
 import { Mode } from "@/lib/types";
 import { ArrowLeft, Warning } from "@phosphor-icons/react";
@@ -23,8 +22,8 @@ export function TeleopView() {
   // Initialize input and connection hooks
   useKeyboard();
   useGamepad();
-  const { disconnect, sendEStopRelease } = useRoverConnection();
-  useVideoStream();
+  // WebRTC handles both commands and video streaming
+  const { disconnect, sendEStopRelease } = useRoverConnectionRtc();
 
   // Get selected rover info
   const selectedRover = rovers.find((r) => r.id === roverId);

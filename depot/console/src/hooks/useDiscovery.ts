@@ -17,7 +17,11 @@ export function useDiscovery() {
 
   const getDiscoveryUrl = useCallback(() => {
     if (window.location.hostname === "localhost") {
-      return "ws://localhost:4860/ws";
+      // Dev mode: use VITE_DEPOT_HOST env var, or fall back to depot hostname
+      // Note: browsers can't resolve Tailscale MagicDNS, so use IP if needed
+      // Set VITE_DEPOT_HOST=100.71.209.42 in .env.local for Tailscale
+      const depotHost = import.meta.env.VITE_DEPOT_HOST || "depot";
+      return `ws://${depotHost}:4860/ws`;
     }
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
     return `${protocol}//${window.location.hostname}:4860/ws`;
