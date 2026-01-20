@@ -18,7 +18,7 @@ export function DashboardView() {
   const gpsOk = gpsStatus?.connected && gpsStatus.fixQuality !== "no_fix";
 
   return (
-    <div className="h-full overflow-auto p-6">
+    <div className="min-h-full p-6">
       <div className="max-w-4xl mx-auto space-y-8">
         {/* Header */}
         <div>

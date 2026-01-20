@@ -104,7 +104,7 @@ export function ServicesView() {
   const healthyCount = services.filter((s) => s.status === "healthy").length;
 
   return (
-    <div className="h-full overflow-auto p-6">
+    <div className="min-h-full p-6">
       <div className="max-w-4xl mx-auto space-y-8">
         {/* Header */}
         <div className="flex items-center justify-between">
