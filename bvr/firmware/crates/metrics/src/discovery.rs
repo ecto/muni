@@ -35,6 +35,12 @@ pub struct DiscoveryConfig {
 
     /// WebSocket video port
     pub ws_video_port: u16,
+
+    /// Hostname to advertise for WebSocket connections.
+    /// If set, uses this instead of auto-detecting local IP.
+    /// Useful for Tailscale/VPN setups (e.g., "frog-0" for MagicDNS).
+    #[serde(default)]
+    pub advertise_host: Option<String>,
 }
 
 fn default_heartbeat_secs() -> u32 {
@@ -51,6 +57,7 @@ impl Default for DiscoveryConfig {
             rover_name: "Beaver-01".to_string(),
             ws_port: 4850,
             ws_video_port: 4851,
+            advertise_host: None,
         }
     }
 }
@@ -145,21 +152,25 @@ impl DiscoveryClient {
 
     /// Register with the discovery service.
     pub async fn register(&mut self) -> Result<(), DiscoveryError> {
-        // Determine local address if not cached
-        if self.local_address.is_none() {
-            self.local_address = self.get_local_address();
-        }
-
-        let local_ip = self
-            .local_address
-            .as_ref()
-            .ok_or(DiscoveryError::NoLocalAddress)?;
+        // Use advertise_host if configured, otherwise auto-detect
+        let host = if let Some(ref advertise) = self.config.advertise_host {
+            advertise.clone()
+        } else {
+            // Determine local address if not cached
+            if self.local_address.is_none() {
+                self.local_address = self.get_local_address();
+            }
+            self.local_address
+                .as_ref()
+                .ok_or(DiscoveryError::NoLocalAddress)?
+                .clone()
+        };
 
         let payload = RegistrationPayload {
             id: self.config.rover_id.clone(),
             name: self.config.rover_name.clone(),
-            address: format!("ws://{}:{}", local_ip, self.config.ws_port),
-            video_address: format!("ws://{}:{}", local_ip, self.config.ws_video_port),
+            address: format!("ws://{}:{}", host, self.config.ws_port),
+            video_address: format!("ws://{}:{}", host, self.config.ws_video_port),
         };
 
         let url = format!("{}/register", self.base_url);

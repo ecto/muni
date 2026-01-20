@@ -6,7 +6,7 @@
 use crate::{Telemetry, TeleopError};
 use futures_util::{SinkExt, StreamExt};
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::{mpsc, watch};
 use tokio_tungstenite::{accept_async, tungstenite::Message};
@@ -113,11 +113,41 @@ async fn handle_connection(
     });
 
     // Process incoming commands
+    let mut last_cmd_time = Instant::now();
+    let mut cmd_count: u64 = 0;
     while let Some(msg) = ws_receiver.next().await {
         match msg {
             Ok(Message::Binary(data)) => {
                 if let Some(cmd) = parse_command(&data) {
-                    debug!(?cmd, "WebSocket command received");
+                    // Log timing gaps to debug jerky controls
+                    let now = Instant::now();
+                    let gap_ms = now.duration_since(last_cmd_time).as_millis();
+                    cmd_count += 1;
+
+                    // Parse client timestamp if present (Twist command with timestamp)
+                    let latency_info = if data.len() >= 26 && data[0] == 0x01 {
+                        // Parse u64 timestamp at offset 18
+                        let client_ts = u64::from_le_bytes(data[18..26].try_into().unwrap_or([0; 8]));
+                        let server_ts = std::time::SystemTime::now()
+                            .duration_since(std::time::UNIX_EPOCH)
+                            .map(|d| d.as_millis() as u64)
+                            .unwrap_or(0);
+                        let latency = server_ts.saturating_sub(client_ts);
+                        Some(latency)
+                    } else {
+                        None
+                    };
+
+                    if gap_ms > 100 {
+                        warn!(gap_ms, cmd_count, latency_ms = ?latency_info, "Large gap between WebSocket commands");
+                    } else if let Some(lat) = latency_info {
+                        if lat > 100 {
+                            warn!(latency_ms = lat, gap_ms, "High command latency");
+                        }
+                    }
+
+                    last_cmd_time = now;
+                    debug!(?cmd, gap_ms, latency_ms = ?latency_info, "WebSocket command received");
                     let _ = command_tx.send(cmd).await;
                 }
             }
