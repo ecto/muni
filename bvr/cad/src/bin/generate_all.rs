@@ -13,18 +13,19 @@ use bvr_cad::export::{export_usd, export_robot_usd, WheelConfig};
 use bvr_cad::parts::{
     // Custom fabricated
     BVR1Frame, CornerBracket, ElectronicsPlate, Extrusion2020, MotorMount, SensorMount, TNut,
-    WheelSpacer, BatteryTray, BaseTray, AccessPanel, UUMotor, UUMotorMount,
+    WheelSpacer, BatteryTray, BaseTray, AccessPanel, UUMotor, UUMotorMount, SingleDropoutMount,
     // "Friendly Industrial" Shell (Wall Wrap + Top Lid + Sensor Dome)
     ShellConfig, ShellAssembly, WallWrap, WallWrapConfig, TopLid, TopLidConfig,
     SkidPlate, SkidPlateConfig, SensorDome, SensorDomeConfig,
     // Reference parts
-    HubMotor, Lidar, Camera, GpsAntenna, Vesc, Jetson, DcDc, EStopButton,
+    HubMotor, Lidar, Camera, GpsAntenna, ProxicastAntenna, Vesc, Jetson, DcDc, EStopButton,
     DowntubeBattery, CustomBattery,
     // Scale reference models
     Banana, Human,
     // Complete assemblies
     BVR0Assembly, BVR1Assembly,
 };
+use bvr_cad::parts::frame::BVR1FrameConfig;
 use bvr_cad::Part;
 use std::path::Path;
 
@@ -245,7 +246,29 @@ fn main() -> Result<()> {
 
     let part = UUMotorMount::default_bvr1().generate();
     export_part("uumotor_mount", &part, "motor_mount")?;
-    println!("  UUMotor fork mount");
+    println!("  UUMotor L-bracket mount (legacy)");
+
+    let part = SingleDropoutMount::for_kn6104().generate();
+    export_part("dropout_kn6104", &part, "motor_mount")?;
+    println!("  Dropout mount for KN6104 (10\" wheel)");
+
+    // Positioned dropout mounts (without wheels) for visualization
+    let dropout = SingleDropoutMount::for_kn6104().generate();
+    let frame_cfg = BVR1FrameConfig::default();
+    let gc = 300.0;
+    let mount_center_x = 360.0;
+    let mount_y_front = frame_cfg.length / 2.0 - 60.0;
+    let mount_y_rear = -frame_cfg.length / 2.0 + 60.0;
+    let mount_z = gc;
+
+    let dropout_fl = dropout.scale(-1.0, 1.0, 1.0).translate(-mount_center_x, mount_y_front, mount_z);
+    let dropout_fr = dropout.translate(mount_center_x, mount_y_front, mount_z);
+    let dropout_rl = dropout.scale(-1.0, 1.0, 1.0).translate(-mount_center_x, mount_y_rear, mount_z);
+    let dropout_rr = dropout.translate(mount_center_x, mount_y_rear, mount_z);
+
+    let mounts_positioned = dropout_fl.union(&dropout_fr).union(&dropout_rl).union(&dropout_rr);
+    export_part("dropout_kn6104_positioned", &mounts_positioned, "motor_mount")?;
+    println!("  Dropout mounts positioned (no wheels)");
 
     let part = HubMotor::hub_8in().generate();
     export_part("ref_hub_motor_8in", &part, "hub_motor_body")?;
@@ -272,6 +295,10 @@ fn main() -> Result<()> {
     let part = GpsAntenna::default_rtk().generate();
     export_part("ref_gps_antenna", &part, "gps_antenna")?;
     println!("  GPS antenna");
+
+    let part = ProxicastAntenna::default_5in1().generate();
+    export_part("ref_proxicast_antenna", &part, "proxicast_antenna")?;
+    println!("  Proxicast 5-in-1 antenna");
 
     let part = Vesc::vesc_6().generate();
     export_part("ref_vesc_6", &part, "vesc")?;
@@ -425,6 +452,7 @@ fn sync_to_web(gltf_dir: &Path) -> Result<usize> {
         ("uumotor_svb6hs.glb", "uumotor_svb6hs.glb"),
         ("uumotor_kn6104.glb", "uumotor_kn6104.glb"),
         ("uumotor_mount.glb", "uumotor_mount.glb"),
+        ("drop_fork_kn6104.glb", "drop_fork_kn6104.glb"),
         // Electronics
         ("base_tray.glb", "base_tray.glb"),
         ("access_panel.glb", "access_panel.glb"),

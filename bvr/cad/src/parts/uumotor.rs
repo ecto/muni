@@ -39,21 +39,45 @@ pub struct UUMotorConfig {
 }
 
 impl UUMotorConfig {
-    /// KN6104 with standard shaft (170mm total width)
+    /// KN6104 with single shaft - bicycle-style dropout mount
+    ///
+    /// From Tony @ UUMotor (Jan 2026):
+    /// - M16×1.5 threaded axle (not M14!)
+    /// - Single shaft extends from motor body
+    /// - Mounts like a bicycle wheel in dropout forks
+    /// - Disc brake compatible
+    pub fn kn6104_single_shaft() -> Self {
+        Self {
+            wheel_diameter: 270.0,      // 10×4.00-6 tire
+            tire_width: 100.0,          // Wide pneumatic tire
+            hub_diameter: 180.0,        // Motor housing
+            hub_width: 85.0,            // Motor body width (without axle)
+            axle_diameter: 16.0,        // M16×1.5 from Tony's email
+            axle_length_motor: 0.0,     // Single shaft - no cable side protrusion
+            axle_length_outer: 45.0,    // Mount side - enough for fork + nut
+            flange_diameter: 160.0,
+            flange_thickness: 8.0,
+            num_mount_holes: 5,
+            mount_hole_pcd: 120.0,
+            mount_hole_diameter: 6.0,
+        }
+    }
+
+    /// KN6104 standard (legacy dual-shaft config)
     pub fn kn6104_standard() -> Self {
         Self {
-            wheel_diameter: 270.0,      // 10x4.00-6 tire
+            wheel_diameter: 270.0,
             tire_width: 80.0,
-            hub_diameter: 180.0,        // Estimated from photos
-            hub_width: 114.0,           // From drawing (shorter option)
-            axle_diameter: 14.0,
-            axle_length_motor: 28.0,    // Cable side
-            axle_length_outer: 29.0,    // Threaded mount side
-            flange_diameter: 160.0,     // Estimated
+            hub_diameter: 180.0,
+            hub_width: 114.0,
+            axle_diameter: 16.0,        // M16×1.5
+            axle_length_motor: 28.0,
+            axle_length_outer: 29.0,
+            flange_diameter: 160.0,
             flange_thickness: 8.0,
-            num_mount_holes: 5,         // Visible in photos
-            mount_hole_pcd: 120.0,      // Estimated
-            mount_hole_diameter: 6.0,   // M5 or M6
+            num_mount_holes: 5,
+            mount_hole_pcd: 120.0,
+            mount_hole_diameter: 6.0,
         }
     }
 
@@ -63,8 +87,8 @@ impl UUMotorConfig {
             wheel_diameter: 270.0,
             tire_width: 80.0,
             hub_diameter: 180.0,
-            hub_width: 134.0,           // From drawing (longer option)
-            axle_diameter: 14.0,
+            hub_width: 134.0,
+            axle_diameter: 16.0,        // M16×1.5
             axle_length_motor: 32.0,
             axle_length_outer: 33.0,
             flange_diameter: 160.0,
@@ -110,12 +134,14 @@ impl UUMotor {
         Self { config }
     }
 
-    /// KN6104 10" motor - standard shaft configuration
+    /// KN6104 10" motor - single shaft for dropout fork mounting
+    ///
+    /// This is the configuration from Tony @ UUMotor (Jan 2026)
     pub fn kn6104() -> Self {
-        Self::new(UUMotorConfig::kn6104_standard())
+        Self::new(UUMotorConfig::kn6104_single_shaft())
     }
 
-    /// KN6104 10" motor - extended shaft configuration
+    /// KN6104 10" motor - extended shaft configuration (legacy)
     pub fn kn6104_extended() -> Self {
         Self::new(UUMotorConfig::kn6104_extended())
     }
@@ -123,6 +149,11 @@ impl UUMotor {
     /// SVB6HS 6.5" motor with encoder - ADA sidewalk compliant
     pub fn svb6hs() -> Self {
         Self::new(UUMotorConfig::svb6hs())
+    }
+
+    /// Get the motor configuration
+    pub fn config(&self) -> &UUMotorConfig {
+        &self.config
     }
 
     /// Get wheel diameter
@@ -179,29 +210,35 @@ impl UUMotor {
             .rotate(90.0, 0.0, 0.0)
             .translate(0.0, cfg.hub_width / 2.0 - cfg.flange_thickness / 2.0, 0.0);
 
-        // Axle - motor side (with cable exit area)
-        let axle_motor = centered_cylinder("axle_motor", cfg.axle_diameter / 2.0, cfg.axle_length_motor, segments)
-            .rotate(90.0, 0.0, 0.0)
-            .translate(0.0, -cfg.hub_width / 2.0 - cfg.axle_length_motor / 2.0, 0.0);
-
-        // Axle - outer/mount side (threaded)
-        let axle_outer = centered_cylinder("axle_outer", cfg.axle_diameter / 2.0, cfg.axle_length_outer, segments)
-            .rotate(90.0, 0.0, 0.0)
-            .translate(0.0, cfg.hub_width / 2.0 + cfg.axle_length_outer / 2.0, 0.0);
-
-        // Axle nut (visible in photos)
-        let nut_size = cfg.axle_diameter * 1.8;
-        let nut = centered_cylinder("nut", nut_size / 2.0, 10.0, 6) // Hexagonal approximation
-            .rotate(90.0, 0.0, 0.0)
-            .translate(0.0, cfg.hub_width / 2.0 + cfg.axle_length_outer - 5.0, 0.0);
-
-        tire
+        // Axle - motor/cable side (only if present - single shaft motors have 0 length)
+        let mut result = tire
             .union(&hub)
             .union(&flange_inner)
-            .union(&flange_outer)
-            .union(&axle_motor)
-            .union(&axle_outer)
-            .union(&nut)
+            .union(&flange_outer);
+
+        if cfg.axle_length_motor > 0.0 {
+            let axle_motor = centered_cylinder("axle_motor", cfg.axle_diameter / 2.0, cfg.axle_length_motor, segments)
+                .rotate(90.0, 0.0, 0.0)
+                .translate(0.0, -cfg.hub_width / 2.0 - cfg.axle_length_motor / 2.0, 0.0);
+            result = result.union(&axle_motor);
+        }
+
+        // Axle - outer/mount side (threaded) - always present
+        if cfg.axle_length_outer > 0.0 {
+            let axle_outer = centered_cylinder("axle_outer", cfg.axle_diameter / 2.0, cfg.axle_length_outer, segments)
+                .rotate(90.0, 0.0, 0.0)
+                .translate(0.0, cfg.hub_width / 2.0 + cfg.axle_length_outer / 2.0, 0.0);
+
+            // Axle nut (visible in photos)
+            let nut_size = cfg.axle_diameter * 1.8;
+            let nut = centered_cylinder("nut", nut_size / 2.0, 10.0, 6) // Hexagonal approximation
+                .rotate(90.0, 0.0, 0.0)
+                .translate(0.0, cfg.hub_width / 2.0 + cfg.axle_length_outer - 5.0, 0.0);
+
+            result = result.union(&axle_outer).union(&nut);
+        }
+
+        result
     }
 
     /// Create tire geometry
@@ -355,29 +392,39 @@ impl LBracketMountConfig {
         }
     }
 
-    /// L-bracket config for KN6104 10" motor (M14 axle)
+    /// L-bracket config for KN6104 10" motor (M16×1.5 axle)
+    ///
+    /// Dropout fork style mount - axle sits in slot, secured with nut
+    /// Based on Tony @ UUMotor specs (Jan 2026)
     pub fn for_kn6104() -> Self {
         Self {
-            axle_hole_diameter: 15.0,
-            axle_boss_diameter: 32.0,
-            axle_boss_thickness: 10.0,
+            // M16 axle with 1mm clearance
+            axle_hole_diameter: 17.0,
+            axle_boss_diameter: 40.0,    // Larger boss for 10" wheel loads
+            axle_boss_thickness: 12.0,
 
-            vertical_arm_width: 90.0,
-            vertical_arm_height: 120.0,
-            vertical_arm_thickness: 15.0,  // Thicker for larger wheel
+            // Vertical arm: sized for 270mm wheel clearance
+            // Wheel radius = 135mm, need axle ~140mm below frame
+            vertical_arm_width: 100.0,
+            vertical_arm_height: 160.0,  // Taller for larger wheel
+            vertical_arm_thickness: 15.0,
 
+            // Horizontal arm: spans 100mm for 5 bolts
             horizontal_arm_length: 100.0,
-            horizontal_arm_width: 90.0,
+            horizontal_arm_width: 100.0,
             horizontal_arm_thickness: 10.0,
 
+            // Gusset for rigidity
             gusset_thickness: 10.0,
 
+            // Frame mounting (M5 into 2020 T-slot)
             frame_hole_diameter: 5.5,
             frame_hole_spacing_y: 20.0,
             frame_hole_rows: 5,
 
+            // Torque arm slot (prevents motor rotation)
             torque_slot_width: 8.0,
-            torque_slot_length: 25.0,
+            torque_slot_length: 30.0,
         }
     }
 }
@@ -392,7 +439,13 @@ impl LBracketMount {
         Self { config }
     }
 
+    /// Default mount for BVR1 - KN6104 10" motors
     pub fn default_bvr1() -> Self {
+        Self::new(LBracketMountConfig::for_kn6104())
+    }
+
+    /// Mount for SVB6HS 6.5" motors (ADA compact variant)
+    pub fn for_svb6hs() -> Self {
         Self::new(LBracketMountConfig::for_svb6hs())
     }
 
@@ -426,9 +479,14 @@ impl LBracketMount {
     }
 
     /// Distance from top of bracket to axle center
+    ///
+    /// Axle positioned near bottom of vertical arm, leaving room
+    /// for gusset at top and wheel clearance below
     pub fn axle_drop(&self) -> f64 {
-        // Axle positioned 45mm from top (leaves room for gusset)
-        45.0
+        // Axle at ~70% down the vertical arm
+        // For KN6104: 160mm × 0.7 = 112mm from top
+        // For SVB6HS: 90mm × 0.7 = 63mm from top
+        self.config.vertical_arm_height * 0.7
     }
 
     /// Distance from frame surface to wheel center (Y direction)
@@ -637,15 +695,176 @@ impl LBracketMount {
 pub type UUMotorMountConfig = LBracketMountConfig;
 pub type UUMotorMount = LBracketMount;
 
+// =============================================================================
+// Single-sided dropout mount (torque arm plate for single-shaft motor)
+// =============================================================================
+
+#[derive(Debug, Clone)]
+pub struct SingleDropoutMountConfig {
+    pub axle_diameter: f64,
+    pub slot_width: f64,
+    pub slot_depth: f64,
+    pub plate_thickness: f64,
+    pub plate_width: f64,
+    pub plate_height: f64,
+    pub arm_length: f64,
+    pub pinch_hole_diameter: f64,
+    pub pinch_hole_offset_z: f64,
+    pub frame_hole_diameter: f64,
+    pub frame_hole_spacing: f64,
+    pub frame_hole_count: usize,
+    pub brace_thickness: f64,
+    pub brace_height: f64,
+}
+
+impl SingleDropoutMountConfig {
+    pub fn for_kn6104() -> Self {
+        Self {
+            axle_diameter: 16.0,
+            slot_width: 18.0,   // 1-2mm clearance on M16 axle
+            slot_depth: 26.0,   // Deep enough for nut engagement
+            plate_thickness: 12.0,
+            plate_width: 90.0,
+            plate_height: 170.0,
+            arm_length: 90.0,   // distance from frame edge to plate center
+            pinch_hole_diameter: 0.0,   // no pinch by default
+            pinch_hole_offset_z: 0.0,   // disabled
+            frame_hole_diameter: 5.5, // M5 clearance
+            frame_hole_spacing: 30.0,
+            frame_hole_count: 4,
+            brace_thickness: 0.0, // keep simple (no gusset by default)
+            brace_height: 0.0,
+        }
+    }
+}
+
+pub struct SingleDropoutMount {
+    config: SingleDropoutMountConfig,
+}
+
+impl SingleDropoutMount {
+    pub fn new(config: SingleDropoutMountConfig) -> Self {
+        Self { config }
+    }
+
+    pub fn for_kn6104() -> Self {
+        Self::new(SingleDropoutMountConfig::for_kn6104())
+    }
+
+    pub fn config(&self) -> &SingleDropoutMountConfig {
+        &self.config
+    }
+
+    /// Distance from plate top (frame interface) to axle center
+    pub fn axle_drop(&self) -> f64 {
+        self.config.plate_height - self.config.slot_depth / 2.0
+    }
+
+    pub fn generate(&self) -> Part {
+        let cfg = &self.config;
+        let segments = 32;
+
+        // Plate: thickness along X, width along Y, height along Z (downward), centered at origin (axle center at X=0)
+        let plate = centered_cube(
+            "dropout_plate",
+            cfg.plate_thickness,
+            cfg.plate_width,
+            cfg.plate_height,
+        ).translate(0.0, 0.0, -cfg.plate_height / 2.0);
+
+        // Slot: open bottom dropout
+        let slot = centered_cube(
+            "slot",
+            cfg.slot_width,
+            cfg.plate_width + 2.0,
+            cfg.slot_depth,
+        ).translate(
+            0.0,
+            0.0,
+            -cfg.plate_height + cfg.slot_depth / 2.0,
+        );
+
+        // Bottom opening continuation (keeps slot open to bottom)
+        let bottom_open = centered_cube(
+            "slot_open",
+            cfg.slot_width,
+            cfg.plate_width + 2.0,
+            cfg.slot_depth,
+        ).translate(
+            0.0,
+            0.0,
+            -cfg.plate_height - cfg.slot_depth / 2.0,
+        );
+
+        // Frame holes near top of plate
+        let mut holes = Part::empty("holes");
+        let hole = centered_cylinder(
+            "frame_hole",
+            cfg.frame_hole_diameter / 2.0,
+            cfg.plate_thickness + 2.0,
+            segments,
+        ).rotate(90.0, 0.0, 0.0);
+
+        let start_z = -cfg.frame_hole_spacing * ((cfg.frame_hole_count as f64 - 1.0) / 2.0);
+        for i in 0..cfg.frame_hole_count {
+            let z = start_z + i as f64 * cfg.frame_hole_spacing;
+            let h = hole.translate(0.0, 0.0, z);
+            holes = holes.union(&h);
+        }
+
+        // Pinch/clamp bolt through plate (along X)
+        let pinch = if cfg.pinch_hole_diameter > 0.0 && cfg.pinch_hole_offset_z > 0.0 {
+            let pinch_hole = centered_cylinder(
+                "pinch_hole",
+                cfg.pinch_hole_diameter / 2.0,
+                cfg.plate_thickness + 2.0,
+                segments,
+            ).rotate(0.0, 90.0, 0.0)
+             .translate(0.0, 0.0, -cfg.plate_height + cfg.pinch_hole_offset_z);
+            pinch_hole
+        } else {
+            Part::empty("no_pinch")
+        };
+
+        // Top arm connecting frame edge to plate (same thickness as plate), extending from frame (negative X) to plate at X=0
+        let arm = centered_cube(
+            "arm",
+            cfg.arm_length,
+            cfg.plate_width,
+            cfg.plate_thickness,
+        ).translate(
+            -cfg.arm_length / 2.0,
+            0.0,
+            -cfg.plate_thickness / 2.0,
+        );
+
+        arm.union(&plate)
+            .difference(&slot.union(&bottom_open).union(&holes).union(&pinch))
+    }
+
+    pub fn generate_simple(&self) -> Part {
+        let cfg = &self.config;
+        centered_cube(
+            "dropout_plate_simple",
+            cfg.plate_thickness,
+            cfg.plate_width,
+            cfg.plate_height,
+        ).translate(cfg.arm_length, 0.0, -cfg.plate_height / 2.0)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn test_uumotor_kn6104() {
+        // KN6104 single-shaft config from Tony @ UUMotor (Jan 2026)
         let motor = UUMotor::kn6104();
         assert_eq!(motor.wheel_diameter(), 270.0);
-        assert_eq!(motor.axle_diameter(), 14.0);
+        assert_eq!(motor.axle_diameter(), 16.0);  // M16×1.5
+        assert_eq!(motor.config().axle_length_motor, 0.0);  // Single shaft - no cable side
+        assert_eq!(motor.axle_length(), 45.0);  // Mount side axle
     }
 
     #[test]
@@ -658,15 +877,15 @@ mod tests {
 
     #[test]
     fn test_uumotor_dimensions() {
+        // KN6104 single-shaft: 85mm hub + 0mm motor axle + 45mm outer axle = 130mm
         let motor = UUMotor::kn6104();
-        // Standard: 114 + 28 + 29 = 171mm (close to 170mm in drawing)
-        assert!(motor.total_width() > 160.0 && motor.total_width() < 180.0);
+        assert_eq!(motor.total_width(), 130.0);
     }
 
     #[test]
     fn test_uumotor_extended() {
         let motor = UUMotor::kn6104_extended();
-        // Extended: 134 + 32 + 33 = 199mm
+        // Extended dual-shaft: 134 + 32 + 33 = 199mm
         assert_eq!(motor.total_width(), 199.0);
     }
 
@@ -724,5 +943,42 @@ mod tests {
         assert!(cfg.axle_hole_diameter > motor.axle_diameter(),
             "Axle hole ({}) must be larger than axle ({})",
             cfg.axle_hole_diameter, motor.axle_diameter());
+    }
+
+    // Dropout mount tests
+    #[test]
+    fn test_dropout_generate() {
+        let mount = SingleDropoutMount::for_kn6104();
+        let part = mount.generate();
+        assert!(!part.is_empty());
+    }
+
+    #[test]
+    fn test_dropout_simple() {
+        let mount = SingleDropoutMount::for_kn6104();
+        let part = mount.generate_simple();
+        assert!(!part.is_empty());
+    }
+
+    #[test]
+    fn test_dropout_geometry() {
+        let mount = SingleDropoutMount::for_kn6104();
+        let cfg = mount.config();
+
+        // Slot clearance
+        assert!(cfg.slot_width >= cfg.axle_diameter + 1.0,
+            "Slot width ({}) must exceed axle ({})",
+            cfg.slot_width, cfg.axle_diameter);
+
+        // Axle drop should position wheel below frame
+        assert!(mount.axle_drop() > 140.0,
+            "Axle drop ({}) should be substantial for wheel positioning",
+            mount.axle_drop());
+    }
+
+    #[test]
+    fn test_dropout_slot_depth() {
+        let mount = SingleDropoutMount::for_kn6104();
+        assert!(mount.config().slot_depth >= 20.0);
     }
 }

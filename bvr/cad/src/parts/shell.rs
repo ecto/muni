@@ -381,11 +381,47 @@ impl WallWrap {
         .rotate(90.0, 0.0, 0.0)
         .translate(rear_w / 2.0 - drain_inset, -length / 2.0, drain_inset);
 
-        // Assemble the shell
-        front
+        // === BOTTOM PANEL (integrated tub floor) ===
+        // When include_bottom is true, the shell forms a "tub" with the bottom
+        // attached to the rear section (matching the DXF flat pattern)
+        let walls = front
             .union(&left)
             .union(&right)
-            .union(&rear)
+            .union(&rear);
+
+        let shell_with_bottom = if cfg.include_bottom {
+            // Bottom panel sits at Z=0, forms the floor of the tub
+            let bottom = centered_cube("bottom_panel", width, length, thickness)
+                .translate(0.0, 0.0, thickness / 2.0);
+
+            // Drain holes in bottom panel corners (matching DXF pattern)
+            let bottom_drain_inset = 30.0;
+            let drain_positions = [
+                (-width / 2.0 + bottom_drain_inset, -length / 2.0 + bottom_drain_inset),
+                (width / 2.0 - bottom_drain_inset, -length / 2.0 + bottom_drain_inset),
+                (-width / 2.0 + bottom_drain_inset, length / 2.0 - bottom_drain_inset),
+                (width / 2.0 - bottom_drain_inset, length / 2.0 - bottom_drain_inset),
+            ];
+
+            let mut bottom_drains = Part::empty("bottom_drains");
+            for (dx, dy) in drain_positions {
+                let hole = centered_cylinder(
+                    "bottom_drain",
+                    cfg.drain_hole_diameter / 2.0,
+                    thickness * 3.0,
+                    segments,
+                )
+                .translate(dx, dy, 0.0);
+                bottom_drains = bottom_drains.union(&hole);
+            }
+
+            walls.union(&bottom.difference(&bottom_drains))
+        } else {
+            walls
+        };
+
+        // Assemble the shell with cutouts
+        shell_with_bottom
             .difference(&nozzle_cutout)
             .difference(&led_cutout)
             .difference(&camera_cutouts)
@@ -771,9 +807,10 @@ impl Default for TopLidConfig {
             visor_camera_window_height: 25.0,   // Slightly shorter for horizontal look
             visor_camera_window_radius: 5.0,    // Rounded corners
             visor_camera_offset_from_top: 25.0, // Centered in visor
-            // LiDAR dome hole - centered, forms the "head"
-            sensor_hole_diameter: 160.0, // Slightly larger for dome lip
-            sensor_hole_offset: (0.0, 0.0), // Centered on lid
+            // LiDAR cable routing hole - small, just for wiring
+            // Mid-360 mounts on TOP of lid (no dome needed)
+            sensor_hole_diameter: 25.0, // Small cable pass-through
+            sensor_hole_offset: (0.0, -50.0), // Slightly rear of center (under LiDAR)
             // E-stop - front-left, prominent and accessible
             estop_hole_diameter: 30.0,
             estop_hole_offset: (-shell.shell_width() / 3.0, shell.shell_length() / 3.0),
@@ -1428,22 +1465,15 @@ impl ShellAssembly {
             .generate()
             .translate(0.0, 0.0, height);
 
-        // Sensor dome (positioned over sensor hole in lid)
-        // "Sits like a head without trying to be a head"
-        let sensor_dome = SensorDome::default_bvr1()
-            .generate()
-            .translate(
-                lid_cfg.sensor_hole_offset.0,
-                lid_cfg.sensor_hole_offset.1,
-                height + shell.thickness,
-            );
+        // NOTE: Sensor dome removed - LiDAR mounts directly on lid surface
+        // The Mid-360 is compact enough (65×65×60mm) to sit on the lid
+        // without needing a protective dome enclosure.
 
         // Gas struts (inside shell, connecting walls to lid underside)
         let gas_struts = self.generate_gas_struts();
 
         big_shell
             .union(&top_lid)
-            .union(&sensor_dome)
             .union(&gas_struts)
     }
 

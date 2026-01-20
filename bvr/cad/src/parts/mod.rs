@@ -54,7 +54,7 @@ pub use shell::{
 };
 // Legacy aliases for compatibility
 pub use shell::{FrontPanel, RearPanel, SidePanel, TopPanel};
-pub use uumotor::{LBracketMount, UUMotor, UUMotorMount};
+pub use uumotor::{LBracketMount, SingleDropoutMount, SingleDropoutMountConfig, UUMotor, UUMotorMount};
 pub use wheel_spacer::WheelSpacer;
 
 // Reference part exports
@@ -62,7 +62,7 @@ pub use battery::{BatteryTray, CustomBattery, DowntubeBattery};
 pub use electronics::{DcDc, EStopButton, Jetson, Vesc};
 pub use hub_motor::HubMotor;
 pub use scale_refs::{Banana, Human};
-pub use sensors::{Camera, GpsAntenna, Lidar};
+pub use sensors::{Camera, GpsAntenna, Lidar, ProxicastAntenna};
 
 // Assembly exports
 pub use assembly::{BVR0Assembly, BVR1Assembly};

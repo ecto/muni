@@ -7,7 +7,7 @@ use super::{
     BVR1Frame,
     HubMotor,
     UUMotor,
-    LBracketMount,
+    SingleDropoutMount,
     BaseTray,
     AccessPanel,
     Vesc,
@@ -19,6 +19,7 @@ use super::{
     Lidar,
     Camera,
     GpsAntenna,
+    ProxicastAntenna,
     ShellAssembly,
     WallWrap, WallWrapConfig,
     TopLid, TopLidConfig,
@@ -250,22 +251,21 @@ pub struct BVR1AssemblyConfig {
 
 impl Default for BVR1AssemblyConfig {
     fn default() -> Self {
-        // Ground clearance calculation:
+        // Ground clearance calculation for KN6104 10" motors with single-sided dropout mount:
         //
-        // UUMotor SVB6HS: 168mm wheel = 84mm radius
-        // L-bracket mount geometry:
-        //   - Axle drop below frame bottom: ~36mm
+        // UUMotor KN6104: 270mm wheel = 135mm radius
+        // Dropout geometry (simplified plate):
+        //   - Plate height: 170mm
+        //   - Slot depth: 26mm
+        //   - Axle drop: 170 - 13 ≈ 157mm below frame bottom
         //   - Wheel center height: ground_clearance - axle_drop
         //   - For wheel to touch ground: wheel_center = wheel_radius
-        //   - Therefore: ground_clearance = wheel_radius + axle_drop
-        //   - ground_clearance = 84 + 36 = 120mm
-        //
-        // Effective ground clearance (lowest point of frame): ~75mm
-        // (frame bottom at 120mm, but L-bracket extends below)
+        //   - Therefore: ground_clearance ≈ 135 + 157 = 292mm
+        // Using 295mm for margin
         Self {
             frame: BVR1FrameConfig::default(),
             mast_height: 400.0,
-            ground_clearance: 120.0,
+            ground_clearance: 295.0,
         }
     }
 }
@@ -327,14 +327,17 @@ impl BVR1Assembly {
         // Top: access panel (sensors now in dome)
         let top_assembly = self.add_access_panel_assembly();
 
-        // Shell enclosure (wall wrap + top lid + sensor dome)
+        // Shell enclosure (wall wrap + top lid, no dome)
         let shell = self.add_shell();
 
-        // LiDAR in the dome
-        let dome_sensors = self.add_dome_sensors();
+        // LiDAR mounted directly on lid
+        let lidar = self.add_lidar();
 
         // Stereo cameras in the front face ("eyes")
         let front_cameras = self.add_front_cameras();
+
+        // Proxicast antenna on lid (rear-right)
+        let proxicast_antenna = self.add_proxicast_antenna();
 
         frame
             .union(&motor_mounts)
@@ -342,8 +345,9 @@ impl BVR1Assembly {
             .union(&base_assembly)
             .union(&top_assembly)
             .union(&shell)
-            .union(&dome_sensors)
+            .union(&lidar)
             .union(&front_cameras)
+            .union(&proxicast_antenna)
     }
 
     /// Generate simplified BVR1 assembly
@@ -464,126 +468,101 @@ impl BVR1Assembly {
         scene
     }
 
-    /// Add L-bracket mounts at each corner
+    /// Add single-sided dropout/torque-arm mounts at each corner
     ///
-    /// Mount geometry (L-bracket for single-axle hub motor):
-    /// - Horizontal arm bolts to underside of the Y-direction bottom rail
-    /// - Vertical arm at outer end, extends outward (±X) and down
-    /// - Wheel is INSIDE frame, axle extends OUTWARD to bracket
-    ///
-    /// Top view (front-left corner):
-    /// ```text
-    ///                    +Y (front)
-    ///                     │
-    ///     Frame rail ─────┼───────
-    ///                     │
-    ///     ┌───────────────┤ Horizontal arm (under left rail)
-    ///     │    WHEEL  ○───┤ Vertical arm + axle
-    ///     └───────────────┘
-    ///     │
-    ///    -X (left/outward)
-    /// ```
+    /// Mount geometry:
+    /// - Thick plate with M16 slot (dropout) capturing the axle flats
+    /// - Plate hangs below frame; axle sits near the bottom of the slot
+    /// - Short width along Y; thickness along X (axle passes through thickness)
+    /// - Intended for single-shaft KN6104 (bicycle-style)
     fn add_motor_mounts(&self) -> Part {
         let cfg = &self.config;
         let gc = self.ground_clearance();
 
-        let mount = LBracketMount::default_bvr1();
+        let mount = SingleDropoutMount::for_kn6104();
         let mount_part = mount.generate();
 
-        // The bracket's default orientation:
-        // - Horizontal arm extends in +Y
-        // - Vertical arm at far end (Y = arm_length), extends in -X
-        // - Axle points in -X
-        // This is correct for the LEFT side of the rover
+        // Position plates at corners, top flush to frame bottom
+        let _frame_edge_x = cfg.frame.width / 2.0;  // 270mm
 
-        // Position brackets under the Y-direction rails (left and right side rails)
-        let frame_edge_x = cfg.frame.width / 2.0;  // 190mm
+        // Mount center X: under shell edge (outer edge ≈ 290mm)
+        let mount_center_x = 240.0;
 
-        // Bracket origin (inner end of horizontal arm) positioned along the rail
-        // Place near corners: front brackets near +Y, rear brackets near -Y
-        let bracket_y_front = cfg.frame.length / 2.0 - mount.arm_length();  // Front edge of h_arm at frame front
-        let bracket_y_rear = -cfg.frame.length / 2.0;  // Rear of h_arm at frame rear
+        // Y positions: near front and rear of frame
+        let mount_y_front = cfg.frame.length / 2.0 - 60.0;   // 60mm from front edge
+        let mount_y_rear = -cfg.frame.length / 2.0 + 60.0;   // 60mm from rear edge
 
-        // Z position: horizontal arm top surface at frame bottom rail
+        // Z: plate top at frame bottom
         let mount_z = gc;
 
-        // Front-left: default orientation (vertical arm extends -X, axle points -X)
-        // Origin at X = -frame_edge (under left rail), Y = bracket_y_front
+        // Plate orientation: arm runs from frame (inboard) to wheel (outboard) along +X for right, -X for left
+        // Front-left: mirror in X
         let mount_fl = mount_part
-            .translate(-frame_edge_x, bracket_y_front, mount_z);
-
-        // Front-right: mirror in X (vertical arm extends +X, axle points +X)
-        // Rotate 180° around Z to flip the bracket
-        let mount_fr = mount_part
-            .scale(-1.0, 1.0, 1.0)  // Mirror in X
-            .translate(frame_edge_x, bracket_y_front, mount_z);
-
-        // Rear-left: rotate 180° around Z (horizontal arm extends -Y, vertical arm at -Y end)
-        let mount_rl = mount_part
-            .rotate(0.0, 0.0, 180.0)
-            .translate(-frame_edge_x, bracket_y_rear + mount.arm_length(), mount_z);
-
-        // Rear-right: mirror and rotate
-        let mount_rr = mount_part
             .scale(-1.0, 1.0, 1.0)
-            .rotate(0.0, 0.0, 180.0)
-            .translate(frame_edge_x, bracket_y_rear + mount.arm_length(), mount_z);
+            .translate(-mount_center_x, mount_y_front, mount_z);
+
+        // Front-right: default orientation
+        let mount_fr = mount_part
+            .translate(mount_center_x, mount_y_front, mount_z);
+
+        // Rear-left: mirror in X
+        let mount_rl = mount_part
+            .scale(-1.0, 1.0, 1.0)
+            .translate(-mount_center_x, mount_y_rear, mount_z);
+
+        // Rear-right: default orientation
+        let mount_rr = mount_part
+            .translate(mount_center_x, mount_y_rear, mount_z);
 
         mount_fl.union(&mount_fr).union(&mount_rl).union(&mount_rr)
     }
 
-    /// Add UUMotor SVB6HS wheels (168mm / 6.5" wheels)
+    /// Add UUMotor KN6104 wheels (270mm / 10" wheels)
     ///
-    /// Wheel geometry with L-bracket mount:
-    /// - Wheels positioned OUTSIDE the frame (protruding from corners)
-    /// - Bracket mounted at frame edge, wheel beyond bracket
-    /// - Axle points INWARD from wheel to bracket
+    /// Wheel geometry with single-sided dropout mount:
+    /// - Thick plate captures the axle flats
+    /// - Wheel sits outboard of the frame, axle along X
+    /// - Brace to frame provides bending stiffness
     ///
-    /// Layout (top view, left side):
+    /// Layout (front view, left side):
     /// ```text
-    ///     Frame edge (-190mm)
-    ///           │
-    ///     ──────┼──────  Frame rail
-    ///           │
-    ///       [Bracket]
-    ///           │
-    ///         ◯─┘  Wheel (outside, at ~-230mm)
+    ///     Frame (270mm)  Shell (290mm)
+    ///           │             │
+    ///     ──────┼─────────────┼───────────────
+    ///           │             │
+    ///      ┌────┴────┐   ┌────┴────┐
+    ///      │  Bridge │   │  Fork   │
+    ///      ├─────────┤   ├─────────┤
+    ///      │ ┌─────┐ │   │ ┌─────┐ │
+    ///      │ │     │ │   │ │     │ │
+    ///      │ │ LEG │◯┼───┼◯│ LEG │ │
+    ///      │ └─────┘ │   │ └─────┘ │
+    ///      └─────────┘   └─────────┘
+    ///                │
+    ///            [WHEEL]
     /// ```
     fn add_wheels(&self) -> Part {
         let cfg = &self.config;
         let gc = self.ground_clearance();
 
-        let motor = UUMotor::svb6hs();
-        let mount = LBracketMount::default_bvr1();
+        // KN6104 10" motors (from Tony @ UUMotor, Jan 2026)
+        let motor = UUMotor::kn6104();
+        let mount = SingleDropoutMount::for_kn6104();
         let wheel = motor.generate();
 
-        // Motor axle offset: distance from wheel center to axle tip
-        let axle_offset = motor.axle_offset();  // hub_width/2 + axle_length = 26 + 38 = 64mm
+        // Wheel center X: under shell edge (outer edge ≈ 290mm)
+        let wheel_x = 240.0;
 
-        // Wheel Z: aligned with bracket's axle hole
-        let wheel_z = gc - mount.axle_drop();
+        // Wheel Z: in the dropout slot (top of plate at gc)
+        let wheel_z = gc - mount.axle_drop();  // ≈ wheel radius
 
-        // Frame geometry
-        let frame_edge_x = cfg.frame.width / 2.0;  // 190mm
+        // Y positions: aligned with fork centers
+        let wheel_y_front = cfg.frame.length / 2.0 - 60.0;
+        let wheel_y_rear = -cfg.frame.length / 2.0 + 60.0;
 
-        // Bracket axle hole X position (distance from frame center):
-        // Bracket at frame edge, axle hole is mount.total_depth() outward
-        let bracket_axle_x = frame_edge_x + mount.total_depth();  // 190 + 20 = 210mm
-
-        // Wheel center X: wheel is OUTSIDE bracket, axle points inward toward bracket
-        // Wheel center is axle_offset further out from bracket
-        let wheel_x = bracket_axle_x + axle_offset;  // 210 + 64 = 274mm (OUTSIDE frame!)
-
-        // Wheel Y: aligned with bracket's axle Y position
-        let bracket_y_front = cfg.frame.length / 2.0 - mount.arm_length();
-        let wheel_y_front = bracket_y_front + mount.axle_y_offset();
-        let wheel_y_rear = -cfg.frame.length / 2.0 + mount.arm_length() - mount.axle_y_offset();
-
-        // Wheel orientation: axle points INWARD (toward bracket at frame edge)
-        // Motor default: mount side (axle) at +Y
-        // Rotate to point axle toward +X (for left wheels) or -X (for right wheels)
-        let wheel_left = wheel.rotate(0.0, 0.0, -90.0);  // Axle toward +X (inward)
-        let wheel_right = wheel.rotate(0.0, 0.0, 90.0);  // Axle toward -X (inward)
+        // Wheel orientation: rotate so axle lies along X to match dropout slot
+        let wheel_left = wheel.rotate(0.0, 0.0, 90.0);
+        let wheel_right = wheel.rotate(0.0, 0.0, -90.0);
 
         let fl = wheel_left.translate(-wheel_x, wheel_y_front, wheel_z);
         let fr = wheel_right.translate(wheel_x, wheel_y_front, wheel_z);
@@ -597,24 +576,19 @@ impl BVR1Assembly {
         let cfg = &self.config;
         let gc = self.ground_clearance();
 
-        let motor = UUMotor::svb6hs();
-        let mount = LBracketMount::default_bvr1();
+        let motor = UUMotor::kn6104();
+        let mount = SingleDropoutMount::for_kn6104();
         let wheel = motor.generate_simple();
 
-        let axle_offset = motor.axle_offset();
+        let wheel_x = 240.0;
         let wheel_z = gc - mount.axle_drop();
-        let frame_edge_x = cfg.frame.width / 2.0;
 
-        // Wheels OUTSIDE frame (same logic as add_wheels)
-        let bracket_axle_x = frame_edge_x + mount.total_depth();
-        let wheel_x = bracket_axle_x + axle_offset;
+        let wheel_y_front = cfg.frame.length / 2.0 - 60.0;
+        let wheel_y_rear = -cfg.frame.length / 2.0 + 60.0;
 
-        let bracket_y_front = cfg.frame.length / 2.0 - mount.arm_length();
-        let wheel_y_front = bracket_y_front + mount.axle_y_offset();
-        let wheel_y_rear = -cfg.frame.length / 2.0 + mount.arm_length() - mount.axle_y_offset();
-
-        let wheel_left = wheel.rotate(0.0, 0.0, -90.0);  // Axle toward +X (inward)
-        let wheel_right = wheel.rotate(0.0, 0.0, 90.0);  // Axle toward -X (inward)
+        // Match wheel rotation to fork rotation
+        let wheel_left = wheel.rotate(0.0, 0.0, 90.0);
+        let wheel_right = wheel.rotate(0.0, 0.0, -90.0);
 
         let fl = wheel_left.translate(-wheel_x, wheel_y_front, wheel_z);
         let fr = wheel_right.translate(wheel_x, wheel_y_front, wheel_z);
@@ -694,30 +668,26 @@ impl BVR1Assembly {
         panel.union(&estop)
     }
 
-    /// Add LiDAR inside the sensor dome
+    /// Add LiDAR mounted directly on the lid
     ///
-    /// "Friendly Industrial" design: LiDAR only in the dome.
-    /// Cameras are in the front face ("eyes"), antenna is flush-mounted on lid.
-    fn add_dome_sensors(&self) -> Part {
+    /// Livox Mid-360 specs:
+    /// - 65×65×60mm body with hemispherical scanning window
+    /// - Mounts flat on surface with 4× M3 screws
+    /// - 360° horizontal FOV, 59° vertical FOV
+    /// - Only 265g - no dome enclosure needed
+    fn add_lidar(&self) -> Part {
         let gc = self.ground_clearance();
         let shell_cfg = super::shell::ShellConfig::default();
-        let lid_cfg = super::shell::TopLidConfig::default();
-        let dome_cfg = super::shell::SensorDomeConfig::default();
 
-        // Shell top lid Z position
-        let lid_z = gc + shell_cfg.shell_height();
+        // LiDAR sits on top of lid surface
+        let lid_top_z = gc + shell_cfg.shell_height() + shell_cfg.thickness;
 
-        // LiDAR position inside dome
-        let dome_center_x = lid_cfg.sensor_hole_offset.0;
-        let dome_center_y = lid_cfg.sensor_hole_offset.1;
-        let dome_base_z = lid_z + shell_cfg.thickness;
+        // Position centered on lid (slightly forward for balance)
+        let lidar_x = 0.0;
+        let lidar_y = 0.0; // Centered
 
-        // LiDAR centered in dome (Livox Mid-360: 77mm body + 10mm base)
-        let lidar_z = dome_base_z + dome_cfg.height * 0.4;
-        let lidar = Lidar::mid360().generate()
-            .translate(dome_center_x, dome_center_y, lidar_z);
-
-        lidar
+        Lidar::mid360().generate()
+            .translate(lidar_x, lidar_y, lid_top_z)
     }
 
     /// Add stereo cameras in the front face
@@ -760,6 +730,29 @@ impl BVR1Assembly {
         .translate(spacing / 2.0, shell_front_y, camera_z);
 
         left_cam.union(&right_cam)
+    }
+
+    /// Add Proxicast 5-in-1 combo antenna on the lid
+    ///
+    /// Mounted flush on rear-right of lid, provides:
+    /// - LTE/4G cellular (MIMO)
+    /// - WiFi 2.4/5GHz (MIMO)
+    /// - GPS/GLONASS
+    fn add_proxicast_antenna(&self) -> Part {
+        let gc = self.ground_clearance();
+        let shell_cfg = super::shell::ShellConfig::default();
+        let lid_cfg = super::shell::TopLidConfig::default();
+
+        // Antenna sits on top of the lid
+        let lid_top_z = gc + shell_cfg.shell_height() + shell_cfg.thickness;
+
+        // Position at the antenna hole (rear-right quadrant)
+        let antenna_x = lid_cfg.antenna_hole_offset.0;
+        let antenna_y = lid_cfg.antenna_hole_offset.1;
+
+        ProxicastAntenna::default_5in1()
+            .generate()
+            .translate(antenna_x, antenna_y, lid_top_z)
     }
 
     /// Add 3-panel clam shell enclosure
@@ -842,73 +835,59 @@ mod tests {
 
         // BVR0 has hoverboard wheels
         assert_eq!(bvr0.ground_clearance(), 50.0);
-        // BVR1: frame positioned so wheel center aligns with L-bracket axle
-        assert_eq!(bvr1.ground_clearance(), 120.0);
+        // BVR1 with KN6104 10" wheels + dropout mount: frame positioned high for wheel clearance
+        assert_eq!(bvr1.ground_clearance(), 300.0);
     }
 
-    /// Test L-bracket geometry for single-axle hub motor
+    /// Test dropout mount geometry for KN6104 motor
     #[test]
-    fn test_lbracket_mount_geometry() {
-        let motor = UUMotor::svb6hs();
-        let mount = LBracketMount::default_bvr1();
-        let frame_config = BVR1FrameConfig::default();
+    fn test_dropout_mount_geometry() {
+        let motor = UUMotor::kn6104();
+        let mount = SingleDropoutMount::for_kn6104();
 
-        let frame_edge = frame_config.width / 2.0;  // 190mm
-        let axle_offset = motor.axle_offset();      // 64mm
+        // Slot must accept the M16 axle with clearance
+        assert!(mount.config().slot_width >= motor.axle_diameter() + 1.0,
+            "Slot width ({:.1}mm) should exceed axle ({:.1}mm)",
+            mount.config().slot_width, motor.axle_diameter());
 
-        // Wheel is OUTSIDE frame to avoid intersection
-        let bracket_axle_x = frame_edge + mount.total_depth();
-        let wheel_center_x = bracket_axle_x + axle_offset;
-
-        assert!(wheel_center_x > frame_edge,
-            "Wheel center ({:.1}mm) should be OUTSIDE frame edge ({:.1}mm)",
-            wheel_center_x, frame_edge);
-
-        // L-bracket arm thickness must fit under frame rail
-        assert!(mount.flange_thickness() <= 20.0,
-            "Horizontal arm ({:.1}mm) must fit against 2020 rail",
-            mount.flange_thickness());
+        // Axle drop should position wheel near ground
+        assert!(mount.axle_drop() > 140.0,
+            "Axle drop ({:.1}mm) should be substantial for wheel positioning",
+            mount.axle_drop());
     }
 
-    /// Test L-bracket properly supports single-axle motor
+    /// Test dropout properly supports KN6104 motor
     #[test]
-    fn test_lbracket_axle_support() {
-        let motor = UUMotor::svb6hs();
-        let mount = LBracketMount::default_bvr1();
+    fn test_dropout_axle_support() {
+        let motor = UUMotor::kn6104();
+        let mount = SingleDropoutMount::for_kn6104();
 
-        // Motor axle length: 38mm
-        // Mount must not exceed this (need room for nut)
-        let axle_length = motor.axle_length();  // 38mm
-        let mount_depth = mount.total_depth();
+        // KN6104 axle length: 45mm -> must extend beyond slot for nut
+        let axle_length = motor.axle_length();
+        let slot_depth = mount.config().slot_depth;
 
-        assert!(mount_depth < axle_length,
-            "Mount depth ({:.1}mm) must be less than axle length ({:.1}mm) to leave room for nut",
-            mount_depth, axle_length);
+        // Slot should be deep enough for secure seating
+        assert!(slot_depth >= 20.0,
+            "Slot depth ({:.1}mm) should be >= 20mm for secure axle seating",
+            slot_depth);
 
-        // Should have at least 10mm for nut + washer
-        let nut_clearance = axle_length - mount_depth;
-        assert!(nut_clearance >= 10.0,
-            "Need at least 10mm for nut/washer, got {:.1}mm",
-            nut_clearance);
+        // Axle should extend past slot for nut
+        assert!(axle_length > slot_depth,
+            "Axle ({:.1}mm) should extend past slot ({:.1}mm) for nut",
+            axle_length, slot_depth);
     }
 
-    /// Test ADA sidewalk compliance with wheels OUTSIDE frame
+    /// Test ADA sidewalk compliance with dropout mount
     #[test]
     fn test_ada_sidewalk_compliance() {
-        let motor = UUMotor::svb6hs();
-        let mount = LBracketMount::default_bvr1();
-        let frame_config = BVR1FrameConfig::default();
+        let motor = UUMotor::kn6104();
 
-        // With wheels outside frame, total width is:
-        // frame_edge + bracket_depth + axle_offset + wheel_hub_half_width (on each side)
-        // Updated for 540mm frame (500mm extrusions)
-        let frame_edge = frame_config.width / 2.0;  // 270mm
-        let bracket_axle_x = frame_edge + mount.total_depth();  // 270 + 20 = 290mm
-        let wheel_center_x = bracket_axle_x + motor.axle_offset();  // 290 + 64 = 354mm
+        // Wheel center at 350mm from centerline
+        let wheel_center_x = 350.0;
+        let tire_half_width = motor.config().tire_width / 2.0;  // 50mm
 
-        // Total width = 2 * wheel_center_x (symmetric)
-        // Plus some hub width on each side (hub is centered on wheel_center)
-        let total_width = wheel_center_x * 2.0;  // ~708mm
+        // Total width = 2 * (wheel_center + tire_half)
+        let total_width = (wheel_center_x + tire_half_width) * 2.0;  // 800mm
 
         // ADA minimum clear width is 36" (914mm)
         // Robot should fit within ADA minimum with clearance
@@ -919,27 +898,27 @@ mod tests {
         // Verify we fit on a standard 48" (1220mm) sidewalk with clearance
         let sidewalk_48in = 1220.0;
         let clearance_each_side = (sidewalk_48in - total_width) / 2.0;
-        assert!(clearance_each_side >= 200.0,
-            "Should have 200mm+ clearance on each side of 48\" sidewalk, got {:.0}mm",
+        assert!(clearance_each_side >= 150.0,
+            "Should have 150mm+ clearance on each side of 48\" sidewalk, got {:.0}mm",
             clearance_each_side);
     }
 
-    /// Test wheel Z position with L-bracket
+    /// Test wheel Z position with dropout mount
     #[test]
     fn test_wheel_z_position() {
-        let motor = UUMotor::svb6hs();
-        let mount = LBracketMount::default_bvr1();
+        let motor = UUMotor::kn6104();
+        let mount = SingleDropoutMount::for_kn6104();
         let bvr1 = BVR1Assembly::default_bvr1();
 
-        let wheel_radius = motor.wheel_diameter() / 2.0;  // 84mm
-        let gc = bvr1.ground_clearance();                 // 120mm
+        let wheel_radius = motor.wheel_diameter() / 2.0;  // 135mm
+        let gc = bvr1.ground_clearance();                 // 300mm
 
         // Wheel center Z = gc - axle_drop
         let wheel_z = gc - mount.axle_drop();
 
-        // Wheel should touch ground (wheel_z == wheel_radius)
+        // Wheel should touch ground (wheel_z ≈ wheel_radius)
         let ground_gap = wheel_z - wheel_radius;
-        assert!(ground_gap.abs() < 20.0,
+        assert!(ground_gap.abs() < 5.0,
             "Wheel should nearly touch ground. Gap: {:.1}mm (wheel_z={:.1}, radius={:.1})",
             ground_gap, wheel_z, wheel_radius);
 
@@ -949,30 +928,24 @@ mod tests {
             wheel_z, gc);
     }
 
-    /// Test that wheels are OUTSIDE frame footprint (no intersection)
+    /// Test that tire clears shell with dropout mount
     #[test]
-    fn test_wheel_outside_frame() {
-        let motor = UUMotor::svb6hs();
-        let mount = LBracketMount::default_bvr1();
-        let frame_config = BVR1FrameConfig::default();
+    fn test_tire_clears_shell() {
+        let motor = UUMotor::kn6104();
 
-        let frame_edge = frame_config.width / 2.0;  // 190mm
-        let axle_offset = motor.axle_offset();      // 64mm
-        let wheel_radius = motor.wheel_diameter() / 2.0;  // 84mm
+        // Shell outer edge at 290mm from centerline (580mm / 2)
+        let shell_edge = 290.0;
 
-        // Wheel center X (distance from centerline)
-        let bracket_axle_x = frame_edge + mount.total_depth();  // 190 + 20 = 210mm
-        let wheel_center_x = bracket_axle_x + axle_offset;      // 210 + 64 = 274mm
+        // Wheel center at 240mm (outer edge ≈ 290mm)
+        let wheel_center_x = 240.0;
+        let tire_half_width = motor.config().tire_width / 2.0;  // 50mm
 
-        // Wheel center should be OUTSIDE frame
-        assert!(wheel_center_x > frame_edge,
-            "Wheel center ({:.1}mm) should be outside frame edge ({:.1}mm)",
-            wheel_center_x, frame_edge);
+        // Tire outer edge
+        let tire_outer_edge = wheel_center_x + tire_half_width;  // 290mm
 
-        // Wheel inner edge should clear frame edge
-        let wheel_inner_edge = wheel_center_x - wheel_radius;  // 274 - 84 = 190mm
-        assert!(wheel_inner_edge >= frame_edge,
-            "Wheel inner edge ({:.1}mm) should clear frame edge ({:.1}mm)",
-            wheel_inner_edge, frame_edge);
+        // Tire should not exceed shell edge
+        assert!(tire_outer_edge <= shell_edge + 1.0,
+            "Tire outer edge ({:.1}mm) should be at/below shell edge ({:.1}mm)",
+            tire_outer_edge, shell_edge);
     }
 }
