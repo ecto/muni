@@ -1,4 +1,4 @@
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, useLocation } from "react-router-dom";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { Toast } from "@/components/ui/Toast";
@@ -21,6 +21,21 @@ function App() {
   useDiscovery();
   useGpsStatus();
 
+  const location = useLocation();
+  const isTeleop = location.pathname.endsWith("/teleop");
+
+  // Teleop gets full-screen treatment without sidebar
+  if (isTeleop) {
+    return (
+      <div className="dark h-screen w-screen">
+        <Routes>
+          <Route path="/fleet/:roverId/teleop" element={<TeleopView />} />
+        </Routes>
+        <Toast />
+      </div>
+    );
+  }
+
   return (
     <div className="dark">
       <SidebarProvider>
@@ -32,7 +47,6 @@ function App() {
             <Route path="/services" element={<ServicesView />} />
             <Route path="/fleet" element={<FleetView />} />
             <Route path="/fleet/:roverId" element={<RoverView />} />
-            <Route path="/fleet/:roverId/teleop" element={<TeleopView />} />
             <Route path="/sessions" element={<SessionsView />} />
             <Route path="/maps" element={<MapsView />} />
             <Route path="/maps/:mapId" element={<MapsView />} />

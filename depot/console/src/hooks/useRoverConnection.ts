@@ -201,8 +201,13 @@ export function useRoverConnection() {
     setConnected(false);
   }, [clearIntervals, setConnected]);
 
-  // Connect when component mounts (TeleopScreen), disconnect on unmount
+  // Connect when rover address changes (after selectRover is called)
   useEffect(() => {
+    // Don't connect to default localhost - wait for real rover address
+    if (roverAddress === "ws://localhost:4850") {
+      return;
+    }
+
     connect();
 
     // Safety: track page visibility to stop commands when tab is hidden
@@ -222,9 +227,7 @@ export function useRoverConnection() {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       disconnect();
     };
-    // Note: we intentionally only run this on mount/unmount
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [roverAddress, connect, disconnect]);
 
   // Expose methods for manual control
   return {

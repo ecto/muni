@@ -141,16 +141,19 @@ export function useVideoStream() {
     setVideoFrame(null, 0);
   }, [setVideoConnected, setVideoFrame]);
 
-  // Connect when component mounts (TeleopScreen), disconnect on unmount
+  // Connect when video address changes (after selectRover is called)
   useEffect(() => {
+    // Don't connect to default localhost - wait for real rover address
+    if (videoAddress === "ws://localhost:4851") {
+      return;
+    }
+
     connect();
 
     return () => {
       disconnect();
     };
-    // Note: we intentionally only run this on mount/unmount
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [videoAddress, connect, disconnect]);
 
   return {
     connect,
