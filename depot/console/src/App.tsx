@@ -1,7 +1,6 @@
-import { Routes, Route, useLocation } from "react-router-dom";
+import { Routes, Route } from "react-router-dom";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
-import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toast } from "@/components/ui/Toast";
 import { useDiscovery } from "@/hooks/useDiscovery";
 import { useGpsStatus } from "@/hooks/useGpsStatus";
@@ -12,7 +11,6 @@ import { DashboardView } from "@/views/DashboardView";
 import { BaseStationView } from "@/views/BaseStationView";
 import { FleetView } from "@/views/FleetView";
 import { RoverView } from "@/views/RoverView";
-import { TeleopView } from "@/views/TeleopView";
 import { SessionsView } from "@/views/SessionsView";
 import { MapsView } from "@/views/MapsView";
 import { DispatchView } from "@/views/DispatchView";
@@ -23,24 +21,7 @@ function App() {
   useGpsStatus();
 
   const { resolvedTheme } = useTheme();
-  const location = useLocation();
-  const isTeleop = location.pathname.endsWith("/teleop");
-
   const themeClass = resolvedTheme === "dark" ? "dark" : "";
-
-  // Teleop gets full-screen treatment without sidebar
-  if (isTeleop) {
-    return (
-      <TooltipProvider delayDuration={0}>
-        <div className={`${themeClass} h-screen w-screen`}>
-          <Routes>
-            <Route path="/fleet/:roverId/teleop" element={<TeleopView />} />
-          </Routes>
-          <Toast />
-        </div>
-      </TooltipProvider>
-    );
-  }
 
   return (
     <div className={`${themeClass} min-h-screen`}>

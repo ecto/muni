@@ -127,7 +127,7 @@ function RoverRow({ rover }: { rover: RoverInfo }) {
       <td className="py-2 px-3 text-right">
         {rover.online && (
           <Button asChild size="sm" variant="default" className="h-7 px-2 gap-1">
-            <Link to={`/fleet/${rover.id}/teleop`}>
+            <Link to={`/fleet/${rover.id}`}>
               <GameController className="h-3.5 w-3.5" />
               Teleop
             </Link>
