@@ -1,5 +1,6 @@
-import { useRef, useEffect, useMemo } from "react";
+import { useRef, useEffect, useMemo, useState } from "react";
 import { useConsoleStore } from "@/store";
+import { CaretDown, CaretRight } from "@phosphor-icons/react";
 import {
   PlaneGeometry,
   MeshBasicMaterial,
@@ -180,6 +181,7 @@ function CameraFeed({ cameraId, url }: { cameraId: number; url: string | null })
  */
 export function CameraFeedCard() {
   const { videoConnected, videoFps, cameraFrames, cameraCount } = useConsoleStore();
+  const [collapsed, setCollapsed] = useState(false);
 
   // Convert Map to array for rendering
   const cameras = Array.from(cameraFrames.entries()).sort((a, b) => a[0] - b[0]);
@@ -187,8 +189,12 @@ export function CameraFeedCard() {
   return (
     <div className="bg-card/90 backdrop-blur-sm border border-border rounded-lg overflow-hidden shadow-lg">
       {/* Header */}
-      <div className="flex items-center justify-between px-2 py-1 bg-muted/50 border-b border-border">
-        <span className="text-xs font-medium text-muted-foreground">
+      <div
+        className="flex items-center justify-between px-2 py-1 bg-muted/50 border-b border-border cursor-pointer hover:bg-muted/70"
+        onClick={() => setCollapsed(!collapsed)}
+      >
+        <span className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+          {collapsed ? <CaretRight className="h-3 w-3" /> : <CaretDown className="h-3 w-3" />}
           Cameras ({cameraCount})
         </span>
         <span className={`text-xs font-mono ${videoConnected ? 'text-green-500' : 'text-red-500'}`}>
@@ -197,17 +203,19 @@ export function CameraFeedCard() {
       </div>
 
       {/* Camera feeds grid */}
-      <div className="flex flex-wrap gap-1 p-1">
-        {cameras.length > 0 ? (
-          cameras.map(([cameraId, frame]) => (
-            <CameraFeed key={cameraId} cameraId={cameraId} url={frame.url} />
-          ))
-        ) : (
-          <div className="w-40 h-30 flex items-center justify-center text-muted-foreground text-sm bg-black">
-            {videoConnected ? 'Waiting for frames...' : 'No cameras'}
-          </div>
-        )}
-      </div>
+      {!collapsed && (
+        <div className="flex flex-wrap gap-1 p-1">
+          {cameras.length > 0 ? (
+            cameras.map(([cameraId, frame]) => (
+              <CameraFeed key={cameraId} cameraId={cameraId} url={frame.url} />
+            ))
+          ) : (
+            <div className="w-40 h-30 flex items-center justify-center text-muted-foreground text-sm bg-black">
+              {videoConnected ? 'Waiting for frames...' : 'No cameras'}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

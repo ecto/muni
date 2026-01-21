@@ -1,14 +1,12 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import { Compass, Camera } from "@phosphor-icons/react";
 import { useConsoleStore } from "@/store";
 import { CameraMode } from "@/lib/types";
 
 const cameraModeLabels: Record<CameraMode, string> = {
-  [CameraMode.ThirdPerson]: "3rd Person",
-  [CameraMode.FirstPerson]: "1st Person",
-  [CameraMode.FreeLook]: "Free Look",
+  [CameraMode.ThirdPerson]: "3rd",
+  [CameraMode.FirstPerson]: "1st",
+  [CameraMode.FreeLook]: "Free",
 };
 
 export function PositionPanel() {
@@ -26,26 +24,29 @@ export function PositionPanel() {
   };
 
   return (
-    <Card className="w-48 bg-card/90 backdrop-blur">
-      <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-medium flex items-center gap-2">
-          <Compass className="h-4 w-4" weight="fill" />
+    <div className="w-36 bg-card/90 backdrop-blur-sm border border-border rounded-lg overflow-hidden shadow-lg">
+      {/* Header */}
+      <div className="flex items-center justify-between px-2 py-1 bg-muted/50 border-b border-border">
+        <span className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+          <Compass className="h-3.5 w-3.5" weight="fill" />
           Position
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-2 text-sm">
+        </span>
+      </div>
+
+      {/* Content */}
+      <div className="p-2 space-y-1 text-xs">
         <div className="flex justify-between">
           <span className="text-muted-foreground">X</span>
           <span className="font-mono">
             {renderPose.x >= 0 ? "+" : ""}
-            {renderPose.x.toFixed(2)} m
+            {renderPose.x.toFixed(2)}m
           </span>
         </div>
         <div className="flex justify-between">
           <span className="text-muted-foreground">Y</span>
           <span className="font-mono">
             {renderPose.y >= 0 ? "+" : ""}
-            {renderPose.y.toFixed(2)} m
+            {renderPose.y.toFixed(2)}m
           </span>
         </div>
         <div className="flex justify-between">
@@ -55,23 +56,21 @@ export function PositionPanel() {
           </span>
         </div>
 
-        <Separator />
-
-        <div className="flex items-center justify-between">
+        {/* Camera mode */}
+        <div className="flex items-center justify-between pt-1 border-t border-border">
           <span className="flex items-center gap-1 text-muted-foreground">
-            <Camera className="h-4 w-4" weight="fill" />
-            Camera
+            <Camera className="h-3.5 w-3.5" weight="fill" />
+            Cam
           </span>
           <Badge
             variant="secondary"
-            className="cursor-pointer hover:bg-secondary/80"
+            className="text-[10px] h-4 px-1.5 cursor-pointer hover:bg-secondary/80"
             onClick={cycleCameraMode}
           >
             {cameraModeLabels[cameraMode]}
           </Badge>
         </div>
-        <p className="text-xs text-muted-foreground">C: toggle · V: free</p>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

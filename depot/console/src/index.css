@@ -108,9 +108,9 @@
   --card-foreground: oklch(0.985 0.001 106.423);
   --popover: oklch(0.216 0.006 56.043);
   --popover-foreground: oklch(0.985 0.001 106.423);
-  /* Orange primary */
+  /* Orange primary - foreground should be light for contrast on orange */
   --primary: oklch(0.705 0.191 47.604);
-  --primary-foreground: oklch(0.216 0.006 56.043);
+  --primary-foreground: oklch(0.98 0.016 73.684);
   --secondary: oklch(0.268 0.007 34.298);
   --secondary-foreground: oklch(0.985 0.001 106.423);
   --muted: oklch(0.268 0.007 34.298);

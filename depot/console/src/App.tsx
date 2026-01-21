@@ -43,7 +43,7 @@ function App() {
   }
 
   return (
-    <div className={themeClass}>
+    <div className={`${themeClass} min-h-screen`}>
       <SidebarProvider>
         <AppSidebar />
         <SidebarInset>
