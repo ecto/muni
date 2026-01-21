@@ -10,9 +10,6 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarMenuSub,
-  SidebarMenuSubButton,
-  SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
 import {
   Tooltip,
@@ -38,10 +35,16 @@ import {
   Broadcast,
   Cube,
   Plugs,
+  BatteryFull,
+  BatteryLow,
+  BatteryWarning,
 } from "@phosphor-icons/react";
+import { Badge } from "@/components/ui/badge";
 import { useConsoleStore } from "@/store";
 import { useServiceHealth, type ServiceStatus } from "@/hooks/useServiceHealth";
 import { useTheme } from "@/hooks/useTheme";
+import { Mode, ModeLabels, type RoverInfo } from "@/lib/types";
+import { getBatteryPercent } from "@/lib/utils";
 
 // Map service IDs to icons
 const serviceIcons: Record<string, React.ReactNode> = {
@@ -157,25 +160,6 @@ export function AppSidebar() {
                     <span>All Rovers</span>
                   </Link>
                 </SidebarMenuButton>
-                {rovers.length > 0 && (
-                  <SidebarMenuSub>
-                    {rovers.map((rover) => (
-                      <SidebarMenuSubItem key={rover.id}>
-                        <SidebarMenuSubButton
-                          asChild
-                          isActive={isActivePrefix(`/fleet/${rover.id}`)}
-                        >
-                          <Link to={`/fleet/${rover.id}`}>
-                            <StatusDot
-                              status={rover.online ? "ok" : "offline"}
-                            />
-                            <span>{rover.name || rover.id}</span>
-                          </Link>
-                        </SidebarMenuSubButton>
-                      </SidebarMenuSubItem>
-                    ))}
-                  </SidebarMenuSub>
-                )}
               </SidebarMenuItem>
               <SidebarMenuItem>
                 <SidebarMenuButton
@@ -190,6 +174,18 @@ export function AppSidebar() {
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>
+            {/* Individual rovers with status */}
+            {rovers.length > 0 && (
+              <div className="mt-2 space-y-1 px-2">
+                {rovers.map((rover) => (
+                  <RoverCard
+                    key={rover.id}
+                    rover={rover}
+                    isActive={isActivePrefix(`/fleet/${rover.id}`)}
+                  />
+                ))}
+              </div>
+            )}
           </SidebarGroupContent>
         </SidebarGroup>
 
@@ -342,5 +338,66 @@ function StatusDot({ status }: { status: "ok" | "offline" | "warning" | "unknown
       className={`h-1.5 w-1.5 rounded-full ${colors[status]} flex-shrink-0`}
       aria-label={status}
     />
+  );
+}
+
+function RoverCard({ rover, isActive }: { rover: RoverInfo; isActive: boolean }) {
+  const batteryPercent = getBatteryPercent(rover.batteryVoltage);
+
+  const BatteryIcon = rover.batteryVoltage < 42
+    ? BatteryWarning
+    : rover.batteryVoltage < 45
+    ? BatteryLow
+    : BatteryFull;
+
+  const batteryColor = rover.batteryVoltage < 42
+    ? "text-red-500"
+    : rover.batteryVoltage < 45
+    ? "text-orange-500"
+    : "text-green-500";
+
+  const getModeVariant = (mode: Mode): "default" | "secondary" | "destructive" | "outline" => {
+    switch (mode) {
+      case Mode.Teleop:
+      case Mode.Autonomous:
+        return "default";
+      case Mode.EStop:
+      case Mode.Fault:
+        return "destructive";
+      case Mode.Idle:
+        return "secondary";
+      default:
+        return "outline";
+    }
+  };
+
+  return (
+    <Link
+      to={`/fleet/${rover.id}`}
+      className={`block rounded-md p-2 transition-colors ${
+        isActive
+          ? "bg-sidebar-accent text-sidebar-accent-foreground"
+          : "hover:bg-sidebar-accent/50"
+      } ${!rover.online ? "opacity-50" : ""}`}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <StatusDot status={rover.online ? "ok" : "offline"} />
+          <span className="text-sm font-medium truncate">{rover.name || rover.id}</span>
+        </div>
+        {rover.online && (
+          <Badge variant={getModeVariant(rover.mode)} className="text-[10px] h-4 px-1.5 shrink-0">
+            {ModeLabels[rover.mode]}
+          </Badge>
+        )}
+      </div>
+      {rover.online && (
+        <div className="flex items-center gap-1 mt-1 ml-3.5 text-xs text-muted-foreground">
+          <BatteryIcon className={`h-3 w-3 ${batteryColor}`} weight="fill" />
+          <span>{batteryPercent.toFixed(0)}%</span>
+          <span className="text-muted-foreground/60">({rover.batteryVoltage.toFixed(1)}V)</span>
+        </div>
+      )}
+    </Link>
   );
 }
