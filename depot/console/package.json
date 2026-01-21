@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "prebuild": "cp ../../web/models/bvr1_assembly.glb public/models/",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview"

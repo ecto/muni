@@ -1,18 +1,110 @@
-import { useRef } from "react";
+import { useRef, useEffect } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import { Vector3 } from "three";
 import { useConsoleStore } from "@/store";
-import { CameraMode } from "@/lib/types";
+import { CameraMode, Mode } from "@/lib/types";
+import { computeRenderPose, getInterpolationBuffer } from "@/lib/interpolation";
 
 export function CameraController() {
-  const { camera } = useThree();
-  const { renderPose, cameraMode, input } = useConsoleStore();
+  const { camera, gl } = useThree();
+  const { cameraMode, telemetry } = useConsoleStore();
 
   const yawOffset = useRef(0);
   const pitch = useRef(0.4);
   const distance = useRef(3.5);
 
+  // Mouse drag state for orbit controls when not in teleop
+  const isDragging = useRef(false);
+  const lastMouse = useRef({ x: 0, y: 0 });
+
+  // Check if teleop is active (only allow mouse orbit when NOT in teleop)
+  const isTeleopActive = telemetry.mode === Mode.Teleop;
+
+  // Reset camera to behind rover when entering teleop mode
+  const wasTeleopActive = useRef(false);
+  useEffect(() => {
+    if (isTeleopActive && !wasTeleopActive.current) {
+      // Entering teleop: reset to default follow camera
+      yawOffset.current = 0;
+      pitch.current = 0.4;
+      distance.current = 3.5;
+    }
+    wasTeleopActive.current = isTeleopActive;
+  }, [isTeleopActive]);
+
+  // Mouse event handlers for orbit controls
+  useEffect(() => {
+    const canvas = gl.domElement;
+
+    const onMouseDown = (e: MouseEvent) => {
+      if (isTeleopActive) return;
+      isDragging.current = true;
+      lastMouse.current = { x: e.clientX, y: e.clientY };
+      canvas.style.cursor = "grabbing";
+    };
+
+    const onMouseMove = (e: MouseEvent) => {
+      if (!isDragging.current || isTeleopActive) return;
+
+      const dx = e.clientX - lastMouse.current.x;
+      const dy = e.clientY - lastMouse.current.y;
+      lastMouse.current = { x: e.clientX, y: e.clientY };
+
+      // Sensitivity: pixels to radians
+      const sensitivity = 0.005;
+      yawOffset.current -= dx * sensitivity;
+      pitch.current += dy * sensitivity;
+      pitch.current = Math.max(0.1, Math.min(1.4, pitch.current));
+    };
+
+    const onMouseUp = () => {
+      isDragging.current = false;
+      canvas.style.cursor = "grab";
+    };
+
+    const onMouseLeave = () => {
+      isDragging.current = false;
+      canvas.style.cursor = "";
+    };
+
+    const onWheel = (e: WheelEvent) => {
+      if (isTeleopActive) return;
+      e.preventDefault();
+      // Zoom: adjust distance
+      const zoomSensitivity = 0.002;
+      distance.current += e.deltaY * zoomSensitivity;
+      distance.current = Math.max(1.5, Math.min(15, distance.current));
+    };
+
+    // Set initial cursor when not in teleop
+    if (!isTeleopActive) {
+      canvas.style.cursor = "grab";
+    }
+
+    canvas.addEventListener("mousedown", onMouseDown);
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
+    canvas.addEventListener("mouseleave", onMouseLeave);
+    canvas.addEventListener("wheel", onWheel, { passive: false });
+
+    return () => {
+      canvas.removeEventListener("mousedown", onMouseDown);
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
+      canvas.removeEventListener("mouseleave", onMouseLeave);
+      canvas.removeEventListener("wheel", onWheel);
+      canvas.style.cursor = "";
+    };
+  }, [gl, isTeleopActive]);
+
   useFrame((_, delta) => {
+    // Get latest input from store
+    const { input } = useConsoleStore.getState();
+
+    // Compute render pose from interpolation buffer (same source as RoverModel)
+    const result = computeRenderPose(getInterpolationBuffer(), performance.now(), 0);
+    const renderPose = result.pose;
+
     // Apply camera input
     const hasInput =
       Math.abs(input.cameraYaw) > 0.01 || Math.abs(input.cameraPitch) > 0.01;
@@ -22,8 +114,8 @@ export function CameraController() {
       pitch.current = Math.max(0.1, Math.min(1.4, pitch.current));
     }
 
-    // Auto-reset in third person when no input
-    if (!hasInput && cameraMode === CameraMode.ThirdPerson) {
+    // Auto-reset in third person when no input (only during teleop)
+    if (!hasInput && cameraMode === CameraMode.ThirdPerson && isTeleopActive) {
       const returnSpeed =
         Math.abs(input.linear) > 0.1 || Math.abs(input.angular) > 0.1 ? 4 : 2;
       yawOffset.current *= 1 - returnSpeed * delta;
@@ -33,15 +125,17 @@ export function CameraController() {
     if (yawOffset.current > Math.PI) yawOffset.current -= Math.PI * 2;
     if (yawOffset.current < -Math.PI) yawOffset.current += Math.PI * 2;
 
-    // Rover position in 3D
-    const roverPos = new Vector3(renderPose.x, 0.15, -renderPose.y);
+    // Rover position in 3D (matching RoverModel coordinate mapping)
+    // Physics: X=forward, Y=left; Three.js: -Z=forward, -X=left
+    const roverPos = new Vector3(-renderPose.y, 0.15, -renderPose.x);
 
     switch (cameraMode) {
       case CameraMode.FirstPerson: {
+        // Forward vector: physics (cos, sin) → Three.js (-sin, 0, -cos)
         const forward = new Vector3(
-          Math.cos(renderPose.theta),
+          -Math.sin(renderPose.theta),
           0,
-          -Math.sin(renderPose.theta)
+          -Math.cos(renderPose.theta)
         );
         camera.position
           .copy(roverPos)
@@ -52,14 +146,16 @@ export function CameraController() {
       }
 
       case CameraMode.ThirdPerson: {
-        const totalYaw = renderPose.theta + yawOffset.current + Math.PI;
+        // Camera orbits behind rover, following heading
+        const yaw = renderPose.theta + yawOffset.current;
         const horizontalDist = distance.current * Math.cos(pitch.current);
         const height = distance.current * Math.sin(pitch.current);
 
+        // Offset: physics "behind" (-cos, -sin) → Three.js (sin, 0, cos)
         const targetPos = new Vector3(
-          renderPose.x + horizontalDist * Math.cos(totalYaw),
+          roverPos.x + horizontalDist * Math.sin(yaw),
           height + 0.3,
-          -renderPose.y - horizontalDist * Math.sin(totalYaw)
+          roverPos.z + horizontalDist * Math.cos(yaw)
         );
 
         camera.position.lerp(targetPos, 8 * delta);
@@ -68,13 +164,14 @@ export function CameraController() {
       }
 
       case CameraMode.FreeLook: {
+        // Camera orbits at fixed world angle (doesn't follow rover heading)
         const horizontalDist = distance.current * Math.cos(pitch.current);
         const height = distance.current * Math.sin(pitch.current);
 
         const targetPos = new Vector3(
-          renderPose.x + horizontalDist * Math.cos(yawOffset.current),
+          roverPos.x + horizontalDist * Math.sin(yawOffset.current),
           height + 0.3,
-          -renderPose.y - horizontalDist * Math.sin(yawOffset.current)
+          roverPos.z + horizontalDist * Math.cos(yawOffset.current)
         );
 
         camera.position.lerp(targetPos, 8 * delta);
