@@ -1,135 +1,126 @@
 import { useRef, useEffect, useMemo } from "react";
-import { useFrame, useLoader } from "@react-three/fiber";
 import { useConsoleStore } from "@/store";
 import {
-  BackSide,
-  SphereGeometry,
+  PlaneGeometry,
   MeshBasicMaterial,
-  TextureLoader,
+  CanvasTexture,
   SRGBColorSpace,
+  DoubleSide,
   type Mesh,
   type Texture,
 } from "three";
 
 /**
- * Renders the 360 video feed from the Insta360 X4 as an environment skybox.
+ * Renders the camera feed as a video plane positioned in front of the rover.
  *
- * The equirectangular image is mapped onto the inside of a large sphere,
- * creating an immersive view of the rover's surroundings.
- *
- * When no video is available, displays a neutral gray gradient.
+ * The video is displayed on a plane that acts as a "windshield" view,
+ * showing what the rover's cameras see ahead.
  */
 export function EquirectangularSky() {
   const meshRef = useRef<Mesh>(null);
   const materialRef = useRef<MeshBasicMaterial>(null);
   const textureRef = useRef<Texture | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
+  const currentUrlRef = useRef<string | null>(null);
+  const firstFrameLoadedRef = useRef(false);
 
-  const { videoFrame, videoConnected, renderPose } = useConsoleStore();
+  const { videoFrame, videoConnected } = useConsoleStore();
 
-  // Create sphere geometry once (inside-out)
+  // Create plane geometry sized for 4:3 aspect ratio
   const geometry = useMemo(() => {
-    const geo = new SphereGeometry(500, 64, 32);
-    // Flip UVs horizontally for correct orientation
-    const uvs = geo.attributes.uv;
-    for (let i = 0; i < uvs.count; i++) {
-      uvs.setX(i, 1 - uvs.getX(i));
-    }
-    return geo;
+    const aspectRatio = 640 / 480;
+    const height = 8;
+    const width = height * aspectRatio;
+    return new PlaneGeometry(width, height);
   }, []);
 
-  // Load placeholder texture for when video is disconnected
-  const placeholderTexture = useLoader(
-    TextureLoader,
-    "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
-  );
-
-  // Track load state to avoid stale updates
-  const loadingUrlRef = useRef<string | null>(null);
-  const frameCountRef = useRef(0);
-
-  // Update texture when video frame changes
+  // Initialize canvas for texture
   useEffect(() => {
-    if (!materialRef.current) return;
+    canvasRef.current = document.createElement("canvas");
+    canvasRef.current.width = 640;
+    canvasRef.current.height = 480;
+    ctxRef.current = canvasRef.current.getContext("2d");
 
-    if (videoFrame && videoConnected) {
-      // Skip if we're already loading this frame
-      if (loadingUrlRef.current === videoFrame) return;
-      loadingUrlRef.current = videoFrame;
-
-      // Load new texture from blob URL
-      const loader = new TextureLoader();
-      const frameUrl = videoFrame;
-
-      loader.load(
-        frameUrl,
-        (texture) => {
-          // Check this is still the latest frame we want
-          if (loadingUrlRef.current !== frameUrl) {
-            texture.dispose();
-            return;
-          }
-
-          texture.colorSpace = SRGBColorSpace;
-
-          // Dispose old texture
-          if (textureRef.current && textureRef.current !== placeholderTexture) {
-            textureRef.current.dispose();
-          }
-
-          textureRef.current = texture;
-          if (materialRef.current) {
-            materialRef.current.map = texture;
-            materialRef.current.needsUpdate = true;
-          }
-
-          // Log first frame for debugging
-          frameCountRef.current++;
-          if (frameCountRef.current === 1) {
-            console.log("[EquirectangularSky] First video texture loaded");
-          }
-        },
-        undefined,
-        (error) => {
-          console.error("[EquirectangularSky] Failed to load video texture:", error);
-        }
-      );
-    } else {
-      // Use placeholder
-      loadingUrlRef.current = null;
-      if (textureRef.current && textureRef.current !== placeholderTexture) {
-        textureRef.current.dispose();
-      }
-      textureRef.current = null;
-      materialRef.current.map = null;
-      materialRef.current.color.setHex(0x1a1a1a);
-      materialRef.current.needsUpdate = true;
-    }
-  }, [videoFrame, videoConnected, placeholderTexture]);
-
-  // Rotate sky sphere opposite to rover orientation so the world appears fixed
-  useFrame(() => {
-    if (!meshRef.current) return;
-
-    // The sky rotates opposite to the rover's heading
-    // This creates the effect of the rover moving through a fixed world
-    meshRef.current.rotation.y = -renderPose.theta;
-  });
-
-  // Cleanup on unmount
-  useEffect(() => {
     return () => {
-      if (textureRef.current && textureRef.current !== placeholderTexture) {
+      if (textureRef.current) {
         textureRef.current.dispose();
       }
     };
-  }, [placeholderTexture]);
+  }, []);
+
+  // Update texture when video frame changes
+  useEffect(() => {
+    if (!materialRef.current || !canvasRef.current || !ctxRef.current) return;
+    if (!videoFrame || !videoConnected) {
+      if (materialRef.current) {
+        materialRef.current.map = null;
+        materialRef.current.color.setHex(0x333333);
+        materialRef.current.needsUpdate = true;
+      }
+      firstFrameLoadedRef.current = false;
+      return;
+    }
+
+    const canvas = canvasRef.current;
+    const ctx = ctxRef.current;
+    const frameUrl = videoFrame;
+
+    // Track which URL we're currently loading
+    currentUrlRef.current = frameUrl;
+
+    // Use Image element for loading - handles blob URLs correctly
+    const img = new Image();
+    img.onload = () => {
+      // Check if this is still the current frame (not stale)
+      if (currentUrlRef.current !== frameUrl) {
+        return;
+      }
+
+      // Resize canvas if needed
+      if (canvas.width !== img.width || canvas.height !== img.height) {
+        canvas.width = img.width;
+        canvas.height = img.height;
+      }
+
+      // Draw to canvas
+      ctx.drawImage(img, 0, 0);
+
+      // Create or update texture
+      if (!textureRef.current) {
+        textureRef.current = new CanvasTexture(canvas);
+        textureRef.current.colorSpace = SRGBColorSpace;
+        if (materialRef.current) {
+          materialRef.current.map = textureRef.current;
+          materialRef.current.needsUpdate = true;
+        }
+      } else {
+        textureRef.current.needsUpdate = true;
+      }
+
+      if (!firstFrameLoadedRef.current) {
+        console.log(`[VideoPlane] First texture loaded: ${canvas.width}x${canvas.height}`);
+        firstFrameLoadedRef.current = true;
+      }
+    };
+
+    img.onerror = () => {
+      // Only log if this is still the current URL (not a stale revoked URL)
+      if (currentUrlRef.current === frameUrl && !firstFrameLoadedRef.current) {
+        console.error("[VideoPlane] Failed to load frame");
+      }
+    };
+
+    // Start loading
+    img.src = frameUrl;
+  }, [videoFrame, videoConnected]);
 
   return (
-    <mesh ref={meshRef} geometry={geometry}>
+    <mesh ref={meshRef} geometry={geometry} position={[0, 4, -10]}>
       <meshBasicMaterial
         ref={materialRef}
-        side={BackSide}
-        color={videoConnected ? 0xffffff : 0x1a1a1a}
+        side={DoubleSide}
+        color={0xffffff}
         fog={false}
       />
     </mesh>
@@ -153,7 +144,70 @@ export function VideoStatusBadge() {
 
   return (
     <div className="bg-muted/80 text-muted-foreground px-2 py-1 rounded text-xs font-mono">
-      360 {videoFps} FPS
+      CAM {videoFps} FPS
+    </div>
+  );
+}
+
+/**
+ * Single camera feed display.
+ */
+function CameraFeed({ cameraId, url }: { cameraId: number; url: string | null }) {
+  return (
+    <div className="relative w-40 h-30 bg-black">
+      {url ? (
+        <img
+          src={url}
+          alt={`Camera ${cameraId}`}
+          className="w-full h-full object-contain"
+        />
+      ) : (
+        <div className="absolute inset-0 flex items-center justify-center text-muted-foreground text-xs">
+          No signal
+        </div>
+      )}
+      <div className="absolute bottom-0 left-0 px-1 bg-black/60 text-white text-xs">
+        CAM {cameraId}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Picture-in-picture camera feed card.
+ * Displays raw video frames from all cameras as HTML images for debugging
+ * and as an always-visible camera view for operators.
+ */
+export function CameraFeedCard() {
+  const { videoConnected, videoFps, cameraFrames, cameraCount } = useConsoleStore();
+
+  // Convert Map to array for rendering
+  const cameras = Array.from(cameraFrames.entries()).sort((a, b) => a[0] - b[0]);
+
+  return (
+    <div className="bg-card/90 backdrop-blur-sm border border-border rounded-lg overflow-hidden shadow-lg">
+      {/* Header */}
+      <div className="flex items-center justify-between px-2 py-1 bg-muted/50 border-b border-border">
+        <span className="text-xs font-medium text-muted-foreground">
+          Cameras ({cameraCount})
+        </span>
+        <span className={`text-xs font-mono ${videoConnected ? 'text-green-500' : 'text-red-500'}`}>
+          {videoConnected ? `${videoFps} FPS` : 'OFFLINE'}
+        </span>
+      </div>
+
+      {/* Camera feeds grid */}
+      <div className="flex flex-wrap gap-1 p-1">
+        {cameras.length > 0 ? (
+          cameras.map(([cameraId, frame]) => (
+            <CameraFeed key={cameraId} cameraId={cameraId} url={frame.url} />
+          ))
+        ) : (
+          <div className="w-40 h-30 flex items-center justify-center text-muted-foreground text-sm bg-black">
+            {videoConnected ? 'Waiting for frames...' : 'No cameras'}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

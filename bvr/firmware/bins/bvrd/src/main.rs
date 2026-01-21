@@ -857,71 +857,89 @@ async fn main() -> Result<()> {
                 info!(name = %cam.name, "  - {:?}", cam.camera_type);
             }
 
-            // Start capture on first available camera
+            // Start capture on all detected cameras
             // GStreamer init happens here and can hang on Jetson, so wrap in timeout
-            info!("Starting camera capture (GStreamer init may hang)...");
-            let first_camera = cameras[0].clone();
-            let capture_result = tokio::time::timeout(
-                Duration::from_secs(15),
-                tokio::task::spawn_blocking(move || {
-                    camera::spawn_capture(&first_camera, camera_config)
-                }),
-            )
-            .await;
+            info!("Starting camera capture for {} camera(s)...", cameras.len());
 
-            match capture_result {
-                Ok(Ok(Ok((frame_rx, _camera_handle)))) => {
-                    info!(
-                        camera = %cameras[0].name,
-                        "Camera started: {}x{} @ {}fps",
-                        width,
-                        height,
-                        args.camera_fps
-                    );
+            let mut cameras_started = 0u8;
 
-                    // Mark camera as active in health status
-                    shared.lock().unwrap().health.camera_active = true;
+            for (camera_id, cam) in cameras.iter().enumerate() {
+                let camera_id = camera_id as u8;
+                let cam_clone = cam.clone();
+                let cam_config = camera_config.clone();
 
-                    // Use the pre-created video_tx channel (shared with RTC server)
-                    let video_tx_camera = video_tx.clone();
+                let capture_result = tokio::time::timeout(
+                    Duration::from_secs(15),
+                    tokio::task::spawn_blocking(move || {
+                        camera::spawn_capture(&cam_clone, cam_config)
+                    }),
+                )
+                .await;
 
-                    // Spawn task to bridge sync camera frames to async video server
-                    std::thread::spawn(move || {
-                        while let Ok(frame) = frame_rx.recv() {
-                            let video_frame = VideoFrame {
-                                data: frame.data,
-                                width: frame.width,
-                                height: frame.height,
-                                sequence: frame.sequence,
-                                timestamp_ms: frame.timestamp_ms,
-                            };
-                            if video_tx_camera.send(Some(video_frame)).is_err() {
-                                break;
+                match capture_result {
+                    Ok(Ok(Ok((frame_rx, _camera_handle)))) => {
+                        info!(
+                            camera_id,
+                            camera = %cam.name,
+                            "Camera {} started: {}x{} @ {}fps",
+                            camera_id,
+                            width,
+                            height,
+                            args.camera_fps
+                        );
+
+                        cameras_started += 1;
+
+                        // Use the pre-created video_tx channel (shared with RTC server)
+                        let video_tx_camera = video_tx.clone();
+
+                        // Spawn task to bridge sync camera frames to async video server
+                        std::thread::spawn(move || {
+                            while let Ok(frame) = frame_rx.recv() {
+                                let video_frame = VideoFrame {
+                                    camera_id,
+                                    data: frame.data,
+                                    width: frame.width,
+                                    height: frame.height,
+                                    sequence: frame.sequence,
+                                    timestamp_ms: frame.timestamp_ms,
+                                };
+                                if video_tx_camera.send(Some(video_frame)).is_err() {
+                                    break;
+                                }
                             }
-                        }
-                    });
+                        });
+                    }
+                    Ok(Ok(Err(e))) => {
+                        warn!(camera_id, ?e, "Failed to start camera {} - skipping", camera_id);
+                    }
+                    Ok(Err(e)) => {
+                        warn!(camera_id, ?e, "Camera {} capture task panicked", camera_id);
+                    }
+                    Err(_) => {
+                        warn!(camera_id, "Camera {} capture timed out (GStreamer init hung)", camera_id);
+                    }
+                }
+            }
 
-                    // Spawn UDP video server (for native operator CLI)
-                    let video_config = VideoConfig::default();
-                    let video_rx_udp = video_rx.clone();
-                    let video_server = VideoServer::new(video_config.clone(), video_rx_udp);
-                    info!(port = video_config.port, "UDP video server starting");
+            if cameras_started > 0 {
+                // Mark camera as active in health status
+                shared.lock().unwrap().health.camera_active = true;
+                info!(count = cameras_started, "Camera capture started");
 
-                    tokio::spawn(async move {
-                        if let Err(e) = video_server.run().await {
-                            error!(?e, "UDP video server error");
-                        }
-                    });
-                }
-                Ok(Ok(Err(e))) => {
-                    warn!(?e, "Failed to start camera - continuing without video");
-                }
-                Ok(Err(e)) => {
-                    warn!(?e, "Camera capture task panicked");
-                }
-                Err(_) => {
-                    warn!("Camera capture timed out (GStreamer init hung) - continuing without video");
-                }
+                // Spawn UDP video server (for native operator CLI)
+                let video_config = VideoConfig::default();
+                let video_rx_udp = video_rx.clone();
+                let video_server = VideoServer::new(video_config.clone(), video_rx_udp);
+                info!(port = video_config.port, "UDP video server starting");
+
+                tokio::spawn(async move {
+                    if let Err(e) = video_server.run().await {
+                        error!(?e, "UDP video server error");
+                    }
+                });
+            } else {
+                warn!("No cameras could be started - continuing without video");
             }
         }
     }

@@ -61,6 +61,7 @@ export function useRoverConnectionRtc() {
     setVideoConnected,
     setVideoFps,
     setVideoFrame,
+    setCameraFrame,
   } = useConsoleStore();
 
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
@@ -79,10 +80,11 @@ export function useRoverConnectionRtc() {
   const lastSendTimeRef = useRef<number>(0);
   const connectRef = useRef<() => void>(() => {});
 
-  // Video frame tracking
+  // Video frame tracking (per-camera)
   const videoFrameCountRef = useRef(0);
   const lastVideoFpsUpdateRef = useRef(0);
-  const lastVideoBlobUrlRef = useRef<string | null>(null);
+  const cameraBlobUrlsRef = useRef<Map<number, string>>(new Map());
+  const firstFrameLoggedRef = useRef(false);
 
   // Current input state (updated from main thread)
   const currentInputRef = useRef({
@@ -231,10 +233,10 @@ export function useRoverConnectionRtc() {
             actionB: input.actionB,
           };
 
-          // Handle enable rising edge (Enter key)
+          // Handle enable rising edge (Enter key) - only if not already operator
           const enableRising = input.enable && !prevEnableRef.current;
           prevEnableRef.current = input.enable;
-          if (enableRising && commandChannelRef.current?.readyState === "open") {
+          if (enableRising && !isOperatorRef.current && commandChannelRef.current?.readyState === "open") {
             // Claim operator and enable teleop
             isOperatorRef.current = true;
             commandChannelRef.current.send(encodeSetMode(Mode.Idle));
@@ -305,6 +307,7 @@ export function useRoverConnectionRtc() {
             setVideoConnected(true);
             videoFrameCountRef.current = 0;
             lastVideoFpsUpdateRef.current = performance.now();
+            firstFrameLoggedRef.current = false;
           };
 
           // Channel might already be open or need to wait for open event
@@ -326,22 +329,26 @@ export function useRoverConnectionRtc() {
               return;
             }
 
-            // Revoke previous blob URL to avoid memory leaks
-            if (lastVideoBlobUrlRef.current) {
-              URL.revokeObjectURL(lastVideoBlobUrlRef.current);
-            }
-
             // Create new blob URL
             const blobUrl = videoFrameToBlobUrl(frame);
-            lastVideoBlobUrlRef.current = blobUrl;
-            setVideoFrame(blobUrl, frame.timestamp_ms);
 
-            // Log first frame received for debugging
-            if (videoFrameCountRef.current === 0) {
-              console.log(`[WebRTC] First video frame received: ${frame.width}x${frame.height}, ${frame.jpegData.length} bytes`);
+            // Revoke previous blob URL for this camera after a delay
+            // (Image loading is asynchronous)
+            const oldUrl = cameraBlobUrlsRef.current.get(frame.cameraId);
+            if (oldUrl) {
+              setTimeout(() => URL.revokeObjectURL(oldUrl), 200);
             }
 
-            // Update FPS counter
+            cameraBlobUrlsRef.current.set(frame.cameraId, blobUrl);
+            setCameraFrame(frame.cameraId, blobUrl, frame.timestamp_ms);
+
+            // Log first frame received for debugging (only once per connection)
+            if (!firstFrameLoggedRef.current) {
+              console.log(`[WebRTC] First video frame received: camera=${frame.cameraId}, ${frame.width}x${frame.height}, ${frame.jpegData.length} bytes`);
+              firstFrameLoggedRef.current = true;
+            }
+
+            // Update FPS counter (total across all cameras)
             videoFrameCountRef.current++;
             const now = performance.now();
             const elapsed = now - lastVideoFpsUpdateRef.current;
@@ -461,6 +468,7 @@ export function useRoverConnectionRtc() {
     setVideoConnected,
     setVideoFps,
     setVideoFrame,
+    setCameraFrame,
     clearIntervals,
     sendCommands,
   ]);
@@ -489,12 +497,6 @@ export function useRoverConnectionRtc() {
     if (signalingWsRef.current) {
       signalingWsRef.current.close();
       signalingWsRef.current = null;
-    }
-
-    // Clean up video blob URL
-    if (lastVideoBlobUrlRef.current) {
-      URL.revokeObjectURL(lastVideoBlobUrlRef.current);
-      lastVideoBlobUrlRef.current = null;
     }
 
     commandChannelRef.current = null;

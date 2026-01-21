@@ -39,6 +39,8 @@ impl Default for VideoConfig {
 /// A video frame ready for display.
 #[derive(Debug, Clone)]
 pub struct VideoFrame {
+    /// Camera ID (0, 1, etc. for multi-camera setups)
+    pub camera_id: u8,
     /// JPEG-encoded image data
     pub data: Vec<u8>,
     /// Frame width
@@ -213,6 +215,7 @@ impl FrameReassembler {
             debug!(seq = sequence, size = data.len(), "Frame complete");
 
             return Some(VideoFrame {
+                camera_id: 0, // UDP protocol doesn't support camera_id yet
                 data,
                 width: partial.width,
                 height: partial.height,
@@ -249,6 +252,7 @@ mod tests {
     #[test]
     fn test_encode_decode_small_frame() {
         let frame = VideoFrame {
+            camera_id: 0,
             data: vec![0xFF, 0xD8, 0xFF, 0xE0], // Minimal JPEG header
             width: 640,
             height: 480,
@@ -272,6 +276,7 @@ mod tests {
     fn test_encode_decode_large_frame() {
         // Create a frame larger than one packet
         let frame = VideoFrame {
+            camera_id: 1,
             data: vec![0xAB; 5000],
             width: 1280,
             height: 720,

@@ -430,9 +430,10 @@ async fn handle_signaling(
 
                     let frame = rx.borrow_and_update().clone();
                     if let Some(frame) = frame {
-                        // Encode frame: [0x20] [timestamp:u64] [width:u16] [height:u16] [jpeg...]
-                        let mut buf = Vec::with_capacity(13 + frame.data.len());
+                        // Encode frame: [0x20] [camera_id:u8] [timestamp:u64] [width:u16] [height:u16] [jpeg...]
+                        let mut buf = Vec::with_capacity(14 + frame.data.len());
                         buf.push(0x20); // Video frame marker
+                        buf.push(frame.camera_id);
                         buf.extend_from_slice(&frame.timestamp_ms.to_le_bytes());
                         buf.extend_from_slice(&(frame.width as u16).to_le_bytes());
                         buf.extend_from_slice(&(frame.height as u16).to_le_bytes());

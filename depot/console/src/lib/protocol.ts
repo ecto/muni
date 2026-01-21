@@ -255,6 +255,7 @@ export function telemetryFromDecoded(decoded: DecodedTelemetry): Telemetry {
 // ============================================================================
 
 export interface DecodedVideoFrame {
+  cameraId: number;
   timestamp_ms: number;
   width: number;
   height: number;
@@ -263,13 +264,13 @@ export interface DecodedVideoFrame {
 
 /**
  * Decode a video frame message.
- * Format: [type:u8] [timestamp:u64 LE] [width:u16 LE] [height:u16 LE] [jpeg_data:...]
+ * Format: [type:u8] [camera_id:u8] [timestamp:u64 LE] [width:u16 LE] [height:u16 LE] [jpeg_data:...]
  */
 export function decodeVideoFrame(data: ArrayBuffer): DecodedVideoFrame | null {
   const view = new DataView(data);
 
-  // Minimum size: 1 (type) + 8 (timestamp) + 2 (width) + 2 (height) + some data
-  if (data.byteLength < 14) {
+  // Minimum size: 1 (type) + 1 (camera_id) + 8 (timestamp) + 2 (width) + 2 (height) + some data
+  if (data.byteLength < 15) {
     return null;
   }
 
@@ -278,19 +279,23 @@ export function decodeVideoFrame(data: ArrayBuffer): DecodedVideoFrame | null {
     return null;
   }
 
+  // Camera ID
+  const cameraId = view.getUint8(1);
+
   // Timestamp (u64 LE)
-  const timestampLow = view.getUint32(1, true);
-  const timestampHigh = view.getUint32(5, true);
+  const timestampLow = view.getUint32(2, true);
+  const timestampHigh = view.getUint32(6, true);
   const timestamp_ms = timestampLow + timestampHigh * 0x100000000;
 
   // Dimensions
-  const width = view.getUint16(9, true);
-  const height = view.getUint16(11, true);
+  const width = view.getUint16(10, true);
+  const height = view.getUint16(12, true);
 
   // JPEG data (rest of buffer)
-  const jpegData = new Uint8Array(data, 13);
+  const jpegData = new Uint8Array(data, 14);
 
   return {
+    cameraId,
     timestamp_ms,
     width,
     height,
@@ -300,10 +305,12 @@ export function decodeVideoFrame(data: ArrayBuffer): DecodedVideoFrame | null {
 
 /**
  * Convert JPEG data to a blob URL for use in textures.
+ * We use blob URLs but the caller should NOT revoke them - the texture
+ * loader needs time to load them asynchronously.
  */
 export function videoFrameToBlobUrl(frame: DecodedVideoFrame): string {
-  // Create a new Uint8Array to ensure we have a proper ArrayBuffer (not SharedArrayBuffer)
-  const data = new Uint8Array(frame.jpegData);
-  const blob = new Blob([data], { type: "image/jpeg" });
+  // Create blob directly from the Uint8Array
+  // Use type assertion since TypeScript 5.7+ is overly strict about ArrayBufferLike vs ArrayBuffer
+  const blob = new Blob([frame.jpegData as BlobPart], { type: "image/jpeg" });
   return URL.createObjectURL(blob);
 }

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Scene, XRButton } from "@/components/scene/Scene";
-import { VideoStatusBadge } from "@/components/scene/EquirectangularSky";
+import { VideoStatusBadge, CameraFeedCard } from "@/components/scene/EquirectangularSky";
 import { TelemetryPanel } from "@/components/teleop/TelemetryPanel";
 import { InputPanel } from "@/components/teleop/InputPanel";
 import { PositionPanel } from "@/components/teleop/PositionPanel";
@@ -196,6 +196,11 @@ export function TeleopView() {
         <div className="absolute top-4 right-4 flex flex-col gap-2 items-end pointer-events-auto">
           <VideoStatusBadge />
           {xrSupported && <XRButton />}
+        </div>
+
+        {/* Bottom right camera feed card */}
+        <div className="absolute bottom-16 right-4 pointer-events-auto">
+          <CameraFeedCard />
         </div>
 
         {/* Bottom bar */}

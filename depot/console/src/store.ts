@@ -57,14 +57,20 @@ interface ConsoleState {
   toast: string | null;
   showToast: (message: string, duration?: number) => void;
 
-  // Video
+  // Video (multi-camera support)
   videoConnected: boolean;
   videoFps: number;
+  /** @deprecated Use cameraFrames instead */
   videoFrame: string | null;
   videoTimestamp: number;
+  /** Frames from each camera, keyed by camera ID */
+  cameraFrames: Map<number, { url: string; timestamp: number }>;
+  /** Number of active cameras */
+  cameraCount: number;
   setVideoConnected: (connected: boolean) => void;
   setVideoFps: (fps: number) => void;
   setVideoFrame: (frame: string | null, timestamp: number) => void;
+  setCameraFrame: (cameraId: number, url: string, timestamp: number) => void;
 
   // Sessions
   sessions: Session[];
@@ -183,15 +189,29 @@ export const useConsoleStore = create<ConsoleState>()(
     setTimeout(() => set({ toast: null }), duration);
   },
 
-  // Video
+  // Video (multi-camera support)
   videoConnected: false,
   videoFps: 0,
   videoFrame: null,
   videoTimestamp: 0,
+  cameraFrames: new Map(),
+  cameraCount: 0,
   setVideoConnected: (connected) => set({ videoConnected: connected }),
   setVideoFps: (fps) => set({ videoFps: fps }),
   setVideoFrame: (frame, timestamp) =>
     set({ videoFrame: frame, videoTimestamp: timestamp }),
+  setCameraFrame: (cameraId, url, timestamp) =>
+    set((state) => {
+      const newFrames = new Map(state.cameraFrames);
+      newFrames.set(cameraId, { url, timestamp });
+      return {
+        cameraFrames: newFrames,
+        cameraCount: newFrames.size,
+        // Keep videoFrame updated with the latest frame for backwards compatibility
+        videoFrame: url,
+        videoTimestamp: timestamp,
+      };
+    }),
 
   // Sessions
   sessions: [],
