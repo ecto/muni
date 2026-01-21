@@ -52,7 +52,7 @@ pub struct Zone {
     pub zone_type: String,
     #[sqlx(json)]
     pub waypoints: serde_json::Value,
-    #[sqlx(json)]
+    // Note: no #[sqlx(json)] here - Option<Value> handles nullable JSONB natively
     pub polygon: Option<serde_json::Value>,
     pub map_id: Option<Uuid>,
     pub created_at: DateTime<Utc>,

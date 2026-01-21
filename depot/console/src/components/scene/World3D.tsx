@@ -41,17 +41,17 @@ function SplatScene({ splatUrl }: { splatUrl: string }) {
  * 3D world container that manages map loading and rendering.
  */
 export function World3D() {
-  const { manifest, splatUrl, loading, error } = useMap3D();
+  const { splatUrl, loading, error } = useMap3D();
 
-  // Don't render anything if no map is loaded
-  if (!manifest || !splatUrl) {
+  // Don't render anything if no splat URL available
+  if (!splatUrl) {
     return null;
   }
 
   // Show error state (could add visual indicator)
   if (error) {
     console.warn("[World3D] Map error:", error);
-    return null;
+    // Continue anyway if we have a demo splat URL
   }
 
   // Loading state is handled by Suspense fallback

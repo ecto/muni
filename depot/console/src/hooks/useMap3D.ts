@@ -80,6 +80,15 @@ interface UseMap3DResult {
 /** Map API base URL (from docker-compose) */
 const MAP_API_URL = "/api/maps";
 
+/**
+ * Demo splat URL - set this to load a splat in development without map-api.
+ * Place a .splat or .ply file in public/demo/ and set this to the filename,
+ * or use a full URL to an external splat file.
+ *
+ * Example: "/demo/my-scene.splat" or "https://example.com/scene.splat"
+ */
+const DEMO_SPLAT_URL: string | null = "/demo/bonsai-7k.splat";
+
 export function useMap3D(): UseMap3DResult {
   const [maps, setMaps] = useState<MapSummary[]>([]);
   const [manifest, setManifest] = useState<MapManifest | null>(null);
@@ -173,11 +182,11 @@ export function useMap3D(): UseMap3DResult {
     fetchMaps();
   }, [fetchMaps]);
 
-  // Build splat URL
+  // Build splat URL - use demo URL as fallback if no map is loaded
   const splatUrl =
     manifest && manifest.assets.splat
       ? `${MAP_API_URL}/${manifest.id}/splat.ply`
-      : null;
+      : DEMO_SPLAT_URL;
 
   // Build coordinate transform
   const transform: CoordinateTransform | null = manifest?.origin
