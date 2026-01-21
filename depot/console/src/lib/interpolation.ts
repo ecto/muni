@@ -1,0 +1,313 @@
+/**
+ * Client-side pose interpolation for smooth rover rendering.
+ *
+ * Uses Hermite spline interpolation with server-provided velocity
+ * for smooth motion between telemetry updates.
+ *
+ * Design principles:
+ * - Pure functions, no side effects
+ * - Server-authoritative: never diverge far from server state
+ * - Short extrapolation only: max 100ms, then hold position
+ */
+
+import type { Pose } from "./types";
+
+/** A snapshot of pose with velocity at a specific time. */
+export interface PoseSnapshot {
+  /** Server timestamp in microseconds */
+  serverTimestamp: number;
+  /** Local receive time (performance.now()) */
+  receivedAt: number;
+  /** Position and orientation */
+  pose: Pose;
+  /** Velocity (linear m/s, angular rad/s) */
+  velocity: { linear: number; angular: number };
+}
+
+/** Ring buffer state for storing recent snapshots. */
+export interface InterpolationState {
+  snapshots: (PoseSnapshot | null)[];
+  head: number;
+  count: number;
+}
+
+/** Maximum extrapolation time in milliseconds. */
+const MAX_EXTRAPOLATION_MS = 100;
+
+/** Buffer capacity (8 slots = ~160ms at 50Hz). */
+const BUFFER_CAPACITY = 8;
+
+/**
+ * Create initial interpolation state.
+ */
+export function createInterpolationState(): InterpolationState {
+  return {
+    snapshots: Array(BUFFER_CAPACITY).fill(null),
+    head: 0,
+    count: 0,
+  };
+}
+
+/**
+ * Push a new snapshot into the buffer.
+ * Returns a new state (immutable).
+ */
+export function pushSnapshot(
+  state: InterpolationState,
+  snapshot: PoseSnapshot
+): InterpolationState {
+  const snapshots = [...state.snapshots];
+  const head = (state.head + 1) % BUFFER_CAPACITY;
+  snapshots[head] = snapshot;
+  const count = Math.min(state.count + 1, BUFFER_CAPACITY);
+
+  return { snapshots, head, count };
+}
+
+/**
+ * Get snapshots in chronological order (oldest to newest).
+ */
+export function getOrderedSnapshots(state: InterpolationState): PoseSnapshot[] {
+  const result: PoseSnapshot[] = [];
+  if (state.count === 0) return result;
+
+  // Start from oldest (head - count + 1) and go to head
+  for (let i = 0; i < state.count; i++) {
+    const idx =
+      (state.head - state.count + 1 + i + BUFFER_CAPACITY) % BUFFER_CAPACITY;
+    const snapshot = state.snapshots[idx];
+    if (snapshot) {
+      result.push(snapshot);
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Get the two most recent snapshots for interpolation.
+ */
+function getRecentSnapshots(
+  state: InterpolationState
+): [PoseSnapshot | null, PoseSnapshot | null] {
+  if (state.count === 0) return [null, null];
+  if (state.count === 1) {
+    return [state.snapshots[state.head], null];
+  }
+
+  const newest = state.snapshots[state.head];
+  const prevIdx = (state.head - 1 + BUFFER_CAPACITY) % BUFFER_CAPACITY;
+  const prev = state.snapshots[prevIdx];
+
+  return [newest, prev];
+}
+
+/**
+ * Hermite spline interpolation between two poses.
+ *
+ * Uses cubic Hermite spline with position and velocity at each endpoint
+ * for smooth C1-continuous interpolation.
+ *
+ * @param p0 Start position
+ * @param v0 Start velocity (tangent)
+ * @param p1 End position
+ * @param v1 End velocity (tangent)
+ * @param t Parameter in [0, 1]
+ */
+function hermite(p0: number, v0: number, p1: number, v1: number, t: number): number {
+  const t2 = t * t;
+  const t3 = t2 * t;
+
+  // Hermite basis functions
+  const h00 = 2 * t3 - 3 * t2 + 1;
+  const h10 = t3 - 2 * t2 + t;
+  const h01 = -2 * t3 + 3 * t2;
+  const h11 = t3 - t2;
+
+  return h00 * p0 + h10 * v0 + h01 * p1 + h11 * v1;
+}
+
+/**
+ * Normalize angle to [-PI, PI].
+ */
+function normalizeAngle(angle: number): number {
+  while (angle > Math.PI) angle -= 2 * Math.PI;
+  while (angle < -Math.PI) angle += 2 * Math.PI;
+  return angle;
+}
+
+/**
+ * Interpolate between two poses using Hermite spline.
+ */
+function interpolatePoses(
+  from: PoseSnapshot,
+  to: PoseSnapshot,
+  t: number,
+  dtSeconds: number
+): Pose {
+  // Convert velocities to position deltas for tangent scaling
+  const fromLinearTangent = from.velocity.linear * dtSeconds;
+  const toLinearTangent = to.velocity.linear * dtSeconds;
+  const fromAngularTangent = from.velocity.angular * dtSeconds;
+  const toAngularTangent = to.velocity.angular * dtSeconds;
+
+  // For x/y, we need to account for heading
+  // Approximate: tangent in world frame based on heading
+  const fromHeading = from.pose.theta;
+  const toHeading = to.pose.theta;
+
+  const fromTangentX = fromLinearTangent * Math.cos(fromHeading);
+  const fromTangentY = fromLinearTangent * Math.sin(fromHeading);
+  const toTangentX = toLinearTangent * Math.cos(toHeading);
+  const toTangentY = toLinearTangent * Math.sin(toHeading);
+
+  const x = hermite(from.pose.x, fromTangentX, to.pose.x, toTangentX, t);
+  const y = hermite(from.pose.y, fromTangentY, to.pose.y, toTangentY, t);
+
+  // For theta, interpolate through shortest path
+  const thetaDiff = normalizeAngle(to.pose.theta - from.pose.theta);
+  const theta = hermite(
+    from.pose.theta,
+    fromAngularTangent,
+    from.pose.theta + thetaDiff,
+    toAngularTangent,
+    t
+  );
+
+  return { x, y, theta: normalizeAngle(theta) };
+}
+
+/**
+ * Extrapolate pose forward using velocity.
+ */
+function extrapolatePose(snapshot: PoseSnapshot, dtSeconds: number): Pose {
+  const dx = snapshot.velocity.linear * dtSeconds * Math.cos(snapshot.pose.theta);
+  const dy = snapshot.velocity.linear * dtSeconds * Math.sin(snapshot.pose.theta);
+  const dtheta = snapshot.velocity.angular * dtSeconds;
+
+  return {
+    x: snapshot.pose.x + dx,
+    y: snapshot.pose.y + dy,
+    theta: normalizeAngle(snapshot.pose.theta + dtheta),
+  };
+}
+
+export interface RenderPoseResult {
+  pose: Pose;
+  isExtrapolating: boolean;
+  /** Age of newest snapshot in ms */
+  snapshotAge: number;
+}
+
+/**
+ * Compute the render pose for the current frame.
+ *
+ * This is the main interpolation function called every frame.
+ *
+ * @param state Interpolation buffer state
+ * @param clientNow Current client time (performance.now())
+ * @param renderDelay How far behind real-time to render (ms, for jitter buffer)
+ */
+export function computeRenderPose(
+  state: InterpolationState,
+  clientNow: number,
+  renderDelay: number = 0
+): RenderPoseResult {
+  const [newest, prev] = getRecentSnapshots(state);
+
+  // No data yet - return origin
+  if (!newest) {
+    return {
+      pose: { x: 0, y: 0, theta: 0 },
+      isExtrapolating: false,
+      snapshotAge: Infinity,
+    };
+  }
+
+  const snapshotAge = clientNow - newest.receivedAt;
+  const targetTime = clientNow - renderDelay;
+
+  // Only one snapshot - extrapolate from it
+  if (!prev) {
+    const dt = (targetTime - newest.receivedAt) / 1000;
+
+    if (dt > MAX_EXTRAPOLATION_MS / 1000) {
+      // Beyond max extrapolation - hold position
+      return {
+        pose: newest.pose,
+        isExtrapolating: true,
+        snapshotAge,
+      };
+    }
+
+    if (dt <= 0) {
+      // Target time is before snapshot - use snapshot directly
+      return {
+        pose: newest.pose,
+        isExtrapolating: false,
+        snapshotAge,
+      };
+    }
+
+    // Extrapolate forward
+    return {
+      pose: extrapolatePose(newest, dt),
+      isExtrapolating: true,
+      snapshotAge,
+    };
+  }
+
+  // Two snapshots available - interpolate or extrapolate
+  const newestTime = newest.receivedAt;
+  const prevTime = prev.receivedAt;
+  const segmentDuration = newestTime - prevTime;
+
+  // Avoid division by zero
+  if (segmentDuration <= 0) {
+    return {
+      pose: newest.pose,
+      isExtrapolating: false,
+      snapshotAge,
+    };
+  }
+
+  // Where does targetTime fall relative to our snapshots?
+  if (targetTime >= newestTime) {
+    // Target is after newest - extrapolate
+    const dt = (targetTime - newestTime) / 1000;
+
+    if (dt > MAX_EXTRAPOLATION_MS / 1000) {
+      // Beyond max extrapolation - hold position
+      return {
+        pose: newest.pose,
+        isExtrapolating: true,
+        snapshotAge,
+      };
+    }
+
+    return {
+      pose: extrapolatePose(newest, dt),
+      isExtrapolating: true,
+      snapshotAge,
+    };
+  }
+
+  if (targetTime <= prevTime) {
+    // Target is before prev - use prev (shouldn't happen normally)
+    return {
+      pose: prev.pose,
+      isExtrapolating: false,
+      snapshotAge,
+    };
+  }
+
+  // Target is between prev and newest - interpolate
+  const t = (targetTime - prevTime) / segmentDuration;
+  const dtSeconds = segmentDuration / 1000;
+
+  return {
+    pose: interpolatePoses(prev, newest, t, dtSeconds),
+    isExtrapolating: false,
+    snapshotAge,
+  };
+}

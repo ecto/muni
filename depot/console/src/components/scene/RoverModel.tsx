@@ -1,9 +1,8 @@
 import { useRef, Suspense, useState, useEffect } from "react";
-import { useFrame } from "@react-three/fiber";
 import { useGLTF } from "@react-three/drei";
 import type { Group } from "three";
 import * as THREE from "three";
-import { useConsoleStore } from "@/store";
+import { useInterpolatedPose, useRenderPose } from "@/hooks/useInterpolatedPose";
 
 const MODEL_PATH = "/models/bvr1_assembly.glb";
 
@@ -81,47 +80,34 @@ function GLTFRover() {
 }
 
 /**
- * Rover model with telemetry-driven pose interpolation.
+ * Rover model with server-authoritative pose rendering.
+ * Uses Hermite spline interpolation for smooth motion between telemetry updates.
  * Loads glTF model with fallback to primitives.
  */
 export function RoverModel() {
   const groupRef = useRef<Group>(null);
-  const { telemetry, renderPose, setRenderPose } = useConsoleStore();
   const [useGltf, setUseGltf] = useState(true);
+
+  // Run interpolation each frame (updates store.renderPose)
+  useInterpolatedPose();
+
+  // Get the interpolated pose
+  const { pose } = useRenderPose();
 
   // Preload the model
   useEffect(() => {
     useGLTF.preload(MODEL_PATH);
   }, []);
 
-  // Interpolate toward target pose each frame
-  useFrame((_, delta) => {
+  // Apply pose to mesh (map 2D physics coords to 3D)
+  // physics.x -> Three.js X
+  // physics.y -> Three.js -Z
+  useEffect(() => {
     if (!groupRef.current) return;
-
-    const target = telemetry.pose;
-    const current = renderPose;
-
-    // Smooth interpolation
-    const lerpFactor = Math.min(1, delta * 10);
-
-    const newX = current.x + (target.x - current.x) * lerpFactor;
-    const newY = current.y + (target.y - current.y) * lerpFactor;
-
-    // Angle interpolation (handle wraparound)
-    let angleDiff = target.theta - current.theta;
-    while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
-    while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
-    const newTheta = current.theta + angleDiff * lerpFactor;
-
-    setRenderPose({ x: newX, y: newY, theta: newTheta });
-
-    // Apply to mesh (map 2D physics coords to 3D)
-    // physics.x -> Three.js X
-    // physics.y -> Three.js -Z
-    groupRef.current.position.x = newX;
-    groupRef.current.position.z = -newY;
-    groupRef.current.rotation.y = newTheta;
-  });
+    groupRef.current.position.x = pose.x;
+    groupRef.current.position.z = -pose.y;
+    groupRef.current.rotation.y = pose.theta;
+  }, [pose]);
 
   return (
     <group ref={groupRef} position={[0, 0, 0]}>
