@@ -1,60 +1,88 @@
 import {
-  Plugs,
-  PlugsConnected,
   GameController,
   Keyboard,
   Warning,
 } from "@phosphor-icons/react";
+import {
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+} from "@/components/ui/tooltip";
 import { useConsoleStore } from "@/store";
 import { InputSource } from "@/lib/types";
 
 export function ConnectionBar() {
-  const { connected, latencyMs, inputSource } = useConsoleStore();
+  const { inputSource } = useConsoleStore();
 
   return (
-    <div className="bg-card/90 backdrop-blur px-4 py-2 flex items-center gap-6 text-sm">
-      {/* Connection status */}
-      <div className="flex items-center gap-2">
-        {connected ? (
-          <PlugsConnected className="h-4 w-4 text-green-500" weight="fill" />
-        ) : (
-          <Plugs className="h-4 w-4 text-destructive" weight="regular" />
-        )}
-        <span className={connected ? "text-foreground" : "text-destructive"}>
-          {connected ? `${latencyMs}ms` : "Disconnected"}
-        </span>
-      </div>
-
-      {/* Input hints based on source - right aligned for stability */}
-      <div className="flex-1 flex items-center justify-end gap-6 text-muted-foreground">
+    <div className="px-3 py-1.5 flex items-center justify-end gap-4 text-xs text-muted-foreground">
         {inputSource === InputSource.Gamepad ? (
           <>
-            <span className="flex items-center gap-1">
-              <GameController className="h-4 w-4" weight="fill" />
-              L-Stick: Drive
-            </span>
-            <span>R-Stick: Camera</span>
-            <span>Start: Enable · R3: Disable</span>
-            <span className="text-destructive flex items-center gap-1">
-              <Warning className="h-4 w-4" weight="fill" />
-              Select: E-STOP
-            </span>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="flex items-center gap-1 cursor-help">
+                  <GameController className="h-3.5 w-3.5" weight="fill" />
+                  L-Stick: Drive
+                </span>
+              </TooltipTrigger>
+              <TooltipContent side="top">Left stick controls forward/back and steering</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="cursor-help">R-Stick: Camera</span>
+              </TooltipTrigger>
+              <TooltipContent side="top">Right stick controls camera in Free mode</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="cursor-help">Start: Enable · R3: Disable</span>
+              </TooltipTrigger>
+              <TooltipContent side="top">Start enters teleop mode, R3 (right stick click) exits</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="text-destructive flex items-center gap-1 cursor-help">
+                  <Warning className="h-3.5 w-3.5" weight="fill" />
+                  Select: E-STOP
+                </span>
+              </TooltipTrigger>
+              <TooltipContent side="top">Emergency stop - immediately halts all motors</TooltipContent>
+            </Tooltip>
           </>
         ) : (
           <>
-            <span className="flex items-center gap-1">
-              <Keyboard className="h-4 w-4" weight="fill" />
-              WASD: Drive
-            </span>
-            <span>Enter: Enable · Bksp: Disable</span>
-            <span>C: View · V: Free</span>
-            <span className="text-destructive flex items-center gap-1">
-              <Warning className="h-4 w-4" weight="fill" />
-              Esc: E-STOP
-            </span>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="flex items-center gap-1 cursor-help">
+                  <Keyboard className="h-3.5 w-3.5" weight="fill" />
+                  WASD: Drive
+                </span>
+              </TooltipTrigger>
+              <TooltipContent side="top">W/S forward/back, A/D turn left/right</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="cursor-help">Enter: Enable · Bksp: Disable</span>
+              </TooltipTrigger>
+              <TooltipContent side="top">Enter key enables teleop, Backspace disables</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="cursor-help">C: View · V: Free</span>
+              </TooltipTrigger>
+              <TooltipContent side="top">C cycles camera view, V toggles free-look mode</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="text-destructive flex items-center gap-1 cursor-help">
+                  <Warning className="h-3.5 w-3.5" weight="fill" />
+                  Esc: E-STOP
+                </span>
+              </TooltipTrigger>
+              <TooltipContent side="top">Emergency stop - immediately halts all motors</TooltipContent>
+            </Tooltip>
           </>
         )}
-      </div>
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import { Routes, Route, useLocation } from "react-router-dom";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toast } from "@/components/ui/Toast";
 import { useDiscovery } from "@/hooks/useDiscovery";
 import { useGpsStatus } from "@/hooks/useGpsStatus";
@@ -30,12 +31,14 @@ function App() {
   // Teleop gets full-screen treatment without sidebar
   if (isTeleop) {
     return (
-      <div className={`${themeClass} h-screen w-screen`}>
-        <Routes>
-          <Route path="/fleet/:roverId/teleop" element={<TeleopView />} />
-        </Routes>
-        <Toast />
-      </div>
+      <TooltipProvider delayDuration={0}>
+        <div className={`${themeClass} h-screen w-screen`}>
+          <Routes>
+            <Route path="/fleet/:roverId/teleop" element={<TeleopView />} />
+          </Routes>
+          <Toast />
+        </div>
+      </TooltipProvider>
     );
   }
 

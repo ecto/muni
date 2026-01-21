@@ -31,6 +31,15 @@ export function useTheme() {
     return theme;
   }, [theme, systemPrefersDark]);
 
+  // Apply dark class to document element so portals inherit it
+  useEffect(() => {
+    if (resolvedTheme === "dark") {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+  }, [resolvedTheme]);
+
   // Cycle through themes: light → dark → system
   const cycleTheme = useCallback(() => {
     const order: Theme[] = ["light", "dark", "system"];

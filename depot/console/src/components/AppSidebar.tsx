@@ -15,6 +15,12 @@ import {
   SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
 import {
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+  TooltipProvider,
+} from "@/components/ui/tooltip";
+import {
   CellTower,
   Desktop,
   Robot,
@@ -55,6 +61,20 @@ const serviceIcons: Record<string, React.ReactNode> = {
 const serviceLinks: Record<string, string> = {
   grafana: "/grafana/",
   influxdb: `${window.location.protocol}//${window.location.hostname}:8086/`,
+};
+
+// Tooltip descriptions for services
+const serviceTooltips: Record<string, string> = {
+  discovery: "Rover registration and heartbeat service",
+  dispatch: "Mission planning and task assignment",
+  "gps-status": "RTK GPS base station status",
+  "map-api": "Map tile and data serving API",
+  mapper: "Map processing and reconstruction",
+  grafana: "Metrics dashboards and alerts",
+  influxdb: "Time-series metrics database",
+  sftp: "Session recording file storage",
+  ntrip: "RTK correction broadcast service",
+  postgres: "Persistent data storage",
 };
 
 export function AppSidebar() {
@@ -248,44 +268,58 @@ export function AppSidebar() {
 
 function ServiceGrid({ services }: { services: ServiceStatus[] }) {
   return (
-    <div className="grid grid-cols-2 gap-1">
-      {services.map((service) => {
-        const link = serviceLinks[service.id];
-        const icon = serviceIcons[service.id] || <Desktop className="h-3.5 w-3.5" />;
+    <TooltipProvider delayDuration={0}>
+      <div className="grid grid-cols-2 gap-1">
+        {services.map((service) => {
+          const link = serviceLinks[service.id];
+          const icon = serviceIcons[service.id] || <Desktop className="h-3.5 w-3.5" />;
+          const tooltip = serviceTooltips[service.id] || service.name;
 
-        const content = (
-          <div
-            className={`flex items-center gap-1.5 px-2 py-1.5 rounded text-xs transition-colors ${
-              service.status === "healthy"
-                ? "bg-green-500/10 text-green-600 dark:text-green-400"
-                : service.status === "unhealthy"
-                ? "bg-red-500/10 text-red-600 dark:text-red-400"
-                : "bg-muted text-muted-foreground"
-            } ${link ? "hover:bg-opacity-20 cursor-pointer" : ""}`}
-          >
-            <StatusDot status={serviceStatusToDot(service.status)} />
-            {icon}
-            <span className="truncate flex-1">{service.name}</span>
-            {link && <ArrowSquareOut className="h-2.5 w-2.5 opacity-50" />}
-          </div>
-        );
-
-        if (link) {
-          return (
-            <a
-              key={service.id}
-              href={link}
-              target="_blank"
-              rel="noopener noreferrer"
+          const content = (
+            <div
+              className={`flex items-center gap-1.5 px-2 py-1.5 rounded text-xs transition-colors ${
+                service.status === "healthy"
+                  ? "bg-green-500/10 text-green-600 dark:text-green-400"
+                  : service.status === "unhealthy"
+                  ? "bg-red-500/10 text-red-600 dark:text-red-400"
+                  : "bg-muted text-muted-foreground"
+              } ${link ? "hover:bg-opacity-20 cursor-pointer" : ""}`}
             >
-              {content}
-            </a>
+              <StatusDot status={serviceStatusToDot(service.status)} />
+              {icon}
+              <span className="truncate flex-1">{service.name}</span>
+              {link && <ArrowSquareOut className="h-2.5 w-2.5 opacity-50" />}
+            </div>
           );
-        }
 
-        return <div key={service.id}>{content}</div>;
-      })}
-    </div>
+          if (link) {
+            return (
+              <Tooltip key={service.id}>
+                <TooltipTrigger asChild>
+                  <a
+                    href={link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {content}
+                  </a>
+                </TooltipTrigger>
+                <TooltipContent side="right">{tooltip}</TooltipContent>
+              </Tooltip>
+            );
+          }
+
+          return (
+            <Tooltip key={service.id}>
+              <TooltipTrigger asChild>
+                <div>{content}</div>
+              </TooltipTrigger>
+              <TooltipContent side="right">{tooltip}</TooltipContent>
+            </Tooltip>
+          );
+        })}
+      </div>
+    </TooltipProvider>
   );
 }
 

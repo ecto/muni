@@ -1,12 +1,16 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Scene, XRButton } from "@/components/scene/Scene";
-import { VideoStatusBadge, CameraFeedCard } from "@/components/scene/EquirectangularSky";
+import { Scene } from "@/components/scene/Scene";
+import { CameraFeedCard } from "@/components/scene/EquirectangularSky";
 import { TelemetryPanel } from "@/components/teleop/TelemetryPanel";
 import { InputPanel } from "@/components/teleop/InputPanel";
-import { PositionPanel } from "@/components/teleop/PositionPanel";
 import { ConnectionBar } from "@/components/teleop/ConnectionBar";
 import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+} from "@/components/ui/tooltip";
 import { useKeyboard } from "@/hooks/useKeyboard";
 import { useGamepad } from "@/hooks/useGamepad";
 import { useRoverConnectionRtc } from "@/hooks/useRoverConnectionRtc";
@@ -65,14 +69,6 @@ export function TeleopView() {
     }
   }, [roverId, selectRover, rovers, rtcAddress]);
 
-  // Check for WebXR support
-  const [xrSupported, setXrSupported] = useState(false);
-  useEffect(() => {
-    if (navigator.xr) {
-      navigator.xr.isSessionSupported("immersive-vr").then(setXrSupported);
-    }
-  }, []);
-
   const handleExit = () => {
     disconnect();
     navigate("/fleet");
@@ -93,14 +89,19 @@ export function TeleopView() {
           <p className="text-lg text-red-200 mb-8">
             All motors are disabled. Clear the E-Stop to resume operation.
           </p>
-          <Button
-            variant="outline"
-            size="lg"
-            onClick={sendEStopRelease}
-            className="border-red-500 text-red-500 hover:bg-red-500 hover:text-white text-lg px-8 py-6"
-          >
-            Release E-Stop
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="outline"
+                size="lg"
+                onClick={sendEStopRelease}
+                className="border-red-500 text-red-500 hover:bg-red-500 hover:text-white text-lg px-8 py-6"
+              >
+                Release E-Stop
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">Clear emergency stop and return to idle</TooltipContent>
+          </Tooltip>
         </div>
       )}
 
@@ -112,42 +113,6 @@ export function TeleopView() {
             <span className="text-lg text-muted-foreground">
               Connecting to {selectedRover?.name ?? "rover"}...
             </span>
-          </div>
-        </div>
-      )}
-
-      {/* Disabled Mode Overlay */}
-      {isDisabled && !enabling && !connecting && (
-        <div className="absolute inset-0 flex items-center justify-center z-40 pointer-events-none">
-          <div className="flex flex-col items-center gap-4">
-            <Button
-              variant="default"
-              size="lg"
-              disabled={!connected}
-              onClick={() => {
-                setEnabling(true);
-                sendEnable();
-              }}
-              className="pointer-events-auto gap-3 text-lg px-8 py-6 bg-green-600 hover:bg-green-500 disabled:bg-gray-600"
-            >
-              <Play className="h-6 w-6" weight="fill" />
-              Enable Teleop
-            </Button>
-            {!connected && (
-              <span className="text-sm text-muted-foreground">
-                Waiting for connection...
-              </span>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Enabling state */}
-      {enabling && (
-        <div className="absolute inset-0 flex items-center justify-center z-40 pointer-events-none">
-          <div className="flex items-center gap-3 text-lg text-muted-foreground">
-            <CircleNotch className="h-6 w-6 animate-spin" />
-            Enabling...
           </div>
         </div>
       )}
@@ -168,39 +133,63 @@ export function TeleopView() {
           </Button>
           <TelemetryPanel />
           <InputPanel />
-          <PositionPanel />
-          {/* Disable button when in teleop */}
-          {isTeleop && !disabling && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setDisabling(true);
-                sendDisable();
-              }}
-              className="w-fit gap-2 shrink-0"
-            >
-              <Stop className="h-4 w-4" weight="fill" />
-              Disable
+          <CameraFeedCard />
+        </div>
+
+        {/* Top right controls */}
+        <div className="absolute top-4 right-4 pointer-events-auto flex items-center gap-2">
+          {/* Enable/Disable button */}
+          {isDisabled && !enabling && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="default"
+                  size="sm"
+                  disabled={!connected}
+                  onClick={() => {
+                    setEnabling(true);
+                    sendEnable();
+                  }}
+                  className="gap-2 bg-green-600 hover:bg-green-500 disabled:bg-gray-600"
+                >
+                  <Play className="h-4 w-4" weight="fill" />
+                  Enable
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">Enter teleop mode and start accepting drive commands</TooltipContent>
+            </Tooltip>
+          )}
+          {enabling && (
+            <Button variant="secondary" size="sm" disabled className="gap-2">
+              <CircleNotch className="h-4 w-4 animate-spin" />
+              Enabling...
             </Button>
           )}
+          {isTeleop && !disabling && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={() => {
+                    setDisabling(true);
+                    sendDisable();
+                  }}
+                  className="gap-2 bg-amber-600 hover:bg-amber-500"
+                >
+                  <Stop className="h-4 w-4" weight="fill" />
+                  Disable
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">Exit teleop mode and stop motors</TooltipContent>
+            </Tooltip>
+          )}
           {disabling && (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground shrink-0">
+            <Button variant="secondary" size="sm" disabled className="gap-2">
               <CircleNotch className="h-4 w-4 animate-spin" />
               Disabling...
-            </div>
+            </Button>
           )}
-        </div>
-
-        {/* Top right status and VR button */}
-        <div className="absolute top-4 right-4 flex flex-col gap-2 items-end pointer-events-auto">
-          <VideoStatusBadge />
-          {xrSupported && <XRButton />}
-        </div>
-
-        {/* Bottom right camera feed card */}
-        <div className="absolute bottom-16 right-4 pointer-events-auto">
-          <CameraFeedCard />
         </div>
 
         {/* Bottom bar */}

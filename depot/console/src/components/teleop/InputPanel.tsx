@@ -1,98 +1,126 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Separator } from "@/components/ui/separator";
-import { GameController, Keyboard, Circle } from "@phosphor-icons/react";
+import {
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+} from "@/components/ui/tooltip";
+import { GameController, Keyboard, CaretDown, CaretRight } from "@phosphor-icons/react";
 import { useConsoleStore } from "@/store";
 import { InputSource } from "@/lib/types";
 
-function InputSourceIcon({ source }: { source: InputSource }) {
-  switch (source) {
-    case InputSource.Gamepad:
-      return <GameController className="h-4 w-4" weight="fill" />;
-    case InputSource.Keyboard:
-      return <Keyboard className="h-4 w-4" weight="fill" />;
-    default:
-      return <Circle className="h-4 w-4" weight="regular" />;
-  }
-}
-
-function AxisBar({ value, label }: { value: number; label: string }) {
+function AxisBar({ value, label, tooltip }: { value: number; label: string; tooltip: string }) {
   // Map -1..1 to 0..100
   const percent = ((value + 1) / 2) * 100;
 
   return (
-    <div className="space-y-1">
-      <div className="flex items-center justify-between text-sm">
-        <span className="text-muted-foreground">{label}</span>
-        <span className="font-mono w-12 text-right">
-          {value >= 0 ? "+" : ""}
-          {value.toFixed(2)}
-        </span>
-      </div>
-      <Progress value={percent} className="h-2" />
-    </div>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <div className="space-y-0.5 cursor-help">
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-muted-foreground">{label}</span>
+            <span className="font-mono w-10 text-right text-stone-900 dark:text-stone-100">
+              {value >= 0 ? "+" : ""}
+              {value.toFixed(2)}
+            </span>
+          </div>
+          <Progress value={percent} className="h-1.5" />
+        </div>
+      </TooltipTrigger>
+      <TooltipContent side="right">{tooltip}</TooltipContent>
+    </Tooltip>
   );
 }
 
 export function InputPanel() {
   const { input, inputSource } = useConsoleStore();
+  const [collapsed, setCollapsed] = useState(false);
 
-  const sourceLabel = {
-    [InputSource.None]: "No Input",
-    [InputSource.Keyboard]: "Keyboard",
-    [InputSource.Gamepad]: "Gamepad",
-  }[inputSource];
+  const sourceIcon = inputSource === InputSource.Gamepad
+    ? <GameController className="h-3.5 w-3.5" weight="fill" />
+    : <Keyboard className="h-3.5 w-3.5" weight="fill" />;
+
+  const sourceLabel = inputSource === InputSource.Gamepad ? "Gamepad" : "Keyboard";
 
   return (
-    <Card className="w-64 bg-card/90 backdrop-blur">
-      <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-medium flex items-center justify-between">
+    <div className="w-44 bg-card/90 backdrop-blur-sm border border-border rounded-lg overflow-hidden shadow-lg">
+      {/* Header */}
+      <div
+        className="flex items-center justify-between px-2 py-1 bg-muted/50 border-b border-border cursor-pointer hover:bg-muted/70"
+        onClick={() => setCollapsed(!collapsed)}
+      >
+        <span className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+          {collapsed ? <CaretRight className="h-3 w-3" /> : <CaretDown className="h-3 w-3" />}
           Input
-          <Badge
-            variant={inputSource === InputSource.None ? "outline" : "secondary"}
-            className="flex items-center gap-1"
-          >
-            <InputSourceIcon source={inputSource} />
-            {sourceLabel}
-          </Badge>
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <AxisBar value={input.linear} label="Linear" />
-        <AxisBar value={input.angular} label="Angular" />
-        <AxisBar value={input.toolAxis} label="Tool" />
+        </span>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className="flex items-center gap-1 text-xs text-muted-foreground cursor-help">
+              {sourceIcon}
+              {sourceLabel}
+            </span>
+          </TooltipTrigger>
+          <TooltipContent side="right">Active input source</TooltipContent>
+        </Tooltip>
+      </div>
 
-        <Separator />
+      {/* Content */}
+      {!collapsed && (
+        <div className="p-2 space-y-1.5">
+          <AxisBar value={input.linear} label="Linear" tooltip="Forward (+) / Reverse (-) throttle" />
+          <AxisBar value={input.angular} label="Angular" tooltip="Left (+) / Right (-) steering" />
+          <AxisBar value={input.toolAxis} label="Tool" tooltip="Attachment control (plow up/down)" />
 
-        {/* Buttons */}
-        <div className="flex items-center gap-2 text-sm">
-          <Badge
-            variant={input.actionA ? "default" : "outline"}
-            className="text-xs"
-          >
-            A
-          </Badge>
-          <Badge
-            variant={input.actionB ? "default" : "outline"}
-            className="text-xs"
-          >
-            B
-          </Badge>
-          <Badge
-            variant={input.estop ? "destructive" : "outline"}
-            className="text-xs"
-          >
-            STOP
-          </Badge>
-          <Badge
-            variant={input.enable ? "default" : "outline"}
-            className="text-xs"
-          >
-            EN
-          </Badge>
+          {/* Buttons */}
+          <div className="grid grid-cols-4 gap-1 pt-1 border-t border-border">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Badge
+                  variant={input.boost ? "default" : "outline"}
+                  className="text-[10px] h-4 px-0.5 justify-center cursor-help"
+                >
+                  BOOST
+                </Badge>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">Hold for 2x speed multiplier</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Badge
+                  variant={input.actionA ? "default" : "outline"}
+                  className="text-[10px] h-4 px-0.5 justify-center cursor-help"
+                >
+                  A
+                </Badge>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">Action A (context-dependent)</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Badge
+                  variant={input.actionB ? "default" : "outline"}
+                  className="text-[10px] h-4 px-0.5 justify-center cursor-help"
+                >
+                  B
+                </Badge>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">Action B (context-dependent)</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Badge
+                  variant={input.estop ? "destructive" : "outline"}
+                  className="text-[10px] h-4 px-0.5 justify-center cursor-help"
+                >
+                  STOP
+                </Badge>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">Software E-Stop triggered</TooltipContent>
+            </Tooltip>
+          </div>
         </div>
-      </CardContent>
-    </Card>
+      )}
+    </div>
   );
 }
