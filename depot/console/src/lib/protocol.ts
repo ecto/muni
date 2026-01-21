@@ -19,6 +19,7 @@ import {
   type Pose,
   type Twist,
   type Power,
+  type WheelStatus,
 } from "./types";
 
 // Message types
@@ -112,6 +113,8 @@ export interface SubsystemHealth {
   discovery_connected: boolean;
   lidar_active: boolean;
   slam_running: boolean;
+  /** Wheel status: [FL, FR, RL, RR], values: 0=offline, 1=degraded, 2=online */
+  wheel_status: [WheelStatus, WheelStatus, WheelStatus, WheelStatus];
 }
 
 export interface DecodedTelemetry {
@@ -200,6 +203,13 @@ export function decodeTelemetry(data: ArrayBuffer): DecodedTelemetry | null {
       discovery_connected: (healthBits & (1 << 5)) !== 0,
       lidar_active: (healthBits & (1 << 6)) !== 0,
       slam_running: (healthBits & (1 << 7)) !== 0,
+      // Wheel status: 2 bits each for FL, FR, RL, RR (bits 8-15)
+      wheel_status: [
+        ((healthBits >> 8) & 0x3) as WheelStatus,
+        ((healthBits >> 10) & 0x3) as WheelStatus,
+        ((healthBits >> 12) & 0x3) as WheelStatus,
+        ((healthBits >> 14) & 0x3) as WheelStatus,
+      ],
     };
   } else {
     // Default health for older firmware without health field
@@ -212,6 +222,7 @@ export function decodeTelemetry(data: ArrayBuffer): DecodedTelemetry | null {
       discovery_connected: false,
       lidar_active: false,
       slam_running: false,
+      wheel_status: [0, 0, 0, 0],
     };
   }
 

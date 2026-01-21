@@ -43,6 +43,15 @@ export interface SlamStatus {
   mappingActive: boolean;
 }
 
+// Wheel status values: 0=offline, 1=degraded, 2=online
+export const WheelStatus = {
+  Offline: 0,
+  Degraded: 1,
+  Online: 2,
+} as const;
+
+export type WheelStatus = (typeof WheelStatus)[keyof typeof WheelStatus];
+
 // Subsystem health flags from telemetry
 export interface SubsystemHealth {
   can_healthy: boolean;
@@ -53,6 +62,8 @@ export interface SubsystemHealth {
   discovery_connected: boolean;
   lidar_active: boolean;
   slam_running: boolean;
+  /** Wheel status: [FL, FR, RL, RR], values: 0=offline, 1=degraded, 2=online */
+  wheel_status: [WheelStatus, WheelStatus, WheelStatus, WheelStatus];
 }
 
 export const defaultHealth: SubsystemHealth = {
@@ -64,6 +75,7 @@ export const defaultHealth: SubsystemHealth = {
   discovery_connected: false,
   lidar_active: false,
   slam_running: false,
+  wheel_status: [0, 0, 0, 0],
 };
 
 export interface Telemetry {

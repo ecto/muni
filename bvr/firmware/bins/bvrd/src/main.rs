@@ -1676,13 +1676,30 @@ async fn main() -> Result<()> {
             vesc_states[2].status.current,
             vesc_states[3].status.current,
         ];
+        // Wheel status: 0=offline, 1=degraded, 2=online
+        // - Offline: FET temp <= 5°C (not receiving data, default is 0.0)
+        // - Degraded: FET temp > 5°C but motor temp <= 5°C (VESC online, motor disconnected)
+        // - Online: FET temp > 5°C and motor temp > 5°C (fully operational)
+        let wheel_status: [u8; 4] = std::array::from_fn(|i| {
+            let fet_temp = vesc_states[i].status4.temp_fet;
+            let motor_temp = vesc_states[i].status4.temp_motor;
+            if fet_temp <= 5.0 {
+                types::wheel_status::OFFLINE
+            } else if motor_temp <= 5.0 {
+                types::wheel_status::DEGRADED
+            } else {
+                types::wheel_status::ONLINE
+            }
+        });
 
         // Update wheel odometry from VESC tachometers
+        // Negate right side (FR=1, RR=3) - motors are mounted facing opposite direction
+        // but VESC motor direction config only affects duty, not tachometer readings
         let tach: [i32; 4] = [
-            vesc_states[0].status5.tachometer,
-            vesc_states[1].status5.tachometer,
-            vesc_states[2].status5.tachometer,
-            vesc_states[3].status5.tachometer,
+            vesc_states[0].status5.tachometer,  // FL
+            -vesc_states[1].status5.tachometer, // FR
+            vesc_states[2].status5.tachometer,  // RL
+            -vesc_states[3].status5.tachometer, // RR
         ];
         let (dx, dy, dtheta) = odometry.update(tach);
 
@@ -1797,6 +1814,9 @@ async fn main() -> Result<()> {
         state.health.discovery_connected = discovery_enabled;
         state.health.dispatch_connected = dispatch_enabled;
         // Note: camera_active is set when camera starts successfully
+
+        // Wheel/VESC status
+        state.health.wheel_status = wheel_status;
 
         let telemetry = Telemetry {
             timestamp_ms: std::time::SystemTime::now()

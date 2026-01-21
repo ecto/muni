@@ -128,6 +128,16 @@ pub struct SlamStatus {
     pub mapping_active: bool,
 }
 
+/// Wheel/VESC status values.
+pub mod wheel_status {
+    /// VESC is offline (not responding on CAN)
+    pub const OFFLINE: u8 = 0;
+    /// VESC is online but degraded (e.g., motor not connected)
+    pub const DEGRADED: u8 = 1;
+    /// VESC is fully online and operational
+    pub const ONLINE: u8 = 2;
+}
+
 /// Subsystem health flags for telemetry.
 ///
 /// Each flag indicates whether a subsystem is operating normally.
@@ -152,6 +162,8 @@ pub struct SubsystemHealth {
     pub lidar_active: bool,
     /// SLAM/localization is running
     pub slam_running: bool,
+    /// Wheel status: 0=offline, 1=degraded, 2=online (2 bits each in bits 8-15)
+    pub wheel_status: [u8; 4],
 }
 
 impl SubsystemHealth {
@@ -182,6 +194,11 @@ impl SubsystemHealth {
         if self.slam_running {
             bits |= 1 << 7;
         }
+        // Pack wheel status: 2 bits each for FL, FR, RL, RR (bits 8-15)
+        bits |= (self.wheel_status[0] as u16 & 0x3) << 8;
+        bits |= (self.wheel_status[1] as u16 & 0x3) << 10;
+        bits |= (self.wheel_status[2] as u16 & 0x3) << 12;
+        bits |= (self.wheel_status[3] as u16 & 0x3) << 14;
         bits
     }
 
@@ -196,6 +213,12 @@ impl SubsystemHealth {
             discovery_connected: bits & (1 << 5) != 0,
             lidar_active: bits & (1 << 6) != 0,
             slam_running: bits & (1 << 7) != 0,
+            wheel_status: [
+                ((bits >> 8) & 0x3) as u8,
+                ((bits >> 10) & 0x3) as u8,
+                ((bits >> 12) & 0x3) as u8,
+                ((bits >> 14) & 0x3) as u8,
+            ],
         }
     }
 
@@ -507,6 +530,7 @@ mod tests {
         assert!(!health.discovery_connected);
         assert!(!health.lidar_active);
         assert!(!health.slam_running);
+        assert_eq!(health.wheel_status, [0, 0, 0, 0]);
         assert_eq!(health.to_bits(), 0);
         assert_eq!(health.healthy_count(), 0);
     }
@@ -522,15 +546,24 @@ mod tests {
             discovery_connected: false,
             lidar_active: true,
             slam_running: false,
+            // FL=online(2), FR=offline(0), RL=degraded(1), RR=online(2)
+            wheel_status: [2, 0, 1, 2],
         };
-        // Bits: 0b01010101 = 0x55 = 85
-        assert_eq!(health.to_bits(), 0b01010101);
-        assert_eq!(health.healthy_count(), 4);
+        // Bits 0-7: 0b01010101 = 0x55
+        // Bits 8-9: FL=2 (0b10), Bits 10-11: FR=0 (0b00), Bits 12-13: RL=1 (0b01), Bits 14-15: RR=2 (0b10)
+        // Bits 8-15: 0b10_01_00_10 = 0x9200
+        // Combined: 0x9255
+        assert_eq!(health.to_bits(), 0x9255);
+        // healthy_count only counts set bits (not wheel status values)
+        // Bits 0-7 have 4 set, plus wheel bits: 10_01_00_10 has 3 more = 7
+        assert_eq!(health.healthy_count(), 7);
     }
 
     #[test]
     fn test_subsystem_health_from_bits() {
-        let bits = 0b11111111u16;
+        // All bool flags set, all wheels online (status=2=0b10 each)
+        // Bits 8-15: 0b10_10_10_10 = 0xAA
+        let bits = 0xAAFFu16;
         let health = SubsystemHealth::from_bits(bits);
         assert!(health.can_healthy);
         assert!(health.recording_active);
@@ -540,7 +573,9 @@ mod tests {
         assert!(health.discovery_connected);
         assert!(health.lidar_active);
         assert!(health.slam_running);
-        assert_eq!(health.healthy_count(), 8);
+        assert_eq!(health.wheel_status, [2, 2, 2, 2]); // All online
+        // healthy_count counts set bits: 0xAAFF = 0b1010_1010_1111_1111 = 12 bits
+        assert_eq!(health.healthy_count(), 12);
     }
 
     #[test]
@@ -554,6 +589,7 @@ mod tests {
             discovery_connected: true,
             lidar_active: false,
             slam_running: true,
+            wheel_status: [2, 0, 1, 2], // online, offline, degraded, online
         };
         let bits = original.to_bits();
         let decoded = SubsystemHealth::from_bits(bits);
@@ -565,6 +601,7 @@ mod tests {
         assert_eq!(decoded.discovery_connected, original.discovery_connected);
         assert_eq!(decoded.lidar_active, original.lidar_active);
         assert_eq!(decoded.slam_running, original.slam_running);
+        assert_eq!(decoded.wheel_status, original.wheel_status);
     }
 
     #[test]
@@ -587,6 +624,7 @@ mod tests {
             discovery_connected: true,
             lidar_active: false,
             slam_running: true,
+            wheel_status: [2, 1, 0, 2],
         };
         let json = serde_json::to_string(&health).unwrap();
         let decoded: SubsystemHealth = serde_json::from_str(&json).unwrap();
@@ -594,6 +632,7 @@ mod tests {
         assert_eq!(decoded.recording_active, health.recording_active);
         assert_eq!(decoded.gps_fix, health.gps_fix);
         assert_eq!(decoded.slam_running, health.slam_running);
+        assert_eq!(decoded.wheel_status, health.wheel_status);
     }
 }
 
