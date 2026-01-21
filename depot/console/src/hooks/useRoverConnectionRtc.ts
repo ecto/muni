@@ -58,6 +58,7 @@ export function useRoverConnectionRtc() {
     setConnected,
     setLatency,
     updateTelemetry,
+    pushTelemetrySnapshot,
     setVideoConnected,
     setVideoFps,
     setVideoFrame,
@@ -191,10 +192,10 @@ export function useRoverConnectionRtc() {
       });
       peerConnectionRef.current = pc;
 
-      // Create command channel (reliable, ordered)
-      // SetMode commands are critical and must not be dropped
+      // Create command channel (unordered for true UDP semantics)
+      // Critical commands (SetMode, EStop) use MUST_ACK flag with retry logic
       const commandChannel = pc.createDataChannel("commands", {
-        ordered: true,
+        ordered: false,
       });
       commandChannelRef.current = commandChannel;
       commandChannel.binaryType = "arraybuffer";
@@ -294,6 +295,14 @@ export function useRoverConnectionRtc() {
                   ...telemetry,
                   connected: true,
                   latency_ms: latency,
+                });
+
+                // Push snapshot for interpolation
+                pushTelemetrySnapshot({
+                  serverTimestamp: decoded.timestamp_us,
+                  receivedAt: now,
+                  pose: decoded.pose,
+                  velocity: decoded.meas_velocity,
                 });
               } else {
                 console.warn("[WebRTC] Failed to decode telemetry, size:", msgEvent.data.byteLength);
@@ -465,6 +474,7 @@ export function useRoverConnectionRtc() {
     setConnected,
     setLatency,
     updateTelemetry,
+    pushTelemetrySnapshot,
     setVideoConnected,
     setVideoFps,
     setVideoFrame,

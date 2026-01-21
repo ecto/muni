@@ -16,6 +16,7 @@ tokio-tungstenite = { workspace = true }
 futures-util = { workspace = true }
 webrtc = { workspace = true }
 bytes = "1"
+crc32fast = "1"
 
 
 

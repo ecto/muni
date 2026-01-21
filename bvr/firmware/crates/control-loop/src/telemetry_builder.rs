@@ -4,8 +4,12 @@
 //! struct for transmission to operators.
 
 use std::time::{SystemTime, UNIX_EPOCH};
+use std::sync::atomic::{AtomicU16, Ordering};
 use teleop::{Telemetry, ToolStatus};
 use types::{Mode, Pose, PowerStatus, SlamStatus, SubsystemHealth, Twist};
+
+/// Global telemetry sequence counter
+static TELEMETRY_SEQUENCE: AtomicU16 = AtomicU16::new(0);
 
 /// Builds telemetry packets from subsystem data
 pub struct TelemetryBuilder {
@@ -29,34 +33,48 @@ impl TelemetryBuilder {
         battery_voltage: f64,
         motor_temps: [f32; 4],
         motor_currents: [f32; 4],
-        velocity: Twist,
+        cmd_velocity: Twist,
+        meas_velocity: (f32, f32),
+        acceleration: (f32, f32),
         active_tool: Option<String>,
         tool_status: Option<ToolStatus>,
         slam_status: Option<SlamStatus>,
         health: SubsystemHealth,
+        odometry_quality: u16,
+        dt_ms: f32,
+        last_cmd_seq: u16,
+        ack_bits: u16,
     ) -> Telemetry {
-        let timestamp_ms = SystemTime::now()
+        let timestamp_us = SystemTime::now()
             .duration_since(UNIX_EPOCH)
-            .map(|d| d.as_millis() as u64)
+            .map(|d| d.as_micros() as u64)
             .unwrap_or(0);
 
+        let sequence = TELEMETRY_SEQUENCE.fetch_add(1, Ordering::Relaxed);
         let system_current = motor_currents.iter().sum::<f32>() as f64;
 
         let telemetry = Telemetry {
-            timestamp_ms,
+            sequence,
+            timestamp_us,
             mode,
             pose,
             power: PowerStatus {
                 battery_voltage,
                 system_current,
             },
-            velocity,
+            cmd_velocity,
+            meas_velocity,
+            acceleration,
             motor_temps,
             motor_currents,
             active_tool,
             tool_status,
             slam_status,
             health,
+            odometry_quality,
+            dt_ms,
+            last_cmd_seq,
+            ack_bits,
         };
 
         self.last_telemetry = Some(telemetry.clone());
@@ -143,10 +161,16 @@ mod tests {
                 angular: 0.5,
                 boost: false,
             },
+            (1.0, 0.5), // meas_velocity
+            (0.0, 0.0), // acceleration
             None,
             None,
             None,
             SubsystemHealth::default(),
+            100, // odometry_quality
+            20.0, // dt_ms
+            0, // last_cmd_seq
+            0, // ack_bits
         );
 
         assert_eq!(telemetry.mode, Mode::Teleop);
@@ -183,10 +207,16 @@ mod tests {
             [30.0; 4],
             [5.0; 4],
             Twist::default(),
+            (0.0, 0.0), // meas_velocity
+            (0.0, 0.0), // acceleration
             None,
             None,
             Some(slam_status),
             SubsystemHealth::default(),
+            100, // odometry_quality
+            20.0, // dt_ms
+            0, // last_cmd_seq
+            0, // ack_bits
         );
 
         assert!(telemetry.slam_status.is_some());

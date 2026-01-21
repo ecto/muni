@@ -13,6 +13,12 @@ import {
   CameraMode,
   defaultHealth,
 } from "@/lib/types";
+import {
+  type InterpolationState,
+  type PoseSnapshot,
+  createInterpolationState,
+  pushSnapshot,
+} from "@/lib/interpolation";
 
 export type Theme = "light" | "dark" | "system";
 
@@ -41,7 +47,10 @@ interface ConsoleState {
 
   // Interpolated pose for smooth rendering
   renderPose: Pose;
-  setRenderPose: (pose: Pose) => void;
+  isExtrapolating: boolean;
+  interpolation: InterpolationState;
+  setRenderPose: (pose: Pose, isExtrapolating?: boolean) => void;
+  pushTelemetrySnapshot: (snapshot: PoseSnapshot) => void;
 
   // Input
   input: GamepadInput;
@@ -168,9 +177,16 @@ export const useConsoleStore = create<ConsoleState>()(
       telemetry: { ...state.telemetry, ...partial },
     })),
 
-  // Render pose
+  // Render pose and interpolation
   renderPose: { x: 0, y: 0, theta: 0 },
-  setRenderPose: (pose) => set({ renderPose: pose }),
+  isExtrapolating: false,
+  interpolation: createInterpolationState(),
+  setRenderPose: (pose, isExtrapolating = false) =>
+    set({ renderPose: pose, isExtrapolating }),
+  pushTelemetrySnapshot: (snapshot) =>
+    set((state) => ({
+      interpolation: pushSnapshot(state.interpolation, snapshot),
+    })),
 
   // Input
   input: defaultInput,

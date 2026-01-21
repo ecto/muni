@@ -755,20 +755,27 @@ async fn main() -> Result<()> {
     let (cmd_tx, mut cmd_rx) = mpsc::channel::<Command>(32);
 
     let initial_telemetry = Telemetry {
-        timestamp_ms: 0,
+        sequence: 0,
+        timestamp_us: 0,
         mode: initial_mode,
         pose: Pose::default(),
         power: PowerStatus {
             battery_voltage: 48.0,  // Simulated full battery
             system_current: 0.0,
         },
-        velocity: Twist::default(),
+        cmd_velocity: Twist::default(),
+        meas_velocity: (0.0, 0.0),
+        acceleration: (0.0, 0.0),
         motor_temps: [25.0; 4],  // Ambient temp
         motor_currents: [0.0; 4],
+        health: SubsystemHealth::default(),
+        odometry_quality: 0,
+        dt_ms: 0.0,
+        last_cmd_seq: 0,
+        ack_bits: 0,
         active_tool: None,
         tool_status: None,
         slam_status: None,
-        health: SubsystemHealth::default(),
     };
     let (telemetry_tx, telemetry_rx) = watch::channel(initial_telemetry);
 
@@ -1818,24 +1825,35 @@ async fn main() -> Result<()> {
         // Wheel/VESC status
         state.health.wheel_status = wheel_status;
 
+        // Increment telemetry sequence
+        static TELEM_SEQ: std::sync::atomic::AtomicU16 = std::sync::atomic::AtomicU16::new(0);
+        let telem_seq = TELEM_SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+
         let telemetry = Telemetry {
-            timestamp_ms: std::time::SystemTime::now()
+            sequence: telem_seq,
+            timestamp_us: std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_millis() as u64,
+                .map(|d| d.as_micros() as u64)
+                .unwrap_or(0),
             mode: state.state_machine.mode(),
             pose,
             power: PowerStatus {
                 battery_voltage: state.drivetrain.battery_voltage() as f64,
                 system_current: motor_currents.iter().sum::<f32>() as f64,
             },
-            velocity: twist,
+            cmd_velocity: twist,
+            meas_velocity: (0.0, 0.0),  // TODO: populate from VelocityTracker
+            acceleration: (0.0, 0.0),   // TODO: populate from VelocityTracker
             motor_temps,
             motor_currents,
+            health: state.health,
+            odometry_quality: 100,  // TODO: get from odometry
+            dt_ms: (dt * 1000.0) as f32,
+            last_cmd_seq: 0,  // TODO: populate from SequenceTracker
+            ack_bits: 0,      // TODO: populate from SequenceTracker
             active_tool,
             tool_status,
             slam_status,
-            health: state.health,
         };
 
         let _ = telemetry_tx.send(telemetry.clone());
@@ -1848,8 +1866,8 @@ async fn main() -> Result<()> {
             system_current: telemetry.power.system_current,
             motor_temps: telemetry.motor_temps,
             motor_currents: telemetry.motor_currents,
-            velocity_linear: telemetry.velocity.linear,
-            velocity_angular: telemetry.velocity.angular,
+            velocity_linear: telemetry.cmd_velocity.linear,
+            velocity_angular: telemetry.cmd_velocity.angular,
             gps_latitude: gps_state.coord.as_ref().map(|c| c.lat).unwrap_or(0.0),
             gps_longitude: gps_state.coord.as_ref().map(|c| c.lon).unwrap_or(0.0),
             gps_accuracy: gps_state.coord.as_ref().map(|c| c.accuracy).unwrap_or(0.0),
