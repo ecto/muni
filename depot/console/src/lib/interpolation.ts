@@ -38,7 +38,62 @@ const MAX_EXTRAPOLATION_MS = 100;
 const BUFFER_CAPACITY = 8;
 
 /**
+ * Global interpolation buffer - bypasses React for performance.
+ * Updated at 50Hz from telemetry, read at 60Hz from useFrame.
+ */
+const globalBuffer: InterpolationState = {
+  snapshots: Array(BUFFER_CAPACITY).fill(null),
+  head: 0,
+  count: 0,
+};
+
+/**
+ * Get the global interpolation buffer for reading in useFrame.
+ */
+export function getInterpolationBuffer(): InterpolationState {
+  return globalBuffer;
+}
+
+/**
+ * Push a snapshot directly to the global buffer.
+ * Called from telemetry handler - no React updates triggered.
+ * Computes velocity from pose deltas for smooth interpolation.
+ */
+export function pushSnapshotDirect(snapshot: PoseSnapshot): void {
+  const head = (globalBuffer.head + 1) % BUFFER_CAPACITY;
+
+  // Compute velocity from pose delta if we have a previous snapshot
+  const prevIdx = globalBuffer.head;
+  const prev = globalBuffer.snapshots[prevIdx];
+  if (prev && globalBuffer.count > 0) {
+    const dt = (snapshot.receivedAt - prev.receivedAt) / 1000; // seconds
+    if (dt > 0.001 && dt < 0.5) { // Valid time delta (1ms to 500ms)
+      const dx = snapshot.pose.x - prev.pose.x;
+      const dy = snapshot.pose.y - prev.pose.y;
+      const dtheta = normalizeAngle(snapshot.pose.theta - prev.pose.theta);
+
+      // Linear velocity is distance moved / time
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      // Sign based on heading alignment with movement direction
+      const moveAngle = Math.atan2(dy, dx);
+      const headingDiff = Math.abs(normalizeAngle(moveAngle - prev.pose.theta));
+      const sign = headingDiff > Math.PI / 2 ? -1 : 1;
+
+      snapshot.velocity = {
+        linear: sign * distance / dt,
+        angular: dtheta / dt,
+      };
+    }
+  }
+
+  globalBuffer.snapshots[head] = snapshot;
+  globalBuffer.head = head;
+  globalBuffer.count = Math.min(globalBuffer.count + 1, BUFFER_CAPACITY);
+}
+
+/**
  * Create initial interpolation state.
+ * @deprecated Use getInterpolationBuffer() instead
  */
 export function createInterpolationState(): InterpolationState {
   return {
@@ -50,18 +105,17 @@ export function createInterpolationState(): InterpolationState {
 
 /**
  * Push a new snapshot into the buffer.
- * Returns a new state (immutable).
+ * @deprecated Use pushSnapshotDirect() instead
  */
 export function pushSnapshot(
   state: InterpolationState,
   snapshot: PoseSnapshot
 ): InterpolationState {
-  const snapshots = [...state.snapshots];
   const head = (state.head + 1) % BUFFER_CAPACITY;
-  snapshots[head] = snapshot;
-  const count = Math.min(state.count + 1, BUFFER_CAPACITY);
-
-  return { snapshots, head, count };
+  state.snapshots[head] = snapshot;
+  state.head = head;
+  state.count = Math.min(state.count + 1, BUFFER_CAPACITY);
+  return state;
 }
 
 /**

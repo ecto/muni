@@ -1,8 +1,9 @@
 import { useRef, Suspense, useState, useEffect } from "react";
+import { useFrame } from "@react-three/fiber";
 import { useGLTF } from "@react-three/drei";
 import type { Group } from "three";
 import * as THREE from "three";
-import { useInterpolatedPose, useRenderPose } from "@/hooks/useInterpolatedPose";
+import { computeRenderPose, getInterpolationBuffer } from "@/lib/interpolation";
 
 const MODEL_PATH = "/models/bvr1_assembly.glb";
 
@@ -88,26 +89,25 @@ export function RoverModel() {
   const groupRef = useRef<Group>(null);
   const [useGltf, setUseGltf] = useState(true);
 
-  // Run interpolation each frame (updates store.renderPose)
-  useInterpolatedPose();
-
-  // Get the interpolated pose
-  const { pose } = useRenderPose();
-
   // Preload the model
   useEffect(() => {
     useGLTF.preload(MODEL_PATH);
   }, []);
 
-  // Apply pose to mesh (map 2D physics coords to 3D)
-  // physics.x -> Three.js X
-  // physics.y -> Three.js -Z
-  useEffect(() => {
+  // Update pose every frame using interpolation
+  // Directly mutate Three.js objects to avoid React re-renders
+  useFrame(() => {
     if (!groupRef.current) return;
-    groupRef.current.position.x = pose.x;
-    groupRef.current.position.z = -pose.y;
-    groupRef.current.rotation.y = pose.theta;
-  }, [pose]);
+
+    const result = computeRenderPose(getInterpolationBuffer(), performance.now(), 0);
+
+    // Apply pose to mesh (map 2D physics coords to 3D)
+    // Physics: X=forward, Y=left, theta=0 facing +X, CCW positive
+    // Three.js: -Z=forward, +X=right, rotation.y CCW positive
+    groupRef.current.position.z = -result.pose.x;  // forward
+    groupRef.current.position.x = -result.pose.y;  // left→left
+    groupRef.current.rotation.y = result.pose.theta;
+  });
 
   return (
     <group ref={groupRef} position={[0, 0, 0]}>

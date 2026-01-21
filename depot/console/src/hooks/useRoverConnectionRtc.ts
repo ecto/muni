@@ -24,6 +24,7 @@ import {
   decodeVideoFrame,
   videoFrameToBlobUrl,
 } from "@/lib/protocol";
+import { pushSnapshotDirect } from "@/lib/interpolation";
 import { Mode } from "@/lib/types";
 
 const RECONNECT_DELAY_MS = 2000;
@@ -58,7 +59,6 @@ export function useRoverConnectionRtc() {
     setConnected,
     setLatency,
     updateTelemetry,
-    pushTelemetrySnapshot,
     setVideoConnected,
     setVideoFps,
     setVideoFrame,
@@ -297,12 +297,16 @@ export function useRoverConnectionRtc() {
                   latency_ms: latency,
                 });
 
-                // Push snapshot for interpolation
-                pushTelemetrySnapshot({
+                // Push snapshot for interpolation (direct to buffer, no React updates)
+                // Use cmd_velocity until firmware populates meas_velocity
+                pushSnapshotDirect({
                   serverTimestamp: decoded.timestamp_us,
                   receivedAt: now,
                   pose: decoded.pose,
-                  velocity: decoded.meas_velocity,
+                  velocity: {
+                    linear: decoded.cmd_velocity.linear,
+                    angular: decoded.cmd_velocity.angular,
+                  },
                 });
               } else {
                 console.warn("[WebRTC] Failed to decode telemetry, size:", msgEvent.data.byteLength);
@@ -474,7 +478,6 @@ export function useRoverConnectionRtc() {
     setConnected,
     setLatency,
     updateTelemetry,
-    pushTelemetrySnapshot,
     setVideoConnected,
     setVideoFps,
     setVideoFrame,
