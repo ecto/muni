@@ -13,7 +13,7 @@
         "datasource": { "type": "influxdb", "uid": "influxdb" },
         "query": "import \"influxdata/influxdb/schema\"\nschema.tagValues(bucket: \"muni\", tag: \"rover\")",
         "refresh": 2,
-        "current": { "text": "bvr-01", "value": "bvr-01" }
+        "current": { "text": "frog-0", "value": "frog-0" }
       }
     ]
   },
@@ -35,11 +35,11 @@
           ]
         }
       },
-      "options": { "colorMode": "background", "graphMode": "none" },
+      "options": { "colorMode": "background", "graphMode": "none", "reduceOptions": { "calcs": ["lastNotNull"] } },
       "targets": [
         {
           "refId": "A",
-          "query": "from(bucket: \"muni\")\n  |> range(start: -5m)\n  |> filter(fn: (r) => r._measurement == \"rover_status\" and r.rover == \"${rover}\" and r._field == \"mode\")\n  |> last()"
+          "query": "from(bucket: \"muni\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"rover_status\" and r.rover == \"${rover}\" and r._field == \"mode\")\n  |> last()"
         }
       ]
     },
@@ -65,10 +65,11 @@
           }
         }
       },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } },
       "targets": [
         {
           "refId": "A",
-          "query": "from(bucket: \"muni\")\n  |> range(start: -5m)\n  |> filter(fn: (r) => r._measurement == \"rover_status\" and r.rover == \"${rover}\" and r._field == \"battery\")\n  |> last()"
+          "query": "from(bucket: \"muni\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"rover_status\" and r.rover == \"${rover}\" and r._field == \"battery\")\n  |> last()"
         }
       ]
     },
@@ -93,10 +94,11 @@
           }
         }
       },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } },
       "targets": [
         {
           "refId": "A",
-          "query": "from(bucket: \"muni\")\n  |> range(start: -5m)\n  |> filter(fn: (r) => r._measurement == \"rover_status\" and r.rover == \"${rover}\" and r._field == \"current\")\n  |> last()"
+          "query": "from(bucket: \"muni\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"rover_status\" and r.rover == \"${rover}\" and r._field == \"current\")\n  |> last()"
         }
       ]
     },
@@ -111,10 +113,11 @@
           "unit": "dateTimeFromNow"
         }
       },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "/_time/" } },
       "targets": [
         {
           "refId": "A",
-          "query": "from(bucket: \"muni\")\n  |> range(start: -1h)\n  |> filter(fn: (r) => r._measurement == \"rover_status\" and r.rover == \"${rover}\")\n  |> last()\n  |> keep(columns: [\"_time\"])"
+          "query": "from(bucket: \"muni\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"rover_status\" and r.rover == \"${rover}\" and r._field == \"battery\")\n  |> last()"
         }
       ]
     },
@@ -215,10 +218,15 @@
           ]
         }
       },
+      "options": {
+        "mergeValues": true,
+        "showValue": "auto",
+        "alignValue": "center"
+      },
       "targets": [
         {
           "refId": "A",
-          "query": "from(bucket: \"muni\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"rover_status\" and r.rover == \"${rover}\" and r._field == \"mode\")"
+          "query": "from(bucket: \"muni\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"rover_status\" and r.rover == \"${rover}\" and r._field == \"mode\")\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: false)"
         }
       ]
     },
@@ -243,11 +251,11 @@
           }
         }
       },
-      "options": { "showThresholdLabels": false, "showThresholdMarkers": true },
+      "options": { "showThresholdLabels": false, "showThresholdMarkers": true, "reduceOptions": { "calcs": ["lastNotNull"] } },
       "targets": [
         {
           "refId": "A",
-          "query": "from(bucket: \"muni\")\n  |> range(start: -5m)\n  |> filter(fn: (r) => r._measurement == \"system\" and r.rover == \"${rover}\" and r._field == \"load1\")\n  |> last()"
+          "query": "from(bucket: \"muni\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"system\" and r.rover == \"${rover}\" and r._field == \"load1\")\n  |> last()"
         }
       ]
     },
@@ -272,11 +280,11 @@
           }
         }
       },
-      "options": { "showThresholdLabels": false, "showThresholdMarkers": true },
+      "options": { "showThresholdLabels": false, "showThresholdMarkers": true, "reduceOptions": { "calcs": ["lastNotNull"] } },
       "targets": [
         {
           "refId": "A",
-          "query": "from(bucket: \"muni\")\n  |> range(start: -5m)\n  |> filter(fn: (r) => r._measurement == \"system\" and r.rover == \"${rover}\" and r._field == \"process_cpu\")\n  |> last()"
+          "query": "from(bucket: \"muni\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"system\" and r.rover == \"${rover}\" and r._field == \"process_cpu\")\n  |> last()"
         }
       ]
     },
@@ -301,11 +309,11 @@
           }
         }
       },
-      "options": { "showThresholdLabels": false, "showThresholdMarkers": true },
+      "options": { "showThresholdLabels": false, "showThresholdMarkers": true, "reduceOptions": { "calcs": ["lastNotNull"] } },
       "targets": [
         {
           "refId": "A",
-          "query": "from(bucket: \"muni\")\n  |> range(start: -5m)\n  |> filter(fn: (r) => r._measurement == \"system\" and r.rover == \"${rover}\" and r._field == \"mem\")\n  |> last()"
+          "query": "from(bucket: \"muni\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"system\" and r.rover == \"${rover}\" and r._field == \"mem\")\n  |> last()"
         }
       ]
     },
@@ -330,11 +338,11 @@
           }
         }
       },
-      "options": { "showThresholdLabels": false, "showThresholdMarkers": true },
+      "options": { "showThresholdLabels": false, "showThresholdMarkers": true, "reduceOptions": { "calcs": ["lastNotNull"] } },
       "targets": [
         {
           "refId": "A",
-          "query": "from(bucket: \"muni\")\n  |> range(start: -5m)\n  |> filter(fn: (r) => r._measurement == \"system\" and r.rover == \"${rover}\" and r._field == \"disk\")\n  |> last()"
+          "query": "from(bucket: \"muni\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"system\" and r.rover == \"${rover}\" and r._field == \"disk\")\n  |> last()"
         }
       ]
     },
@@ -407,4 +415,3 @@
     }
   ]
 }
-
