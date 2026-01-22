@@ -21,6 +21,20 @@ mod scan_matcher;
 
 pub use scan_matcher::{CorrelativeScanMatcher, ScanMatchConfig, ScanMatchResult};
 
+/// State from SLAM task for use by the main control loop.
+/// This is updated whenever SLAM processes a scan and sent via a watch channel.
+#[derive(Debug, Clone, Default)]
+pub struct SlamState {
+    /// Current pose in world frame
+    pub pose: Pose,
+    /// Number of keyframes
+    pub keyframe_count: u32,
+    /// Number of loop closures detected
+    pub loop_closure_count: u32,
+    /// Keyframe poses for visualization (x, y, theta)
+    pub keyframe_poses: Vec<(f64, f64, f64)>,
+}
+
 #[derive(Error, Debug)]
 pub enum SlamError {
     #[error("Scan matching failed: {0}")]
