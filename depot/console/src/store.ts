@@ -81,6 +81,13 @@ interface ConsoleState {
   setVideoFrame: (frame: string | null, timestamp: number) => void;
   setCameraFrame: (cameraId: number, url: string, timestamp: number) => void;
 
+  // Point cloud
+  pointCloud: Float32Array | null;
+  pointCloudReflectivity: Uint8Array | null;
+  pointCloudEnabled: boolean;
+  setPointCloud: (points: Float32Array, reflectivity: Uint8Array) => void;
+  setPointCloudEnabled: (enabled: boolean) => void;
+
   // Sessions
   sessions: Session[];
   selectedSessionId: string | null;
@@ -231,6 +238,14 @@ export const useConsoleStore = create<ConsoleState>()(
         videoTimestamp: timestamp,
       };
     }),
+
+  // Point cloud
+  pointCloud: null,
+  pointCloudReflectivity: null,
+  pointCloudEnabled: false,
+  setPointCloud: (points, reflectivity) =>
+    set({ pointCloud: points, pointCloudReflectivity: reflectivity }),
+  setPointCloudEnabled: (enabled) => set({ pointCloudEnabled: enabled }),
 
   // Sessions
   sessions: [],

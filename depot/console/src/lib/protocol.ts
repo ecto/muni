@@ -33,8 +33,10 @@ export const MSG_HEARTBEAT = 0x03;
 export const MSG_SET_MODE = 0x04;
 export const MSG_TOOL = 0x05;
 export const MSG_ESTOP_RELEASE = 0x06;
+export const MSG_LIDAR_TOGGLE = 0x07;
 export const MSG_TELEMETRY = 0x11;
 export const MSG_VIDEO_FRAME = 0x20;
+export const MSG_POINT_CLOUD = 0x21;
 
 // Command flags
 export const CMD_FLAG_MUST_ACK = 0x01;
@@ -390,4 +392,100 @@ export function videoFrameToBlobUrl(frame: DecodedVideoFrame): string {
   // Use type assertion since TypeScript 5.7+ is overly strict about ArrayBufferLike vs ArrayBuffer
   const blob = new Blob([frame.jpegData as BlobPart], { type: "image/jpeg" });
   return URL.createObjectURL(blob);
+}
+
+// ============================================================================
+// Point Cloud Protocol (Rover -> Operator)
+// ============================================================================
+
+/** Header size for point cloud message. */
+const POINT_CLOUD_HEADER_SIZE = 32;
+/** Bytes per point in point cloud message. */
+const BYTES_PER_POINT = 8;
+
+export interface DecodedPointCloud {
+  frameId: number;
+  /** Flat array of x,y,z coordinates: [x0, y0, z0, x1, y1, z1, ...] */
+  points: Float32Array;
+  /** Reflectivity values per point (0-255) */
+  reflectivity: Uint8Array;
+}
+
+/**
+ * Decode a point cloud message from binary format.
+ *
+ * Binary format:
+ * [0]      u8    MSG_POINT_CLOUD (0x21)
+ * [1]      u8    flags (reserved)
+ * [2-3]    u16   point_count (LE)
+ * [4-7]    u32   frame_id (LE)
+ * [8-11]   f32   scale_x (LE)
+ * [12-15]  f32   scale_y (LE)
+ * [16-19]  f32   scale_z (LE)
+ * [20-23]  f32   offset_x (LE)
+ * [24-27]  f32   offset_y (LE)
+ * [28-31]  f32   offset_z (LE)
+ * [32...]  per-point: [x:i16 LE][y:i16 LE][z:i16 LE][reflectivity:u8][tag:u8]
+ */
+export function decodePointCloud(data: ArrayBuffer): DecodedPointCloud | null {
+  if (data.byteLength < POINT_CLOUD_HEADER_SIZE) {
+    return null;
+  }
+
+  const view = new DataView(data);
+  const msgType = view.getUint8(0);
+
+  if (msgType !== MSG_POINT_CLOUD) {
+    return null;
+  }
+
+  const pointCount = view.getUint16(2, true);
+  const frameId = view.getUint32(4, true);
+
+  const expectedSize = POINT_CLOUD_HEADER_SIZE + pointCount * BYTES_PER_POINT;
+  if (data.byteLength < expectedSize) {
+    return null;
+  }
+
+  // Read scale and offset
+  const scaleX = view.getFloat32(8, true);
+  const scaleY = view.getFloat32(12, true);
+  const scaleZ = view.getFloat32(16, true);
+  const offsetX = view.getFloat32(20, true);
+  const offsetY = view.getFloat32(24, true);
+  const offsetZ = view.getFloat32(28, true);
+
+  // Decode points
+  const points = new Float32Array(pointCount * 3);
+  const reflectivity = new Uint8Array(pointCount);
+
+  for (let i = 0; i < pointCount; i++) {
+    const offset = POINT_CLOUD_HEADER_SIZE + i * BYTES_PER_POINT;
+
+    // Read quantized coordinates
+    const qx = view.getInt16(offset, true);
+    const qy = view.getInt16(offset + 2, true);
+    const qz = view.getInt16(offset + 4, true);
+    const refl = view.getUint8(offset + 6);
+
+    // Dequantize: raw = quantized * scale + offset
+    points[i * 3] = qx * scaleX + offsetX;
+    points[i * 3 + 1] = qy * scaleY + offsetY;
+    points[i * 3 + 2] = qz * scaleZ + offsetZ;
+    reflectivity[i] = refl;
+  }
+
+  return { frameId, points, reflectivity };
+}
+
+/**
+ * Encode a LiDAR toggle command.
+ * Format: [type:u8] [flags:u8] [sequence:u16 LE] [timestamp_ms:u32 LE] [enabled:u8]
+ */
+export function encodeLidarToggle(enabled: boolean): ArrayBuffer {
+  const buf = new ArrayBuffer(CMD_HEADER_SIZE + 1);
+  const view = new DataView(buf);
+  buildHeader(view, MSG_LIDAR_TOGGLE);
+  view.setUint8(CMD_HEADER_SIZE, enabled ? 1 : 0);
+  return buf;
 }

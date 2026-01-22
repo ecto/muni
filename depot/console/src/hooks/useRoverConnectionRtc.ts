@@ -19,10 +19,12 @@ import {
   encodeHeartbeat,
   encodeTool,
   encodeSetMode,
+  encodeLidarToggle,
   decodeTelemetry,
   telemetryFromDecoded,
   decodeVideoFrame,
   videoFrameToBlobUrl,
+  decodePointCloud,
 } from "@/lib/protocol";
 import { pushSnapshotDirect } from "@/lib/interpolation";
 import { Mode } from "@/lib/types";
@@ -63,6 +65,7 @@ export function useRoverConnectionRtc() {
     setVideoFps,
     setVideoFrame,
     setCameraFrame,
+    setPointCloud,
   } = useConsoleStore();
 
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
@@ -378,6 +381,32 @@ export function useRoverConnectionRtc() {
             setVideoConnected(false);
             setVideoFps(0);
           };
+        } else if (channel.label === "pointcloud") {
+          console.log("[WebRTC] Pointcloud channel received");
+          channel.binaryType = "arraybuffer";
+
+          channel.onopen = () => {
+            console.log("[WebRTC] Pointcloud channel opened");
+          };
+
+          channel.onmessage = (msgEvent) => {
+            if (!(msgEvent.data instanceof ArrayBuffer)) {
+              console.warn("[WebRTC] Pointcloud message not ArrayBuffer");
+              return;
+            }
+
+            const cloud = decodePointCloud(msgEvent.data);
+            if (cloud) {
+              console.log(`[WebRTC] Pointcloud received: ${cloud.points.length / 3} points`);
+              setPointCloud(cloud.points, cloud.reflectivity);
+            } else {
+              console.warn("[WebRTC] Failed to decode pointcloud, size:", msgEvent.data.byteLength);
+            }
+          };
+
+          channel.onclose = () => {
+            console.log("[WebRTC] Pointcloud channel closed");
+          };
         }
       };
 
@@ -482,6 +511,7 @@ export function useRoverConnectionRtc() {
     setVideoFps,
     setVideoFrame,
     setCameraFrame,
+    setPointCloud,
     clearIntervals,
     sendCommands,
   ]);
@@ -590,6 +620,15 @@ export function useRoverConnectionRtc() {
 
       if (commandChannelRef.current?.readyState === "open") {
         commandChannelRef.current.send(encodeSetMode(Mode.Disabled));
+      }
+    }, []),
+    toggleLidar: useCallback((enabled: boolean) => {
+      console.log(`[WebRTC] Toggling LiDAR: ${enabled}`);
+      if (commandChannelRef.current?.readyState === "open") {
+        commandChannelRef.current.send(encodeLidarToggle(enabled));
+        console.log("[WebRTC] LiDAR toggle command sent");
+      } else {
+        console.warn("[WebRTC] Cannot toggle LiDAR - command channel not open");
       }
     }, []),
   };

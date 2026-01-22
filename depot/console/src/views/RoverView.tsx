@@ -26,7 +26,7 @@ export function RoverView() {
   useKeyboard();
   useGamepad();
   // WebRTC handles both commands and video streaming
-  const { disconnect, sendEStopRelease, sendEnable, sendDisable } = useRoverConnectionRtc();
+  const { disconnect, sendEStopRelease, sendEnable, sendDisable, toggleLidar } = useRoverConnectionRtc();
 
   // Get selected rover info
   const selectedRover = rovers.find((r) => r.id === roverId);
@@ -194,7 +194,7 @@ export function RoverView() {
               </Button>
             )}
           </div>
-          <TelemetryPanel />
+          <TelemetryPanel onToggleLidar={toggleLidar} />
           <InputPanel />
           <CameraFeedCard />
         </div>

@@ -45,6 +45,28 @@ struct FileConfig {
     lidar: LidarFileConfig,
     slam: SlamFileConfig,
     estop: EStopFileConfig,
+    camera: CameraFileConfig,
+}
+
+/// Camera configuration.
+#[derive(Debug, Deserialize)]
+#[serde(default)]
+struct CameraFileConfig {
+    /// Enable camera capture
+    enabled: bool,
+    /// Maximum number of cameras to initialize (0 = all detected)
+    /// On Jetson, initializing multiple CSI cameras can hang GStreamer.
+    /// Set to 1 if experiencing camera init hangs.
+    max_cameras: usize,
+}
+
+impl Default for CameraFileConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            max_cameras: 1, // Default to 1 to avoid Jetson CSI init issues
+        }
+    }
 }
 
 /// Hardware e-stop configuration.
@@ -107,6 +129,10 @@ struct LidarFileConfig {
     point_cloud_port: u16,
     /// IMU data UDP port (default 56401, 0 to disable)
     imu_port: u16,
+    /// Voxel size for point cloud downsampling (meters). Larger = fewer points.
+    stream_voxel_size: f32,
+    /// Maximum points per frame for streaming. Higher = more detail but more bandwidth.
+    stream_max_points: usize,
 }
 
 impl Default for LidarFileConfig {
@@ -116,6 +142,8 @@ impl Default for LidarFileConfig {
             lidar_ip: "192.168.1.100".to_string(),
             point_cloud_port: 56301,
             imu_port: 56401,
+            stream_voxel_size: 0.3,
+            stream_max_points: 500,
         }
     }
 }
@@ -781,6 +809,8 @@ async fn main() -> Result<()> {
     let (video_tx_rtc, video_rx_rtc) = tokio::sync::mpsc::channel::<teleop::video::VideoFrame>(32);
     // watch for UDP: backward compatibility for native CLI (shows latest frame only)
     let (video_tx_udp, video_rx_udp) = watch::channel::<Option<teleop::video::VideoFrame>>(None);
+    // watch for LiDAR point cloud streaming (created early for RtcServer, populated later)
+    let (lidar_tx, lidar_rx) = watch::channel::<Option<lidar::PointCloud>>(None);
 
     // Spawn teleop server (UDP)
     let teleop_config = TeleopConfig::default();
@@ -796,14 +826,19 @@ async fn main() -> Result<()> {
     if args.rtc_port > 0 {
         let rtc_config = RtcConfig {
             signaling_port: args.rtc_port,
+            pointcloud: teleop::pointcloud::PointCloudConfig {
+                voxel_size: file_config.lidar.stream_voxel_size,
+                max_points: file_config.lidar.stream_max_points,
+            },
             ..Default::default()
         };
-        // Use with_video to enable WebRTC video streaming
-        let rtc_server = RtcServer::with_video(
+        // Use with_video_and_lidar to enable WebRTC video and point cloud streaming
+        let rtc_server = RtcServer::with_video_and_lidar(
             rtc_config,
             cmd_tx.clone(),
             telemetry_rx.clone(),
             video_rx_rtc,
+            lidar_rx.clone(),
         );
 
         tokio::spawn(async move {
@@ -812,7 +847,12 @@ async fn main() -> Result<()> {
             }
         });
 
-        info!(port = args.rtc_port, "WebRTC teleop server started (low-latency + video)");
+        info!(
+            port = args.rtc_port,
+            voxel_size = file_config.lidar.stream_voxel_size,
+            max_points = file_config.lidar.stream_max_points,
+            "WebRTC teleop server started (low-latency + video)"
+        );
     }
 
     // Spawn dashboard if enabled
@@ -827,8 +867,9 @@ async fn main() -> Result<()> {
         });
     }
 
-    // Auto-detect and start cameras (unless disabled)
-    if !args.no_camera {
+    // Auto-detect and start cameras (unless disabled via CLI or config)
+    let camera_enabled = !args.no_camera && file_config.camera.enabled;
+    if camera_enabled {
         // Parse resolution if provided
         let (width, height) = if let Some(res) = &args.camera_resolution {
             let parts: Vec<&str> = res.split('x').collect();
@@ -855,21 +896,29 @@ async fn main() -> Result<()> {
         info!("Detecting cameras...");
         let cameras = camera::detect_cameras();
 
-        if cameras.is_empty() {
+        // Apply max_cameras limit from config (0 = unlimited)
+        let max_cameras = file_config.camera.max_cameras;
+        let cameras_to_start: Vec<_> = if max_cameras > 0 {
+            cameras.into_iter().take(max_cameras).collect()
+        } else {
+            cameras
+        };
+
+        if cameras_to_start.is_empty() {
             info!("No cameras detected");
         } else {
-            info!(count = cameras.len(), "Cameras detected");
-            for cam in &cameras {
+            info!(count = cameras_to_start.len(), max = max_cameras, "Cameras detected");
+            for cam in &cameras_to_start {
                 info!(name = %cam.name, "  - {:?}", cam.camera_type);
             }
 
-            // Start capture on all detected cameras
+            // Start capture on detected cameras (limited by max_cameras config)
             // GStreamer init happens here and can hang on Jetson, so wrap in timeout
-            info!("Starting camera capture for {} camera(s)...", cameras.len());
+            info!("Starting camera capture for {} camera(s)...", cameras_to_start.len());
 
             let mut cameras_started = 0u8;
 
-            for (camera_id, cam) in cameras.iter().enumerate() {
+            for (camera_id, cam) in cameras_to_start.iter().enumerate() {
                 let camera_id = camera_id as u8;
                 let cam_clone = cam.clone();
                 let cam_config = camera_config.clone();
@@ -900,6 +949,16 @@ async fn main() -> Result<()> {
                         let video_tx_rtc_camera = video_tx_rtc.clone();
                         let video_tx_udp_camera = video_tx_udp.clone();
 
+                        // DEBUG: Skip camera bridge to test if it's causing tokio runtime issues
+                        // When enabled, video won't stream but dashboard/WebRTC should work
+                        let skip_camera_bridge = std::env::var("BVR_SKIP_CAMERA_BRIDGE").is_ok();
+                        if skip_camera_bridge {
+                            warn!("Camera bridge disabled via BVR_SKIP_CAMERA_BRIDGE");
+                            // Drop frame_rx - camera capture continues but frames aren't bridged
+                            drop(frame_rx);
+                            continue;
+                        }
+
                         // Spawn task to bridge sync camera frames to async video servers
                         std::thread::spawn(move || {
                             let mut frame_count: u64 = 0;
@@ -917,10 +976,19 @@ async fn main() -> Result<()> {
                                     timestamp_ms: frame.timestamp_ms,
                                 };
 
-                                // Send to WebRTC (mpsc - queues all frames)
+                                // Send to WebRTC (mpsc - queues frames)
+                                // Use try_send to avoid blocking_send which can stall the tokio runtime
+                                // Dropping frames is acceptable for real-time video streaming
                                 let send_start = std::time::Instant::now();
-                                if video_tx_rtc_camera.blocking_send(video_frame.clone()).is_err() {
-                                    break;
+                                match video_tx_rtc_camera.try_send(video_frame.clone()) {
+                                    Ok(_) => {}
+                                    Err(mpsc::error::TrySendError::Full(_)) => {
+                                        // Channel full - drop frame (no WebRTC clients consuming)
+                                        // This is expected when no clients are connected
+                                    }
+                                    Err(mpsc::error::TrySendError::Closed(_)) => {
+                                        break; // Receiver dropped
+                                    }
                                 }
                                 let send_us = send_start.elapsed().as_micros();
 
@@ -1007,8 +1075,8 @@ async fn main() -> Result<()> {
         }
     }
 
-    // LiDAR reader (Livox Mid360)
-    let (lidar_tx, mut lidar_rx) = watch::channel(None);
+    // LiDAR reader (Livox Mid360) - uses lidar_tx created earlier for RtcServer
+    let mut lidar_rx_local = lidar_rx.clone();
     if file_config.lidar.enabled {
         let lidar_ip = file_config.lidar.lidar_ip.parse()
             .unwrap_or(std::net::Ipv4Addr::new(192, 168, 1, 100));
@@ -1160,10 +1228,11 @@ async fn main() -> Result<()> {
     }
 
     loop {
-        // Wait for next tick
+        // Wait for next tick - use tokio::time::sleep to yield to runtime
+        // This allows other async tasks (dashboard, WebRTC, etc.) to make progress
         let elapsed = last_tick.elapsed();
         if elapsed < control_period {
-            std::thread::sleep(control_period - elapsed);
+            tokio::time::sleep(control_period - elapsed).await;
         }
         let dt = last_tick.elapsed().as_secs_f64();
         last_tick = Instant::now();
@@ -1295,6 +1364,7 @@ async fn main() -> Result<()> {
                         tool_command = tc;
                     }
                     Command::Twist(_) => unreachable!(), // Already handled above
+                    Command::LidarToggle(_) => {} // Handled per-connection in WebRTC
                 }
             }
         }
@@ -1769,8 +1839,8 @@ async fn main() -> Result<()> {
         }
 
         // Check for LiDAR updates
-        if lidar_rx.has_changed().unwrap_or(false) {
-            if let Some(ref scan) = &*lidar_rx.borrow_and_update() {
+        if lidar_rx_local.has_changed().unwrap_or(false) {
+            if let Some(ref scan) = &*lidar_rx_local.borrow_and_update() {
                 let _ = recorder.log_lidar_scan(scan);
 
                 // Process scan through SLAM

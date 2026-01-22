@@ -114,8 +114,12 @@ function WheelStatusIndicator({ label, status }: { label: string; status: WheelS
   );
 }
 
-export function TelemetryPanel() {
-  const { telemetry, connected, latencyMs, renderPose, cameraMode, setCameraMode } = useConsoleStore();
+interface TelemetryPanelProps {
+  onToggleLidar?: (enabled: boolean) => void;
+}
+
+export function TelemetryPanel({ onToggleLidar }: TelemetryPanelProps) {
+  const { telemetry, connected, latencyMs, renderPose, cameraMode, setCameraMode, pointCloudEnabled, setPointCloudEnabled } = useConsoleStore();
   const [collapsed, setCollapsed] = useState(false);
 
   const batteryPercent = getBatteryPercent(telemetry.power.battery_voltage);
@@ -125,6 +129,12 @@ export function TelemetryPanel() {
     const currentIndex = modes.indexOf(cameraMode);
     const nextIndex = (currentIndex + 1) % modes.length;
     setCameraMode(modes[nextIndex]);
+  };
+
+  const handleToggleLidar = () => {
+    const newEnabled = !pointCloudEnabled;
+    setPointCloudEnabled(newEnabled);
+    onToggleLidar?.(newEnabled);
   };
 
   return (
@@ -296,7 +306,28 @@ export function TelemetryPanel() {
                 <HealthIndicator label="CAN" healthy={telemetry.health.can_healthy} tooltip="CAN bus communication with motor controllers" />
                 <HealthIndicator label="Camera" healthy={telemetry.health.camera_active} tooltip="360° camera feed active" />
                 <HealthIndicator label="GPS" healthy={telemetry.health.gps_fix} tooltip="RTK GPS has valid fix" />
-                <HealthIndicator label="LiDAR" healthy={telemetry.health.lidar_active} tooltip="LiDAR sensor streaming data" />
+                {/* LiDAR with toggle when active */}
+                {telemetry.health.lidar_active ? (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div
+                        className="flex items-center justify-between text-xs cursor-pointer hover:bg-muted/50 rounded px-0.5 -mx-0.5"
+                        onClick={handleToggleLidar}
+                      >
+                        <span className="text-muted-foreground">LiDAR</span>
+                        <Badge
+                          variant={pointCloudEnabled ? "default" : "secondary"}
+                          className="text-[10px] h-4 px-1.5 text-foreground"
+                        >
+                          {pointCloudEnabled ? "ON" : "OFF"}
+                        </Badge>
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent side="right">Click to toggle point cloud streaming</TooltipContent>
+                  </Tooltip>
+                ) : (
+                  <HealthIndicator label="LiDAR" healthy={false} tooltip="LiDAR sensor not active" />
+                )}
                 <HealthIndicator label="SLAM" healthy={telemetry.health.slam_running} tooltip="Simultaneous Localization and Mapping running" />
                 <HealthIndicator label="Rec" healthy={telemetry.health.recording_active} tooltip="Session recording to .rrd file" />
               </div>

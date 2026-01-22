@@ -16,13 +16,15 @@
 //! - Safety commands (EStop) accepted from anyone
 //! - Operator status released on disconnect or after 5s inactivity
 
+use crate::pointcloud;
 use crate::video::VideoFrame;
 use crate::{
     CommandHeader, Telemetry, TeleopError, CMD_HEADER_SIZE, MSG_ESTOP, MSG_ESTOP_RELEASE,
-    MSG_HEARTBEAT, MSG_SET_MODE, MSG_TELEMETRY, MSG_TOOL, MSG_TWIST,
+    MSG_HEARTBEAT, MSG_LIDAR_TOGGLE, MSG_SET_MODE, MSG_TELEMETRY, MSG_TOOL, MSG_TWIST,
 };
+use lidar::PointCloud;
 use futures_util::{SinkExt, StreamExt};
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::net::{TcpListener, TcpStream};
@@ -147,6 +149,8 @@ pub struct RtcConfig {
     pub telemetry_interval: Duration,
     /// STUN servers for ICE (optional - Tailscale handles NAT).
     pub ice_servers: Vec<String>,
+    /// Point cloud streaming configuration.
+    pub pointcloud: crate::pointcloud::PointCloudConfig,
 }
 
 impl Default for RtcConfig {
@@ -158,6 +162,7 @@ impl Default for RtcConfig {
                 // Google's public STUN server as fallback
                 "stun:stun.l.google.com:19302".to_string(),
             ],
+            pointcloud: crate::pointcloud::PointCloudConfig::default(),
         }
     }
 }
@@ -168,6 +173,7 @@ pub struct RtcServer {
     command_tx: mpsc::Sender<Command>,
     telemetry_rx: watch::Receiver<Telemetry>,
     video_rx: Option<Arc<Mutex<tokio_mpsc::Receiver<VideoFrame>>>>,
+    lidar_rx: Option<watch::Receiver<Option<PointCloud>>>,
     operator_state: Arc<OperatorState>,
 }
 
@@ -182,6 +188,7 @@ impl RtcServer {
             command_tx,
             telemetry_rx,
             video_rx: None,
+            lidar_rx: None,
             operator_state: Arc::new(OperatorState::new()),
         }
     }
@@ -198,6 +205,25 @@ impl RtcServer {
             command_tx,
             telemetry_rx,
             video_rx: Some(Arc::new(Mutex::new(video_rx))),
+            lidar_rx: None,
+            operator_state: Arc::new(OperatorState::new()),
+        }
+    }
+
+    /// Create a new RTC server with video and LiDAR streaming support.
+    pub fn with_video_and_lidar(
+        config: RtcConfig,
+        command_tx: mpsc::Sender<Command>,
+        telemetry_rx: watch::Receiver<Telemetry>,
+        video_rx: tokio_mpsc::Receiver<VideoFrame>,
+        lidar_rx: watch::Receiver<Option<PointCloud>>,
+    ) -> Self {
+        Self {
+            config,
+            command_tx,
+            telemetry_rx,
+            video_rx: Some(Arc::new(Mutex::new(video_rx))),
+            lidar_rx: Some(lidar_rx),
             operator_state: Arc::new(OperatorState::new()),
         }
     }
@@ -216,6 +242,7 @@ impl RtcServer {
         let command_tx = Arc::new(self.command_tx);
         let telemetry_rx = self.telemetry_rx;
         let video_rx = self.video_rx;
+        let lidar_rx = self.lidar_rx;
         let config = Arc::new(self.config);
         let operator_state = self.operator_state;
 
@@ -229,12 +256,13 @@ impl RtcServer {
                     let cmd_tx = command_tx.clone();
                     let telem_rx = telemetry_rx.clone();
                     let vid_rx = video_rx.clone();
+                    let lid_rx = lidar_rx.clone();
                     let cfg = config.clone();
                     let op_state = operator_state.clone();
 
                     tokio::spawn(async move {
                         if let Err(e) =
-                            handle_signaling(stream, cmd_tx, telem_rx, vid_rx, cfg, conn_id, op_state.clone())
+                            handle_signaling(stream, cmd_tx, telem_rx, vid_rx, lid_rx, cfg, conn_id, op_state.clone())
                                 .await
                         {
                             error!(?e, conn_id, "WebRTC connection error");
@@ -278,6 +306,7 @@ async fn handle_signaling(
     command_tx: Arc<mpsc::Sender<Command>>,
     telemetry_rx: watch::Receiver<Telemetry>,
     video_rx: Option<Arc<Mutex<tokio_mpsc::Receiver<VideoFrame>>>>,
+    lidar_rx: Option<watch::Receiver<Option<PointCloud>>>,
     config: Arc<RtcConfig>,
     conn_id: u64,
     operator_state: Arc<OperatorState>,
@@ -483,12 +512,97 @@ async fn handle_signaling(
         }));
     }
 
+    // Per-connection LiDAR streaming state (shared with command handler)
+    let lidar_streaming_enabled = Arc::new(AtomicBool::new(false));
+
+    // Create pointcloud DataChannel if LiDAR streaming is available
+    if let Some(lid_rx) = lidar_rx {
+        let pointcloud_dc_config = RTCDataChannelInit {
+            ordered: Some(false),
+            max_retransmits: Some(0),
+            ..Default::default()
+        };
+
+        let pointcloud_channel = peer_connection
+            .create_data_channel("pointcloud", Some(pointcloud_dc_config))
+            .await
+            .map_err(|e| {
+                TeleopError::Network(std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    e.to_string(),
+                ))
+            })?;
+
+        let pointcloud_channel = Arc::new(pointcloud_channel);
+        let pointcloud_channel_clone = pointcloud_channel.clone();
+        let lidar_enabled = lidar_streaming_enabled.clone();
+        let pc_config = config.pointcloud.clone();
+
+        pointcloud_channel.on_open(Box::new(move || {
+            let channel = pointcloud_channel_clone.clone();
+            let mut rx = lid_rx.clone();
+            let enabled = lidar_enabled.clone();
+            let stream_config = pc_config.clone();
+            Box::pin(async move {
+                info!(
+                    voxel_size = stream_config.voxel_size,
+                    max_points = stream_config.max_points,
+                    "WebRTC pointcloud channel opened"
+                );
+                // Stream at 5Hz (200ms interval)
+                let mut interval = tokio::time::interval(Duration::from_millis(200));
+                let mut frame_count: u64 = 0;
+
+                loop {
+                    interval.tick().await;
+
+                    if channel.ready_state()
+                        != webrtc::data_channel::data_channel_state::RTCDataChannelState::Open
+                    {
+                        info!("WebRTC pointcloud channel no longer open, stopping");
+                        break;
+                    }
+
+                    // Only stream when enabled
+                    if !enabled.load(Ordering::Relaxed) {
+                        continue;
+                    }
+
+                    // Get latest point cloud
+                    let cloud = rx.borrow_and_update().clone();
+                    if let Some(cloud) = cloud {
+                        let data = pointcloud::prepare_for_streaming_with_config(&cloud, &stream_config);
+                        if let Err(e) = channel.send(&bytes::Bytes::from(data)).await {
+                            debug!(?e, "Failed to send pointcloud (channel closing?)");
+                            break;
+                        }
+
+                        frame_count += 1;
+                        if frame_count == 1 {
+                            info!(
+                                points = cloud.points.len(),
+                                downsampled = stream_config.max_points,
+                                "First pointcloud sent via WebRTC"
+                            );
+                        }
+                        if frame_count % 50 == 0 {
+                            trace!(frame_count, "pointcloud.streaming");
+                        }
+                    }
+                }
+                info!(frames_sent = frame_count, "WebRTC pointcloud channel closed");
+            })
+        }));
+    }
+
     // Handle incoming DataChannels from browser (browser creates "commands" channel)
     let cmd_tx_clone = command_tx.clone();
     let op_state_clone = operator_state.clone();
+    let lidar_enabled_clone = lidar_streaming_enabled.clone();
     peer_connection.on_data_channel(Box::new(move |channel| {
         let cmd_tx = cmd_tx_clone.clone();
         let op_state = op_state_clone.clone();
+        let lidar_enabled = lidar_enabled_clone.clone();
         let label = channel.label().to_string();
 
         info!(label, conn_id, "WebRTC received data channel from browser");
@@ -503,7 +617,16 @@ async fn handle_signaling(
             channel.on_message(Box::new(move |msg| {
                 let cmd_tx = cmd_tx.clone();
                 let op_state = op_state.clone();
+                let lidar_enabled = lidar_enabled.clone();
                 Box::pin(async move {
+                    // Check for LiDAR toggle command first (per-connection, not forwarded)
+                    if msg.data.len() >= CMD_HEADER_SIZE + 1 && msg.data[0] == MSG_LIDAR_TOGGLE {
+                        let enabled = msg.data[CMD_HEADER_SIZE] != 0;
+                        lidar_enabled.store(enabled, Ordering::Relaxed);
+                        info!(enabled, conn_id, "LiDAR streaming toggled");
+                        return;
+                    }
+
                     if let Some(cmd) = parse_command(&msg.data) {
                         // Filter commands based on operator status
                         match filter_command(&cmd, conn_id, &op_state) {
@@ -748,6 +871,10 @@ fn filter_command(cmd: &Command, conn_id: u64, op_state: &OperatorState) -> Comm
                 CommandFilter::Reject("not the operator")
             }
         }
+
+        // LidarToggle is handled per-connection, not forwarded through command channel
+        // This case should never be reached since it's intercepted in on_message
+        Command::LidarToggle(_) => CommandFilter::Reject("handled separately"),
     }
 }
 

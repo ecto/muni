@@ -14,6 +14,7 @@
 //! ## Telemetry (Rover → Console)
 //! 120 bytes with pose, velocity, measured velocity, acceleration, motor data, ACK fields.
 
+pub mod pointcloud;
 pub mod rtc;
 pub mod video;
 pub mod video_ws;
@@ -40,9 +41,13 @@ pub const MSG_HEARTBEAT: u8 = 0x03;
 pub const MSG_SET_MODE: u8 = 0x04;
 pub const MSG_TOOL: u8 = 0x05;
 pub const MSG_ESTOP_RELEASE: u8 = 0x06;
+pub const MSG_LIDAR_TOGGLE: u8 = 0x07;
 
 /// Telemetry message type
 pub const MSG_TELEMETRY: u8 = 0x11;
+
+/// Point cloud message type
+pub const MSG_POINT_CLOUD: u8 = 0x21;
 
 /// Command flags
 pub mod cmd_flags {
@@ -719,6 +724,9 @@ mod tests {
             dt_ms: 20.0,
             last_cmd_seq: 100,
             ack_bits: 0xFFFF,
+            cpu_percent: 25,
+            mem_percent: 50,
+            disk_percent: 30,
             active_tool: None,
             tool_status: None,
             slam_status: None,

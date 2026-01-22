@@ -250,6 +250,8 @@ pub enum Command {
     Heartbeat,
     /// Tool command
     Tool(ToolCommand),
+    /// Toggle LiDAR streaming (true = enable, false = disable)
+    LidarToggle(bool),
 }
 
 /// Command for the active tool.
