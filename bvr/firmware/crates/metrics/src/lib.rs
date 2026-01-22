@@ -13,7 +13,7 @@ pub use discovery::{DiscoveryClient, DiscoveryConfig};
 use serde::{Deserialize, Serialize};
 use std::net::{SocketAddr, UdpSocket};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
-use sysinfo::{Disks, System};
+use sysinfo::{Disks, Pid, ProcessRefreshKind, ProcessesToUpdate, System};
 use thiserror::Error;
 use tokio::sync::watch;
 use tracing::{debug, error, info, trace, warn};
@@ -131,8 +131,19 @@ pub struct MeshMetrics {
 /// System resource metrics (CPU, memory, disk).
 #[derive(Debug, Clone, Default)]
 pub struct SystemMetrics {
-    /// CPU usage percentage (0-100)
+    /// CPU usage percentage (0-100) - system-wide
     pub cpu_percent: f32,
+
+    /// Load average (1 minute) - number of runnable processes
+    /// Values > number of CPU cores indicate system is overloaded
+    pub load_avg_1m: f32,
+
+    /// Load average (5 minute)
+    pub load_avg_5m: f32,
+
+    /// Process CPU usage percentage for bvrd specifically (0-100+)
+    /// Can exceed 100% if using multiple cores
+    pub process_cpu_percent: f32,
 
     /// Memory usage percentage (0-100)
     pub mem_percent: f32,
@@ -185,6 +196,8 @@ pub struct WebRtcChannelMetrics {
 pub struct SystemMetricsCollector {
     system: System,
     disks: Disks,
+    /// PID of the current process (bvrd)
+    pid: Pid,
 }
 
 impl SystemMetricsCollector {
@@ -197,10 +210,17 @@ impl SystemMetricsCollector {
         let mut collector = Self {
             system: System::new(),
             disks: Disks::new(),
+            pid: Pid::from_u32(std::process::id()),
         };
         // Do initial refresh for CPU/memory only (fast)
         collector.system.refresh_cpu_usage();
         collector.system.refresh_memory();
+        // Also refresh our own process for CPU tracking
+        collector.system.refresh_processes_specifics(
+            ProcessesToUpdate::Some(&[collector.pid]),
+            false, // don't remove dead processes
+            ProcessRefreshKind::new().with_cpu(),
+        );
         collector
     }
 
@@ -208,6 +228,12 @@ impl SystemMetricsCollector {
     pub fn refresh(&mut self) {
         self.system.refresh_cpu_usage();
         self.system.refresh_memory();
+        // Refresh our own process CPU usage
+        self.system.refresh_processes_specifics(
+            ProcessesToUpdate::Some(&[self.pid]),
+            false, // don't remove dead processes
+            ProcessRefreshKind::new().with_cpu(),
+        );
         // refresh_list() re-enumerates disks and refreshes their stats
         self.disks.refresh_list();
     }
@@ -216,6 +242,18 @@ impl SystemMetricsCollector {
     pub fn metrics(&self) -> SystemMetrics {
         // CPU: average across all cores
         let cpu_percent = self.system.global_cpu_usage();
+
+        // Load average (Linux/macOS only)
+        let load_avg = System::load_average();
+        let load_avg_1m = load_avg.one as f32;
+        let load_avg_5m = load_avg.five as f32;
+
+        // Process CPU for bvrd specifically
+        let process_cpu_percent = self
+            .system
+            .process(self.pid)
+            .map(|p| p.cpu_usage())
+            .unwrap_or(0.0);
 
         // Memory
         let mem_total = self.system.total_memory();
@@ -242,6 +280,9 @@ impl SystemMetricsCollector {
 
         SystemMetrics {
             cpu_percent,
+            load_avg_1m,
+            load_avg_5m,
+            process_cpu_percent,
             mem_percent,
             mem_used_bytes: mem_used,
             mem_total_bytes: mem_total,
@@ -370,12 +411,15 @@ impl MetricsPusher {
             ));
         }
 
-        // System resources (CPU, memory, disk)
+        // System resources (CPU, memory, disk, load)
         lines.push(format!(
-            "system,rover={},host={} cpu={:.1},mem={:.1},mem_used={}i,mem_total={}i,disk={:.1},disk_used={}i,disk_total={}i {}",
+            "system,rover={},host={} cpu={:.1},load1={:.2},load5={:.2},process_cpu={:.1},mem={:.1},mem_used={}i,mem_total={}i,disk={:.1},disk_used={}i,disk_total={}i {}",
             rover,
             rover,
             snapshot.system.cpu_percent,
+            snapshot.system.load_avg_1m,
+            snapshot.system.load_avg_5m,
+            snapshot.system.process_cpu_percent,
             snapshot.system.mem_percent,
             snapshot.system.mem_used_bytes,
             snapshot.system.mem_total_bytes,
