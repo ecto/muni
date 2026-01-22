@@ -10,7 +10,7 @@ use image::codecs::jpeg::JpegEncoder;
 use std::io::Cursor;
 use std::sync::mpsc;
 use thiserror::Error;
-use tracing::{debug, error, info, warn};
+use tracing::{debug, error, info, trace, warn};
 
 #[derive(Error, Debug)]
 pub enum CameraError {
@@ -424,88 +424,123 @@ pub fn detect_cameras_gstreamer() -> Vec<DetectedCamera> {
     cameras
 }
 
+/// Check if nvjpegenc (hardware JPEG encoder) is available.
+fn has_nvjpegenc() -> bool {
+    gst::ElementFactory::find("nvjpegenc").is_some()
+}
+
 /// Build GStreamer pipeline string for a camera.
-fn build_pipeline_string(camera: &DetectedCamera, config: &Config) -> String {
+/// Returns (pipeline_string, uses_hw_jpeg) tuple.
+fn build_pipeline_string(camera: &DetectedCamera, config: &Config) -> (String, bool) {
     match &camera.camera_type {
         CameraType::Csi { sensor_id } => {
-            // Jetson CSI camera pipeline
-            // nvvidconv outputs BGRx (not RGB), so we need videoconvert to get RGB
-            format!(
-                "nvarguscamerasrc sensor-id={} ! \
-                 video/x-raw(memory:NVMM),width={},height={},framerate={}/1 ! \
-                 nvvidconv ! \
-                 video/x-raw,format=BGRx ! \
-                 videoconvert ! \
-                 video/x-raw,format=RGB ! \
-                 appsink name=sink emit-signals=true max-buffers=1 drop=true sync=false",
-                sensor_id, config.width, config.height, config.fps
-            )
+            // Jetson CSI camera pipeline with hardware JPEG encoding
+            if has_nvjpegenc() {
+                // Use hardware JPEG encoder - outputs JPEG directly
+                let pipeline = format!(
+                    "nvarguscamerasrc sensor-id={} ! \
+                     video/x-raw(memory:NVMM),width={},height={},framerate={}/1 ! \
+                     nvjpegenc quality={} ! \
+                     appsink name=sink emit-signals=true max-buffers=1 drop=true sync=false",
+                    sensor_id, config.width, config.height, config.fps, config.jpeg_quality
+                );
+                (pipeline, true)
+            } else {
+                // Fallback to software JPEG encoding - outputs RGB
+                let pipeline = format!(
+                    "nvarguscamerasrc sensor-id={} ! \
+                     video/x-raw(memory:NVMM),width={},height={},framerate={}/1 ! \
+                     nvvidconv ! \
+                     video/x-raw,format=BGRx ! \
+                     videoconvert ! \
+                     video/x-raw,format=RGB ! \
+                     appsink name=sink emit-signals=true max-buffers=1 drop=true sync=false",
+                    sensor_id, config.width, config.height, config.fps
+                );
+                (pipeline, false)
+            }
         }
         CameraType::Usb { device } => {
-            // USB/V4L2 camera pipeline (Linux)
-            format!(
+            // USB/V4L2 camera pipeline (Linux) - software JPEG encoding
+            let pipeline = format!(
                 "v4l2src device={} do-timestamp=true ! \
                  video/x-raw,width={},height={},framerate={}/1 ! \
                  videoconvert ! \
                  video/x-raw,format=RGB ! \
                  appsink name=sink emit-signals=true max-buffers=1 drop=true sync=false",
                 device, config.width, config.height, config.fps
-            )
+            );
+            (pipeline, false)
         }
         CameraType::Avf { device_index } => {
-            // AVFoundation camera pipeline (macOS)
+            // AVFoundation camera pipeline (macOS) - software JPEG encoding
             // Force landscape orientation and reasonable resolution
-            format!(
+            let pipeline = format!(
                 "avfvideosrc device-index={} do-timestamp=true ! \
                  video/x-raw,width=1280,height=720 ! \
                  videoconvert ! \
                  video/x-raw,format=RGB ! \
                  appsink name=sink emit-signals=true max-buffers=1 drop=true sync=false",
                 device_index
-            )
+            );
+            (pipeline, false)
         }
     }
 }
 
 /// Build a fallback pipeline that's more flexible with formats.
-fn build_fallback_pipeline_string(camera: &DetectedCamera, config: &Config) -> String {
+/// Returns (pipeline_string, uses_hw_jpeg) tuple.
+fn build_fallback_pipeline_string(camera: &DetectedCamera, config: &Config) -> (String, bool) {
     match &camera.camera_type {
         CameraType::Csi { sensor_id } => {
-            // CSI camera with more flexible caps
-            // nvvidconv outputs BGRx (not RGB), so we need videoconvert to get RGB
-            format!(
-                "nvarguscamerasrc sensor-id={} ! \
-                 nvvidconv ! \
-                 video/x-raw,format=BGRx ! \
-                 videoconvert ! \
-                 video/x-raw,format=RGB ! \
-                 videoscale ! \
-                 video/x-raw,width={},height={} ! \
-                 appsink name=sink emit-signals=true max-buffers=1 drop=true sync=false",
-                sensor_id, config.width, config.height
-            )
+            // CSI camera fallback - try hardware JPEG first
+            if has_nvjpegenc() {
+                let pipeline = format!(
+                    "nvarguscamerasrc sensor-id={} ! \
+                     nvvidconv ! \
+                     nvjpegenc quality={} ! \
+                     appsink name=sink emit-signals=true max-buffers=1 drop=true sync=false",
+                    sensor_id, config.jpeg_quality
+                );
+                (pipeline, true)
+            } else {
+                let pipeline = format!(
+                    "nvarguscamerasrc sensor-id={} ! \
+                     nvvidconv ! \
+                     video/x-raw,format=BGRx ! \
+                     videoconvert ! \
+                     video/x-raw,format=RGB ! \
+                     videoscale ! \
+                     video/x-raw,width={},height={} ! \
+                     appsink name=sink emit-signals=true max-buffers=1 drop=true sync=false",
+                    sensor_id, config.width, config.height
+                );
+                (pipeline, false)
+            }
         }
         CameraType::Usb { device } => {
             // USB camera with flexible format negotiation (Linux)
-            format!(
+            let pipeline = format!(
                 "v4l2src device={} do-timestamp=true ! \
                  videoconvert ! \
                  videoscale ! \
                  video/x-raw,format=RGB,width={},height={} ! \
                  appsink name=sink emit-signals=true max-buffers=1 drop=true sync=false",
                 device, config.width, config.height
-            )
+            );
+            (pipeline, false)
         }
         CameraType::Avf { device_index } => {
             // AVFoundation camera fallback - more flexible caps (macOS)
-            format!(
+            let pipeline = format!(
                 "avfvideosrc device-index={} do-timestamp=true ! \
                  videoconvert ! \
                  videoscale add-borders=false ! \
                  video/x-raw,format=RGB,width={},height={} ! \
                  appsink name=sink emit-signals=true max-buffers=1 drop=true sync=false",
                 device_index, config.width, config.height
-            )
+            );
+            (pipeline, false)
         }
     }
 }
@@ -513,13 +548,18 @@ fn build_fallback_pipeline_string(camera: &DetectedCamera, config: &Config) -> S
 /// Spawn a camera capture thread that sends frames to a channel.
 ///
 /// Returns a receiver for frames and a handle to the capture thread.
+/// Uses a bounded channel (capacity 4) to prevent memory accumulation
+/// when downstream consumers are slow or disconnected.
 pub fn spawn_capture(
     camera: &DetectedCamera,
     config: Config,
 ) -> Result<(mpsc::Receiver<Frame>, std::thread::JoinHandle<()>), CameraError> {
     ensure_gst_init()?;
 
-    let (tx, rx) = mpsc::channel();
+    // Use bounded sync_channel to prevent unbounded memory growth.
+    // Capacity of 4 allows brief bursts while preventing accumulation.
+    // When full, send() blocks which naturally throttles the capture loop.
+    let (tx, rx) = mpsc::sync_channel(4);
     let camera = camera.clone();
 
     let handle = std::thread::spawn(move || {
@@ -535,19 +575,20 @@ pub fn spawn_capture(
 fn capture_loop(
     camera: DetectedCamera,
     config: Config,
-    tx: mpsc::Sender<Frame>,
+    tx: mpsc::SyncSender<Frame>,
 ) -> Result<(), CameraError> {
     // Try primary pipeline first, then fallback
-    let pipeline_str = build_pipeline_string(&camera, &config);
-    debug!(pipeline = %pipeline_str, "Trying primary pipeline");
+    let (pipeline_str, hw_jpeg) = build_pipeline_string(&camera, &config);
+    debug!(pipeline = %pipeline_str, hw_jpeg, "Trying primary pipeline");
 
-    let pipeline = match gst::parse::launch(&pipeline_str) {
-        Ok(p) => p,
+    let (pipeline, uses_hw_jpeg) = match gst::parse::launch(&pipeline_str) {
+        Ok(p) => (p, hw_jpeg),
         Err(e) => {
             warn!(?e, "Primary pipeline failed, trying fallback");
-            let fallback = build_fallback_pipeline_string(&camera, &config);
-            debug!(pipeline = %fallback, "Trying fallback pipeline");
-            gst::parse::launch(&fallback).map_err(|e| CameraError::GStreamer(e.to_string()))?
+            let (fallback, fallback_hw_jpeg) = build_fallback_pipeline_string(&camera, &config);
+            debug!(pipeline = %fallback, hw_jpeg = fallback_hw_jpeg, "Trying fallback pipeline");
+            let p = gst::parse::launch(&fallback).map_err(|e| CameraError::GStreamer(e.to_string()))?;
+            (p, fallback_hw_jpeg)
         }
     };
 
@@ -567,7 +608,11 @@ fn capture_loop(
         .set_state(gst::State::Playing)
         .map_err(|e| CameraError::GStreamer(format!("Failed to start pipeline: {:?}", e)))?;
 
-    info!(camera = ?camera.name, "Camera capture started");
+    if uses_hw_jpeg {
+        info!(camera = ?camera.name, "Camera capture started (hardware JPEG encoding)");
+    } else {
+        info!(camera = ?camera.name, "Camera capture started (software JPEG encoding)");
+    }
 
     let mut sequence: u32 = 0;
     let jpeg_quality = config.jpeg_quality;
@@ -604,20 +649,27 @@ fn capture_loop(
                     }
                 };
 
-                let rgb_data = map.as_slice();
-
-                // Encode as JPEG
-                let mut jpeg_buf = Vec::with_capacity((width * height) as usize);
-                {
-                    let mut cursor = Cursor::new(&mut jpeg_buf);
-                    let mut encoder = JpegEncoder::new_with_quality(&mut cursor, jpeg_quality);
-                    if let Err(e) =
-                        encoder.encode(rgb_data, width, height, image::ExtendedColorType::Rgb8)
+                let encode_start = std::time::Instant::now();
+                let jpeg_buf = if uses_hw_jpeg {
+                    // Hardware JPEG: buffer already contains JPEG data
+                    map.as_slice().to_vec()
+                } else {
+                    // Software JPEG: encode RGB data
+                    let rgb_data = map.as_slice();
+                    let mut buf = Vec::with_capacity((width * height) as usize);
                     {
-                        warn!(?e, "JPEG encoding failed");
-                        continue;
+                        let mut cursor = Cursor::new(&mut buf);
+                        let mut encoder = JpegEncoder::new_with_quality(&mut cursor, jpeg_quality);
+                        if let Err(e) =
+                            encoder.encode(rgb_data, width, height, image::ExtendedColorType::Rgb8)
+                        {
+                            warn!(?e, "JPEG encoding failed");
+                            continue;
+                        }
                     }
-                }
+                    buf
+                };
+                let encode_ms = encode_start.elapsed().as_secs_f64() * 1000.0;
 
                 let timestamp_ms = std::time::SystemTime::now()
                     .duration_since(std::time::UNIX_EPOCH)
@@ -626,7 +678,12 @@ fn capture_loop(
 
                 sequence = sequence.wrapping_add(1);
 
-                debug!(seq = sequence, size = jpeg_buf.len(), "Captured frame");
+                trace!(
+                    seq = sequence,
+                    size = jpeg_buf.len(),
+                    encode_ms = format!("{:.2}", encode_ms),
+                    "camera.frame_captured"
+                );
 
                 let frame = Frame {
                     data: jpeg_buf,
