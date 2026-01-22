@@ -264,6 +264,12 @@ pub struct Telemetry {
     pub last_cmd_seq: u16,
     /// Bitfield: which of last 16 command sequences were received
     pub ack_bits: u16,
+    /// System CPU usage (0-100%)
+    pub cpu_percent: u8,
+    /// System memory usage (0-100%)
+    pub mem_percent: u8,
+    /// System disk usage (0-100%)
+    pub disk_percent: u8,
     /// Active tool name (not sent over binary, only JSON)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub active_tool: Option<String>,
@@ -293,6 +299,9 @@ impl Default for Telemetry {
             dt_ms: 0.0,
             last_cmd_seq: 0,
             ack_bits: 0,
+            cpu_percent: 0,
+            mem_percent: 0,
+            disk_percent: 0,
             active_tool: None,
             tool_status: None,
             slam_status: None,
@@ -472,7 +481,11 @@ impl Server {
         buf.push(MSG_TELEMETRY);        // [0]
         buf.push(telemetry.mode as u8); // [1]
         buf.extend_from_slice(&telemetry.sequence.to_le_bytes()); // [2-3]
-        buf.extend_from_slice(&[0u8; 4]); // [4-7] padding
+        // System metrics [4-6] + padding [7]
+        buf.push(telemetry.cpu_percent);  // [4]
+        buf.push(telemetry.mem_percent);  // [5]
+        buf.push(telemetry.disk_percent); // [6]
+        buf.push(0);                      // [7] reserved
 
         // Pose (x, y, theta) - 24 bytes [8-31]
         buf.extend_from_slice(&telemetry.pose.x.to_le_bytes());

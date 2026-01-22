@@ -27,8 +27,9 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::{mpsc, watch, Mutex};
+use tokio::sync::mpsc as tokio_mpsc;
 use tokio_tungstenite::{accept_async, tungstenite::Message};
-use tracing::{debug, error, info, warn};
+use tracing::{debug, error, info, trace, warn};
 use types::{Command, Mode, ToolCommand, Twist};
 use webrtc::api::interceptor_registry::register_default_interceptors;
 use webrtc::api::media_engine::MediaEngine;
@@ -166,7 +167,7 @@ pub struct RtcServer {
     config: RtcConfig,
     command_tx: mpsc::Sender<Command>,
     telemetry_rx: watch::Receiver<Telemetry>,
-    video_rx: Option<watch::Receiver<Option<VideoFrame>>>,
+    video_rx: Option<Arc<Mutex<tokio_mpsc::Receiver<VideoFrame>>>>,
     operator_state: Arc<OperatorState>,
 }
 
@@ -190,13 +191,13 @@ impl RtcServer {
         config: RtcConfig,
         command_tx: mpsc::Sender<Command>,
         telemetry_rx: watch::Receiver<Telemetry>,
-        video_rx: watch::Receiver<Option<VideoFrame>>,
+        video_rx: tokio_mpsc::Receiver<VideoFrame>,
     ) -> Self {
         Self {
             config,
             command_tx,
             telemetry_rx,
-            video_rx: Some(video_rx),
+            video_rx: Some(Arc::new(Mutex::new(video_rx))),
             operator_state: Arc::new(OperatorState::new()),
         }
     }
@@ -276,7 +277,7 @@ async fn handle_signaling(
     stream: TcpStream,
     command_tx: Arc<mpsc::Sender<Command>>,
     telemetry_rx: watch::Receiver<Telemetry>,
-    video_rx: Option<watch::Receiver<Option<VideoFrame>>>,
+    video_rx: Option<Arc<Mutex<tokio_mpsc::Receiver<VideoFrame>>>>,
     config: Arc<RtcConfig>,
     conn_id: u64,
     operator_state: Arc<OperatorState>,
@@ -397,17 +398,15 @@ async fn handle_signaling(
 
         let video_channel = Arc::new(video_channel);
         let video_channel_clone = video_channel.clone();
-        let video_interval = Duration::from_millis(33); // ~30fps max
 
         video_channel.on_open(Box::new(move || {
             let channel = video_channel_clone.clone();
-            let mut rx = vid_rx.clone();
+            let rx = vid_rx.clone();
             Box::pin(async move {
                 info!("WebRTC video channel opened, waiting for camera frames");
-                let mut interval = tokio::time::interval(video_interval);
                 let mut frame_count: u64 = 0;
+                let mut last_warning = std::time::Instant::now();
                 loop {
-                    interval.tick().await;
                     if channel.ready_state()
                         != webrtc::data_channel::data_channel_state::RTCDataChannelState::Open
                     {
@@ -415,47 +414,68 @@ async fn handle_signaling(
                         break;
                     }
 
-                    // Wait for new frame with timeout for debugging
-                    tokio::select! {
-                        result = rx.changed() => {
-                            if result.is_err() {
-                                info!("Video frame sender dropped, stopping");
-                                break;
+                    // Wait for next frame from mpsc channel with timeout
+                    let frame = tokio::select! {
+                        result = async {
+                            rx.lock().await.recv().await
+                        } => {
+                            match result {
+                                Some(f) => f,
+                                None => {
+                                    info!("Video frame sender dropped, stopping");
+                                    break;
+                                }
                             }
                         }
                         _ = tokio::time::sleep(Duration::from_secs(5)) => {
-                            if frame_count == 0 {
+                            if frame_count == 0 && last_warning.elapsed() > Duration::from_secs(5) {
                                 warn!("No video frames received after 5s - is camera connected?");
+                                last_warning = std::time::Instant::now();
                             }
                             continue;
                         }
+                    };
+
+                    // Encode frame: [0x20] [camera_id:u8] [timestamp:u64] [width:u16] [height:u16] [jpeg...]
+                    let encode_start = std::time::Instant::now();
+                    let frame_size = frame.data.len();
+                    let mut buf = Vec::with_capacity(14 + frame_size);
+                    buf.push(0x20); // Video frame marker
+                    buf.push(frame.camera_id);
+                    buf.extend_from_slice(&frame.timestamp_ms.to_le_bytes());
+                    buf.extend_from_slice(&(frame.width as u16).to_le_bytes());
+                    buf.extend_from_slice(&(frame.height as u16).to_le_bytes());
+                    buf.extend_from_slice(&frame.data);
+                    let encode_us = encode_start.elapsed().as_micros();
+
+                    let send_start = std::time::Instant::now();
+                    if let Err(e) = channel.send(&bytes::Bytes::from(buf)).await {
+                        debug!(?e, "Failed to send video frame (channel closing?)");
+                        break;
                     }
+                    let send_us = send_start.elapsed().as_micros();
 
-                    let frame = rx.borrow_and_update().clone();
-                    if let Some(frame) = frame {
-                        // Encode frame: [0x20] [camera_id:u8] [timestamp:u64] [width:u16] [height:u16] [jpeg...]
-                        let mut buf = Vec::with_capacity(14 + frame.data.len());
-                        buf.push(0x20); // Video frame marker
-                        buf.push(frame.camera_id);
-                        buf.extend_from_slice(&frame.timestamp_ms.to_le_bytes());
-                        buf.extend_from_slice(&(frame.width as u16).to_le_bytes());
-                        buf.extend_from_slice(&(frame.height as u16).to_le_bytes());
-                        buf.extend_from_slice(&frame.data);
+                    frame_count += 1;
 
-                        if let Err(e) = channel.send(&bytes::Bytes::from(buf)).await {
-                            debug!(?e, "Failed to send video frame (channel closing?)");
-                            break;
-                        }
-
-                        frame_count += 1;
-                        if frame_count == 1 {
-                            info!(
-                                width = frame.width,
-                                height = frame.height,
-                                size = frame.data.len(),
-                                "First video frame sent via WebRTC"
-                            );
-                        }
+                    // Log every 100th frame for performance tracking
+                    if frame_count % 100 == 0 {
+                        trace!(
+                            frame_count,
+                            frame_size,
+                            encode_us,
+                            send_us,
+                            camera_id = frame.camera_id,
+                            "rtc.video_frame_sent"
+                        );
+                    }
+                    if frame_count == 1 {
+                        info!(
+                            camera_id = frame.camera_id,
+                            width = frame.width,
+                            height = frame.height,
+                            size = frame.data.len(),
+                            "First video frame sent via WebRTC"
+                        );
                     }
                 }
                 info!(frames_sent = frame_count, "WebRTC video channel closed");
