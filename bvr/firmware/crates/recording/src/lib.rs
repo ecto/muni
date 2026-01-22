@@ -163,6 +163,7 @@ impl Default for Config {
 /// Telemetry recorder using Rerun.
 ///
 /// All session data is recorded to a single .rrd file for easy playback.
+/// Sessions can be started/stopped dynamically based on operating mode.
 pub struct Recorder {
     config: Config,
     stream: Option<RecordingStream>,
@@ -184,26 +185,70 @@ pub struct Recorder {
     last_lidar_time: f64,
     /// Last camera frame time (for rate limiting)
     last_camera_time: f64,
+    /// Whether recording is globally enabled (from config)
+    globally_enabled: bool,
 }
 
 impl Recorder {
-    /// Create a new recorder and start a session.
+    /// Create a new recorder and start a session immediately.
+    ///
+    /// For mode-aware recording (only record during Teleop/Autonomous),
+    /// use `new_paused()` instead and call `start_session()` on mode entry.
     pub fn new(config: &Config) -> Result<Self, RecordingError> {
         if !config.enabled {
             info!("Recording disabled by config");
             return Ok(Self::disabled());
         }
 
+        let mut recorder = Self::new_paused(config);
+        recorder.start_session()?;
+        Ok(recorder)
+    }
+
+    /// Create a recorder that's ready but not yet recording.
+    ///
+    /// Call `start_session()` to begin recording (e.g., when entering Teleop mode).
+    /// Call `end_session()` to stop recording (e.g., when returning to Idle).
+    pub fn new_paused(config: &Config) -> Self {
+        Self {
+            config: config.clone(),
+            stream: None,
+            session_dir: None,
+            session_path: None,
+            metadata: None,
+            gps_bounds: GpsBounds::default(),
+            lidar_frame_count: AtomicU32::new(0),
+            camera_frame_count: AtomicU32::new(0),
+            pose_count: AtomicU32::new(0),
+            last_lidar_time: 0.0,
+            last_camera_time: 0.0,
+            globally_enabled: config.enabled,
+        }
+    }
+
+    /// Start a new recording session.
+    ///
+    /// Does nothing if recording is globally disabled or a session is already active.
+    pub fn start_session(&mut self) -> Result<(), RecordingError> {
+        if !self.globally_enabled {
+            return Ok(());
+        }
+
+        if self.stream.is_some() {
+            // Already recording
+            return Ok(());
+        }
+
         // Ensure session directory exists
-        std::fs::create_dir_all(&config.session_dir)?;
+        std::fs::create_dir_all(&self.config.session_dir)?;
 
         // Rotate old sessions if needed
-        Self::rotate_sessions_if_needed(&config.session_dir, config.max_storage_bytes)?;
+        Self::rotate_sessions_if_needed(&self.config.session_dir, self.config.max_storage_bytes)?;
 
         // Generate session directory name using ISO timestamp
         let now = Utc::now();
         let session_name = now.format("%Y-%m-%dT%H-%M-%S").to_string();
-        let session_dir = config.session_dir.join(&session_name);
+        let session_dir = self.config.session_dir.join(&session_name);
         std::fs::create_dir_all(&session_dir)?;
 
         let session_id = Uuid::new_v4();
@@ -216,16 +261,16 @@ impl Recorder {
         // Create session.rrd file (single unified file)
         let session_file = "session.rrd".to_string();
         let session_path = session_dir.join(&session_file);
-        let stream = RecordingStreamBuilder::new(format!("{}-{}", config.rover_id, session_name))
+        let stream = RecordingStreamBuilder::new(format!("{}-{}", self.config.rover_id, session_name))
             .save(&session_path)?;
 
         // Log initial metadata to Rerun
-        Self::log_session_metadata_rerun(&stream, config, &session_id)?;
+        Self::log_session_metadata_rerun(&stream, &self.config, &session_id)?;
 
         // Initialize session metadata
-        let metadata = SessionMetadata {
+        self.metadata = Some(SessionMetadata {
             session_id,
-            rover_id: config.rover_id.clone(),
+            rover_id: self.config.rover_id.clone(),
             started_at: now,
             ended_at: None,
             duration_secs: 0.0,
@@ -234,21 +279,21 @@ impl Recorder {
             camera_frames: 0,
             pose_samples: 0,
             session_file,
-        };
+        });
 
-        Ok(Self {
-            config: config.clone(),
-            stream: Some(stream),
-            session_dir: Some(session_dir),
-            session_path: Some(session_path),
-            metadata: Some(metadata),
-            gps_bounds: GpsBounds::default(),
-            lidar_frame_count: AtomicU32::new(0),
-            camera_frame_count: AtomicU32::new(0),
-            pose_count: AtomicU32::new(0),
-            last_lidar_time: 0.0,
-            last_camera_time: 0.0,
-        })
+        self.session_dir = Some(session_dir);
+        self.session_path = Some(session_path);
+        self.stream = Some(stream);
+
+        // Reset counters for new session
+        self.gps_bounds = GpsBounds::default();
+        self.lidar_frame_count.store(0, Ordering::Relaxed);
+        self.camera_frame_count.store(0, Ordering::Relaxed);
+        self.pose_count.store(0, Ordering::Relaxed);
+        self.last_lidar_time = 0.0;
+        self.last_camera_time = 0.0;
+
+        Ok(())
     }
 
     /// Create a disabled recorder (no-op for all operations).
@@ -268,6 +313,7 @@ impl Recorder {
             pose_count: AtomicU32::new(0),
             last_lidar_time: 0.0,
             last_camera_time: 0.0,
+            globally_enabled: false,
         }
     }
 
@@ -281,9 +327,16 @@ impl Recorder {
         self.metadata.as_ref().map(|m| m.session_id)
     }
 
-    /// Check if recording is active.
+    /// Check if a recording session is currently active.
     pub fn is_active(&self) -> bool {
         self.stream.is_some()
+    }
+
+    /// Check if recording is globally enabled (can start sessions).
+    ///
+    /// Returns false if recording was disabled by config or `--no-recording`.
+    pub fn is_enabled(&self) -> bool {
+        self.globally_enabled
     }
 
     /// Get the current session file path.
