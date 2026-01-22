@@ -5,7 +5,6 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "prebuild": "cp ../../web/models/bvr1_assembly.glb public/models/",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview"
@@ -22,6 +21,7 @@
     "@react-three/drei": "^10.7.7",
     "@react-three/fiber": "^9.4.2",
     "@react-three/xr": "^6.6.28",
+    "@rerun-io/web-viewer": "^0.22.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
@@ -39,6 +39,8 @@
     "recharts": "^2.15.4",
     "tailwind-merge": "^3.4.0",
     "three": "^0.182.0",
+    "vite-plugin-top-level-await": "^1.6.0",
+    "vite-plugin-wasm": "^3.5.0",
     "zustand": "^5.0.9"
   },
   "devDependencies": {
