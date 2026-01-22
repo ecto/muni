@@ -13,6 +13,7 @@ pub use discovery::{DiscoveryClient, DiscoveryConfig};
 use serde::{Deserialize, Serialize};
 use std::net::{SocketAddr, UdpSocket};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use sysinfo::{Disks, System};
 use thiserror::Error;
 use tokio::sync::watch;
 use tracing::{debug, error, info, trace, warn};
@@ -94,6 +95,9 @@ pub struct MetricsSnapshot {
 
     /// Mesh network health metrics
     pub mesh: MeshMetrics,
+
+    /// System resource metrics (CPU, memory, disk)
+    pub system: SystemMetrics,
 }
 
 /// Mesh network health metrics for coverage analysis.
@@ -119,6 +123,102 @@ pub struct MeshMetrics {
 
     /// MAC address of upstream node (for topology mapping)
     pub upstream_mac: [u8; 6],
+}
+
+/// System resource metrics (CPU, memory, disk).
+#[derive(Debug, Clone, Default)]
+pub struct SystemMetrics {
+    /// CPU usage percentage (0-100)
+    pub cpu_percent: f32,
+
+    /// Memory usage percentage (0-100)
+    pub mem_percent: f32,
+
+    /// Memory used in bytes
+    pub mem_used_bytes: u64,
+
+    /// Memory total in bytes
+    pub mem_total_bytes: u64,
+
+    /// Disk usage percentage for root filesystem (0-100)
+    pub disk_percent: f32,
+
+    /// Disk used in bytes
+    pub disk_used_bytes: u64,
+
+    /// Disk total in bytes
+    pub disk_total_bytes: u64,
+}
+
+/// System metrics collector.
+///
+/// Wraps sysinfo::System to provide efficient metric collection.
+/// Call `refresh()` before reading metrics to update values.
+pub struct SystemMetricsCollector {
+    system: System,
+    disks: Disks,
+}
+
+impl SystemMetricsCollector {
+    /// Create a new system metrics collector.
+    pub fn new() -> Self {
+        Self {
+            system: System::new_all(),
+            disks: Disks::new_with_refreshed_list(),
+        }
+    }
+
+    /// Refresh system metrics (call before reading).
+    pub fn refresh(&mut self) {
+        self.system.refresh_cpu_usage();
+        self.system.refresh_memory();
+        self.disks.refresh();
+    }
+
+    /// Get current system metrics.
+    pub fn metrics(&self) -> SystemMetrics {
+        // CPU: average across all cores
+        let cpu_percent = self.system.global_cpu_usage();
+
+        // Memory
+        let mem_total = self.system.total_memory();
+        let mem_used = self.system.used_memory();
+        let mem_percent = if mem_total > 0 {
+            (mem_used as f64 / mem_total as f64 * 100.0) as f32
+        } else {
+            0.0
+        };
+
+        // Disk: find root filesystem
+        let (disk_used, disk_total) = self
+            .disks
+            .iter()
+            .find(|d| d.mount_point() == std::path::Path::new("/"))
+            .map(|d| (d.total_space() - d.available_space(), d.total_space()))
+            .unwrap_or((0, 0));
+
+        let disk_percent = if disk_total > 0 {
+            (disk_used as f64 / disk_total as f64 * 100.0) as f32
+        } else {
+            0.0
+        };
+
+        SystemMetrics {
+            cpu_percent,
+            mem_percent,
+            mem_used_bytes: mem_used,
+            mem_total_bytes: mem_total,
+            disk_percent,
+            disk_used_bytes: disk_used,
+            disk_total_bytes: disk_total,
+        }
+    }
+}
+
+impl Default for SystemMetricsCollector {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 /// Metrics pusher that sends rover telemetry to Depot.
@@ -229,6 +329,20 @@ impl MetricsPusher {
                 timestamp_ns
             ));
         }
+
+        // System resources (CPU, memory, disk)
+        lines.push(format!(
+            "system,rover={} cpu={:.1},mem={:.1},mem_used={}i,mem_total={}i,disk={:.1},disk_used={}i,disk_total={}i {}",
+            rover,
+            snapshot.system.cpu_percent,
+            snapshot.system.mem_percent,
+            snapshot.system.mem_used_bytes,
+            snapshot.system.mem_total_bytes,
+            snapshot.system.disk_percent,
+            snapshot.system.disk_used_bytes,
+            snapshot.system.disk_total_bytes,
+            timestamp_ns
+        ));
 
         // Send all lines as a single UDP packet (newline-separated)
         let payload = lines.join("\n");

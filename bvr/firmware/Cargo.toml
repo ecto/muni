@@ -10,7 +10,10 @@ repository = "https://github.com/muni-robotics/muni"
 
 [workspace.dependencies]
 # Async runtime
-tokio = { version = "1", features = ["rt-multi-thread", "sync", "time", "macros", "net", "io-util"] }
+tokio = { version = "1", features = ["rt-multi-thread", "sync", "time", "macros", "net", "io-util", "tracing"] }
+
+# Tokio console (runtime introspection)
+console-subscriber = "0.4"
 
 # Serialization
 serde = { version = "1", features = ["derive"] }
@@ -80,3 +83,6 @@ costmap = { path = "crates/costmap" }
 
 # RL training dependencies
 rand = "0.8"
+
+# System metrics
+sysinfo = "0.32"
