@@ -11,10 +11,11 @@
  * - 0x05 Tool:         [header] [axis:f32 LE] [motor:f32 LE] [action_a:u8] [action_b:u8]
  * - 0x06 E-Stop Release: [header]
  *
- * Telemetry (Rover -> Operator) - 120 bytes:
+ * Telemetry (Rover -> Operator) - 128 bytes (120 bytes for legacy):
  * - 0x11 Telemetry: [type:u8] [mode:u8] [seq:u16] [pad:4B] [pose:24B] [voltage:f64]
  *   [timestamp_us:u64] [cmd_vel:8B] [meas_vel:8B] [accel:8B] [temps:16B] [currents:16B]
- *   [health:2B] [odom_quality:2B] [dt_ms:f32] [ack_seq:u16] [ack_bits:u16] [crc32:u32]
+ *   [health:2B] [odom_quality:2B] [dt_ms:f32] [ack_seq:u16] [ack_bits:u16]
+ *   [roll:f32] [pitch:f32] [crc32:u32]
  */
 
 import {
@@ -279,12 +280,21 @@ export function decodeTelemetry(data: ArrayBuffer): DecodedTelemetry | null {
   const last_cmd_seq = view.getUint16(112, true);
   const ack_bits = view.getUint16(114, true);
 
-  // CRC32 [116-119] - could verify but we trust UDP/WebRTC for now
+  // Roll/pitch from IMU [116-123] (new 128-byte format)
+  // For backwards compatibility with 120-byte format, default to 0
+  let roll = 0;
+  let pitch = 0;
+  if (data.byteLength >= 128) {
+    roll = view.getFloat32(116, true);
+    pitch = view.getFloat32(120, true);
+    // CRC32 is at [124-127] for new format
+  }
+  // CRC32 [116-119] for old format, [124-127] for new - not verified
 
   return {
     sequence,
     mode,
-    pose: { x: poseX, y: poseY, theta: poseTheta },
+    pose: { x: poseX, y: poseY, theta: poseTheta, roll, pitch },
     power: { battery_voltage: batteryVoltage, system_current: 0 },
     cmd_velocity: { linear: cmdLinear, angular: cmdAngular },
     meas_velocity: { linear: measLinear, angular: measAngular },

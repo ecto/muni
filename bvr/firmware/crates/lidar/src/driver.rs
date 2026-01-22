@@ -308,10 +308,30 @@ pub async fn run_reader_with_imu(
                 if let Ok((len, _src)) = result {
                     match parse_imu_packet(&imu_buf[..len]) {
                         Ok(imu) => {
+                            // Log first IMU packet and then every 1000th
+                            static IMU_COUNT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+                            let count = IMU_COUNT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                            if count == 0 {
+                                info!(
+                                    gyro_x = imu.gyro_x,
+                                    gyro_y = imu.gyro_y,
+                                    gyro_z = imu.gyro_z,
+                                    accel_x = imu.accel_x,
+                                    accel_y = imu.accel_y,
+                                    accel_z = imu.accel_z,
+                                    "First IMU packet received"
+                                );
+                            } else if count % 10000 == 0 {
+                                debug!(
+                                    count,
+                                    accel_z = imu.accel_z,
+                                    "IMU packets received"
+                                );
+                            }
                             let _ = imu_tx.send(Some(imu));
                         }
                         Err(e) => {
-                            trace!(?e, "Failed to parse IMU packet");
+                            trace!(?e, len, "Failed to parse IMU packet");
                         }
                     }
                 }
@@ -494,27 +514,37 @@ fn parse_spherical(data: &[u8], count: usize) -> Result<Vec<Point3D>, LidarError
 }
 
 /// Parse an IMU data packet.
+///
+/// SDK2 IMU packet format (60 bytes total):
+/// Bytes 0: version
+/// Bytes 1-2: length (LE)
+/// Bytes 3-4: time_interval
+/// Bytes 5-6: data_num
+/// Bytes 7-8: udp_cnt
+/// Byte 9: frame_cnt
+/// Byte 10: data_type (0x05 for IMU)
+/// Byte 11: time_type
+/// Bytes 12-23: reserved
+/// Bytes 24-27: crc32
+/// Bytes 28-35: timestamp (8 bytes, nanoseconds)
+/// Bytes 36-59: IMU data (6 floats: gyro_x, gyro_y, gyro_z, accel_x, accel_y, accel_z)
 fn parse_imu_packet(data: &[u8]) -> Result<ImuData, LidarError> {
-    // IMU packet format (simplified):
-    // Bytes 0-7: timestamp (ns)
-    // Bytes 8-11: gyro_x (float)
-    // Bytes 12-15: gyro_y (float)
-    // Bytes 16-19: gyro_z (float)
-    // Bytes 20-23: accel_x (float)
-    // Bytes 24-27: accel_y (float)
-    // Bytes 28-31: accel_z (float)
-
-    if data.len() < 32 {
-        return Err(LidarError::Parse("IMU packet too small".into()));
+    // Minimum packet size: 36 byte header + 24 bytes IMU data = 60 bytes
+    if data.len() < 60 {
+        return Err(LidarError::Parse(format!("IMU packet too small: {} bytes", data.len())));
     }
 
-    let timestamp_ns = u64::from_le_bytes(data[0..8].try_into().unwrap());
-    let gyro_x = f32::from_le_bytes(data[8..12].try_into().unwrap());
-    let gyro_y = f32::from_le_bytes(data[12..16].try_into().unwrap());
-    let gyro_z = f32::from_le_bytes(data[16..20].try_into().unwrap());
-    let accel_x = f32::from_le_bytes(data[20..24].try_into().unwrap());
-    let accel_y = f32::from_le_bytes(data[24..28].try_into().unwrap());
-    let accel_z = f32::from_le_bytes(data[28..32].try_into().unwrap());
+    // Timestamp at offset 28 (after header, before IMU data)
+    let timestamp_ns = u64::from_le_bytes(data[28..36].try_into().unwrap());
+
+    // IMU data starts at offset 36
+    let imu_offset = 36;
+    let gyro_x = f32::from_le_bytes(data[imu_offset..imu_offset + 4].try_into().unwrap());
+    let gyro_y = f32::from_le_bytes(data[imu_offset + 4..imu_offset + 8].try_into().unwrap());
+    let gyro_z = f32::from_le_bytes(data[imu_offset + 8..imu_offset + 12].try_into().unwrap());
+    let accel_x = f32::from_le_bytes(data[imu_offset + 12..imu_offset + 16].try_into().unwrap());
+    let accel_y = f32::from_le_bytes(data[imu_offset + 16..imu_offset + 20].try_into().unwrap());
+    let accel_z = f32::from_le_bytes(data[imu_offset + 20..imu_offset + 24].try_into().unwrap());
 
     Ok(ImuData {
         timestamp_ns,
@@ -568,13 +598,14 @@ mod tests {
 
     #[test]
     fn test_parse_imu() {
-        let mut data = vec![0u8; 32];
-        // Timestamp = 1000000ns
-        data[0..8].copy_from_slice(&1000000u64.to_le_bytes());
+        let mut data = vec![0u8; 60];
+        // Timestamp at offset 28 = 1000000ns
+        data[28..36].copy_from_slice(&1000000u64.to_le_bytes());
+        // IMU data at offset 36
         // Gyro X = 0.1 rad/s
-        data[8..12].copy_from_slice(&0.1f32.to_le_bytes());
-        // Accel X = 9.8 m/s²
-        data[20..24].copy_from_slice(&9.8f32.to_le_bytes());
+        data[36..40].copy_from_slice(&0.1f32.to_le_bytes());
+        // Accel X = 9.8 m/s² (at offset 36 + 12 = 48)
+        data[48..52].copy_from_slice(&9.8f32.to_le_bytes());
 
         let imu = parse_imu_packet(&data).unwrap();
         assert_eq!(imu.timestamp_ns, 1000000);

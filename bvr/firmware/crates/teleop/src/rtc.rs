@@ -19,8 +19,8 @@
 use crate::pointcloud;
 use crate::video::VideoFrame;
 use crate::{
-    CommandHeader, Telemetry, TeleopError, CMD_HEADER_SIZE, MSG_ESTOP, MSG_ESTOP_RELEASE,
-    MSG_HEARTBEAT, MSG_LIDAR_TOGGLE, MSG_SET_MODE, MSG_TELEMETRY, MSG_TOOL, MSG_TWIST,
+    serialize_telemetry, CommandHeader, Telemetry, TeleopError, CMD_HEADER_SIZE, MSG_ESTOP,
+    MSG_ESTOP_RELEASE, MSG_HEARTBEAT, MSG_LIDAR_TOGGLE, MSG_SET_MODE, MSG_TOOL, MSG_TWIST,
 };
 use lidar::PointCloud;
 use futures_util::{SinkExt, StreamExt};
@@ -216,7 +216,7 @@ impl Default for RtcConfig {
     fn default() -> Self {
         Self {
             signaling_port: 4852,
-            telemetry_interval: Duration::from_millis(50), // 20Hz telemetry
+            telemetry_interval: Duration::from_millis(20), // 50Hz telemetry
             ice_servers: vec![
                 // Google's public STUN server as fallback
                 "stun:stun.l.google.com:19302".to_string(),
@@ -1019,90 +1019,4 @@ fn parse_command(data: &[u8]) -> Option<Command> {
         }
         _ => None,
     }
-}
-
-/// Serialize telemetry for transmission (120 bytes).
-///
-/// Binary format:
-/// ```text
-/// [0]       u8      msg_type (0x11)
-/// [1]       u8      mode
-/// [2-3]     u16 LE  sequence
-/// [4-7]     padding
-/// [8-31]    f64×3   pose (x, y, theta)
-/// [32-39]   f64     battery_voltage
-/// [40-47]   u64 LE  timestamp_us (monotonic)
-/// [48-55]   f32×2   cmd_velocity (linear, angular)
-/// [56-63]   f32×2   meas_velocity (linear, angular)
-/// [64-71]   f32×2   acceleration (linear, angular)
-/// [72-87]   f32×4   motor_temps
-/// [88-103]  f32×4   motor_currents
-/// [104-105] u16 LE  health_bits
-/// [106-107] u16 LE  odometry_quality
-/// [108-111] f32 LE  dt_ms
-/// [112-113] u16 LE  last_cmd_seq (ACK)
-/// [114-115] u16 LE  ack_bits
-/// [116-119] u32     crc32
-/// ```
-fn serialize_telemetry(telemetry: &Telemetry) -> Option<Vec<u8>> {
-    let mut buf = Vec::with_capacity(120);
-
-    // Header
-    buf.push(MSG_TELEMETRY);            // [0]
-    buf.push(telemetry.mode as u8);     // [1]
-    buf.extend_from_slice(&telemetry.sequence.to_le_bytes()); // [2-3]
-    buf.extend_from_slice(&[0u8; 4]);   // [4-7] padding
-
-    // Pose (x, y, theta) - 24 bytes [8-31]
-    buf.extend_from_slice(&telemetry.pose.x.to_le_bytes());
-    buf.extend_from_slice(&telemetry.pose.y.to_le_bytes());
-    buf.extend_from_slice(&telemetry.pose.theta.to_le_bytes());
-
-    // Battery voltage [32-39]
-    buf.extend_from_slice(&telemetry.power.battery_voltage.to_le_bytes());
-
-    // Timestamp [40-47]
-    buf.extend_from_slice(&telemetry.timestamp_us.to_le_bytes());
-
-    // Commanded velocity [48-55]
-    buf.extend_from_slice(&(telemetry.cmd_velocity.linear as f32).to_le_bytes());
-    buf.extend_from_slice(&(telemetry.cmd_velocity.angular as f32).to_le_bytes());
-
-    // Measured velocity [56-63]
-    buf.extend_from_slice(&telemetry.meas_velocity.0.to_le_bytes());
-    buf.extend_from_slice(&telemetry.meas_velocity.1.to_le_bytes());
-
-    // Acceleration [64-71]
-    buf.extend_from_slice(&telemetry.acceleration.0.to_le_bytes());
-    buf.extend_from_slice(&telemetry.acceleration.1.to_le_bytes());
-
-    // Motor temps [72-87]
-    for temp in &telemetry.motor_temps {
-        buf.extend_from_slice(&temp.to_le_bytes());
-    }
-
-    // Motor currents [88-103]
-    for current in &telemetry.motor_currents {
-        buf.extend_from_slice(&current.to_le_bytes());
-    }
-
-    // Health bits [104-105]
-    buf.extend_from_slice(&telemetry.health.to_bits().to_le_bytes());
-
-    // Odometry quality [106-107]
-    buf.extend_from_slice(&telemetry.odometry_quality.to_le_bytes());
-
-    // dt_ms [108-111]
-    buf.extend_from_slice(&telemetry.dt_ms.to_le_bytes());
-
-    // ACK fields [112-115]
-    buf.extend_from_slice(&telemetry.last_cmd_seq.to_le_bytes());
-    buf.extend_from_slice(&telemetry.ack_bits.to_le_bytes());
-
-    // CRC32 [116-119]
-    let crc = crc32fast::hash(&buf);
-    buf.extend_from_slice(&crc.to_le_bytes());
-
-    debug_assert_eq!(buf.len(), 120);
-    Some(buf)
 }

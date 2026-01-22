@@ -4,8 +4,8 @@
 //! for the web-based Operator app.
 
 use crate::{
-    CommandHeader, Telemetry, TeleopError, CMD_HEADER_SIZE, MSG_ESTOP, MSG_ESTOP_RELEASE,
-    MSG_HEARTBEAT, MSG_SET_MODE, MSG_TELEMETRY, MSG_TOOL, MSG_TWIST,
+    serialize_telemetry, CommandHeader, Telemetry, TeleopError, CMD_HEADER_SIZE, MSG_ESTOP,
+    MSG_ESTOP_RELEASE, MSG_HEARTBEAT, MSG_SET_MODE, MSG_TOOL, MSG_TWIST,
 };
 use futures_util::{SinkExt, StreamExt};
 use std::sync::Arc;
@@ -215,68 +215,4 @@ fn parse_command(data: &[u8]) -> Option<Command> {
         }
         _ => None,
     }
-}
-
-/// Serialize telemetry for transmission (120 bytes).
-fn serialize_telemetry(telemetry: &Telemetry) -> Option<Vec<u8>> {
-    let mut buf = Vec::with_capacity(120);
-
-    // Header
-    buf.push(MSG_TELEMETRY);
-    buf.push(telemetry.mode as u8);
-    buf.extend_from_slice(&telemetry.sequence.to_le_bytes());
-    buf.extend_from_slice(&[0u8; 4]); // padding
-
-    // Pose
-    buf.extend_from_slice(&telemetry.pose.x.to_le_bytes());
-    buf.extend_from_slice(&telemetry.pose.y.to_le_bytes());
-    buf.extend_from_slice(&telemetry.pose.theta.to_le_bytes());
-
-    // Battery voltage
-    buf.extend_from_slice(&telemetry.power.battery_voltage.to_le_bytes());
-
-    // Timestamp
-    buf.extend_from_slice(&telemetry.timestamp_us.to_le_bytes());
-
-    // Commanded velocity
-    buf.extend_from_slice(&(telemetry.cmd_velocity.linear as f32).to_le_bytes());
-    buf.extend_from_slice(&(telemetry.cmd_velocity.angular as f32).to_le_bytes());
-
-    // Measured velocity
-    buf.extend_from_slice(&telemetry.meas_velocity.0.to_le_bytes());
-    buf.extend_from_slice(&telemetry.meas_velocity.1.to_le_bytes());
-
-    // Acceleration
-    buf.extend_from_slice(&telemetry.acceleration.0.to_le_bytes());
-    buf.extend_from_slice(&telemetry.acceleration.1.to_le_bytes());
-
-    // Motor temps
-    for temp in &telemetry.motor_temps {
-        buf.extend_from_slice(&temp.to_le_bytes());
-    }
-
-    // Motor currents
-    for current in &telemetry.motor_currents {
-        buf.extend_from_slice(&current.to_le_bytes());
-    }
-
-    // Health bits
-    buf.extend_from_slice(&telemetry.health.to_bits().to_le_bytes());
-
-    // Odometry quality
-    buf.extend_from_slice(&telemetry.odometry_quality.to_le_bytes());
-
-    // dt_ms
-    buf.extend_from_slice(&telemetry.dt_ms.to_le_bytes());
-
-    // ACK fields
-    buf.extend_from_slice(&telemetry.last_cmd_seq.to_le_bytes());
-    buf.extend_from_slice(&telemetry.ack_bits.to_le_bytes());
-
-    // CRC32
-    let crc = crc32fast::hash(&buf);
-    buf.extend_from_slice(&crc.to_le_bytes());
-
-    debug_assert_eq!(buf.len(), 120);
-    Some(buf)
 }

@@ -272,6 +272,27 @@ export function TelemetryPanel({ onToggleLidar }: TelemetryPanelProps) {
                 <TooltipContent side="right">Heading angle. 0° = East, 90° = North</TooltipContent>
               </Tooltip>
             </div>
+            {/* IMU Orientation (roll/pitch) */}
+            <div className="grid grid-cols-2 gap-1 text-xs text-stone-900 dark:text-stone-100 mt-1">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="flex justify-between cursor-help">
+                    <span className="text-muted-foreground">Roll</span>
+                    <span className="font-mono">{((renderPose.roll * 180) / Math.PI).toFixed(1)}°</span>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent side="right">Side-to-side tilt from IMU. 0° = level</TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="flex justify-between cursor-help">
+                    <span className="text-muted-foreground">Pitch</span>
+                    <span className="font-mono">{((renderPose.pitch * 180) / Math.PI).toFixed(1)}°</span>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent side="right">Front-to-back tilt from IMU. 0° = level</TooltipContent>
+              </Tooltip>
+            </div>
           </div>
 
           {/* Camera mode */}

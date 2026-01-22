@@ -126,7 +126,7 @@ interface ConsoleState {
 
 const defaultTelemetry: Telemetry = {
   mode: Mode.Disabled,
-  pose: { x: 0, y: 0, theta: 0 },
+  pose: { x: 0, y: 0, theta: 0, roll: 0, pitch: 0 },
   power: { battery_voltage: 0, system_current: 0 },
   velocity: { linear: 0, angular: 0 },
   motor_temps: [0, 0, 0, 0],
@@ -201,7 +201,7 @@ export const useConsoleStore = create<ConsoleState>()(
     })),
 
   // Render pose and interpolation
-  renderPose: { x: 0, y: 0, theta: 0 },
+  renderPose: { x: 0, y: 0, theta: 0, roll: 0, pitch: 0 },
   isExtrapolating: false,
   interpolation: createInterpolationState(),
   setRenderPose: (pose, isExtrapolating = false) =>

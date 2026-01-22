@@ -75,6 +75,9 @@ impl TelemetryBuilder {
             dt_ms,
             last_cmd_seq,
             ack_bits,
+            // IMU orientation (set elsewhere, main loop reads from IMU channel)
+            roll: 0.0,
+            pitch: 0.0,
             // System metrics are set elsewhere (main loop)
             cpu_percent: 0,
             mem_percent: 0,

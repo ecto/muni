@@ -4,6 +4,7 @@ import { useGLTF } from "@react-three/drei";
 import type { Group } from "three";
 import * as THREE from "three";
 import { computeRenderPose, getInterpolationBuffer } from "@/lib/interpolation";
+import { useConsoleStore } from "@/store";
 
 const MODEL_PATH = "/models/bvr1_assembly.glb";
 
@@ -88,6 +89,8 @@ function GLTFRover() {
 export function RoverModel() {
   const groupRef = useRef<Group>(null);
   const [useGltf, setUseGltf] = useState(true);
+  const setRenderPose = useConsoleStore((s) => s.setRenderPose);
+  const lastStoreUpdateRef = useRef(0);
 
   // Preload the model
   useEffect(() => {
@@ -96,17 +99,32 @@ export function RoverModel() {
 
   // Update pose every frame using interpolation
   // Directly mutate Three.js objects to avoid React re-renders
+  // Throttle store updates to 10Hz for UI display
   useFrame(() => {
     if (!groupRef.current) return;
 
-    const result = computeRenderPose(getInterpolationBuffer(), performance.now(), 0);
+    const now = performance.now();
+    const result = computeRenderPose(getInterpolationBuffer(), now, 0);
 
     // Apply pose to mesh (map 2D physics coords to 3D)
     // Physics: X=forward, Y=left, theta=0 facing +X, CCW positive
     // Three.js: -Z=forward, +X=right, rotation.y CCW positive
     groupRef.current.position.z = -result.pose.x;  // forward
     groupRef.current.position.x = -result.pose.y;  // left→left
-    groupRef.current.rotation.y = result.pose.theta;
+
+    // Apply full 3-axis rotation from IMU + yaw from odometry
+    // Use YXZ order: yaw (Y) first, then pitch (X), then roll (Z)
+    // This matches physical interpretation: heading rotation, then tilt
+    groupRef.current.rotation.order = "YXZ";
+    groupRef.current.rotation.y = result.pose.theta;  // yaw from odometry
+    groupRef.current.rotation.x = result.pose.pitch;  // pitch from IMU
+    groupRef.current.rotation.z = result.pose.roll;   // roll from IMU
+
+    // Throttle store updates to 10Hz for telemetry panel display
+    if (now - lastStoreUpdateRef.current > 100) {
+      setRenderPose(result.pose, result.isExtrapolating);
+      lastStoreUpdateRef.current = now;
+    }
   });
 
   return (

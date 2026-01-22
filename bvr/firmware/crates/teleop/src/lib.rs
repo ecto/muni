@@ -12,7 +12,7 @@
 //! - ts: u32 LE timestamp in milliseconds
 //!
 //! ## Telemetry (Rover → Console)
-//! 120 bytes with pose, velocity, measured velocity, acceleration, motor data, ACK fields.
+//! 128 bytes with pose, velocity, measured velocity, acceleration, motor data, ACK fields, IMU orientation.
 
 pub mod pointcloud;
 pub mod rtc;
@@ -269,6 +269,10 @@ pub struct Telemetry {
     pub last_cmd_seq: u16,
     /// Bitfield: which of last 16 command sequences were received
     pub ack_bits: u16,
+    /// Roll angle from IMU (radians, 0 = level)
+    pub roll: f32,
+    /// Pitch angle from IMU (radians, 0 = level)
+    pub pitch: f32,
     /// System CPU usage (0-100%)
     pub cpu_percent: u8,
     /// System memory usage (0-100%)
@@ -304,6 +308,8 @@ impl Default for Telemetry {
             dt_ms: 0.0,
             last_cmd_seq: 0,
             ack_bits: 0,
+            roll: 0.0,
+            pitch: 0.0,
             cpu_percent: 0,
             mem_percent: 0,
             disk_percent: 0,
@@ -380,7 +386,7 @@ impl Server {
                 _ = telemetry_interval.tick() => {
                     if let Some(addr) = operator_addr {
                         let telemetry = self.telemetry_rx.borrow().clone();
-                        if let Some(data) = Self::serialize_telemetry(&telemetry) {
+                        if let Some(data) = serialize_telemetry(&telemetry) {
                             match socket.send_to(&data, addr).await {
                                 Ok(n) => trace!(%addr, bytes = n, mode = ?telemetry.mode, "Sent telemetry"),
                                 Err(e) => error!(?e, "Failed to send telemetry"),
@@ -456,95 +462,106 @@ impl Server {
         }
     }
 
-    /// Serialize telemetry for transmission (120 bytes).
-    ///
-    /// Binary format:
-    /// ```text
-    /// [0]       u8      msg_type (0x11)
-    /// [1]       u8      mode
-    /// [2-3]     u16 LE  sequence
-    /// [4-7]     padding
-    /// [8-31]    f64×3   pose (x, y, theta)
-    /// [32-39]   f64     battery_voltage
-    /// [40-47]   u64 LE  timestamp_us (monotonic)
-    /// [48-55]   f32×2   cmd_velocity (linear, angular)
-    /// [56-63]   f32×2   meas_velocity (linear, angular)
-    /// [64-71]   f32×2   acceleration (linear, angular)
-    /// [72-87]   f32×4   motor_temps
-    /// [88-103]  f32×4   motor_currents
-    /// [104-105] u16 LE  health_bits
-    /// [106-107] u16 LE  odometry_quality
-    /// [108-111] f32 LE  dt_ms
-    /// [112-113] u16 LE  last_cmd_seq (ACK)
-    /// [114-115] u16 LE  ack_bits
-    /// [116-119] u32     crc32
-    /// ```
-    fn serialize_telemetry(telemetry: &Telemetry) -> Option<Vec<u8>> {
-        let mut buf = Vec::with_capacity(120);
+}
 
-        // Header
-        buf.push(MSG_TELEMETRY);        // [0]
-        buf.push(telemetry.mode as u8); // [1]
-        buf.extend_from_slice(&telemetry.sequence.to_le_bytes()); // [2-3]
-        // System metrics [4-6] + padding [7]
-        buf.push(telemetry.cpu_percent);  // [4]
-        buf.push(telemetry.mem_percent);  // [5]
-        buf.push(telemetry.disk_percent); // [6]
-        buf.push(0);                      // [7] reserved
+/// Serialize telemetry for transmission (128 bytes).
+///
+/// This is the single source of truth for telemetry serialization.
+/// Used by UDP, WebSocket, and WebRTC transports.
+///
+/// Binary format:
+/// ```text
+/// [0]       u8      msg_type (0x11)
+/// [1]       u8      mode
+/// [2-3]     u16 LE  sequence
+/// [4-6]     u8×3    system metrics (cpu%, mem%, disk%)
+/// [7]       u8      reserved
+/// [8-31]    f64×3   pose (x, y, theta)
+/// [32-39]   f64     battery_voltage
+/// [40-47]   u64 LE  timestamp_us (monotonic)
+/// [48-55]   f32×2   cmd_velocity (linear, angular)
+/// [56-63]   f32×2   meas_velocity (linear, angular)
+/// [64-71]   f32×2   acceleration (linear, angular)
+/// [72-87]   f32×4   motor_temps
+/// [88-103]  f32×4   motor_currents
+/// [104-105] u16 LE  health_bits
+/// [106-107] u16 LE  odometry_quality
+/// [108-111] f32 LE  dt_ms
+/// [112-113] u16 LE  last_cmd_seq (ACK)
+/// [114-115] u16 LE  ack_bits
+/// [116-119] f32 LE  roll (radians, from IMU)
+/// [120-123] f32 LE  pitch (radians, from IMU)
+/// [124-127] u32     crc32
+/// ```
+pub fn serialize_telemetry(telemetry: &Telemetry) -> Option<Vec<u8>> {
+    let mut buf = Vec::with_capacity(128);
 
-        // Pose (x, y, theta) - 24 bytes [8-31]
-        buf.extend_from_slice(&telemetry.pose.x.to_le_bytes());
-        buf.extend_from_slice(&telemetry.pose.y.to_le_bytes());
-        buf.extend_from_slice(&telemetry.pose.theta.to_le_bytes());
+    // Header
+    buf.push(MSG_TELEMETRY);        // [0]
+    buf.push(telemetry.mode as u8); // [1]
+    buf.extend_from_slice(&telemetry.sequence.to_le_bytes()); // [2-3]
+    // System metrics [4-6] + padding [7]
+    buf.push(telemetry.cpu_percent);  // [4]
+    buf.push(telemetry.mem_percent);  // [5]
+    buf.push(telemetry.disk_percent); // [6]
+    buf.push(0);                      // [7] reserved
 
-        // Battery voltage [32-39]
-        buf.extend_from_slice(&telemetry.power.battery_voltage.to_le_bytes());
+    // Pose (x, y, theta) - 24 bytes [8-31]
+    buf.extend_from_slice(&telemetry.pose.x.to_le_bytes());
+    buf.extend_from_slice(&telemetry.pose.y.to_le_bytes());
+    buf.extend_from_slice(&telemetry.pose.theta.to_le_bytes());
 
-        // Timestamp [40-47]
-        buf.extend_from_slice(&telemetry.timestamp_us.to_le_bytes());
+    // Battery voltage [32-39]
+    buf.extend_from_slice(&telemetry.power.battery_voltage.to_le_bytes());
 
-        // Commanded velocity [48-55]
-        buf.extend_from_slice(&(telemetry.cmd_velocity.linear as f32).to_le_bytes());
-        buf.extend_from_slice(&(telemetry.cmd_velocity.angular as f32).to_le_bytes());
+    // Timestamp [40-47]
+    buf.extend_from_slice(&telemetry.timestamp_us.to_le_bytes());
 
-        // Measured velocity [56-63]
-        buf.extend_from_slice(&telemetry.meas_velocity.0.to_le_bytes());
-        buf.extend_from_slice(&telemetry.meas_velocity.1.to_le_bytes());
+    // Commanded velocity [48-55]
+    buf.extend_from_slice(&(telemetry.cmd_velocity.linear as f32).to_le_bytes());
+    buf.extend_from_slice(&(telemetry.cmd_velocity.angular as f32).to_le_bytes());
 
-        // Acceleration [64-71]
-        buf.extend_from_slice(&telemetry.acceleration.0.to_le_bytes());
-        buf.extend_from_slice(&telemetry.acceleration.1.to_le_bytes());
+    // Measured velocity [56-63]
+    buf.extend_from_slice(&telemetry.meas_velocity.0.to_le_bytes());
+    buf.extend_from_slice(&telemetry.meas_velocity.1.to_le_bytes());
 
-        // Motor temps [72-87]
-        for temp in &telemetry.motor_temps {
-            buf.extend_from_slice(&temp.to_le_bytes());
-        }
+    // Acceleration [64-71]
+    buf.extend_from_slice(&telemetry.acceleration.0.to_le_bytes());
+    buf.extend_from_slice(&telemetry.acceleration.1.to_le_bytes());
 
-        // Motor currents [88-103]
-        for current in &telemetry.motor_currents {
-            buf.extend_from_slice(&current.to_le_bytes());
-        }
-
-        // Health bits [104-105]
-        buf.extend_from_slice(&telemetry.health.to_bits().to_le_bytes());
-
-        // Odometry quality [106-107]
-        buf.extend_from_slice(&telemetry.odometry_quality.to_le_bytes());
-
-        // dt_ms [108-111]
-        buf.extend_from_slice(&telemetry.dt_ms.to_le_bytes());
-
-        // ACK fields [112-115]
-        buf.extend_from_slice(&telemetry.last_cmd_seq.to_le_bytes());
-        buf.extend_from_slice(&telemetry.ack_bits.to_le_bytes());
-
-        // CRC32 placeholder [116-119]
-        let crc = crc32fast::hash(&buf);
-        buf.extend_from_slice(&crc.to_le_bytes());
-
-        debug_assert_eq!(buf.len(), 120);
-        Some(buf)
+    // Motor temps [72-87]
+    for temp in &telemetry.motor_temps {
+        buf.extend_from_slice(&temp.to_le_bytes());
     }
+
+    // Motor currents [88-103]
+    for current in &telemetry.motor_currents {
+        buf.extend_from_slice(&current.to_le_bytes());
+    }
+
+    // Health bits [104-105]
+    buf.extend_from_slice(&telemetry.health.to_bits().to_le_bytes());
+
+    // Odometry quality [106-107]
+    buf.extend_from_slice(&telemetry.odometry_quality.to_le_bytes());
+
+    // dt_ms [108-111]
+    buf.extend_from_slice(&telemetry.dt_ms.to_le_bytes());
+
+    // ACK fields [112-115]
+    buf.extend_from_slice(&telemetry.last_cmd_seq.to_le_bytes());
+    buf.extend_from_slice(&telemetry.ack_bits.to_le_bytes());
+
+    // IMU orientation [116-123]
+    buf.extend_from_slice(&telemetry.roll.to_le_bytes());
+    buf.extend_from_slice(&telemetry.pitch.to_le_bytes());
+
+    // CRC32 [124-127]
+    let crc = crc32fast::hash(&buf);
+    buf.extend_from_slice(&crc.to_le_bytes());
+
+    debug_assert_eq!(buf.len(), 128);
+    Some(buf)
 }
 
 /// Helper to send commands from operator station (for testing/CLI).
@@ -724,6 +741,8 @@ mod tests {
             dt_ms: 20.0,
             last_cmd_seq: 100,
             ack_bits: 0xFFFF,
+            roll: 0.1,
+            pitch: -0.05,
             cpu_percent: 25,
             mem_percent: 50,
             disk_percent: 30,
@@ -732,12 +751,12 @@ mod tests {
             slam_status: None,
         };
 
-        let data = Server::serialize_telemetry(&telemetry);
+        let data = serialize_telemetry(&telemetry);
         assert!(data.is_some());
         let data = data.unwrap();
 
-        // Verify size (120 bytes)
-        assert_eq!(data.len(), 120);
+        // Verify size (128 bytes)
+        assert_eq!(data.len(), 128);
 
         // Verify message type
         assert_eq!(data[0], MSG_TELEMETRY);

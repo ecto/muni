@@ -97,6 +97,11 @@ export function useRoverConnectionRtc() {
   const lastTelemetryTimeRef = useRef<number>(0);
   const MIN_TELEMETRY_INTERVAL_MS = 15;
 
+  // Throttle React state updates to reduce re-renders (10Hz is enough for UI)
+  // Interpolation buffer still receives all messages for smooth 3D rendering
+  const lastReactUpdateRef = useRef<number>(0);
+  const REACT_UPDATE_INTERVAL_MS = 100; // 10Hz for UI updates
+
   // Channel metrics tracking
   const channelStatsRef = useRef<Map<string, { count: number; lastTime: number }>>(
     new Map([
@@ -351,19 +356,7 @@ export function useRoverConnectionRtc() {
 
               const decoded = decodeTelemetry(msgEvent.data);
               if (decoded) {
-                const telemetry = telemetryFromDecoded(decoded);
-                const latency = Math.round(now - lastSendTimeRef.current);
-                lastSendTimeRef.current = now;
-                setLatency(latency);
-
-                updateTelemetry({
-                  ...telemetry,
-                  connected: true,
-                  latency_ms: latency,
-                });
-
-                // Push snapshot for interpolation (direct to buffer, no React updates)
-                // Use cmd_velocity until firmware populates meas_velocity
+                // Always push to interpolation buffer at full rate for smooth 3D rendering
                 pushSnapshotDirect({
                   serverTimestamp: decoded.timestamp_us,
                   receivedAt: now,
@@ -373,6 +366,22 @@ export function useRoverConnectionRtc() {
                     angular: decoded.cmd_velocity.angular,
                   },
                 });
+
+                // Throttle React state updates to 10Hz to reduce re-renders
+                // The 3D scene reads from interpolation buffer directly at 60fps
+                if (now - lastReactUpdateRef.current >= REACT_UPDATE_INTERVAL_MS) {
+                  lastReactUpdateRef.current = now;
+                  const telemetry = telemetryFromDecoded(decoded);
+                  const latency = Math.round(now - lastSendTimeRef.current);
+                  lastSendTimeRef.current = now;
+                  setLatency(latency);
+
+                  updateTelemetry({
+                    ...telemetry,
+                    connected: true,
+                    latency_ms: latency,
+                  });
+                }
               } else {
                 console.warn("[WebRTC] Failed to decode telemetry, size:", msgEvent.data.byteLength);
               }

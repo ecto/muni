@@ -33,6 +33,10 @@ export interface Pose {
   x: number;
   y: number;
   theta: number;
+  /** Roll angle from IMU (radians, 0 = level) */
+  roll: number;
+  /** Pitch angle from IMU (radians, 0 = level) */
+  pitch: number;
 }
 
 export interface SlamStatus {
