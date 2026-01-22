@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rerun Viewer</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; overflow: hidden; background: #1a1a1a; }
+    #container { width: 100%; height: 100%; }
+    #loading {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: #888;
+      font-family: system-ui, sans-serif;
+      text-align: center;
+    }
+    #loading .spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid #333;
+      border-top-color: #888;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 16px;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    #error {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: #f87171;
+      font-family: system-ui, sans-serif;
+      text-align: center;
+      max-width: 400px;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div id="container"></div>
+  <div id="loading">
+    <div class="spinner"></div>
+    <div>Loading Rerun viewer...</div>
+  </div>
+  <div id="error"></div>
+
+  <script type="module">
+    // Import the factory function
+    import createRerunModule from "./re_viewer.js";
+
+    const params = new URLSearchParams(window.location.search);
+    const rrdUrl = params.get("url");
+
+    const container = document.getElementById("container");
+    const loading = document.getElementById("loading");
+    const error = document.getElementById("error");
+
+    function showError(message) {
+      loading.style.display = "none";
+      error.style.display = "block";
+      error.textContent = message;
+    }
+
+    if (!rrdUrl) {
+      showError("No recording URL provided");
+    } else {
+      try {
+        // Create module instance and initialize WASM
+        const rerun = createRerunModule();
+        await rerun("./re_viewer_bg.wasm");
+
+        // Create canvas
+        const canvas = document.createElement("canvas");
+        canvas.style.width = "100%";
+        canvas.style.height = "100%";
+        container.appendChild(canvas);
+
+        // Create viewer
+        const handle = new rerun.WebHandle();
+        await handle.start(canvas, {
+          hide_welcome_screen: true,
+        });
+
+        // Load the recording
+        handle.add_receiver(rrdUrl);
+
+        loading.style.display = "none";
+      } catch (e) {
+        console.error("Failed to initialize viewer:", e);
+        showError("Failed to load viewer: " + e.message);
+      }
+    }
+  </script>
+</body>
+</html>
