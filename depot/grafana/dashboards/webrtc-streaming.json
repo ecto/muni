@@ -1,0 +1,413 @@
+{
+  "uid": "muni-webrtc-streaming",
+  "title": "WebRTC Streaming",
+  "tags": ["muni", "webrtc", "teleop"],
+  "timezone": "browser",
+  "refresh": "1s",
+  "schemaVersion": 39,
+  "templating": {
+    "list": [
+      {
+        "name": "rover",
+        "type": "query",
+        "datasource": { "type": "influxdb", "uid": "influxdb" },
+        "query": "import \"influxdata/influxdb/schema\"\nschema.tagValues(bucket: \"muni\", tag: \"rover\")",
+        "refresh": 2,
+        "current": { "text": "bvr-01", "value": "bvr-01" }
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Channel Send Rates",
+      "description": "Messages sent per second for each WebRTC data channel",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "datasource": { "type": "influxdb", "uid": "influxdb" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "fillOpacity": 10,
+            "lineWidth": 2,
+            "pointSize": 5
+          }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "telem_sent" },
+            "properties": [
+              { "id": "displayName", "value": "Telemetry" },
+              { "id": "color", "value": { "fixedColor": "green", "mode": "fixed" } }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "video_sent" },
+            "properties": [
+              { "id": "displayName", "value": "Video" },
+              { "id": "color", "value": { "fixedColor": "blue", "mode": "fixed" } }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "cloud_sent" },
+            "properties": [
+              { "id": "displayName", "value": "Point Cloud" },
+              { "id": "color", "value": { "fixedColor": "orange", "mode": "fixed" } }
+            ]
+          }
+        ]
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "query": "from(bucket: \"muni\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"webrtc\" and r.rover == \"${rover}\")\n  |> filter(fn: (r) => r._field == \"telem_sent\" or r._field == \"video_sent\" or r._field == \"cloud_sent\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Average Send Latency",
+      "description": "Average time to send a message on each channel (lower is better)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "datasource": { "type": "influxdb", "uid": "influxdb" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "µs",
+          "custom": {
+            "fillOpacity": 10,
+            "lineWidth": 2
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 500 },
+              { "color": "red", "value": 1000 }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "telem_us" },
+            "properties": [
+              { "id": "displayName", "value": "Telemetry" },
+              { "id": "color", "value": { "fixedColor": "green", "mode": "fixed" } }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "video_us" },
+            "properties": [
+              { "id": "displayName", "value": "Video" },
+              { "id": "color", "value": { "fixedColor": "blue", "mode": "fixed" } }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "cloud_us" },
+            "properties": [
+              { "id": "displayName", "value": "Point Cloud" },
+              { "id": "color", "value": { "fixedColor": "orange", "mode": "fixed" } }
+            ]
+          }
+        ]
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "query": "from(bucket: \"muni\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"webrtc\" and r.rover == \"${rover}\")\n  |> filter(fn: (r) => r._field == \"telem_us\" or r._field == \"video_us\" or r._field == \"cloud_us\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Max Send Latency (Backpressure Indicator)",
+      "description": "Maximum send latency per interval - spikes indicate backpressure or blocking",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 8 },
+      "datasource": { "type": "influxdb", "uid": "influxdb" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "µs",
+          "custom": {
+            "fillOpacity": 20,
+            "lineWidth": 1,
+            "drawStyle": "bars",
+            "barAlignment": 0
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 1000 },
+              { "color": "orange", "value": 5000 },
+              { "color": "red", "value": 10000 }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "telem_max_us" },
+            "properties": [
+              { "id": "displayName", "value": "Telemetry Max" },
+              { "id": "color", "value": { "fixedColor": "green", "mode": "fixed" } }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "video_max_us" },
+            "properties": [
+              { "id": "displayName", "value": "Video Max" },
+              { "id": "color", "value": { "fixedColor": "blue", "mode": "fixed" } }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "cloud_max_us" },
+            "properties": [
+              { "id": "displayName", "value": "Point Cloud Max" },
+              { "id": "color", "value": { "fixedColor": "orange", "mode": "fixed" } }
+            ]
+          }
+        ]
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "query": "from(bucket: \"muni\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"webrtc\" and r.rover == \"${rover}\")\n  |> filter(fn: (r) => r._field == \"telem_max_us\" or r._field == \"video_max_us\" or r._field == \"cloud_max_us\")\n  |> aggregateWindow(every: v.windowPeriod, fn: max, createEmpty: false)"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Telemetry Rate",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 16 },
+      "datasource": { "type": "influxdb", "uid": "influxdb" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 10 },
+              { "color": "green", "value": 15 }
+            ]
+          }
+        }
+      },
+      "options": { "colorMode": "background", "graphMode": "area" },
+      "targets": [
+        {
+          "refId": "A",
+          "query": "from(bucket: \"muni\")\n  |> range(start: -1m)\n  |> filter(fn: (r) => r._measurement == \"webrtc\" and r.rover == \"${rover}\" and r._field == \"telem_sent\")\n  |> last()"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Video Rate",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 4, "y": 16 },
+      "datasource": { "type": "influxdb", "uid": "influxdb" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 5 },
+              { "color": "green", "value": 10 }
+            ]
+          }
+        }
+      },
+      "options": { "colorMode": "background", "graphMode": "area" },
+      "targets": [
+        {
+          "refId": "A",
+          "query": "from(bucket: \"muni\")\n  |> range(start: -1m)\n  |> filter(fn: (r) => r._measurement == \"webrtc\" and r.rover == \"${rover}\" and r._field == \"video_sent\")\n  |> last()"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Point Cloud Rate",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 8, "y": 16 },
+      "datasource": { "type": "influxdb", "uid": "influxdb" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "dark-gray", "value": null },
+              { "color": "yellow", "value": 1 },
+              { "color": "green", "value": 4 }
+            ]
+          }
+        }
+      },
+      "options": { "colorMode": "background", "graphMode": "area" },
+      "targets": [
+        {
+          "refId": "A",
+          "query": "from(bucket: \"muni\")\n  |> range(start: -1m)\n  |> filter(fn: (r) => r._measurement == \"webrtc\" and r.rover == \"${rover}\" and r._field == \"cloud_sent\")\n  |> last()"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "title": "Telemetry Latency",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 12, "y": 16 },
+      "datasource": { "type": "influxdb", "uid": "influxdb" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "µs",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 500 },
+              { "color": "red", "value": 1000 }
+            ]
+          }
+        }
+      },
+      "options": { "colorMode": "value", "graphMode": "area" },
+      "targets": [
+        {
+          "refId": "A",
+          "query": "from(bucket: \"muni\")\n  |> range(start: -1m)\n  |> filter(fn: (r) => r._measurement == \"webrtc\" and r.rover == \"${rover}\" and r._field == \"telem_us\")\n  |> last()"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "title": "Video Latency",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 16, "y": 16 },
+      "datasource": { "type": "influxdb", "uid": "influxdb" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "µs",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 500 },
+              { "color": "red", "value": 1000 }
+            ]
+          }
+        }
+      },
+      "options": { "colorMode": "value", "graphMode": "area" },
+      "targets": [
+        {
+          "refId": "A",
+          "query": "from(bucket: \"muni\")\n  |> range(start: -1m)\n  |> filter(fn: (r) => r._measurement == \"webrtc\" and r.rover == \"${rover}\" and r._field == \"video_us\")\n  |> last()"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "title": "Point Cloud Latency",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 20, "y": 16 },
+      "datasource": { "type": "influxdb", "uid": "influxdb" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "µs",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 500 },
+              { "color": "red", "value": 1000 }
+            ]
+          }
+        }
+      },
+      "options": { "colorMode": "value", "graphMode": "area" },
+      "targets": [
+        {
+          "refId": "A",
+          "query": "from(bucket: \"muni\")\n  |> range(start: -1m)\n  |> filter(fn: (r) => r._measurement == \"webrtc\" and r.rover == \"${rover}\" and r._field == \"cloud_us\")\n  |> last()"
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "title": "CPU Usage (Correlation)",
+      "description": "CPU usage for correlation with streaming hiccups",
+      "type": "timeseries",
+      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 20 },
+      "datasource": { "type": "influxdb", "uid": "influxdb" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "custom": { "fillOpacity": 20 },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 70 },
+              { "color": "red", "value": 90 }
+            ]
+          }
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "query": "from(bucket: \"muni\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"system\" and r.rover == \"${rover}\" and r._field == \"cpu\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)"
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "title": "Memory Usage (Correlation)",
+      "description": "Memory usage for correlation with streaming hiccups",
+      "type": "timeseries",
+      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 20 },
+      "datasource": { "type": "influxdb", "uid": "influxdb" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "custom": { "fillOpacity": 20 },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 70 },
+              { "color": "red", "value": 90 }
+            ]
+          }
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "query": "from(bucket: \"muni\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"system\" and r.rover == \"${rover}\" and r._field == \"mem\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)"
+        }
+      ]
+    }
+  ],
+  "annotations": {
+    "list": [
+      {
+        "name": "Hiccups",
+        "datasource": { "type": "influxdb", "uid": "influxdb" },
+        "enable": true,
+        "iconColor": "red",
+        "query": "from(bucket: \"muni\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"webrtc\" and r.rover == \"${rover}\")\n  |> filter(fn: (r) => r._field == \"telem_max_us\" or r._field == \"cloud_max_us\")\n  |> filter(fn: (r) => r._value > 5000)"
+      }
+    ]
+  }
+}
