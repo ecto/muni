@@ -92,6 +92,11 @@ export function useRoverConnectionRtc() {
   const cameraBlobUrlsRef = useRef<Map<number, string>>(new Map());
   const firstFrameLoggedRef = useRef(false);
 
+  // Telemetry throttling - drop messages that arrive faster than expected rate
+  // At 50Hz telemetry, we expect ~20ms between messages. Accept if >= 15ms has passed.
+  const lastTelemetryTimeRef = useRef<number>(0);
+  const MIN_TELEMETRY_INTERVAL_MS = 15;
+
   // Channel metrics tracking
   const channelStatsRef = useRef<Map<string, { count: number; lastTime: number }>>(
     new Map([
@@ -224,6 +229,7 @@ export function useRoverConnectionRtc() {
         console.log("[WebRTC] Command channel opened");
         setConnected(true);
         lastSendTimeRef.current = performance.now();
+        lastTelemetryTimeRef.current = 0; // Reset throttle on reconnect
 
         // Start command loop
         commandIntervalRef.current = setInterval(
@@ -327,17 +333,25 @@ export function useRoverConnectionRtc() {
           channel.binaryType = "arraybuffer";
           channel.onmessage = (msgEvent) => {
             if (msgEvent.data instanceof ArrayBuffer) {
+              const now = performance.now();
+
+              // Throttle: only process if enough time has passed since last message
+              // This drops stale queued messages during backpressure (tab backgrounded, GC pause)
+              if (now - lastTelemetryTimeRef.current < MIN_TELEMETRY_INTERVAL_MS) {
+                return; // Drop - too soon since last processed message
+              }
+              lastTelemetryTimeRef.current = now;
+
               // Track channel metrics
               const stats = channelStatsRef.current.get("telemetry");
               if (stats) {
                 stats.count++;
-                stats.lastTime = performance.now();
+                stats.lastTime = now;
               }
 
               const decoded = decodeTelemetry(msgEvent.data);
               if (decoded) {
                 const telemetry = telemetryFromDecoded(decoded);
-                const now = performance.now();
                 const latency = Math.round(now - lastSendTimeRef.current);
                 lastSendTimeRef.current = now;
                 setLatency(latency);
@@ -589,6 +603,9 @@ export function useRoverConnectionRtc() {
 
     // Release operator status on disconnect
     isOperatorRef.current = false;
+
+    // Reset telemetry throttle
+    lastTelemetryTimeRef.current = 0;
 
     // Reset channel metrics
     resetChannelMetrics();

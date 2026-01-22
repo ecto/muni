@@ -37,6 +37,9 @@ const MAX_EXTRAPOLATION_MS = 100;
 /** Buffer capacity (8 slots = ~160ms at 50Hz). */
 const BUFFER_CAPACITY = 8;
 
+/** Maximum gap between snapshots before clearing buffer (ms). */
+const MAX_SNAPSHOT_GAP_MS = 200;
+
 /**
  * Global interpolation buffer - bypasses React for performance.
  * Updated at 50Hz from telemetry, read at 60Hz from useFrame.
@@ -60,23 +63,37 @@ export function getInterpolationBuffer(): InterpolationState {
  * Computes velocity from pose deltas for smooth interpolation.
  */
 export function pushSnapshotDirect(snapshot: PoseSnapshot): void {
-  const head = (globalBuffer.head + 1) % BUFFER_CAPACITY;
-
-  // Compute velocity from pose delta if we have a previous snapshot
+  // Check for large gap (backpressure recovery, tab switch, etc.)
+  // Clear buffer to snap to current position instead of interpolating through stale data
   const prevIdx = globalBuffer.head;
   const prev = globalBuffer.snapshots[prevIdx];
   if (prev && globalBuffer.count > 0) {
-    const dt = (snapshot.receivedAt - prev.receivedAt) / 1000; // seconds
+    const gap = snapshot.receivedAt - prev.receivedAt;
+    if (gap > MAX_SNAPSHOT_GAP_MS) {
+      // Large gap - clear buffer, snap to current position
+      globalBuffer.snapshots.fill(null);
+      globalBuffer.head = 0;
+      globalBuffer.count = 0;
+    }
+  }
+
+  const head = (globalBuffer.head + 1) % BUFFER_CAPACITY;
+
+  // Compute velocity from pose delta if we have a previous snapshot
+  // (Re-fetch prev since we may have cleared the buffer)
+  const currentPrev = globalBuffer.snapshots[globalBuffer.head];
+  if (currentPrev && globalBuffer.count > 0) {
+    const dt = (snapshot.receivedAt - currentPrev.receivedAt) / 1000; // seconds
     if (dt > 0.001 && dt < 0.5) { // Valid time delta (1ms to 500ms)
-      const dx = snapshot.pose.x - prev.pose.x;
-      const dy = snapshot.pose.y - prev.pose.y;
-      const dtheta = normalizeAngle(snapshot.pose.theta - prev.pose.theta);
+      const dx = snapshot.pose.x - currentPrev.pose.x;
+      const dy = snapshot.pose.y - currentPrev.pose.y;
+      const dtheta = normalizeAngle(snapshot.pose.theta - currentPrev.pose.theta);
 
       // Linear velocity is distance moved / time
       const distance = Math.sqrt(dx * dx + dy * dy);
       // Sign based on heading alignment with movement direction
       const moveAngle = Math.atan2(dy, dx);
-      const headingDiff = Math.abs(normalizeAngle(moveAngle - prev.pose.theta));
+      const headingDiff = Math.abs(normalizeAngle(moveAngle - currentPrev.pose.theta));
       const sign = headingDiff > Math.PI / 2 ? -1 : 1;
 
       snapshot.velocity = {
@@ -228,7 +245,8 @@ function interpolatePoses(
     t
   );
 
-  return { x, y, theta: normalizeAngle(theta) };
+  // Roll/pitch are passed through from the 'to' snapshot (high-frequency IMU, no interpolation needed)
+  return { x, y, theta: normalizeAngle(theta), roll: to.pose.roll, pitch: to.pose.pitch };
 }
 
 /**
@@ -239,10 +257,13 @@ function extrapolatePose(snapshot: PoseSnapshot, dtSeconds: number): Pose {
   const dy = snapshot.velocity.linear * dtSeconds * Math.sin(snapshot.pose.theta);
   const dtheta = snapshot.velocity.angular * dtSeconds;
 
+  // Roll/pitch are passed through (high-frequency IMU data, no extrapolation)
   return {
     x: snapshot.pose.x + dx,
     y: snapshot.pose.y + dy,
     theta: normalizeAngle(snapshot.pose.theta + dtheta),
+    roll: snapshot.pose.roll,
+    pitch: snapshot.pose.pitch,
   };
 }
 
@@ -272,7 +293,7 @@ export function computeRenderPose(
   // No data yet - return origin
   if (!newest) {
     return {
-      pose: { x: 0, y: 0, theta: 0 },
+      pose: { x: 0, y: 0, theta: 0, roll: 0, pitch: 0 },
       isExtrapolating: false,
       snapshotAge: Infinity,
     };
