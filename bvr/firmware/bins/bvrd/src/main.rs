@@ -11,7 +11,7 @@ use gps::{Config as GpsConfig, GpsReader, GpsState};
 use hal::EStopEvent;
 use lidar::{Config as LidarConfig, LidarReader};
 use localization::{PoseEstimator, WheelOdometry};
-use slam::{SlamConfig, SlamProcessor};
+use slam::{SlamConfig, SlamProcessor, SlamState};
 use metrics::{Config as MetricsConfig, DiscoveryClient, DiscoveryConfig, MetricsPusher, MetricsSnapshot, SystemMetricsCollector};
 use policy::{NormalizationConfig, Policy, PolicyManager, PolicyObservation};
 use recording::{Config as RecordingConfig, Recorder};
@@ -24,7 +24,8 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use teleop::video::{VideoConfig, VideoFrame, VideoServer};
 use teleop::rtc::{RtcConfig, RtcMetrics, RtcServer};
 use teleop::{Config as TeleopConfig, Server as TeleopServer, Telemetry};
-use tokio::sync::{mpsc, watch};
+use tokio::sync::{mpsc, watch, Semaphore};
+use tokio::task::JoinSet;
 use tools::{protocol, Registry as ToolRegistry, ToolOutput};
 use tracing::{debug, error, info, warn};
 use tracing_appender::rolling::{RollingFileAppender, Rotation};
@@ -925,13 +926,13 @@ async fn main() -> Result<()> {
             for (camera_id, cam) in cameras_to_start.iter().enumerate() {
                 let camera_id = camera_id as u8;
 
-                // Use the new async camera API (V4L2/nokhwa, no GStreamer)
-                match camera::spawn_capture_async(cam, camera_config.clone()) {
-                    Ok((mut frame_rx, _camera_handle)) => {
+                // Use the GStreamer-based camera API (sync, runs in dedicated thread)
+                match camera::spawn_capture(cam, camera_config.clone()) {
+                    Ok((frame_rx, _camera_handle)) => {
                         info!(
                             camera_id,
                             camera = %cam.name,
-                            "Camera {} started: {}x{} @ {}fps (V4L2/nokhwa)",
+                            "Camera {} started: {}x{} @ {}fps (GStreamer)",
                             camera_id,
                             width,
                             height,
@@ -944,18 +945,34 @@ async fn main() -> Result<()> {
                         let video_tx_rtc_camera = video_tx_rtc.clone();
                         let video_tx_udp_camera = video_tx_udp.clone();
 
-                        // Spawn async task to forward frames to video servers
-                        // No sync->async bridge needed - the new API is fully async
+                        // Spawn async task to bridge sync channel to async video servers
+                        // Uses spawn_blocking to avoid blocking the tokio runtime
                         tokio::spawn(async move {
                             let mut frame_count: u64 = 0;
                             let mut total_bytes: u64 = 0;
                             let mut last_log = std::time::Instant::now();
 
-                            while let Some(frame) = frame_rx.recv().await {
+                            // Bridge sync mpsc to async - use try_recv in a loop with yield
+                            loop {
+                                // Try to receive without blocking
+                                let frame = match frame_rx.try_recv() {
+                                    Ok(frame) => frame,
+                                    Err(std::sync::mpsc::TryRecvError::Empty) => {
+                                        // No frame ready, yield and try again
+                                        tokio::time::sleep(std::time::Duration::from_millis(1)).await;
+                                        continue;
+                                    }
+                                    Err(std::sync::mpsc::TryRecvError::Disconnected) => {
+                                        // Camera thread stopped
+                                        break;
+                                    }
+                                };
+
                                 let frame_size = frame.data.len();
+                                // frame.data is already Arc<Vec<u8>> - zero-copy sharing
                                 let video_frame = VideoFrame {
                                     camera_id,
-                                    data: frame.data,
+                                    data: frame.data, // Arc clone is cheap (~8 bytes)
                                     width: frame.width,
                                     height: frame.height,
                                     sequence: frame.sequence,
@@ -964,6 +981,7 @@ async fn main() -> Result<()> {
 
                                 // Send to WebRTC (mpsc - queues frames)
                                 // Use try_send to avoid backpressure stalling the camera
+                                // Clone is cheap since data is Arc
                                 match video_tx_rtc_camera.try_send(video_frame.clone()) {
                                     Ok(_) => {}
                                     Err(mpsc::error::TrySendError::Full(_)) => {
@@ -1010,7 +1028,7 @@ async fn main() -> Result<()> {
             if cameras_started > 0 {
                 // Mark camera as active in health status
                 shared.lock().unwrap().health.camera_active = true;
-                info!(count = cameras_started, "Camera capture started (pure Rust V4L2/nokhwa)");
+                info!(count = cameras_started, "Camera capture started (GStreamer)");
 
                 // Spawn UDP video server (for native operator CLI)
                 let video_config = VideoConfig::default();
@@ -1075,8 +1093,12 @@ async fn main() -> Result<()> {
         info!("LiDAR disabled in config");
     }
 
-    // Initialize SLAM processor
-    let mut slam_processor = if file_config.slam.enabled && file_config.lidar.enabled {
+    // Initialize SLAM processor as background task
+    // This moves expensive scan matching (10-100ms) off the main control loop
+    let (slam_scan_tx, slam_state_rx): (
+        Option<mpsc::Sender<(lidar::PointCloud, Pose)>>,
+        Option<watch::Receiver<SlamState>>,
+    ) = if file_config.slam.enabled && file_config.lidar.enabled {
         let slam_config = SlamConfig {
             scan_match_resolution: file_config.slam.scan_match_resolution,
             keyframe_distance: file_config.slam.keyframe_distance,
@@ -1084,14 +1106,61 @@ async fn main() -> Result<()> {
             loop_closure_threshold: file_config.slam.loop_closure_threshold,
             ..Default::default()
         };
-        info!("SLAM enabled");
-        Some(SlamProcessor::new(slam_config))
+
+        // Channel for sending scans to SLAM (bounded to prevent backpressure)
+        let (scan_tx, mut scan_rx) = mpsc::channel::<(lidar::PointCloud, Pose)>(4);
+        // Watch channel for receiving SLAM state updates
+        let (state_tx, state_rx) = watch::channel(SlamState::default());
+
+        // Spawn SLAM background task
+        tokio::spawn(async move {
+            let mut slam = SlamProcessor::new(slam_config);
+            info!("SLAM background task started");
+
+            while let Some((scan, odom_pose)) = scan_rx.recv().await {
+                // Update odometry before processing scan
+                slam.update_odometry(&odom_pose);
+
+                // Process scan (this is the expensive operation: 10-100ms)
+                if let Some(update) = slam.process_scan(&scan) {
+                    if update.keyframe_added {
+                        debug!(
+                            keyframe_count = update.keyframe_count,
+                            "SLAM keyframe added"
+                        );
+                    }
+                    if update.loop_closure_detected {
+                        info!(
+                            loop_closure_count = update.loop_closure_count,
+                            "SLAM loop closure detected"
+                        );
+                    }
+                }
+
+                // Send updated state to main loop
+                let state = SlamState {
+                    pose: slam.pose(),
+                    keyframe_count: slam.keyframe_count() as u32,
+                    loop_closure_count: slam.loop_closure_count() as u32,
+                    keyframe_poses: slam.keyframe_poses(),
+                };
+                let _ = state_tx.send(state);
+            }
+
+            info!("SLAM background task shutting down");
+        });
+
+        info!("SLAM enabled (background task)");
+        (Some(scan_tx), Some(state_rx))
     } else {
         if !file_config.slam.enabled {
             info!("SLAM disabled in config");
         }
-        None
+        (None, None)
     };
+
+    // Clone state receiver for main loop
+    let mut slam_state_rx_local: Option<watch::Receiver<SlamState>> = slam_state_rx.clone();
 
     // Hardware e-stop GPIO monitoring (Jetson only, requires gpio feature)
     let (estop_tx, mut estop_rx) = mpsc::channel::<EStopEvent>(8);
@@ -1189,7 +1258,16 @@ async fn main() -> Result<()> {
     // Policy execution timeout tracking for autonomous mode safety
     const POLICY_WARN_THRESHOLD: Duration = Duration::from_millis(20); // Warn if >20ms (2x control period)
     const POLICY_ERROR_THRESHOLD: Duration = Duration::from_millis(50); // Error if >50ms (5x control period)
+    const POLICY_TIMEOUT: Duration = Duration::from_millis(30); // Hard timeout for spawn_blocking inference
     let mut policy_slow_count: u32 = 0;
+    let mut last_policy_action: Option<policy::PolicyAction> = None;
+
+    // Bounded task spawning for dispatch reports
+    // Prevents unbounded task accumulation during long missions
+    const MAX_DISPATCH_TASKS: usize = 100;
+    let dispatch_semaphore = Arc::new(Semaphore::new(MAX_DISPATCH_TASKS));
+    let mut dispatch_tasks: JoinSet<()> = JoinSet::new();
+    let mut last_task_cleanup = Instant::now();
 
     info!("Entering control loop");
     info!("Dashboard available at http://localhost:{}", args.ui_port);
@@ -1275,6 +1353,23 @@ async fn main() -> Result<()> {
                 info!(voltage = format!("{:.1}V", voltage), "Battery status");
             } else {
                 warn!("Battery voltage not received - check VESC CAN status settings");
+            }
+        }
+
+        // Periodic cleanup of completed dispatch report tasks (every second)
+        if last_task_cleanup.elapsed() >= Duration::from_secs(1) {
+            // Drain completed tasks without blocking
+            while let Some(result) = dispatch_tasks.try_join_next() {
+                if let Err(e) = result {
+                    warn!(?e, "Dispatch report task panicked");
+                }
+            }
+            last_task_cleanup = Instant::now();
+
+            // Log if task count is getting high (potential leak)
+            let task_count = dispatch_tasks.len();
+            if task_count > 50 {
+                warn!(task_count, "High number of pending dispatch report tasks");
             }
         }
 
@@ -1447,7 +1542,10 @@ async fn main() -> Result<()> {
                             if let Some(ref client) = dispatch_client {
                                 let task_id = task.task_id;
                                 let client_clone = client.clone();
-                                tokio::spawn(async move {
+                                let sem = dispatch_semaphore.clone();
+                                dispatch_tasks.spawn(async move {
+                                    // Acquire permit (bounded concurrency)
+                                    let _permit = sem.acquire().await;
                                     let _ = client_clone
                                         .report_failed(task_id, "Watchdog timeout - control loop hung")
                                         .await;
@@ -1516,13 +1614,24 @@ async fn main() -> Result<()> {
                         &norm_config,
                     );
 
-                    // Run policy inference with timing
+                    // Run policy inference on blocking thread pool with timeout
+                    // This prevents inference from blocking the control loop
                     let policy_start = Instant::now();
-                    match policy.infer(&obs) {
-                        Ok(action) => {
-                            let inference_time = policy_start.elapsed();
+                    let policy_clone = policy.clone();
+                    let obs_clone = obs.clone();
 
-                            // Track slow policy inference (safety monitoring)
+                    let inference_result = tokio::time::timeout(
+                        POLICY_TIMEOUT,
+                        tokio::task::spawn_blocking(move || policy_clone.infer(&obs_clone)),
+                    )
+                    .await;
+
+                    let inference_time = policy_start.elapsed();
+
+                    // Process inference result with fallback to last action
+                    let action = match inference_result {
+                        Ok(Ok(Ok(action))) => {
+                            // Successful inference
                             if inference_time > POLICY_ERROR_THRESHOLD {
                                 policy_slow_count += 1;
                                 error!(
@@ -1538,100 +1647,128 @@ async fn main() -> Result<()> {
                                     "Policy inference slow"
                                 );
                             } else {
-                                policy_slow_count = 0; // Reset counter on normal execution
+                                policy_slow_count = 0;
                             }
-
-                            // Feed watchdog on successful autonomous control loop
-                            // This ensures we detect control loop hangs, not just teleop command absence
-                            watchdog.feed();
-
-                            let twist = action.to_twist(autonomous_max_linear, autonomous_max_angular);
-                            debug!(
-                                linear = twist.linear,
-                                angular = twist.angular,
-                                goal_x = goal[0],
-                                goal_y = goal[1],
-                                inference_ms = inference_time.as_micros() as f64 / 1000.0,
-                                "Autonomous policy output"
+                            last_policy_action = Some(action);
+                            Some(action)
+                        }
+                        Ok(Ok(Err(e))) => {
+                            // Policy inference returned an error
+                            warn!(?e, "Policy inference error");
+                            last_policy_action
+                        }
+                        Ok(Err(e)) => {
+                            // spawn_blocking task panicked
+                            error!("Policy task panicked: {}", e);
+                            last_policy_action
+                        }
+                        Err(_) => {
+                            // Timeout
+                            warn!(
+                                timeout_ms = POLICY_TIMEOUT.as_millis(),
+                                "Policy inference timed out"
                             );
+                            policy_slow_count += 1;
+                            last_policy_action
+                        }
+                    };
 
-                            // Check if waypoint reached (within 0.5m)
-                            let dx = goal[0] - current_pose.x;
-                            let dy = goal[1] - current_pose.y;
-                            let dist = (dx * dx + dy * dy).sqrt();
-                            if dist < 0.5 {
-                                // Handle dispatched task waypoint progression
-                                let mut task_guard = current_dispatch_task.lock().unwrap();
-                                if let Some(ref mut task) = *task_guard {
-                                    let wp_idx = task.current_waypoint;
-                                    info!(
-                                        waypoint = wp_idx,
-                                        total = task.waypoints.len(),
-                                        distance = dist,
-                                        "Waypoint reached"
-                                    );
+                    if let Some(action) = action {
+                        // Feed watchdog on successful autonomous control loop
+                        watchdog.feed();
 
-                                    // Report progress to dispatch service
+                        let twist = action.to_twist(autonomous_max_linear, autonomous_max_angular);
+                        debug!(
+                            linear = twist.linear,
+                            angular = twist.angular,
+                            goal_x = goal[0],
+                            goal_y = goal[1],
+                            inference_ms = inference_time.as_micros() as f64 / 1000.0,
+                            "Autonomous policy output"
+                        );
+
+                        // Check if waypoint reached (within 0.5m)
+                        let dx = goal[0] - current_pose.x;
+                        let dy = goal[1] - current_pose.y;
+                        let dist = (dx * dx + dy * dy).sqrt();
+                        if dist < 0.5 {
+                            // Handle dispatched task waypoint progression
+                            let mut task_guard = current_dispatch_task.lock().unwrap();
+                            if let Some(ref mut task) = *task_guard {
+                                let wp_idx = task.current_waypoint;
+                                info!(
+                                    waypoint = wp_idx,
+                                    total = task.waypoints.len(),
+                                    distance = dist,
+                                    "Waypoint reached"
+                                );
+
+                                // Report progress to dispatch service
+                                if let Some(ref client) = dispatch_client {
+                                    let progress = task.progress_percent();
+                                    let waypoint = task.current_waypoint as i32;
+                                    let lap = task.lap;
+                                    let task_id = task.task_id;
+                                    // Spawn bounded async task for the report
+                                    let client_clone = client.clone();
+                                    let sem = dispatch_semaphore.clone();
+                                    dispatch_tasks.spawn(async move {
+                                        let _permit = sem.acquire().await;
+                                        let _ = client_clone.report_progress(task_id, progress, waypoint, lap).await;
+                                    });
+                                }
+
+                                // Advance to next waypoint
+                                let task_complete = task.advance();
+                                if task_complete {
+                                    info!(task_id = %task.task_id, "Dispatch task complete");
+
+                                    // Report completion (bounded task)
                                     if let Some(ref client) = dispatch_client {
-                                        let progress = task.progress_percent();
-                                        let waypoint = task.current_waypoint as i32;
-                                        let lap = task.lap;
                                         let task_id = task.task_id;
-                                        // Spawn async task for the report
+                                        let laps = task.lap;
                                         let client_clone = client.clone();
-                                        tokio::spawn(async move {
-                                            let _ = client_clone.report_progress(task_id, progress, waypoint, lap).await;
+                                        let sem = dispatch_semaphore.clone();
+                                        dispatch_tasks.spawn(async move {
+                                            let _permit = sem.acquire().await;
+                                            let _ = client_clone.report_complete(task_id, laps).await;
                                         });
                                     }
 
-                                    // Advance to next waypoint
-                                    let task_complete = task.advance();
-                                    if task_complete {
-                                        info!(task_id = %task.task_id, "Dispatch task complete");
-                                        
-                                        // Report completion
-                                        if let Some(ref client) = dispatch_client {
-                                            let task_id = task.task_id;
-                                            let laps = task.lap;
-                                            let client_clone = client.clone();
-                                            tokio::spawn(async move {
-                                                let _ = client_clone.report_complete(task_id, laps).await;
-                                            });
-                                        }
-                                        
-                                        // Clear task and return to idle
-                                        let task_id = task.task_id;
-                                        drop(task_guard);
-                                        *current_dispatch_task.lock().unwrap() = None;
-                                        
-                                        let mut state = shared.lock().unwrap();
-                                        state.state_machine.transition(Event::CommandTimeout);
-                                        info!(task_id = %task_id, "Returned to Idle after task completion");
-                                    }
-                                } else {
-                                    // Static goal reached (testing mode)
-                                    info!(distance = dist, "Static goal reached!");
-                                }
-                            }
-
-                            (twist, false)
-                        }
-                        Err(e) => {
-                            warn!(?e, "Policy inference failed, stopping");
-                            
-                            // Report failure if executing dispatch task
-                            if let Some(ref task) = *current_dispatch_task.lock().unwrap() {
-                                if let Some(ref client) = dispatch_client {
+                                    // Clear task and return to idle
                                     let task_id = task.task_id;
-                                    let client_clone = client.clone();
-                                    tokio::spawn(async move {
-                                        let _ = client_clone.report_failed(task_id, "Policy inference failed").await;
-                                    });
+                                    drop(task_guard);
+                                    *current_dispatch_task.lock().unwrap() = None;
+
+                                    let mut state = shared.lock().unwrap();
+                                    state.state_machine.transition(Event::CommandTimeout);
+                                    info!(task_id = %task_id, "Returned to Idle after task completion");
                                 }
+                            } else {
+                                // Static goal reached (testing mode)
+                                info!(distance = dist, "Static goal reached!");
                             }
-                            
-                            (Twist::default(), false)
                         }
+
+                        (twist, false)
+                    } else {
+                        // No action available (inference failed and no previous action)
+                        warn!("Policy inference failed with no fallback, stopping");
+
+                        // Report failure if executing dispatch task (bounded task)
+                        if let Some(ref task) = *current_dispatch_task.lock().unwrap() {
+                            if let Some(ref client) = dispatch_client {
+                                let task_id = task.task_id;
+                                let client_clone = client.clone();
+                                let sem = dispatch_semaphore.clone();
+                                dispatch_tasks.spawn(async move {
+                                    let _permit = sem.acquire().await;
+                                    let _ = client_clone.report_failed(task_id, "Policy inference failed").await;
+                                });
+                            }
+                        }
+
+                        (Twist::default(), false)
                     }
                 } else {
                     // No policy or goal, stay stopped
@@ -1796,10 +1933,17 @@ async fn main() -> Result<()> {
         // Update pose estimator with odometry
         pose_estimator.update_odometry(dx, dy, dtheta);
 
-        // Feed odometry to SLAM (runs at control loop rate)
-        if let Some(ref mut slam) = slam_processor {
-            slam.update_odometry(&pose_estimator.pose());
-        }
+        // Check for SLAM pose updates (non-blocking)
+        // SLAM runs in background task, we just check for new state
+        let slam_state: Option<SlamState> = if let Some(ref mut rx) = slam_state_rx_local {
+            if rx.has_changed().unwrap_or(false) {
+                Some(rx.borrow_and_update().clone())
+            } else {
+                Some(rx.borrow().clone())
+            }
+        } else {
+            None
+        };
 
         // Check for GPS updates
         if gps_rx.has_changed().unwrap_or(false) {
@@ -1820,22 +1964,11 @@ async fn main() -> Result<()> {
             if let Some(ref scan) = &*lidar_rx_local.borrow_and_update() {
                 let _ = recorder.log_lidar_scan(scan);
 
-                // Process scan through SLAM
-                if let Some(ref mut slam) = slam_processor {
-                    if let Some(slam_update) = slam.process_scan(scan) {
-                        if slam_update.keyframe_added {
-                            debug!(
-                                keyframe_count = slam_update.keyframe_count,
-                                "SLAM keyframe added"
-                            );
-                        }
-                        if slam_update.loop_closure_detected {
-                            info!(
-                                loop_closure_count = slam_update.loop_closure_count,
-                                "SLAM loop closure detected"
-                            );
-                        }
-                    }
+                // Send scan to SLAM background task (non-blocking)
+                // Include current odometry pose so SLAM can stay synchronized
+                if let Some(ref tx) = slam_scan_tx {
+                    // try_send to avoid blocking the control loop if SLAM is backed up
+                    let _ = tx.try_send((scan.clone(), pose_estimator.pose()));
                 }
 
                 // Log stats periodically (every 50 scans = ~5-10 seconds)
@@ -1872,19 +2005,19 @@ async fn main() -> Result<()> {
             can_interface.pose()
         } else {
             // In real mode, use SLAM-corrected pose if available, otherwise pose estimator
-            if let Some(ref slam) = slam_processor {
-                slam.pose()
+            if let Some(ref state) = slam_state {
+                state.pose
             } else {
                 pose_estimator.pose()
             }
         };
 
         // Build SLAM status if enabled
-        let slam_status = slam_processor.as_ref().map(|slam| SlamStatus {
+        let slam_status = slam_state.as_ref().map(|state| SlamStatus {
             pose,
             confidence: 0.8, // TODO: track actual match score
-            keyframe_count: slam.keyframe_count() as u32,
-            loop_closure_count: slam.loop_closure_count() as u32,
+            keyframe_count: state.keyframe_count,
+            loop_closure_count: state.loop_closure_count,
             mapping_active: true,
         });
 
@@ -1898,7 +2031,7 @@ async fn main() -> Result<()> {
         // Update health from available state
         state.health.can_healthy = state.drivetrain.battery_voltage() > 0.0;
         state.health.gps_fix = has_gps_fix;
-        state.health.slam_running = slam_processor.is_some();
+        state.health.slam_running = slam_scan_tx.is_some();
         state.health.lidar_active = lidar_enabled;
         state.health.recording_active = recording_enabled;
         state.health.discovery_connected = discovery_enabled;
@@ -2009,12 +2142,12 @@ async fn main() -> Result<()> {
         let _ = recorder.log_odometry(dx, dy, dtheta);
 
         // Log SLAM data if enabled
-        if let Some(ref slam) = slam_processor {
+        if let Some(ref state) = slam_state {
             let _ = recorder.log_slam_trajectory(&pose);
-            let _ = recorder.log_slam_keyframes(&slam.keyframe_poses());
+            let _ = recorder.log_slam_keyframes(&state.keyframe_poses);
             let _ = recorder.log_slam_status(
-                slam.keyframe_count(),
-                slam.loop_closure_count(),
+                state.keyframe_count as usize,
+                state.loop_closure_count as usize,
                 0.0, // TODO: track match score
             );
         }
