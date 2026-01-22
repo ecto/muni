@@ -98,6 +98,9 @@ pub struct MetricsSnapshot {
 
     /// System resource metrics (CPU, memory, disk)
     pub system: SystemMetrics,
+
+    /// WebRTC channel metrics (for diagnosing streaming hiccups)
+    pub webrtc: WebRtcChannelMetrics,
 }
 
 /// Mesh network health metrics for coverage analysis.
@@ -150,6 +153,31 @@ pub struct SystemMetrics {
     pub disk_total_bytes: u64,
 }
 
+/// WebRTC channel metrics for diagnosing streaming hiccups.
+#[derive(Debug, Clone, Default)]
+pub struct WebRtcChannelMetrics {
+    /// Messages sent in the last interval
+    pub telemetry_sent: u32,
+    /// Average send latency in microseconds
+    pub telemetry_send_us: u32,
+    /// Max send latency in microseconds (indicates backpressure)
+    pub telemetry_send_max_us: u32,
+
+    /// Video frames sent in the last interval
+    pub video_sent: u32,
+    /// Average send latency in microseconds
+    pub video_send_us: u32,
+    /// Max send latency in microseconds
+    pub video_send_max_us: u32,
+
+    /// Point clouds sent in the last interval
+    pub pointcloud_sent: u32,
+    /// Average send latency in microseconds
+    pub pointcloud_send_us: u32,
+    /// Max send latency in microseconds
+    pub pointcloud_send_max_us: u32,
+}
+
 /// System metrics collector.
 ///
 /// Wraps sysinfo::System to provide efficient metric collection.
@@ -161,18 +189,27 @@ pub struct SystemMetricsCollector {
 
 impl SystemMetricsCollector {
     /// Create a new system metrics collector.
+    ///
+    /// Note: Uses `System::new()` instead of `new_all()` to avoid blocking
+    /// on first call. The sysinfo crate's `new_all()` can hang on Jetson
+    /// when reading /proc for all processes.
     pub fn new() -> Self {
-        Self {
-            system: System::new_all(),
-            disks: Disks::new_with_refreshed_list(),
-        }
+        let mut collector = Self {
+            system: System::new(),
+            disks: Disks::new(),
+        };
+        // Do initial refresh for CPU/memory only (fast)
+        collector.system.refresh_cpu_usage();
+        collector.system.refresh_memory();
+        collector
     }
 
     /// Refresh system metrics (call before reading).
     pub fn refresh(&mut self) {
         self.system.refresh_cpu_usage();
         self.system.refresh_memory();
-        self.disks.refresh();
+        // refresh_list() re-enumerates disks and refreshes their stats
+        self.disks.refresh_list();
     }
 
     /// Get current system metrics.
@@ -270,7 +307,8 @@ impl MetricsPusher {
 
         // Rover status (mode, battery, current)
         lines.push(format!(
-            "rover_status,rover={} battery={:.2},current={:.2},mode=\"{}\" {}",
+            "rover_status,rover={},host={} battery={:.2},current={:.2},mode=\"{}\" {}",
+            rover,
             rover,
             snapshot.battery_voltage,
             snapshot.system_current,
@@ -282,21 +320,22 @@ impl MetricsPusher {
         const MOTOR_NAMES: [&str; 4] = ["fl", "fr", "rl", "rr"];
         for (i, name) in MOTOR_NAMES.iter().enumerate() {
             lines.push(format!(
-                "motors,rover={},motor={} temp={:.1},current={:.2} {}",
-                rover, name, snapshot.motor_temps[i], snapshot.motor_currents[i], timestamp_ns
+                "motors,rover={},host={},motor={} temp={:.1},current={:.2} {}",
+                rover, rover, name, snapshot.motor_temps[i], snapshot.motor_currents[i], timestamp_ns
             ));
         }
 
         // Velocity
         lines.push(format!(
-            "velocity,rover={} linear={:.3},angular={:.3} {}",
-            rover, snapshot.velocity_linear, snapshot.velocity_angular, timestamp_ns
+            "velocity,rover={},host={} linear={:.3},angular={:.3} {}",
+            rover, rover, snapshot.velocity_linear, snapshot.velocity_angular, timestamp_ns
         ));
 
         // GPS (only if we have a fix)
         if snapshot.gps_latitude != 0.0 || snapshot.gps_longitude != 0.0 {
             lines.push(format!(
-                "gps,rover={} latitude={:.7},longitude={:.7},accuracy={:.1} {}",
+                "gps,rover={},host={} latitude={:.7},longitude={:.7},accuracy={:.1} {}",
+                rover,
                 rover,
                 snapshot.gps_latitude,
                 snapshot.gps_longitude,
@@ -317,7 +356,8 @@ impl MetricsPusher {
                 snapshot.mesh.upstream_mac[5],
             );
             lines.push(format!(
-                "mesh,rover={},upstream={} rssi={},ccq={},hops={},latency={},tx_rate={},rx_rate={} {}",
+                "mesh,rover={},host={},upstream={} rssi={},ccq={},hops={},latency={},tx_rate={},rx_rate={} {}",
+                rover,
                 rover,
                 upstream,
                 snapshot.mesh.rssi,
@@ -332,7 +372,8 @@ impl MetricsPusher {
 
         // System resources (CPU, memory, disk)
         lines.push(format!(
-            "system,rover={} cpu={:.1},mem={:.1},mem_used={}i,mem_total={}i,disk={:.1},disk_used={}i,disk_total={}i {}",
+            "system,rover={},host={} cpu={:.1},mem={:.1},mem_used={}i,mem_total={}i,disk={:.1},disk_used={}i,disk_total={}i {}",
+            rover,
             rover,
             snapshot.system.cpu_percent,
             snapshot.system.mem_percent,
@@ -343,6 +384,27 @@ impl MetricsPusher {
             snapshot.system.disk_total_bytes,
             timestamp_ns
         ));
+
+        // WebRTC channel metrics (for diagnosing streaming hiccups)
+        // Only include if there's any activity
+        let rtc = &snapshot.webrtc;
+        if rtc.telemetry_sent > 0 || rtc.video_sent > 0 || rtc.pointcloud_sent > 0 {
+            lines.push(format!(
+                "webrtc,rover={},host={} telem_sent={}i,telem_us={}i,telem_max_us={}i,video_sent={}i,video_us={}i,video_max_us={}i,cloud_sent={}i,cloud_us={}i,cloud_max_us={}i {}",
+                rover,
+                rover,
+                rtc.telemetry_sent,
+                rtc.telemetry_send_us,
+                rtc.telemetry_send_max_us,
+                rtc.video_sent,
+                rtc.video_send_us,
+                rtc.video_send_max_us,
+                rtc.pointcloud_sent,
+                rtc.pointcloud_send_us,
+                rtc.pointcloud_send_max_us,
+                timestamp_ns
+            ));
+        }
 
         // Send all lines as a single UDP packet (newline-separated)
         let payload = lines.join("\n");

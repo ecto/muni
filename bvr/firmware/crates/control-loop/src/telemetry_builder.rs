@@ -75,6 +75,10 @@ impl TelemetryBuilder {
             dt_ms,
             last_cmd_seq,
             ack_bits,
+            // System metrics are set elsewhere (main loop)
+            cpu_percent: 0,
+            mem_percent: 0,
+            disk_percent: 0,
         };
 
         self.last_telemetry = Some(telemetry.clone());

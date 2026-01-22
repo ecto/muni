@@ -77,6 +77,9 @@ impl CommandProcessor {
                 Command::Tool(tc) => {
                     result.tool_command = Some(tc);
                 }
+                Command::LidarToggle(_) => {
+                    // LidarToggle is handled per-connection in WebRTC, not forwarded
+                }
             }
         }
 

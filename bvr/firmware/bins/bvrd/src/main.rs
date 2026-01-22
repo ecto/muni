@@ -22,7 +22,7 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use teleop::video::{VideoConfig, VideoFrame, VideoServer};
-use teleop::rtc::{RtcConfig, RtcServer};
+use teleop::rtc::{RtcConfig, RtcMetrics, RtcServer};
 use teleop::{Config as TeleopConfig, Server as TeleopServer, Telemetry};
 use tokio::sync::{mpsc, watch};
 use tools::{protocol, Registry as ToolRegistry, ToolOutput};
@@ -823,6 +823,7 @@ async fn main() -> Result<()> {
     });
 
     // Spawn WebRTC teleop server (primary browser teleop with video)
+    let mut rtc_metrics: Option<std::sync::Arc<RtcMetrics>> = None;
     if args.rtc_port > 0 {
         let rtc_config = RtcConfig {
             signaling_port: args.rtc_port,
@@ -840,6 +841,9 @@ async fn main() -> Result<()> {
             video_rx_rtc,
             lidar_rx.clone(),
         );
+
+        // Get metrics handle before spawning (for InfluxDB push)
+        rtc_metrics = Some(rtc_server.metrics());
 
         tokio::spawn(async move {
             if let Err(e) = rtc_server.run().await {
@@ -912,31 +916,22 @@ async fn main() -> Result<()> {
                 info!(name = %cam.name, "  - {:?}", cam.camera_type);
             }
 
-            // Start capture on detected cameras (limited by max_cameras config)
-            // GStreamer init happens here and can hang on Jetson, so wrap in timeout
+            // Start capture on detected cameras using the new async V4L2/nokhwa API
+            // This avoids GStreamer's threading conflicts with tokio
             info!("Starting camera capture for {} camera(s)...", cameras_to_start.len());
 
             let mut cameras_started = 0u8;
 
             for (camera_id, cam) in cameras_to_start.iter().enumerate() {
                 let camera_id = camera_id as u8;
-                let cam_clone = cam.clone();
-                let cam_config = camera_config.clone();
 
-                let capture_result = tokio::time::timeout(
-                    Duration::from_secs(15),
-                    tokio::task::spawn_blocking(move || {
-                        camera::spawn_capture(&cam_clone, cam_config)
-                    }),
-                )
-                .await;
-
-                match capture_result {
-                    Ok(Ok(Ok((frame_rx, _camera_handle)))) => {
+                // Use the new async camera API (V4L2/nokhwa, no GStreamer)
+                match camera::spawn_capture_async(cam, camera_config.clone()) {
+                    Ok((mut frame_rx, _camera_handle)) => {
                         info!(
                             camera_id,
                             camera = %cam.name,
-                            "Camera {} started: {}x{} @ {}fps",
+                            "Camera {} started: {}x{} @ {}fps (V4L2/nokhwa)",
                             camera_id,
                             width,
                             height,
@@ -945,27 +940,18 @@ async fn main() -> Result<()> {
 
                         cameras_started += 1;
 
-                        // Clone both video tx channels for this camera thread
+                        // Clone video tx channels for this camera task
                         let video_tx_rtc_camera = video_tx_rtc.clone();
                         let video_tx_udp_camera = video_tx_udp.clone();
 
-                        // DEBUG: Skip camera bridge to test if it's causing tokio runtime issues
-                        // When enabled, video won't stream but dashboard/WebRTC should work
-                        let skip_camera_bridge = std::env::var("BVR_SKIP_CAMERA_BRIDGE").is_ok();
-                        if skip_camera_bridge {
-                            warn!("Camera bridge disabled via BVR_SKIP_CAMERA_BRIDGE");
-                            // Drop frame_rx - camera capture continues but frames aren't bridged
-                            drop(frame_rx);
-                            continue;
-                        }
-
-                        // Spawn task to bridge sync camera frames to async video servers
-                        std::thread::spawn(move || {
+                        // Spawn async task to forward frames to video servers
+                        // No sync->async bridge needed - the new API is fully async
+                        tokio::spawn(async move {
                             let mut frame_count: u64 = 0;
                             let mut total_bytes: u64 = 0;
                             let mut last_log = std::time::Instant::now();
 
-                            while let Ok(frame) = frame_rx.recv() {
+                            while let Some(frame) = frame_rx.recv().await {
                                 let frame_size = frame.data.len();
                                 let video_frame = VideoFrame {
                                     camera_id,
@@ -977,20 +963,16 @@ async fn main() -> Result<()> {
                                 };
 
                                 // Send to WebRTC (mpsc - queues frames)
-                                // Use try_send to avoid blocking_send which can stall the tokio runtime
-                                // Dropping frames is acceptable for real-time video streaming
-                                let send_start = std::time::Instant::now();
+                                // Use try_send to avoid backpressure stalling the camera
                                 match video_tx_rtc_camera.try_send(video_frame.clone()) {
                                     Ok(_) => {}
                                     Err(mpsc::error::TrySendError::Full(_)) => {
                                         // Channel full - drop frame (no WebRTC clients consuming)
-                                        // This is expected when no clients are connected
                                     }
                                     Err(mpsc::error::TrySendError::Closed(_)) => {
                                         break; // Receiver dropped
                                     }
                                 }
-                                let send_us = send_start.elapsed().as_micros();
 
                                 // Send to UDP (watch - latest frame only, for native CLI)
                                 let _ = video_tx_udp_camera.send(Some(video_frame));
@@ -1008,24 +990,19 @@ async fn main() -> Result<()> {
                                         frame_count,
                                         fps = format!("{:.1}", fps),
                                         mbps = format!("{:.2}", mbps),
-                                        last_send_us = send_us,
-                                        "camera.bridge_stats"
+                                        "camera.async_stats"
                                     );
                                     frame_count = 0;
                                     total_bytes = 0;
                                     last_log = std::time::Instant::now();
                                 }
                             }
+
+                            debug!(camera_id, "Camera frame forwarder stopped");
                         });
                     }
-                    Ok(Ok(Err(e))) => {
+                    Err(e) => {
                         warn!(camera_id, ?e, "Failed to start camera {} - skipping", camera_id);
-                    }
-                    Ok(Err(e)) => {
-                        warn!(camera_id, ?e, "Camera {} capture task panicked", camera_id);
-                    }
-                    Err(_) => {
-                        warn!(camera_id, "Camera {} capture timed out (GStreamer init hung)", camera_id);
                     }
                 }
             }
@@ -1033,7 +1010,7 @@ async fn main() -> Result<()> {
             if cameras_started > 0 {
                 // Mark camera as active in health status
                 shared.lock().unwrap().health.camera_active = true;
-                info!(count = cameras_started, "Camera capture started");
+                info!(count = cameras_started, "Camera capture started (pure Rust V4L2/nokhwa)");
 
                 // Spawn UDP video server (for native operator CLI)
                 let video_config = VideoConfig::default();
@@ -1978,6 +1955,27 @@ async fn main() -> Result<()> {
         }
 
         let gps_state = gps_rx.borrow();
+
+        // Collect WebRTC channel metrics (take and reset counters)
+        let webrtc_metrics = if let Some(ref rtc) = rtc_metrics {
+            let (telem_sent, telem_us, telem_max) = rtc.telemetry.take();
+            let (video_sent, video_us, video_max) = rtc.video.take();
+            let (cloud_sent, cloud_us, cloud_max) = rtc.pointcloud.take();
+            metrics::WebRtcChannelMetrics {
+                telemetry_sent: telem_sent,
+                telemetry_send_us: telem_us,
+                telemetry_send_max_us: telem_max,
+                video_sent,
+                video_send_us: video_us,
+                video_send_max_us: video_max,
+                pointcloud_sent: cloud_sent,
+                pointcloud_send_us: cloud_us,
+                pointcloud_send_max_us: cloud_max,
+            }
+        } else {
+            metrics::WebRtcChannelMetrics::default()
+        };
+
         let metrics_snapshot = MetricsSnapshot {
             mode: telemetry.mode,
             battery_voltage: telemetry.power.battery_voltage,
@@ -1990,6 +1988,7 @@ async fn main() -> Result<()> {
             gps_longitude: gps_state.coord.as_ref().map(|c| c.lon).unwrap_or(0.0),
             gps_accuracy: gps_state.coord.as_ref().map(|c| c.accuracy).unwrap_or(0.0),
             system: sys_metrics.metrics(),
+            webrtc: webrtc_metrics,
             ..Default::default()
         };
         drop(gps_state);

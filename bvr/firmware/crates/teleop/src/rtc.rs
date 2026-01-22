@@ -24,7 +24,7 @@ use crate::{
 };
 use lidar::PointCloud;
 use futures_util::{SinkExt, StreamExt};
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::net::{TcpListener, TcpStream};
@@ -42,6 +42,65 @@ use webrtc::interceptor::registry::Registry;
 use webrtc::peer_connection::configuration::RTCConfiguration;
 use webrtc::peer_connection::peer_connection_state::RTCPeerConnectionState;
 use webrtc::peer_connection::sdp::session_description::RTCSessionDescription;
+
+/// Per-channel send statistics (updated atomically by channel loops).
+#[derive(Debug, Default)]
+pub struct ChannelStats {
+    /// Number of messages sent since last reset
+    pub sent_count: AtomicU32,
+    /// Sum of send latencies in microseconds (for averaging)
+    pub send_us_sum: AtomicU64,
+    /// Maximum send latency in microseconds
+    pub send_us_max: AtomicU32,
+}
+
+impl ChannelStats {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Record a send operation with latency in microseconds.
+    pub fn record_send(&self, latency_us: u32) {
+        self.sent_count.fetch_add(1, Ordering::Relaxed);
+        self.send_us_sum.fetch_add(latency_us as u64, Ordering::Relaxed);
+        // Update max using compare-and-swap loop
+        let mut current_max = self.send_us_max.load(Ordering::Relaxed);
+        while latency_us > current_max {
+            match self.send_us_max.compare_exchange_weak(
+                current_max,
+                latency_us,
+                Ordering::Relaxed,
+                Ordering::Relaxed,
+            ) {
+                Ok(_) => break,
+                Err(new_current) => current_max = new_current,
+            }
+        }
+    }
+
+    /// Get stats and reset counters. Returns (count, avg_us, max_us).
+    pub fn take(&self) -> (u32, u32, u32) {
+        let count = self.sent_count.swap(0, Ordering::Relaxed);
+        let sum = self.send_us_sum.swap(0, Ordering::Relaxed);
+        let max = self.send_us_max.swap(0, Ordering::Relaxed);
+        let avg = if count > 0 { (sum / count as u64) as u32 } else { 0 };
+        (count, avg, max)
+    }
+}
+
+/// Aggregated WebRTC channel metrics (shared across all connections).
+#[derive(Debug, Default)]
+pub struct RtcMetrics {
+    pub telemetry: ChannelStats,
+    pub video: ChannelStats,
+    pub pointcloud: ChannelStats,
+}
+
+impl RtcMetrics {
+    pub fn new() -> Arc<Self> {
+        Arc::new(Self::default())
+    }
+}
 
 /// Timeout for operator inactivity (milliseconds).
 const OPERATOR_TIMEOUT_MS: u64 = 5000;
@@ -175,6 +234,7 @@ pub struct RtcServer {
     video_rx: Option<Arc<Mutex<tokio_mpsc::Receiver<VideoFrame>>>>,
     lidar_rx: Option<watch::Receiver<Option<PointCloud>>>,
     operator_state: Arc<OperatorState>,
+    metrics: Arc<RtcMetrics>,
 }
 
 impl RtcServer {
@@ -190,6 +250,7 @@ impl RtcServer {
             video_rx: None,
             lidar_rx: None,
             operator_state: Arc::new(OperatorState::new()),
+            metrics: RtcMetrics::new(),
         }
     }
 
@@ -207,6 +268,7 @@ impl RtcServer {
             video_rx: Some(Arc::new(Mutex::new(video_rx))),
             lidar_rx: None,
             operator_state: Arc::new(OperatorState::new()),
+            metrics: RtcMetrics::new(),
         }
     }
 
@@ -225,12 +287,18 @@ impl RtcServer {
             video_rx: Some(Arc::new(Mutex::new(video_rx))),
             lidar_rx: Some(lidar_rx),
             operator_state: Arc::new(OperatorState::new()),
+            metrics: RtcMetrics::new(),
         }
     }
 
     /// Get a reference to the operator state (for external monitoring).
     pub fn operator_state(&self) -> Arc<OperatorState> {
         self.operator_state.clone()
+    }
+
+    /// Get a reference to the RTC metrics (for external monitoring/push).
+    pub fn metrics(&self) -> Arc<RtcMetrics> {
+        self.metrics.clone()
     }
 
     /// Run the WebRTC signaling server.
@@ -245,6 +313,7 @@ impl RtcServer {
         let lidar_rx = self.lidar_rx;
         let config = Arc::new(self.config);
         let operator_state = self.operator_state;
+        let metrics = self.metrics;
 
         loop {
             match listener.accept().await {
@@ -259,10 +328,11 @@ impl RtcServer {
                     let lid_rx = lidar_rx.clone();
                     let cfg = config.clone();
                     let op_state = operator_state.clone();
+                    let rtc_metrics = metrics.clone();
 
                     tokio::spawn(async move {
                         if let Err(e) =
-                            handle_signaling(stream, cmd_tx, telem_rx, vid_rx, lid_rx, cfg, conn_id, op_state.clone())
+                            handle_signaling(stream, cmd_tx, telem_rx, vid_rx, lid_rx, cfg, conn_id, op_state.clone(), rtc_metrics)
                                 .await
                         {
                             error!(?e, conn_id, "WebRTC connection error");
@@ -310,6 +380,7 @@ async fn handle_signaling(
     config: Arc<RtcConfig>,
     conn_id: u64,
     operator_state: Arc<OperatorState>,
+    metrics: Arc<RtcMetrics>,
 ) -> Result<(), TeleopError> {
     let _ = stream.set_nodelay(true);
 
@@ -388,10 +459,12 @@ async fn handle_signaling(
     let telem_interval = config.telemetry_interval;
     let telem_channel = Arc::new(telemetry_channel);
     let telem_channel_clone = telem_channel.clone();
+    let telem_metrics = metrics.clone();
 
     telem_channel.on_open(Box::new(move || {
         let channel = telem_channel_clone.clone();
         let mut rx = telem_rx_clone.clone();
+        let stats = telem_metrics.clone();
         Box::pin(async move {
             info!("WebRTC telemetry channel opened");
             let mut interval = tokio::time::interval(telem_interval);
@@ -404,10 +477,13 @@ async fn handle_signaling(
                 }
                 let telemetry = rx.borrow_and_update().clone();
                 if let Some(data) = serialize_telemetry(&telemetry) {
+                    let start = std::time::Instant::now();
                     if let Err(e) = channel.send(&bytes::Bytes::from(data)).await {
                         debug!(?e, "Failed to send telemetry (channel closing?)");
                         break;
                     }
+                    let latency_us = start.elapsed().as_micros() as u32;
+                    stats.telemetry.record_send(latency_us);
                 }
             }
         })
@@ -427,10 +503,12 @@ async fn handle_signaling(
 
         let video_channel = Arc::new(video_channel);
         let video_channel_clone = video_channel.clone();
+        let video_metrics = metrics.clone();
 
         video_channel.on_open(Box::new(move || {
             let channel = video_channel_clone.clone();
             let rx = vid_rx.clone();
+            let stats = video_metrics.clone();
             Box::pin(async move {
                 info!("WebRTC video channel opened, waiting for camera frames");
                 let mut frame_count: u64 = 0;
@@ -482,7 +560,8 @@ async fn handle_signaling(
                         debug!(?e, "Failed to send video frame (channel closing?)");
                         break;
                     }
-                    let send_us = send_start.elapsed().as_micros();
+                    let send_us = send_start.elapsed().as_micros() as u32;
+                    stats.video.record_send(send_us);
 
                     frame_count += 1;
 
@@ -537,12 +616,14 @@ async fn handle_signaling(
         let pointcloud_channel_clone = pointcloud_channel.clone();
         let lidar_enabled = lidar_streaming_enabled.clone();
         let pc_config = config.pointcloud.clone();
+        let pc_metrics = metrics.clone();
 
         pointcloud_channel.on_open(Box::new(move || {
             let channel = pointcloud_channel_clone.clone();
             let mut rx = lid_rx.clone();
             let enabled = lidar_enabled.clone();
             let stream_config = pc_config.clone();
+            let stats = pc_metrics.clone();
             Box::pin(async move {
                 info!(
                     voxel_size = stream_config.voxel_size,
@@ -572,10 +653,13 @@ async fn handle_signaling(
                     let cloud = rx.borrow_and_update().clone();
                     if let Some(cloud) = cloud {
                         let data = pointcloud::prepare_for_streaming_with_config(&cloud, &stream_config);
+                        let start = std::time::Instant::now();
                         if let Err(e) = channel.send(&bytes::Bytes::from(data)).await {
                             debug!(?e, "Failed to send pointcloud (channel closing?)");
                             break;
                         }
+                        let latency_us = start.elapsed().as_micros() as u32;
+                        stats.pointcloud.record_send(latency_us);
 
                         frame_count += 1;
                         if frame_count == 1 {
