@@ -3,13 +3,25 @@
 //! Watches for new sessions uploaded by rovers and processes them into maps.
 //!
 //! Responsibilities:
-//! - Monitor sessions directory for new uploads
+//! - Monitor sessions directory for new uploads (both metadata.json and .rrd files)
+//! - Extract data from .rrd files (poses, LiDAR, camera, GPS)
 //! - Parse session metadata and validate completeness
 //! - Queue sessions for processing
 //! - Run Gaussian splatting pipeline (or invoke external processor)
 //! - Update map registry with results
 //! - Merge new sessions into existing maps when regions overlap
 
+use mapper::rrd_extractor;
+
+use axum::{
+    body::Body,
+    extract::Path as AxumPath,
+    http::{header, StatusCode},
+    response::Response,
+    routing::get,
+    Json, Router,
+};
+use tokio_util::io::ReaderStream;
 use chrono::Utc;
 use depot_types::{
     GpsBounds, MapAssets, MapIndex, MapIndexEntry, MapManifest, MapSessionRef, MapStats, Session,
@@ -19,6 +31,7 @@ use notify::{Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
+    net::SocketAddr,
     path::{Path, PathBuf},
     sync::Arc,
     time::Duration,
@@ -45,6 +58,8 @@ pub enum MapperError {
     IncompleteSession(String),
     #[error("Processing failed: {0}")]
     ProcessingFailed(String),
+    #[error("Extraction error: {0}")]
+    Extraction(#[from] rrd_extractor::ExtractionError),
 }
 
 // =============================================================================
@@ -250,6 +265,157 @@ fn scan_sessions(sessions_dir: &Path) -> Vec<PathBuf> {
     }
 
     sessions
+}
+
+/// Scan sessions directory for .rrd files that haven't been extracted yet.
+///
+/// Returns paths to .rrd files that need processing.
+fn scan_rrd_sessions(sessions_dir: &Path) -> Vec<PathBuf> {
+    let mut rrd_files = Vec::new();
+
+    for entry in WalkDir::new(sessions_dir)
+        .min_depth(1)
+        .max_depth(3)
+        .into_iter()
+        .filter_map(|e| e.ok())
+    {
+        let path = entry.path();
+
+        // Skip partial uploads
+        if path.to_string_lossy().contains(".partial") {
+            continue;
+        }
+
+        // Handle flat .rrd files (e.g., sessions/frog-0-2024-01-15.rrd)
+        // Skip session.rrd files here - they're handled via the directory check below
+        if path.is_file()
+            && path.extension().map(|e| e == "rrd").unwrap_or(false)
+            && path.file_name().map(|n| n != "session.rrd").unwrap_or(true)
+        {
+            let extracted_dir = path.with_extension("extracted");
+            let skipped_marker = path.with_extension("skipped");
+            if !extracted_dir.exists() && !skipped_marker.exists() {
+                rrd_files.push(path.to_path_buf());
+            }
+        }
+
+        // Handle directory-based sessions (e.g., sessions/2024-01-15T12-00-00/session.rrd)
+        if path.is_dir() {
+            let rrd_path = path.join("session.rrd");
+            let extracted_dir = path.join("extracted");
+            let skipped_marker = path.join("skipped");
+            if rrd_path.exists() && !extracted_dir.exists() && !skipped_marker.exists() {
+                rrd_files.push(rrd_path);
+            }
+        }
+    }
+
+    debug!(count = rrd_files.len(), "Found unprocessed RRD files");
+    rrd_files
+}
+
+/// Process an RRD session file by extracting its contents.
+///
+/// Extracts poses, LiDAR, camera, and GPS data from the .rrd file
+/// and writes them to an extracted/ directory alongside it.
+async fn process_rrd_session(
+    state: SharedState,
+    rrd_path: PathBuf,
+) -> Result<(), MapperError> {
+    info!(path = %rrd_path.display(), "Processing RRD session");
+
+    // Determine output directory and skipped marker path
+    let (extract_dir, skipped_marker) = if rrd_path.file_name().map(|n| n == "session.rrd").unwrap_or(false) {
+        // Directory-based: /sessions/timestamp/session.rrd -> /sessions/timestamp/extracted/
+        let parent = rrd_path.parent().unwrap();
+        (parent.join("extracted"), parent.join("skipped"))
+    } else {
+        // Flat file: /sessions/name.rrd -> /sessions/name.extracted/ and /sessions/name.skipped
+        (rrd_path.with_extension("extracted"), rrd_path.with_extension("skipped"))
+    };
+
+    // Check if already processed (either extracted or marked as skipped)
+    if extract_dir.exists() {
+        debug!(path = %rrd_path.display(), "Already extracted, skipping");
+        return Ok(());
+    }
+    if skipped_marker.exists() {
+        debug!(path = %rrd_path.display(), "Previously skipped, not reprocessing");
+        return Ok(());
+    }
+
+    // Check if file is still being written (wait for stable mtime)
+    let metadata = tokio::fs::metadata(&rrd_path).await?;
+    let mtime = metadata.modified()?;
+    tokio::time::sleep(Duration::from_secs(2)).await;
+    let new_metadata = tokio::fs::metadata(&rrd_path).await?;
+    if new_metadata.modified()? != mtime {
+        debug!(path = %rrd_path.display(), "File still being written, skipping");
+        return Ok(());
+    }
+
+    // Extract data from RRD file
+    let rrd_path_clone = rrd_path.clone();
+    let extract_dir_clone = extract_dir.clone();
+    let skipped_marker_clone = skipped_marker.clone();
+    let extraction_result = tokio::task::spawn_blocking(move || {
+        let result = rrd_extractor::extract_from_rrd(&rrd_path_clone)?;
+
+        // Validate we have LiDAR data (required for mapping)
+        if result.lidar_frames.is_empty() {
+            warn!(path = %rrd_path_clone.display(), "No LiDAR data in RRD, marking as skipped");
+            // Create marker file so we don't reprocess this file
+            if let Err(e) = std::fs::write(&skipped_marker_clone, "no_lidar_data") {
+                warn!(error = %e, "Failed to write skipped marker");
+            }
+            return Err(MapperError::IncompleteSession("No LiDAR data".into()));
+        }
+
+        // Write extracted data
+        rrd_extractor::write_extracted_data(&result, &extract_dir_clone)
+            .map_err(|e| MapperError::ProcessingFailed(e.to_string()))?;
+
+        Ok::<_, MapperError>(result)
+    })
+    .await
+    .map_err(|e| MapperError::ProcessingFailed(format!("Task join error: {}", e)))??;
+
+    info!(
+        path = %rrd_path.display(),
+        poses = extraction_result.poses.len(),
+        lidar_frames = extraction_result.lidar_frames.len(),
+        camera_frames = extraction_result.camera_frames.len(),
+        "RRD extraction complete"
+    );
+
+    // Queue splat job for the extracted data
+    let maps_dir = {
+        let state = state.read().await;
+        state.maps_dir.clone()
+    };
+
+    let jobs_dir = std::env::var("JOBS_DIR")
+        .map(PathBuf::from)
+        .unwrap_or_else(|_| PathBuf::from("/data/jobs"));
+
+    // Generate map name from RRD filename or GPS bounds
+    let map_name = if let Some(bounds) = &extraction_result.gps_bounds {
+        let (lat, lon) = ((bounds.min_lat + bounds.max_lat) / 2.0, (bounds.min_lon + bounds.max_lon) / 2.0);
+        format!("map_{:.4}_{:.4}", lat, lon)
+    } else {
+        let stem = rrd_path.file_stem().and_then(|s| s.to_str()).unwrap_or("session");
+        format!("map_{}", stem)
+    };
+
+    let map_dir = maps_dir.join(&map_name);
+    tokio::fs::create_dir_all(&map_dir).await?;
+
+    // Queue splat job
+    if let Err(e) = queue_splat_job(&extract_dir, &map_dir, &jobs_dir).await {
+        warn!(error = %e, "Failed to queue splat job, but extraction succeeded");
+    }
+
+    Ok(())
 }
 
 /// Process a newly discovered session
@@ -701,14 +867,39 @@ async fn watch_sessions(
     loop {
         tokio::select! {
             Some(event) = rx.recv() => {
-                // Look for new metadata.json files being created
+                // Look for new metadata.json or .rrd files being created
                 if matches!(event.kind, EventKind::Create(_) | EventKind::Modify(_)) {
                     for path in event.paths {
+                        // Handle metadata.json (legacy format)
                         if path.file_name().map(|n| n == "metadata.json").unwrap_or(false) {
                             if let Some(session_dir) = path.parent() {
                                 // Debounce: wait a bit for the session to finish writing
                                 tokio::time::sleep(Duration::from_secs(2)).await;
                                 let _ = process_new_session(state.clone(), session_dir.to_path_buf()).await;
+                            }
+                        }
+
+                        // Handle .rrd files (new format)
+                        if path.extension().map(|e| e == "rrd").unwrap_or(false) {
+                            // Skip partial uploads
+                            if path.to_string_lossy().contains(".partial") {
+                                continue;
+                            }
+
+                            // Debounce: wait for upload to complete
+                            tokio::time::sleep(Duration::from_secs(5)).await;
+
+                            // Check if already extracted
+                            let extract_dir = if path.file_name().map(|n| n == "session.rrd").unwrap_or(false) {
+                                path.parent().map(|p| p.join("extracted"))
+                            } else {
+                                Some(path.with_extension("extracted"))
+                            };
+
+                            if let Some(ref dir) = extract_dir {
+                                if !dir.exists() {
+                                    let _ = process_rrd_session(state.clone(), path.clone()).await;
+                                }
                             }
                         }
                     }
@@ -833,18 +1024,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    // Scan for existing sessions that need processing
-    info!("Scanning for existing sessions...");
-    let existing = scan_sessions(&sessions_dir);
-    for session_path in existing {
-        let _ = process_new_session(state.clone(), session_path).await;
-    }
-
-    // Process any queued sessions
-    if let Err(e) = process_queued_sessions(state.clone()).await {
-        error!(error = %e, "Error processing queued sessions");
-    }
-
     // Set up shutdown channel
     let (shutdown_tx, shutdown_rx) = mpsc::channel(1);
 
@@ -880,6 +1059,344 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     });
 
+    // Spawn health server
+    let health_state = state.clone();
+    let sessions_dir_for_api = sessions_dir.clone();
+    let health_handle = tokio::spawn(async move {
+        let app = Router::new()
+            .route("/health", get(|| async { Json(serde_json::json!({"status": "ok"})) }))
+            .route("/status", get({
+                let state = health_state.clone();
+                let sessions_dir_status = sessions_dir_for_api.clone();
+                move || {
+                    let state = state.clone();
+                    let sessions_dir = sessions_dir_status.clone();
+                    async move {
+                        let s = state.read().await;
+
+                        // Count pending extractions (RRD files without .extracted dir)
+                        let mut pending_extractions = 0;
+                        if let Ok(entries) = std::fs::read_dir(&sessions_dir) {
+                            for entry in entries.flatten() {
+                                let path = entry.path();
+                                let name = path.file_name()
+                                    .and_then(|n| n.to_str())
+                                    .unwrap_or("");
+
+                                if name.ends_with(".rrd") && !name.contains(".partial") {
+                                    let extracted_dir = path.with_extension("extracted");
+                                    if !extracted_dir.exists() {
+                                        pending_extractions += 1;
+                                    }
+                                }
+                            }
+                        }
+
+                        // Count splat jobs
+                        let jobs_dir = std::env::var("JOBS_DIR")
+                            .unwrap_or_else(|_| "/data/jobs".to_string());
+                        let mut queued_jobs = 0;
+                        let mut processing_jobs = 0;
+                        let mut completed_jobs = 0;
+                        let mut failed_jobs = 0;
+
+                        if let Ok(entries) = std::fs::read_dir(&jobs_dir) {
+                            for entry in entries.flatten() {
+                                let path = entry.path();
+                                if path.extension().map(|e| e == "json").unwrap_or(false) {
+                                    // Check if there's a corresponding result
+                                    if let Ok(content) = std::fs::read_to_string(&path) {
+                                        if let Ok(job) = serde_json::from_str::<serde_json::Value>(&content) {
+                                            if let Some(output_path) = job.get("output_path").and_then(|v| v.as_str()) {
+                                                let result_path = std::path::Path::new(output_path).join("result.json");
+                                                if result_path.exists() {
+                                                    if let Ok(result_content) = std::fs::read_to_string(&result_path) {
+                                                        if let Ok(result) = serde_json::from_str::<serde_json::Value>(&result_content) {
+                                                            match result.get("status").and_then(|v| v.as_str()) {
+                                                                Some("success") | Some("point_cloud_only") => completed_jobs += 1,
+                                                                Some("failed") => failed_jobs += 1,
+                                                                Some("processing") => processing_jobs += 1,
+                                                                _ => queued_jobs += 1,
+                                                            }
+                                                        } else {
+                                                            queued_jobs += 1;
+                                                        }
+                                                    } else {
+                                                        queued_jobs += 1;
+                                                    }
+                                                } else {
+                                                    queued_jobs += 1;
+                                                }
+                                            } else {
+                                                queued_jobs += 1;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        Json(serde_json::json!({
+                            "status": "ok",
+                            "sessions": s.sessions.len(),
+                            "maps": s.maps.len(),
+                            "pending_extractions": pending_extractions,
+                            "splat_queue": {
+                                "queued": queued_jobs,
+                                "processing": processing_jobs,
+                                "completed": completed_jobs,
+                                "failed": failed_jobs,
+                            }
+                        }))
+                    }
+                }
+            }))
+            .route("/sessions", get({
+                let sessions_dir = sessions_dir_for_api.clone();
+                move || async move {
+                    // Scan for all .rrd files
+                    let mut rrd_files = Vec::new();
+                    if let Ok(entries) = std::fs::read_dir(&sessions_dir) {
+                        for entry in entries.flatten() {
+                            let path = entry.path();
+                            let name = path.file_name()
+                                .and_then(|n| n.to_str())
+                                .unwrap_or("")
+                                .to_string();
+
+                            // Skip partial uploads
+                            if name.contains(".partial") {
+                                continue;
+                            }
+
+                            if name.ends_with(".rrd") {
+                                // Flat .rrd file
+                                if let Ok(meta) = std::fs::metadata(&path) {
+                                    let mut session_info = serde_json::json!({
+                                        "name": name,
+                                        "size": meta.len(),
+                                        "modified": meta.modified()
+                                            .ok()
+                                            .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+                                            .map(|d| d.as_secs()),
+                                    });
+
+                                    // Try to parse rover_id and timestamp from filename
+                                    // Format: rover-id_timestamp.rrd (e.g., frog-0_1768854113.rrd)
+                                    let base_name = name.strip_suffix(".rrd").unwrap_or(&name);
+                                    if let Some((rover_id, ts_str)) = base_name.rsplit_once('_') {
+                                        session_info["rover_id"] = serde_json::json!(rover_id);
+                                        if let Ok(ts) = ts_str.parse::<i64>() {
+                                            // Timestamps are in nanoseconds, convert to seconds
+                                            let duration_ns = meta.modified()
+                                                .ok()
+                                                .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+                                                .map(|d| d.as_nanos() as i64)
+                                                .unwrap_or(0) - ts;
+                                            if duration_ns > 0 {
+                                                session_info["duration_secs"] = serde_json::json!(duration_ns / 1_000_000_000);
+                                            }
+                                        }
+                                    }
+
+                                    // Check for extraction metadata
+                                    let extracted_dir = path.with_extension("extracted");
+                                    let metadata_path = extracted_dir.join("extraction_metadata.json");
+                                    if metadata_path.exists() {
+                                        if let Ok(json_str) = std::fs::read_to_string(&metadata_path) {
+                                            if let Ok(extraction_meta) = serde_json::from_str::<serde_json::Value>(&json_str) {
+                                                session_info["extracted"] = serde_json::json!(true);
+                                                if let Some(poses) = extraction_meta.get("pose_count") {
+                                                    session_info["pose_count"] = poses.clone();
+                                                }
+                                                if let Some(lidar) = extraction_meta.get("lidar_frame_count") {
+                                                    session_info["lidar_frame_count"] = lidar.clone();
+                                                }
+                                                if let Some(camera) = extraction_meta.get("camera_frame_count") {
+                                                    session_info["camera_frame_count"] = camera.clone();
+                                                }
+                                                if let Some(rover) = extraction_meta.get("rover_id") {
+                                                    session_info["rover_id"] = rover.clone();
+                                                }
+                                                if let Some(gps) = extraction_meta.get("gps_bounds") {
+                                                    if !gps.is_null() {
+                                                        session_info["has_gps"] = serde_json::json!(true);
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    rrd_files.push(session_info);
+                                }
+                            } else if path.is_dir() {
+                                // Check for session.rrd inside directory
+                                let rrd_path = path.join("session.rrd");
+                                if rrd_path.exists() {
+                                    if let Ok(meta) = std::fs::metadata(&rrd_path) {
+                                        let mut session_info = serde_json::json!({
+                                            "name": name,
+                                            "size": meta.len(),
+                                            "modified": meta.modified()
+                                                .ok()
+                                                .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+                                                .map(|d| d.as_secs()),
+                                        });
+
+                                        // Check for extraction metadata
+                                        let extracted_dir = path.join("extracted");
+                                        let metadata_path = extracted_dir.join("extraction_metadata.json");
+                                        if metadata_path.exists() {
+                                            if let Ok(json_str) = std::fs::read_to_string(&metadata_path) {
+                                                if let Ok(extraction_meta) = serde_json::from_str::<serde_json::Value>(&json_str) {
+                                                    session_info["extracted"] = serde_json::json!(true);
+                                                    if let Some(poses) = extraction_meta.get("pose_count") {
+                                                        session_info["pose_count"] = poses.clone();
+                                                    }
+                                                    if let Some(lidar) = extraction_meta.get("lidar_frame_count") {
+                                                        session_info["lidar_frame_count"] = lidar.clone();
+                                                    }
+                                                    if let Some(camera) = extraction_meta.get("camera_frame_count") {
+                                                        session_info["camera_frame_count"] = camera.clone();
+                                                    }
+                                                    if let Some(rover) = extraction_meta.get("rover_id") {
+                                                        session_info["rover_id"] = rover.clone();
+                                                    }
+                                                    if let Some(gps) = extraction_meta.get("gps_bounds") {
+                                                        if !gps.is_null() {
+                                                            session_info["has_gps"] = serde_json::json!(true);
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+
+                                        rrd_files.push(session_info);
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Sort by modified time, newest first
+                    rrd_files.sort_by(|a, b| {
+                        let a_time = a.get("modified").and_then(|v| v.as_u64()).unwrap_or(0);
+                        let b_time = b.get("modified").and_then(|v| v.as_u64()).unwrap_or(0);
+                        b_time.cmp(&a_time)
+                    });
+
+                    Json(serde_json::json!({
+                        "sessions": rrd_files,
+                        "count": rrd_files.len(),
+                    }))
+                }
+            }))
+            .route("/sessions/{name}", get({
+                let sessions_dir = sessions_dir_for_api;
+                move |AxumPath(name): AxumPath<String>| {
+                    let sessions_dir = sessions_dir.clone();
+                    async move {
+                        // Sanitize name - prevent path traversal
+                        if name.contains("..") || name.contains('/') || name.contains('\\') {
+                            return Err((StatusCode::BAD_REQUEST, "Invalid session name"));
+                        }
+
+                        // Strip .rrd suffix if present (for Rerun viewer compatibility)
+                        let base_name = name.strip_suffix(".rrd").unwrap_or(&name);
+
+                        // Try flat .rrd file first (e.g., sessions/name.rrd)
+                        let flat_rrd_path = sessions_dir.join(format!("{}.rrd", base_name));
+                        let file_path = if flat_rrd_path.exists() {
+                            flat_rrd_path
+                        } else {
+                            // Try directory with session.rrd inside (e.g., sessions/name/session.rrd)
+                            let dir_path = sessions_dir.join(base_name).join("session.rrd");
+                            if dir_path.exists() {
+                                dir_path
+                            } else {
+                                return Err((StatusCode::NOT_FOUND, "Session not found"));
+                            }
+                        };
+
+                        // Open file and stream it
+                        let file = match tokio::fs::File::open(&file_path).await {
+                            Ok(f) => f,
+                            Err(_) => return Err((StatusCode::INTERNAL_SERVER_ERROR, "Failed to open file")),
+                        };
+
+                        let metadata = match file.metadata().await {
+                            Ok(m) => m,
+                            Err(_) => return Err((StatusCode::INTERNAL_SERVER_ERROR, "Failed to read metadata")),
+                        };
+
+                        let stream = ReaderStream::new(file);
+                        let body = Body::from_stream(stream);
+
+                        // Set filename for download (always use .rrd extension)
+                        let filename = format!("{}.rrd", base_name);
+
+                        Ok(Response::builder()
+                            .status(StatusCode::OK)
+                            .header(header::CONTENT_TYPE, "application/octet-stream")
+                            .header(header::CONTENT_LENGTH, metadata.len())
+                            .header(
+                                header::CONTENT_DISPOSITION,
+                                format!("attachment; filename=\"{}\"", filename),
+                            )
+                            .body(body)
+                            .unwrap())
+                    }
+                }
+            }));
+
+        let port: u16 = std::env::var("PORT")
+            .ok()
+            .and_then(|p| p.parse().ok())
+            .unwrap_or(4895);
+        let addr = SocketAddr::from(([0, 0, 0, 0], port));
+        info!(port = port, "Health server listening");
+
+        if let Err(e) = axum::serve(
+            tokio::net::TcpListener::bind(addr).await.unwrap(),
+            app.into_make_service(),
+        )
+        .await
+        {
+            error!(error = %e, "Health server error");
+        }
+    });
+
+    // Spawn initial scan task (runs in background so HTTP server is available immediately)
+    let initial_scan_state = state.clone();
+    let initial_scan_sessions_dir = sessions_dir.clone();
+    let initial_scan_handle = tokio::spawn(async move {
+        info!("Starting initial session scan in background...");
+
+        // Scan for existing metadata-based sessions
+        let existing = scan_sessions(&initial_scan_sessions_dir);
+        for session_path in existing {
+            let _ = process_new_session(initial_scan_state.clone(), session_path).await;
+        }
+
+        // Scan for .rrd files that need extraction
+        info!("Scanning for RRD files...");
+        let rrd_files = scan_rrd_sessions(&initial_scan_sessions_dir);
+        info!(count = rrd_files.len(), "Found unextracted RRD files");
+
+        for rrd_path in rrd_files {
+            if let Err(e) = process_rrd_session(initial_scan_state.clone(), rrd_path.clone()).await {
+                warn!(path = %rrd_path.display(), error = %e, "Failed to process RRD session");
+            }
+        }
+
+        // Process any queued sessions
+        if let Err(e) = process_queued_sessions(initial_scan_state.clone()).await {
+            error!(error = %e, "Error processing queued sessions");
+        }
+
+        info!("Initial session scan complete");
+    });
+
     // Wait for shutdown signal
     tokio::signal::ctrl_c().await?;
     info!("Received shutdown signal");
@@ -889,6 +1406,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     watcher_handle.abort();
     processor_handle.abort();
     splat_checker_handle.abort();
+    health_handle.abort();
+    initial_scan_handle.abort();
 
     info!("Mapper service stopped");
     Ok(())

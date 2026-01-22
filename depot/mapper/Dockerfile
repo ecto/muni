@@ -19,7 +19,8 @@ RUN cargo build --release 2>/dev/null || true
 
 # Copy actual source and rebuild
 COPY mapper/src ./src
-RUN cargo build --release
+# Touch source files to ensure cargo sees them as modified
+RUN touch src/*.rs && cargo build --release
 
 # Runtime stage
 FROM alpine:3.21

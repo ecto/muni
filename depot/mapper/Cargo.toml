@@ -6,16 +6,23 @@ description = "Session processing and map building service for Depot"
 
 [dependencies]
 depot-types = { path = "../types" }
-tokio = { version = "1", features = ["rt-multi-thread", "sync", "time", "macros", "fs", "signal"] }
+tokio = { version = "1", features = ["rt-multi-thread", "sync", "time", "macros", "fs", "signal", "net"] }
+axum = "0.8"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-notify = { version = "7", default-features = false, features = ["macos_kqueue"] }
+notify = "7"
 uuid = { version = "1", features = ["v4", "serde"] }
 chrono = { version = "0.4", features = ["serde"] }
 thiserror = "2"
 walkdir = "2"
+tokio-util = { version = "0.7", features = ["io"] }
+
+# Rerun crates for .rrd file extraction (match rover's version)
+re_log_encoding = { version = "0.22", features = ["decoder"] }
+re_log_types = "0.22"
+arrow = { version = "53", default-features = false, features = ["ipc"] }
 
 [profile.release]
 lto = true
