@@ -20,6 +20,8 @@ import {
   Camera,
   CaretDown,
   CaretRight,
+  Cpu,
+  HardDrives,
 } from "@phosphor-icons/react";
 import { useConsoleStore } from "@/store";
 import { Mode, ModeLabels, CameraMode, WheelStatus } from "@/lib/types";
@@ -312,6 +314,54 @@ export function TelemetryPanel() {
                 <WheelStatusIndicator label="FR" status={telemetry.health.wheel_status[1]} />
                 <WheelStatusIndicator label="RL" status={telemetry.health.wheel_status[2]} />
                 <WheelStatusIndicator label="RR" status={telemetry.health.wheel_status[3]} />
+              </div>
+            </div>
+          )}
+
+          {/* System Resources */}
+          {connected && (
+            <div className="space-y-1 pt-1 border-t border-border">
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Cpu className="h-3.5 w-3.5" weight="fill" />
+                System
+              </div>
+              <div className="space-y-1">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="flex items-center justify-between text-xs cursor-help">
+                      <span className="text-muted-foreground">CPU</span>
+                      <span className={`font-mono ${telemetry.cpu_percent > 80 ? 'text-orange-500' : 'text-stone-900 dark:text-stone-100'}`}>
+                        {telemetry.cpu_percent}%
+                      </span>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent side="right">Jetson CPU utilization</TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="flex items-center justify-between text-xs cursor-help">
+                      <span className="text-muted-foreground">Mem</span>
+                      <span className={`font-mono ${telemetry.mem_percent > 80 ? 'text-orange-500' : 'text-stone-900 dark:text-stone-100'}`}>
+                        {telemetry.mem_percent}%
+                      </span>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent side="right">System memory usage</TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="flex items-center justify-between text-xs cursor-help">
+                      <span className="flex items-center gap-1 text-muted-foreground">
+                        <HardDrives className="h-3 w-3" />
+                        Disk
+                      </span>
+                      <span className={`font-mono ${telemetry.disk_percent > 90 ? 'text-red-500' : telemetry.disk_percent > 80 ? 'text-orange-500' : 'text-stone-900 dark:text-stone-100'}`}>
+                        {telemetry.disk_percent}%
+                      </span>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent side="right">Root filesystem usage</TooltipContent>
+                </Tooltip>
               </div>
             </div>
           )}

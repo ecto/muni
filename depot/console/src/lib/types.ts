@@ -88,6 +88,12 @@ export interface Telemetry {
   latency_ms: number;
   slamStatus?: SlamStatus;
   health: SubsystemHealth;
+  /** System CPU usage (0-100%) */
+  cpu_percent: number;
+  /** System memory usage (0-100%) */
+  mem_percent: number;
+  /** System disk usage (0-100%) */
+  disk_percent: number;
 }
 
 export interface GamepadInput {

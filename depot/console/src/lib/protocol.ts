@@ -175,6 +175,12 @@ export interface DecodedTelemetry {
   dt_ms: number;
   last_cmd_seq: number;
   ack_bits: number;
+  /** System CPU usage (0-100%) */
+  cpu_percent: number;
+  /** System memory usage (0-100%) */
+  mem_percent: number;
+  /** System disk usage (0-100%) */
+  disk_percent: number;
 }
 
 /**
@@ -196,7 +202,10 @@ export function decodeTelemetry(data: ArrayBuffer): DecodedTelemetry | null {
   // Parse header
   const mode = view.getUint8(1) as Mode;
   const sequence = view.getUint16(2, true);
-  // [4-7] padding
+  // System metrics [4-6], reserved [7]
+  const cpu_percent = view.getUint8(4);
+  const mem_percent = view.getUint8(5);
+  const disk_percent = view.getUint8(6);
 
   // Pose (3x f64 = 24 bytes) [8-31]
   const poseX = view.getFloat64(8, true);
@@ -286,6 +295,9 @@ export function decodeTelemetry(data: ArrayBuffer): DecodedTelemetry | null {
     dt_ms,
     last_cmd_seq,
     ack_bits,
+    cpu_percent,
+    mem_percent,
+    disk_percent,
   };
 }
 
@@ -309,6 +321,9 @@ export function telemetryFromDecoded(decoded: DecodedTelemetry): Telemetry {
     connected: true,
     latency_ms: 0, // Computed by caller
     health: decoded.health,
+    cpu_percent: decoded.cpu_percent,
+    mem_percent: decoded.mem_percent,
+    disk_percent: decoded.disk_percent,
   };
 }
 
