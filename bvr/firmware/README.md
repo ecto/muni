@@ -138,6 +138,73 @@ The `Cross.toml` configures the build container with GStreamer ARM64 libraries.
 
 Runtime config lives in `config/bvr.toml`. See the file for all options.
 
+## Session Recording & Sync
+
+The rover records telemetry sessions as Rerun `.rrd` files and syncs them to Depot.
+
+### Recording
+
+Sessions are recorded to `/var/log/bvr/sessions/` with timestamped directories:
+
+```
+/var/log/bvr/sessions/
+├── 2026-01-20T19-25-45/
+│   └── session.rrd
+├── 2026-01-20T21-09-29/
+│   └── session.rrd
+└── ...
+```
+
+Configure in `bvr.toml`:
+
+```toml
+[recording]
+enabled = true
+session_dir = "/var/log/bvr/sessions"
+max_storage_bytes = 10_737_418_240  # 10 GB
+include_camera = false
+```
+
+### Sync to Depot
+
+Sessions sync to Depot's SFTP server using rclone. Configure the `base` remote:
+
+```bash
+# Install rclone (one-time)
+curl -s https://rclone.org/install.sh | sudo bash
+
+# Create config
+mkdir -p ~/.config/rclone
+cat > ~/.config/rclone/rclone.conf << 'EOF'
+[base]
+type = sftp
+host = depot
+port = 2222
+user = bvr
+pass = YOUR_OBSCURED_PASSWORD
+EOF
+
+# Generate obscured password
+rclone obscure YOUR_PASSWORD
+```
+
+Sync settings in `bvr.toml`:
+
+```toml
+[sync]
+enabled = true
+destination = "base:sessions"
+interval_secs = 900  # 15 minutes
+min_age_secs = 60    # Don't sync active files
+```
+
+Test the connection:
+
+```bash
+rclone lsd base:
+# Should show: sessions
+```
+
 ## Running
 
 ```bash
