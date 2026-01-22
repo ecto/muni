@@ -244,7 +244,7 @@ const SidebarInset = React.forwardRef<
     <main
       ref={ref}
       className={cn(
-        "relative flex h-svh flex-1 flex-col bg-background overflow-hidden",
+        "relative flex h-svh flex-1 flex-col bg-background overflow-y-auto",
         // Default sidebar variant - add margin to account for fixed sidebar
         "md:peer-data-[state=expanded]:ml-[var(--sidebar-width)]",
         "md:peer-data-[state=collapsed]:peer-data-[collapsible=icon]:ml-[var(--sidebar-width-icon)]",

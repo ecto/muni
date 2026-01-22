@@ -486,7 +486,7 @@ export function useRoverConnectionRtc() {
     sendCommands,
   ]);
 
-  // Keep connectRef in sync
+  // Keep connectRef in sync (always points to latest connect function)
   useEffect(() => {
     connectRef.current = connect;
   }, [connect]);
@@ -519,14 +519,23 @@ export function useRoverConnectionRtc() {
     setVideoFps(0);
   }, [clearIntervals, setConnected, setVideoConnected, setVideoFrame, setVideoFps]);
 
+  // Stable disconnect ref for cleanup
+  const disconnectRef = useRef(disconnect);
+  useEffect(() => {
+    disconnectRef.current = disconnect;
+  }, [disconnect]);
+
   // Connect when RTC address changes
+  // NOTE: Only depend on rtcAddress to avoid reconnection loops.
+  // connect/disconnect are accessed via refs to get latest versions.
   useEffect(() => {
     // Don't connect to default localhost - wait for real rover address from discovery
     if (rtcAddress === "ws://localhost:4852") {
       return;
     }
 
-    connect();
+    // Use ref to get current connect function (avoids stale closure)
+    connectRef.current();
 
     // Track page visibility
     const handleVisibilityChange = () => {
@@ -536,9 +545,10 @@ export function useRoverConnectionRtc() {
 
     return () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
-      disconnect();
+      disconnectRef.current();
     };
-  }, [rtcAddress, connect, disconnect]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rtcAddress]);
 
   return {
     connect,

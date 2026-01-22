@@ -113,6 +113,9 @@ const defaultTelemetry: Telemetry = {
   connected: false,
   latency_ms: 0,
   health: defaultHealth,
+  cpu_percent: 0,
+  mem_percent: 0,
+  disk_percent: 0,
 };
 
 const defaultInput: GamepadInput = {

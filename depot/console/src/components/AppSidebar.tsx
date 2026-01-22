@@ -319,10 +319,10 @@ function ServiceGrid({ services }: { services: ServiceStatus[] }) {
   );
 }
 
-function serviceStatusToDot(status: "healthy" | "unhealthy" | "checking"): "ok" | "offline" | "unknown" {
+function serviceStatusToDot(status: "healthy" | "unhealthy" | "checking" | "unknown"): "ok" | "offline" | "unknown" {
   if (status === "healthy") return "ok";
   if (status === "unhealthy") return "offline";
-  return "unknown";
+  return "unknown"; // covers "checking" and "unknown"
 }
 
 function StatusDot({ status }: { status: "ok" | "offline" | "warning" | "unknown" }) {

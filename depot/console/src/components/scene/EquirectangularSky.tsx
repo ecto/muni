@@ -1,4 +1,5 @@
 import { useRef, useEffect, useMemo, useState } from "react";
+import { useFrame } from "@react-three/fiber";
 import { useConsoleStore } from "@/store";
 import { CaretDown, CaretRight } from "@phosphor-icons/react";
 import {
@@ -7,124 +8,150 @@ import {
   CanvasTexture,
   SRGBColorSpace,
   DoubleSide,
-  type Mesh,
   type Texture,
+  type Group,
 } from "three";
+import { computeRenderPose, getInterpolationBuffer } from "@/lib/interpolation";
 
 /**
- * Renders the camera feed as a video plane positioned in front of the rover.
- *
- * The video is displayed on a plane that acts as a "windshield" view,
- * showing what the rover's cameras see ahead.
+ * Single camera projection plane.
  */
-export function EquirectangularSky() {
-  const meshRef = useRef<Mesh>(null);
+function CameraProjection({
+  frameUrl,
+  position
+}: {
+  frameUrl: string | null;
+  position: [number, number, number];
+}) {
   const materialRef = useRef<MeshBasicMaterial>(null);
   const textureRef = useRef<Texture | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
-  const currentUrlRef = useRef<string | null>(null);
-  const firstFrameLoadedRef = useRef(false);
-
-  const { videoFrame, videoConnected } = useConsoleStore();
+  const [hasTexture, setHasTexture] = useState(false);
 
   // Create plane geometry sized for 4:3 aspect ratio
   const geometry = useMemo(() => {
     const aspectRatio = 640 / 480;
-    const height = 8;
+    const height = 2;  // 2 meters tall
     const width = height * aspectRatio;
     return new PlaneGeometry(width, height);
   }, []);
 
-  // Initialize canvas for texture
+  // Load frame and update texture
   useEffect(() => {
-    canvasRef.current = document.createElement("canvas");
-    canvasRef.current.width = 640;
-    canvasRef.current.height = 480;
-    ctxRef.current = canvasRef.current.getContext("2d");
+    if (!frameUrl) return;
 
-    return () => {
-      if (textureRef.current) {
-        textureRef.current.dispose();
-      }
-    };
-  }, []);
-
-  // Update texture when video frame changes
-  useEffect(() => {
-    if (!materialRef.current || !canvasRef.current || !ctxRef.current) return;
-    if (!videoFrame || !videoConnected) {
-      if (materialRef.current) {
-        materialRef.current.map = null;
-        materialRef.current.color.setHex(0x333333);
-        materialRef.current.needsUpdate = true;
-      }
-      firstFrameLoadedRef.current = false;
-      return;
-    }
-
-    const canvas = canvasRef.current;
-    const ctx = ctxRef.current;
-    const frameUrl = videoFrame;
-
-    // Track which URL we're currently loading
-    currentUrlRef.current = frameUrl;
-
-    // Use Image element for loading - handles blob URLs correctly
     const img = new Image();
     img.onload = () => {
-      // Check if this is still the current frame (not stale)
-      if (currentUrlRef.current !== frameUrl) {
-        return;
+      // Create or reuse canvas
+      if (!canvasRef.current) {
+        canvasRef.current = document.createElement("canvas");
       }
-
-      // Resize canvas if needed
-      if (canvas.width !== img.width || canvas.height !== img.height) {
-        canvas.width = img.width;
-        canvas.height = img.height;
-      }
-
-      // Draw to canvas
+      const canvas = canvasRef.current;
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
       ctx.drawImage(img, 0, 0);
 
       // Create or update texture
       if (!textureRef.current) {
-        textureRef.current = new CanvasTexture(canvas);
-        textureRef.current.colorSpace = SRGBColorSpace;
-        if (materialRef.current) {
+        const newTexture = new CanvasTexture(canvas);
+        newTexture.colorSpace = SRGBColorSpace;
+        textureRef.current = newTexture;
+      }
+      // Mark texture as needing update (canvas content changed)
+      textureRef.current.needsUpdate = true;
+
+      // Update material
+      if (materialRef.current) {
+        if (!materialRef.current.map) {
           materialRef.current.map = textureRef.current;
-          materialRef.current.needsUpdate = true;
         }
-      } else {
-        textureRef.current.needsUpdate = true;
+        materialRef.current.needsUpdate = true;
       }
 
-      if (!firstFrameLoadedRef.current) {
-        console.log(`[VideoPlane] First texture loaded: ${canvas.width}x${canvas.height}`);
-        firstFrameLoadedRef.current = true;
-      }
+      setHasTexture(true);
     };
-
-    img.onerror = () => {
-      // Only log if this is still the current URL (not a stale revoked URL)
-      if (currentUrlRef.current === frameUrl && !firstFrameLoadedRef.current) {
-        console.error("[VideoPlane] Failed to load frame");
-      }
-    };
-
-    // Start loading
     img.src = frameUrl;
-  }, [videoFrame, videoConnected]);
+  }, [frameUrl]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (textureRef.current) {
+        textureRef.current.dispose();
+        textureRef.current = null;
+      }
+    };
+  }, []);
 
   return (
-    <mesh ref={meshRef} geometry={geometry} position={[0, 4, -10]}>
+    <mesh geometry={geometry} position={position}>
       <meshBasicMaterial
         ref={materialRef}
+        color={hasTexture ? 0xffffff : 0xff0000}
         side={DoubleSide}
-        color={0xffffff}
         fog={false}
+        toneMapped={false}
       />
     </mesh>
+  );
+}
+
+/**
+ * Renders camera feeds as video planes positioned in front of the rover.
+ * Creates a separate projection for each camera to avoid flickering.
+ * The group follows the rover's position so planes are always in front.
+ */
+export function EquirectangularSky() {
+  const cameraFrames = useConsoleStore((state) => state.cameraFrames);
+  const videoConnected = useConsoleStore((state) => state.videoConnected);
+  const groupRef = useRef<Group>(null);
+
+  // Convert Map to sorted array - need to track size for reactivity
+  const cameraCount = cameraFrames.size;
+  const cameras = useMemo(() => {
+    return Array.from(cameraFrames.entries()).sort((a, b) => a[0] - b[0]);
+  }, [cameraFrames, cameraCount]);
+
+  // Follow the rover's position using the same interpolation as RoverModel
+  useFrame(() => {
+    if (!groupRef.current) return;
+
+    const result = computeRenderPose(getInterpolationBuffer(), performance.now(), 0);
+
+    // Apply pose to group (same coordinate mapping as RoverModel)
+    // Physics: X=forward, Y=left; Three.js: -Z=forward, -X=left
+    groupRef.current.position.z = -result.pose.x;
+    groupRef.current.position.x = -result.pose.y;
+    groupRef.current.rotation.y = result.pose.theta;
+  });
+
+  if (!videoConnected || cameras.length === 0) {
+    return null;
+  }
+
+  // Position cameras relative to the rover (local coordinates)
+  // Planes are positioned in front of the rover in local space
+  const getPosition = (index: number, total: number): [number, number, number] => {
+    if (total === 1) return [0, 1.5, -3];
+    // Spread cameras horizontally in front of rover (planes are ~2.67m wide)
+    const spacing = 3;
+    const offset = ((total - 1) / 2) * spacing;
+    const x = index * spacing - offset;
+    return [x, 1.5, -3];
+  };
+
+  return (
+    <group ref={groupRef}>
+      {cameras.map(([cameraId, frame], index) => (
+        <CameraProjection
+          key={cameraId}
+          frameUrl={frame.url}
+          position={getPosition(index, cameras.length)}
+        />
+      ))}
+    </group>
   );
 }
 
@@ -151,19 +178,20 @@ export function VideoStatusBadge() {
 }
 
 /**
- * Single camera feed display.
+ * Single camera feed display - renders at native resolution, scaled down.
  */
 function CameraFeed({ cameraId, url }: { cameraId: number; url: string | null }) {
   return (
-    <div className="relative w-40 h-30 bg-black">
+    <div className="relative bg-black">
       {url ? (
         <img
           src={url}
           alt={`Camera ${cameraId}`}
-          className="w-full h-full object-contain"
+          className="block max-h-24"
+          style={{ imageRendering: "pixelated" }}
         />
       ) : (
-        <div className="absolute inset-0 flex items-center justify-center text-muted-foreground text-xs">
+        <div className="w-20 h-24 flex items-center justify-center text-muted-foreground text-xs">
           No signal
         </div>
       )}
@@ -202,16 +230,16 @@ export function CameraFeedCard() {
         </span>
       </div>
 
-      {/* Camera feeds grid */}
+      {/* Camera feeds - vertical stack */}
       {!collapsed && (
-        <div className="flex flex-wrap gap-1 p-1">
+        <div className="flex flex-col gap-1 p-1">
           {cameras.length > 0 ? (
             cameras.map(([cameraId, frame]) => (
               <CameraFeed key={cameraId} cameraId={cameraId} url={frame.url} />
             ))
           ) : (
-            <div className="w-40 h-30 flex items-center justify-center text-muted-foreground text-sm bg-black">
-              {videoConnected ? 'Waiting for frames...' : 'No cameras'}
+            <div className="w-20 h-24 flex items-center justify-center text-muted-foreground text-xs bg-black">
+              {videoConnected ? 'Waiting...' : 'No cameras'}
             </div>
           )}
         </div>

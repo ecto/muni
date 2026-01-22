@@ -12,6 +12,7 @@ import { BaseStationView } from "@/views/BaseStationView";
 import { FleetView } from "@/views/FleetView";
 import { RoverView } from "@/views/RoverView";
 import { SessionsView } from "@/views/SessionsView";
+import { SessionDetailView } from "@/views/SessionDetailView";
 import { MapsView } from "@/views/MapsView";
 import { DispatchView } from "@/views/DispatchView";
 
@@ -34,6 +35,7 @@ function App() {
             <Route path="/fleet" element={<FleetView />} />
             <Route path="/fleet/:roverId" element={<RoverView />} />
             <Route path="/sessions" element={<SessionsView />} />
+            <Route path="/sessions/:sessionName" element={<SessionDetailView />} />
             <Route path="/maps" element={<MapsView />} />
             <Route path="/maps/:mapId" element={<MapsView />} />
             <Route path="/dispatch" element={<DispatchView />} />

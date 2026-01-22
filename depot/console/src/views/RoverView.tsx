@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 import { Scene } from "@/components/scene/Scene";
 import { CameraFeedCard } from "@/components/scene/EquirectangularSky";
 import { TelemetryPanel } from "@/components/teleop/TelemetryPanel";
@@ -16,11 +16,9 @@ import { useGamepad } from "@/hooks/useGamepad";
 import { useRoverConnectionRtc } from "@/hooks/useRoverConnectionRtc";
 import { useConsoleStore } from "@/store";
 import { Mode } from "@/lib/types";
-import { ArrowLeft, Warning, Play, Stop, CircleNotch, Robot } from "@phosphor-icons/react";
-import { Link } from "react-router-dom";
+import { Warning, Play, Stop, CircleNotch, Robot } from "@phosphor-icons/react";
 
 export function RoverView() {
-  const navigate = useNavigate();
   const { roverId } = useParams();
   const { rovers, telemetry, selectRover, rtcAddress, connecting, connected } = useConsoleStore();
 
@@ -76,11 +74,6 @@ export function RoverView() {
       disconnect();
     };
   }, [disconnect]);
-
-  const handleExit = () => {
-    disconnect();
-    navigate("/fleet");
-  };
 
   // Show not found state
   if (!selectedRover && rovers.length > 0) {
@@ -145,77 +138,65 @@ export function RoverView() {
 
       {/* UI Overlay */}
       <div className="absolute inset-0 pointer-events-none">
-        {/* Top left panels - scrollable for shorter windows */}
-        <div className="absolute top-4 left-4 bottom-16 flex flex-col gap-3 pointer-events-auto overflow-y-auto overflow-x-hidden pr-2 scrollbar-thin">
-          {/* Exit button */}
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={handleExit}
-            className="w-fit gap-2 shrink-0"
-          >
-            <ArrowLeft className="h-4 w-4" weight="bold" />
-            <span>{selectedRover?.name ?? "Fleet"}</span>
-          </Button>
+        {/* Right side panels - scrollable for shorter windows */}
+        <div className="absolute top-4 right-4 bottom-16 flex flex-col gap-3 pointer-events-auto overflow-y-auto overflow-x-hidden pl-2 scrollbar-thin items-end">
+          {/* Enable/Disable button */}
+          <div className="flex items-center gap-2 shrink-0">
+            {isDisabled && !enabling && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="default"
+                    size="sm"
+                    disabled={!connected}
+                    onClick={() => {
+                      setEnabling(true);
+                      sendEnable();
+                    }}
+                    className="gap-2 bg-green-600 hover:bg-green-500 disabled:bg-gray-600"
+                  >
+                    <Play className="h-4 w-4" weight="fill" />
+                    Enable
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">Enter teleop mode and start accepting drive commands</TooltipContent>
+              </Tooltip>
+            )}
+            {enabling && (
+              <Button variant="secondary" size="sm" disabled className="gap-2">
+                <CircleNotch className="h-4 w-4 animate-spin" />
+                Enabling...
+              </Button>
+            )}
+            {isTeleop && !disabling && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="default"
+                    size="sm"
+                    onClick={() => {
+                      setDisabling(true);
+                      sendDisable();
+                    }}
+                    className="gap-2 bg-amber-600 hover:bg-amber-500"
+                  >
+                    <Stop className="h-4 w-4" weight="fill" />
+                    Disable
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">Exit teleop mode and stop motors</TooltipContent>
+              </Tooltip>
+            )}
+            {disabling && (
+              <Button variant="secondary" size="sm" disabled className="gap-2">
+                <CircleNotch className="h-4 w-4 animate-spin" />
+                Disabling...
+              </Button>
+            )}
+          </div>
           <TelemetryPanel />
           <InputPanel />
           <CameraFeedCard />
-        </div>
-
-        {/* Top right controls */}
-        <div className="absolute top-4 right-4 pointer-events-auto flex items-center gap-2">
-          {/* Enable/Disable button */}
-          {isDisabled && !enabling && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="default"
-                  size="sm"
-                  disabled={!connected}
-                  onClick={() => {
-                    setEnabling(true);
-                    sendEnable();
-                  }}
-                  className="gap-2 bg-green-600 hover:bg-green-500 disabled:bg-gray-600"
-                >
-                  <Play className="h-4 w-4" weight="fill" />
-                  Enable
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom">Enter teleop mode and start accepting drive commands</TooltipContent>
-            </Tooltip>
-          )}
-          {enabling && (
-            <Button variant="secondary" size="sm" disabled className="gap-2">
-              <CircleNotch className="h-4 w-4 animate-spin" />
-              Enabling...
-            </Button>
-          )}
-          {isTeleop && !disabling && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="default"
-                  size="sm"
-                  onClick={() => {
-                    setDisabling(true);
-                    sendDisable();
-                  }}
-                  className="gap-2 bg-amber-600 hover:bg-amber-500"
-                >
-                  <Stop className="h-4 w-4" weight="fill" />
-                  Disable
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom">Exit teleop mode and stop motors</TooltipContent>
-            </Tooltip>
-          )}
-          {disabling && (
-            <Button variant="secondary" size="sm" disabled className="gap-2">
-              <CircleNotch className="h-4 w-4 animate-spin" />
-              Disabling...
-            </Button>
-          )}
         </div>
 
         {/* Bottom bar */}
