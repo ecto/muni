@@ -1,0 +1,4 @@
+# Enable tokio-console instrumentation when building with --features console
+# This flag enables tokio's internal tracing which is required for console-subscriber
+[build]
+rustflags = ["--cfg", "tokio_unstable"]
