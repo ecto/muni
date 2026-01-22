@@ -41,9 +41,9 @@ async fn main() {
     let mut frame_count = 0u64;
     let mut total_points = 0u64;
 
-    println!("\nWaiting for point clouds from Livox Mid360...\n");
-    println!("Frame | Points | Min X | Max X | Min Z | Max Z");
-    println!("------|--------|-------|-------|-------|------");
+    eprintln!("\nWaiting for point clouds from Livox Mid360...\n");
+    eprintln!("Frame | Points | Min X | Max X | Min Z | Max Z");
+    eprintln!("------|--------|-------|-------|-------|------");
 
     while rx.changed().await.is_ok() {
         if let Some(cloud) = &*rx.borrow() {
@@ -69,7 +69,7 @@ async fn main() {
                 (min_x, max_x, min_z, max_z)
             };
 
-            println!(
+            eprintln!(
                 "{:5} | {:6} | {:5.1} | {:5.1} | {:5.1} | {:5.1}",
                 frame_count,
                 cloud.points.len(),
@@ -81,7 +81,7 @@ async fn main() {
 
             // Print detailed stats every 10 frames
             if frame_count % 10 == 0 {
-                println!("\n--- Summary: {} frames, {} total points ---\n", frame_count, total_points);
+                eprintln!("\n--- Summary: {} frames, {} total points ---\n", frame_count, total_points);
             }
         }
     }

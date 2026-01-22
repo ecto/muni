@@ -5,13 +5,25 @@
 use crate::{Config, ImuData, LidarError, Point3D, PointCloud};
 use std::net::SocketAddr;
 use std::sync::atomic::{AtomicU32, Ordering};
-use std::time::Instant;
+use std::time::{Duration, Instant};
 use tokio::net::UdpSocket;
 use tokio::sync::watch;
 use tracing::{debug, error, info, trace, warn};
 
+/// Livox SDK2 control port on the device
+const LIVOX_CONTROL_PORT: u16 = 56000;
+
+/// SDK2 command types
+const CMD_HANDSHAKE: u8 = 0x01;
+const CMD_HEARTBEAT: u8 = 0x03;
+const CMD_START_SAMPLING: u8 = 0x04;
+const CMD_STOP_SAMPLING: u8 = 0x05;
+const CMD_PUSH_CONFIG: u8 = 0x07;
+
 /// Point cloud packet header size (bytes)
-const POINT_HEADER_SIZE: usize = 24;
+/// SDK2 header: version(1) + length(2) + time_interval(2) + dot_num(2) + udp_cnt(2) +
+/// frame_cnt(1) + data_type(1) + time_type(1) + reserved(12) + crc32(4) + timestamp(8) = 36 bytes
+const POINT_HEADER_SIZE: usize = 36;
 
 /// Points per packet (fixed for Mid360)
 const POINTS_PER_PACKET: usize = 96;
@@ -50,16 +62,21 @@ impl FrameAccumulator {
     }
 
     /// Add points from a packet. Returns Some(PointCloud) when frame is complete.
-    fn add_packet(&mut self, frame_counter: u8, timestamp_ns: u64, points: Vec<Point3D>) -> Option<PointCloud> {
-        // Detect new frame (frame_counter wraps or changes significantly)
+    ///
+    /// Frame detection uses time-based accumulation (100ms = 10Hz) since some
+    /// Livox firmware versions don't increment frame_cnt properly.
+    fn add_packet(&mut self, _frame_counter: u8, timestamp_ns: u64, points: Vec<Point3D>) -> Option<PointCloud> {
+        // Time-based frame detection: 100ms per frame (10Hz)
+        const FRAME_DURATION: Duration = Duration::from_millis(100);
+
         let frame_boundary = if self.points.is_empty() {
             false
         } else {
-            // New frame starts when frame_counter wraps or we've accumulated enough
-            frame_counter < self.last_frame_counter || self.points.len() > 20000
+            // Emit frame when 100ms has elapsed OR we have enough points
+            self.frame_start.elapsed() >= FRAME_DURATION || self.points.len() >= 25000
         };
 
-        if frame_boundary && !self.points.is_empty() {
+        if frame_boundary {
             // Complete current frame
             let cloud = PointCloud {
                 timestamp: self.frame_start,
@@ -70,7 +87,6 @@ impl FrameAccumulator {
             self.points.reserve(POINTS_PER_PACKET * 100);
             self.frame_start = Instant::now();
             self.timestamp_ns = timestamp_ns;
-            self.last_frame_counter = frame_counter;
             self.points.extend(points);
             Some(cloud)
         } else {
@@ -78,11 +94,108 @@ impl FrameAccumulator {
                 self.frame_start = Instant::now();
                 self.timestamp_ns = timestamp_ns;
             }
-            self.last_frame_counter = frame_counter;
             self.points.extend(points);
             None
         }
     }
+}
+
+/// Connect to the Livox and start data streaming.
+///
+/// This sends the SDK2 handshake and start sampling commands.
+pub async fn connect_and_start(config: &Config) -> Result<(), LidarError> {
+    let control_addr: SocketAddr = (config.lidar_ip, LIVOX_CONTROL_PORT).into();
+
+    // Bind a socket for sending commands and receiving responses
+    let cmd_socket = UdpSocket::bind((config.host_ip, 0))
+        .await
+        .map_err(|e| LidarError::Network(format!("Failed to bind command socket: {}", e)))?;
+
+    let local_addr = cmd_socket.local_addr()
+        .map_err(|e| LidarError::Network(format!("Failed to get local addr: {}", e)))?;
+    info!(?local_addr, ?control_addr, "Connecting to Livox Mid360");
+
+    // Build and send handshake command
+    // SDK2 format: [SOF(0xAA), version, length(2), seq(4), cmd_id, cmd_type, data...]
+    let mut handshake = Vec::with_capacity(64);
+    handshake.push(0xAA); // SOF
+    handshake.push(0x01); // Version
+
+    // Handshake data: host_ip(4) + cmd_port(2) + push_msg_port(2) + point_port(2) + imu_port(2) + log_port(2)
+    let data_len: u16 = 14 + 8; // header (8) + ip(4) + ports(10)
+    handshake.extend_from_slice(&data_len.to_le_bytes());
+
+    // Sequence number
+    let seq: u32 = 1;
+    handshake.extend_from_slice(&seq.to_le_bytes());
+
+    // Command
+    handshake.push(CMD_HANDSHAKE);
+    handshake.push(0x00); // Request type
+
+    // Host IP
+    let host_octets = config.host_ip.octets();
+    handshake.extend_from_slice(&host_octets);
+
+    // Ports: cmd_reply, push_msg, point_cloud, imu, log
+    handshake.extend_from_slice(&local_addr.port().to_le_bytes()); // cmd reply
+    handshake.extend_from_slice(&(local_addr.port() + 1).to_le_bytes()); // push msg
+    handshake.extend_from_slice(&config.point_cloud_port.to_le_bytes());
+    handshake.extend_from_slice(&config.imu_port.to_le_bytes());
+    handshake.extend_from_slice(&0u16.to_le_bytes()); // log port (disabled)
+
+    debug!(len = handshake.len(), "Sending handshake");
+    cmd_socket.send_to(&handshake, control_addr)
+        .await
+        .map_err(|e| LidarError::Network(format!("Failed to send handshake: {}", e)))?;
+
+    // Wait for response
+    let mut response = [0u8; 256];
+    match tokio::time::timeout(Duration::from_secs(2), cmd_socket.recv(&mut response)).await {
+        Ok(Ok(len)) => {
+            info!(len, "Received handshake response");
+            if len >= 2 && response[0] == 0xAA {
+                // Check for success (response[9] should be 0 for success in SDK2)
+                debug!(response = ?&response[..len.min(20)], "Handshake response data");
+            }
+        }
+        Ok(Err(e)) => {
+            warn!(?e, "Error receiving handshake response");
+        }
+        Err(_) => {
+            warn!("Handshake response timeout - device may not support SDK2 handshake");
+        }
+    }
+
+    // Send start sampling command
+    let mut start_cmd = Vec::with_capacity(16);
+    start_cmd.push(0xAA); // SOF
+    start_cmd.push(0x01); // Version
+    start_cmd.extend_from_slice(&8u16.to_le_bytes()); // Length (header only)
+    start_cmd.extend_from_slice(&2u32.to_le_bytes()); // Seq
+    start_cmd.push(CMD_START_SAMPLING);
+    start_cmd.push(0x00); // Request
+
+    debug!("Sending start sampling");
+    cmd_socket.send_to(&start_cmd, control_addr)
+        .await
+        .map_err(|e| LidarError::Network(format!("Failed to send start: {}", e)))?;
+
+    // Wait briefly for response
+    match tokio::time::timeout(Duration::from_secs(1), cmd_socket.recv(&mut response)).await {
+        Ok(Ok(len)) => {
+            info!(len, "Received start sampling response");
+        }
+        Ok(Err(e)) => {
+            warn!(?e, "Error receiving start response");
+        }
+        Err(_) => {
+            info!("Start sampling response timeout - continuing anyway");
+        }
+    }
+
+    info!("Livox connection sequence complete");
+    Ok(())
 }
 
 /// Run the LiDAR reader (point cloud only).
@@ -105,6 +218,11 @@ pub async fn run_reader_with_imu(
         point_port = config.point_cloud_port,
         "Starting Livox Mid360 reader"
     );
+
+    // Attempt to connect and start data streaming
+    if let Err(e) = connect_and_start(&config).await {
+        warn!(?e, "Failed to send connect/start commands - will listen anyway");
+    }
 
     // Bind UDP socket for point cloud data
     let point_addr: SocketAddr = (config.host_ip, config.point_cloud_port).into();
@@ -140,15 +258,15 @@ pub async fn run_reader_with_imu(
         tokio::select! {
             result = point_socket.recv_from(&mut point_buf) => {
                 match result {
-                    Ok((len, _src)) => {
+                    Ok((len, src)) => {
                         packet_count += 1;
-                        if packet_count % 1000 == 0 {
-                            debug!(packets = packet_count, "Point cloud packets received");
+                        if packet_count == 1 || packet_count % 1000 == 0 {
+                            debug!(packets = packet_count, len, %src, "Point cloud packet received");
                         }
 
                         match parse_point_packet(&point_buf[..len]) {
                             Ok((frame_counter, timestamp_ns, points)) => {
-                                trace!(
+                                debug!(
                                     frame_counter,
                                     points = points.len(),
                                     "Parsed point packet"
@@ -168,7 +286,7 @@ pub async fn run_reader_with_imu(
                                 }
                             }
                             Err(e) => {
-                                trace!(?e, len, "Failed to parse point packet");
+                                debug!(?e, len, "Failed to parse point packet");
                             }
                         }
                     }
@@ -216,22 +334,24 @@ fn parse_point_packet(data: &[u8]) -> Result<(u8, u64, Vec<Point3D>), LidarError
         )));
     }
 
-    // Parse header
+    // Parse header (SDK2 format for Mid-360)
     // Bytes 0: version
     // Bytes 1-2: length (little-endian)
     // Bytes 3-4: time_interval (0.1us units)
     // Bytes 5-6: dot_num (points in packet)
-    // Bytes 7-8: udp_cnt (sequence number)
-    // Byte 9: frame_cnt
+    // Bytes 7-8: udp_cnt (sequence number, u16)
+    // Byte 9: frame_cnt (per SDK2 protocol spec)
     // Byte 10: data_type
-    // Byte 11: timestamp_type
+    // Byte 11: time_type
     // Bytes 12-23: reserved
-    // Bytes 24+: point data (or with some versions, timestamp first)
+    // Bytes 24-27: crc32
+    // Bytes 28-35: timestamp (8 bytes, nanoseconds)
+    // Bytes 36+: point data
 
     let _version = data[0];
     let length = u16::from_le_bytes([data[1], data[2]]) as usize;
     let dot_num = u16::from_le_bytes([data[5], data[6]]) as usize;
-    let frame_cnt = data[9];
+    let frame_cnt = data[9]; // Byte 9 per SDK2 protocol (often 0 on Mid-360)
     let data_type = data[10];
 
     // Validate length
@@ -243,9 +363,8 @@ fn parse_point_packet(data: &[u8]) -> Result<(u8, u64, Vec<Point3D>), LidarError
         )));
     }
 
-    // Timestamp is 8 bytes after the fixed header portion
-    // In the Livox protocol, timestamp comes after initial header
-    let timestamp_offset = 16; // Approximate - may need adjustment
+    // Timestamp is at offset 28 in SDK2 header (after crc32 at offset 24)
+    let timestamp_offset = 28;
     let timestamp_ns = if data.len() >= timestamp_offset + 8 {
         u64::from_le_bytes(data[timestamp_offset..timestamp_offset + 8].try_into().unwrap_or([0; 8]))
     } else {
