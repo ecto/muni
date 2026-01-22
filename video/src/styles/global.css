@@ -1,0 +1,13 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Fonts loaded via staticFile in components that need them */
+/* Berkeley Mono is referenced in JS as FONT_MONO constant */
+
+body {
+  margin: 0;
+  padding: 0;
+  background: #0a0a0a;
+  font-family: "Berkeley Mono", ui-monospace, monospace;
+}
