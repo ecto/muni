@@ -95,7 +95,9 @@ services:
 
   # SFTP server for session file uploads from rovers
   sftp:
-    image: atmoz/sftp:alpine
+    build:
+      context: ./sftp
+      dockerfile: Dockerfile
     container_name: depot-sftp
     restart: unless-stopped
     ports:
@@ -103,12 +105,6 @@ services:
     volumes:
       # Session storage (rovers upload here)
       - sessions-data:/home/bvr/sessions
-      # SSH host keys (pre-generated, required for sshd)
-      - ./sftp/ssh_host_keys/ssh_host_ed25519_key:/etc/ssh/ssh_host_ed25519_key:ro
-      - ./sftp/ssh_host_keys/ssh_host_rsa_key:/etc/ssh/ssh_host_rsa_key:ro
-    # Format: user:password:uid:gid:directories
-    # For production: use key-based auth by mounting authorized_keys
-    command: "bvr:${SFTP_PASSWORD:-dev}:1000:1000:sessions"
 
   # Map processing service - watches sessions, builds maps
   mapper:
@@ -117,6 +113,8 @@ services:
       dockerfile: mapper/Dockerfile
     container_name: depot-mapper
     restart: unless-stopped
+    ports:
+      - "4895:4895"
     volumes:
       - sessions-data:/data/sessions:ro
       - maps-data:/data/maps
@@ -125,7 +123,13 @@ services:
       - SESSIONS_DIR=/data/sessions
       - MAPS_DIR=/data/maps
       - JOBS_DIR=/data/jobs
+      - PORT=4895
       - RUST_LOG=mapper=info
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O-", "http://localhost:4895/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
     depends_on:
       sftp:
         condition: service_started
