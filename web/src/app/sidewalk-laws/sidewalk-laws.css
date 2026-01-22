@@ -101,6 +101,39 @@
   color: var(--fg);
 }
 
+/* CTA buttons for state pages */
+.cta-inline {
+  display: inline-block;
+  background: var(--orange);
+  color: #000;
+  text-decoration: none;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.cta-inline:hover {
+  background: var(--orange-hover);
+  color: #000;
+}
+
+.cta-inline-secondary {
+  display: inline-block;
+  background: transparent;
+  color: var(--fg);
+  text-decoration: none;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  border: 1px solid var(--border);
+}
+
+.cta-inline-secondary:hover {
+  border-color: var(--orange);
+  color: var(--fg);
+  background: transparent;
+}
+
 @media (max-width: 480px) {
   .state-overview {
     grid-template-columns: 1fr;
