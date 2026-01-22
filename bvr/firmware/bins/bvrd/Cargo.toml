@@ -9,6 +9,8 @@ license.workspace = true
 default = []
 # Enable hardware GPIO support (Jetson Orin NX) for hardware e-stop
 gpio = ["hal/gpio"]
+# Enable tokio-console for runtime introspection
+console = ["dep:console-subscriber"]
 
 [dependencies]
 types = { workspace = true }
@@ -41,6 +43,9 @@ tracing-subscriber = { workspace = true }
 tracing-appender = { workspace = true }
 anyhow = { workspace = true }
 clap = { workspace = true }
+
+# Optional: tokio-console for runtime introspection
+console-subscriber = { workspace = true, optional = true }
 
 
 

@@ -12,7 +12,7 @@ use hal::EStopEvent;
 use lidar::{Config as LidarConfig, LidarReader};
 use localization::{PoseEstimator, WheelOdometry};
 use slam::{SlamConfig, SlamProcessor};
-use metrics::{Config as MetricsConfig, DiscoveryClient, DiscoveryConfig, MetricsPusher, MetricsSnapshot};
+use metrics::{Config as MetricsConfig, DiscoveryClient, DiscoveryConfig, MetricsPusher, MetricsSnapshot, SystemMetricsCollector};
 use policy::{NormalizationConfig, Policy, PolicyManager, PolicyObservation};
 use recording::{Config as RecordingConfig, Recorder};
 use serde::Deserialize;
@@ -385,6 +385,10 @@ struct Args {
     /// Dispatch service endpoint - overrides config file (e.g., "ws://192.168.1.100:4890/ws")
     #[arg(long)]
     dispatch_endpoint: Option<String>,
+
+    /// Enable tokio-console for runtime introspection (requires --features console)
+    #[arg(long)]
+    console: bool,
 }
 
 /// Parse goal position from "x,y" string.
@@ -506,7 +510,7 @@ async fn main() -> Result<()> {
 
     // Initialize logging with rolling file appender
     // The _guard must be held for the lifetime of the program to ensure logs are flushed
-    let _log_guard = init_logging(&args.log_dir, &args.log_level)?;
+    let _log_guard = init_logging(&args.log_dir, &args.log_level, args.console)?;
 
     // Load configuration file
     let file_config = FileConfig::load(&args.config)?;
@@ -524,8 +528,8 @@ async fn main() -> Result<()> {
         info!(config = ?args.config, can = %can_iface, rover = %rover_id, "Starting bvrd");
     }
 
-    // Initialize telemetry recorder
-    let recorder = if args.no_recording {
+    // Initialize telemetry recorder (paused - starts on Teleop/Autonomous entry)
+    let mut recorder = if args.no_recording {
         info!("Telemetry recording disabled");
         Recorder::disabled()
     } else {
@@ -538,18 +542,8 @@ async fn main() -> Result<()> {
             enabled: true,
             ..Default::default()
         };
-        match Recorder::new(&recording_config) {
-            Ok(r) => {
-                if let Some(path) = r.session_path() {
-                    info!(path = %path.display(), "Recording session started");
-                }
-                r
-            }
-            Err(e) => {
-                warn!(?e, "Failed to start recorder, continuing without recording");
-                Recorder::disabled()
-            }
-        }
+        info!("Recording enabled (will start on Teleop/Autonomous entry)");
+        Recorder::new_paused(&recording_config)
     };
 
     // Initialize metrics pusher for Depot
@@ -773,15 +767,20 @@ async fn main() -> Result<()> {
         dt_ms: 0.0,
         last_cmd_seq: 0,
         ack_bits: 0,
+        cpu_percent: 0,
+        mem_percent: 0,
+        disk_percent: 0,
         active_tool: None,
         tool_status: None,
         slam_status: None,
     };
     let (telemetry_tx, telemetry_rx) = watch::channel(initial_telemetry);
 
-    // Video frame channel (for WebRTC video streaming)
-    // Created early so it can be shared with RTC server before camera setup
-    let (video_tx, video_rx) = watch::channel::<Option<teleop::video::VideoFrame>>(None);
+    // Video frame channels
+    // mpsc for WebRTC: queues frames from all cameras without overwriting
+    let (video_tx_rtc, video_rx_rtc) = tokio::sync::mpsc::channel::<teleop::video::VideoFrame>(32);
+    // watch for UDP: backward compatibility for native CLI (shows latest frame only)
+    let (video_tx_udp, video_rx_udp) = watch::channel::<Option<teleop::video::VideoFrame>>(None);
 
     // Spawn teleop server (UDP)
     let teleop_config = TeleopConfig::default();
@@ -804,7 +803,7 @@ async fn main() -> Result<()> {
             rtc_config,
             cmd_tx.clone(),
             telemetry_rx.clone(),
-            video_rx.clone(),
+            video_rx_rtc,
         );
 
         tokio::spawn(async move {
@@ -897,12 +896,18 @@ async fn main() -> Result<()> {
 
                         cameras_started += 1;
 
-                        // Use the pre-created video_tx channel (shared with RTC server)
-                        let video_tx_camera = video_tx.clone();
+                        // Clone both video tx channels for this camera thread
+                        let video_tx_rtc_camera = video_tx_rtc.clone();
+                        let video_tx_udp_camera = video_tx_udp.clone();
 
-                        // Spawn task to bridge sync camera frames to async video server
+                        // Spawn task to bridge sync camera frames to async video servers
                         std::thread::spawn(move || {
+                            let mut frame_count: u64 = 0;
+                            let mut total_bytes: u64 = 0;
+                            let mut last_log = std::time::Instant::now();
+
                             while let Ok(frame) = frame_rx.recv() {
+                                let frame_size = frame.data.len();
                                 let video_frame = VideoFrame {
                                     camera_id,
                                     data: frame.data,
@@ -911,8 +916,36 @@ async fn main() -> Result<()> {
                                     sequence: frame.sequence,
                                     timestamp_ms: frame.timestamp_ms,
                                 };
-                                if video_tx_camera.send(Some(video_frame)).is_err() {
+
+                                // Send to WebRTC (mpsc - queues all frames)
+                                let send_start = std::time::Instant::now();
+                                if video_tx_rtc_camera.blocking_send(video_frame.clone()).is_err() {
                                     break;
+                                }
+                                let send_us = send_start.elapsed().as_micros();
+
+                                // Send to UDP (watch - latest frame only, for native CLI)
+                                let _ = video_tx_udp_camera.send(Some(video_frame));
+
+                                frame_count += 1;
+                                total_bytes += frame_size as u64;
+
+                                // Log stats every 5 seconds
+                                if last_log.elapsed() >= std::time::Duration::from_secs(5) {
+                                    let elapsed = last_log.elapsed().as_secs_f64();
+                                    let fps = frame_count as f64 / elapsed;
+                                    let mbps = (total_bytes as f64 * 8.0) / (elapsed * 1_000_000.0);
+                                    tracing::debug!(
+                                        camera_id,
+                                        frame_count,
+                                        fps = format!("{:.1}", fps),
+                                        mbps = format!("{:.2}", mbps),
+                                        last_send_us = send_us,
+                                        "camera.bridge_stats"
+                                    );
+                                    frame_count = 0;
+                                    total_bytes = 0;
+                                    last_log = std::time::Instant::now();
                                 }
                             }
                         });
@@ -936,8 +969,7 @@ async fn main() -> Result<()> {
 
                 // Spawn UDP video server (for native operator CLI)
                 let video_config = VideoConfig::default();
-                let video_rx_udp = video_rx.clone();
-                let video_server = VideoServer::new(video_config.clone(), video_rx_udp);
+                let video_server = VideoServer::new(video_config.clone(), video_rx_udp.clone());
                 info!(port = video_config.port, "UDP video server starting");
 
                 tokio::spawn(async move {
@@ -1066,7 +1098,7 @@ async fn main() -> Result<()> {
 
     // Track which subsystems are enabled for health reporting
     let lidar_enabled = file_config.lidar.enabled;
-    let recording_enabled = !args.no_recording && recorder.is_active();
+    let recording_enabled = recorder.is_enabled();
 
     // Control loop setup
     let mixer = DiffDriveMixer::new(chassis);
@@ -1096,6 +1128,10 @@ async fn main() -> Result<()> {
 
     // Diagnostic counter for battery logging
     let mut loop_count: u64 = 0;
+
+    // System metrics collector (CPU, memory, disk)
+    let mut sys_metrics = SystemMetricsCollector::new();
+    let mut last_sys_refresh = Instant::now();
 
     // CAN bus health tracking - avoid overwhelming driver when bus is unhealthy
     let mut can_errors_active = false;
@@ -1829,6 +1865,9 @@ async fn main() -> Result<()> {
         static TELEM_SEQ: std::sync::atomic::AtomicU16 = std::sync::atomic::AtomicU16::new(0);
         let telem_seq = TELEM_SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
 
+        // Get system metrics for telemetry (reuses cached values from sys_metrics)
+        let sys = sys_metrics.metrics();
+
         let telemetry = Telemetry {
             sequence: telem_seq,
             timestamp_us: std::time::SystemTime::now()
@@ -1851,6 +1890,9 @@ async fn main() -> Result<()> {
             dt_ms: (dt * 1000.0) as f32,
             last_cmd_seq: 0,  // TODO: populate from SequenceTracker
             ack_bits: 0,      // TODO: populate from SequenceTracker
+            cpu_percent: sys.cpu_percent as u8,
+            mem_percent: sys.mem_percent as u8,
+            disk_percent: sys.disk_percent as u8,
             active_tool,
             tool_status,
             slam_status,
@@ -1859,6 +1901,12 @@ async fn main() -> Result<()> {
         let _ = telemetry_tx.send(telemetry.clone());
 
         // Update metrics snapshot for Depot push
+        // Refresh system metrics once per second (expensive operation)
+        if last_sys_refresh.elapsed() >= Duration::from_secs(1) {
+            sys_metrics.refresh();
+            last_sys_refresh = Instant::now();
+        }
+
         let gps_state = gps_rx.borrow();
         let metrics_snapshot = MetricsSnapshot {
             mode: telemetry.mode,
@@ -1871,6 +1919,7 @@ async fn main() -> Result<()> {
             gps_latitude: gps_state.coord.as_ref().map(|c| c.lat).unwrap_or(0.0),
             gps_longitude: gps_state.coord.as_ref().map(|c| c.lon).unwrap_or(0.0),
             gps_accuracy: gps_state.coord.as_ref().map(|c| c.accuracy).unwrap_or(0.0),
+            system: sys_metrics.metrics(),
             ..Default::default()
         };
         drop(gps_state);
@@ -1904,6 +1953,22 @@ async fn main() -> Result<()> {
         // Log mode changes and update LEDs
         let current_mode = telemetry.mode;
         if current_mode != last_mode {
+            // Start/stop recording based on mode (only record during Teleop/Autonomous)
+            let should_record = matches!(current_mode, Mode::Teleop | Mode::Autonomous);
+            let was_recording = matches!(last_mode, Mode::Teleop | Mode::Autonomous);
+
+            if should_record && !was_recording {
+                // Entering a recording mode - start session
+                if let Err(e) = recorder.start_session() {
+                    warn!(?e, "Failed to start recording session");
+                } else if let Some(path) = recorder.session_path() {
+                    info!(path = %path.display(), mode = ?current_mode, "Recording session started");
+                }
+            } else if !should_record && was_recording {
+                // Leaving a recording mode - end session
+                recorder.end_session();
+            }
+
             let _ = recorder.log_mode(current_mode);
 
             // Send LED command for new mode
@@ -1932,6 +1997,7 @@ async fn main() -> Result<()> {
 fn init_logging(
     log_dir: &std::path::Path,
     level: &str,
+    enable_console: bool,
 ) -> Result<tracing_appender::non_blocking::WorkerGuard> {
     // Create log directory if it doesn't exist
     if let Err(e) = std::fs::create_dir_all(log_dir) {
@@ -1969,11 +2035,40 @@ fn init_logging(
         .with_ansi(false)
         .with_target(true);
 
-    tracing_subscriber::registry()
-        .with(filter)
-        .with(stdout_layer)
-        .with(file_layer)
-        .init();
+    // Initialize with or without console-subscriber
+    #[cfg(feature = "console")]
+    {
+        if enable_console {
+            // Use console_subscriber's builder which handles layer composition
+            console_subscriber::ConsoleLayer::builder()
+                .server_addr(([0, 0, 0, 0], 6669))
+                .with_default_env()
+                .init();
+
+            eprintln!("tokio-console enabled on port 6669 (default tracing, file logging disabled)");
+
+            // Note: When using console, we use its built-in subscriber setup
+            // File logging is disabled in this mode for simplicity
+            return Ok(guard);
+        }
+
+        // Non-console path
+        tracing_subscriber::registry()
+            .with(filter)
+            .with(stdout_layer)
+            .with(file_layer)
+            .init();
+    }
+
+    #[cfg(not(feature = "console"))]
+    {
+        let _ = enable_console; // Suppress unused warning
+        tracing_subscriber::registry()
+            .with(filter)
+            .with(stdout_layer)
+            .with(file_layer)
+            .init();
+    }
 
     Ok(guard)
 }
