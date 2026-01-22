@@ -407,6 +407,7 @@ sftp -P 2222 -i path/to/key bvr@localhost
 | Grafana       | http://localhost/grafana/ | (proxied)    |
 | InfluxDB      | http://localhost:8086     | 8086         |
 | Discovery API | http://localhost:4860     | 4860         |
+| Mapper API    | http://localhost:4895     | 4895         |
 | SFTP          | sftp://localhost:2222     | 2222         |
 | NTRIP         | ntrip://localhost:2101    | 2101         |
 

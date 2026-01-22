@@ -6,8 +6,9 @@ Depot is the base station infrastructure for the Muni robot fleet. It provides:
 - **Dispatch** for mission planning, zone management, and task scheduling
 - **Real-time metrics** via InfluxDB (battery, motors, GPS, mode)
 - **Fleet dashboards** via Grafana (fleet overview + per-rover detail)
-- **Session storage** via SFTP (rovers upload recordings)
-- **Map processing** via Mapper service (orchestrates splatting jobs)
+- **Session storage** via SFTP (rovers sync `.rrd` recordings)
+- **Session browser** via Mapper API (list and download sessions)
+- **Map processing** via Mapper service (orchestrates splatting jobs) [WIP]
 - **Gaussian splatting** via Splat Worker (GPU-accelerated 3D reconstruction)
 - **Map serving** via Map API (browse and download 3D maps)
 - **RTK corrections** via NTRIP caster (centimeter-accurate GPS)
@@ -106,6 +107,7 @@ External services (direct access):
 | Discovery | http://localhost:4860 | None (internal)                       |
 | Dispatch  | ws://localhost:4890   | None (internal)                       |
 | Map API   | http://localhost:4870 | None (internal)                       |
+| Mapper    | http://localhost:4895 | None (internal)                       |
 
 ### GPU Support (for Gaussian Splatting)
 
@@ -126,6 +128,85 @@ docker compose --profile rtk up -d
 ```
 
 See [RTK documentation](../docs/hardware/rtk.md) for hardware setup.
+
+## Sessions (Telemetry Recording)
+
+Rovers record telemetry to [Rerun](https://rerun.io/) `.rrd` files and sync them to Depot for viewing and analysis.
+
+### Data Flow
+
+```
+Rover                           Depot
+┌─────────────────┐             ┌─────────────────────────────────┐
+│ bvrd records    │             │                                 │
+│ /var/log/bvr/   │  rclone     │  SFTP (:2222)                   │
+│   sessions/     │────sync────▶│  /data/sessions/                │
+│     *.rrd       │  (15 min)   │                                 │
+└─────────────────┘             │  Mapper (:4895)                 │
+                                │  - Lists sessions               │
+                                │  - Serves downloads             │
+                                │                                 │
+                                │  Console (/sessions)            │
+                                │  - Browse sessions              │
+                                │  - Download for Rerun viewer    │
+                                └─────────────────────────────────┘
+```
+
+### Session Format
+
+Sessions are recorded as `.rrd` files containing:
+- **Poses**: Robot position and orientation over time
+- **Motor telemetry**: RPM, current, temperature for each wheel
+- **GPS**: RTK position, fix quality, satellite count
+- **IMU**: Accelerometer and gyroscope data
+- **Camera** (optional): Video frames if enabled
+- **LiDAR** (optional): Point clouds if equipped
+
+### Viewing Sessions
+
+1. **Console**: Browse and download at `/sessions`
+2. **Rerun Viewer**: Open downloaded `.rrd` files in the [Rerun app](https://rerun.io/docs/getting-started/installing-viewer)
+3. **Programmatic**: Use the Rerun Python/Rust SDK to extract data
+
+```bash
+# Install Rerun viewer
+pip install rerun-sdk
+
+# Open a session
+rerun session.rrd
+```
+
+### Mapper API
+
+The Mapper service provides a REST API for sessions:
+
+| Method | Path | Description |
+| ------ | ---- | ----------- |
+| GET | `/api/mapper/health` | Health check |
+| GET | `/api/mapper/sessions` | List all sessions |
+| GET | `/api/mapper/sessions/:name` | Download session file |
+
+Example:
+```bash
+# List sessions
+curl http://depot/api/mapper/sessions
+
+# Download a session
+curl -O http://depot/api/mapper/sessions/frog-0_1768858453.rrd
+```
+
+### Rover Sync Configuration
+
+Sessions sync automatically via systemd timer. See [bvr/firmware/README.md](../bvr/firmware/README.md#session-recording--sync) for rover-side setup.
+
+### Future: Map Processing
+
+The Mapper service is designed to process sessions into 3D maps via Gaussian splatting. This requires:
+1. Extracting poses and images from `.rrd` files
+2. Running the splat-worker GPU pipeline
+3. Storing results in the map registry
+
+This pipeline is not yet implemented. Currently, sessions are stored and viewable but not automatically processed into maps.
 
 ## Dispatch (Mission Planning)
 
@@ -441,6 +522,7 @@ docker compose logs -f influxdb
 | 4860 | TCP      | Discovery  | Rover registration        |
 | 4870 | TCP      | Map API    | Map serving               |
 | 4890 | TCP      | Dispatch   | Mission/task WebSocket    |
+| 4895 | TCP      | Mapper     | Session API               |
 | 5432 | TCP      | PostgreSQL | Database (internal)       |
 | 8086 | TCP      | InfluxDB   | HTTP API + Web UI         |
 | 8089 | UDP      | InfluxDB   | Line protocol metrics     |
