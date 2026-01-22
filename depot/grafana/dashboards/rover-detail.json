@@ -221,6 +221,189 @@
           "query": "from(bucket: \"muni\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"rover_status\" and r.rover == \"${rover}\" and r._field == \"mode\")"
         }
       ]
+    },
+    {
+      "id": 10,
+      "title": "Load Average (1m)",
+      "type": "gauge",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 24 },
+      "datasource": { "type": "influxdb", "uid": "influxdb" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "min": 0,
+          "max": 8,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 3 },
+              { "color": "red", "value": 4 }
+            ]
+          }
+        }
+      },
+      "options": { "showThresholdLabels": false, "showThresholdMarkers": true },
+      "targets": [
+        {
+          "refId": "A",
+          "query": "from(bucket: \"muni\")\n  |> range(start: -5m)\n  |> filter(fn: (r) => r._measurement == \"system\" and r.rover == \"${rover}\" and r._field == \"load1\")\n  |> last()"
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "title": "bvrd CPU",
+      "type": "gauge",
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 24 },
+      "datasource": { "type": "influxdb", "uid": "influxdb" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 400,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 100 },
+              { "color": "red", "value": 200 }
+            ]
+          }
+        }
+      },
+      "options": { "showThresholdLabels": false, "showThresholdMarkers": true },
+      "targets": [
+        {
+          "refId": "A",
+          "query": "from(bucket: \"muni\")\n  |> range(start: -5m)\n  |> filter(fn: (r) => r._measurement == \"system\" and r.rover == \"${rover}\" and r._field == \"process_cpu\")\n  |> last()"
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "title": "Memory",
+      "type": "gauge",
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 24 },
+      "datasource": { "type": "influxdb", "uid": "influxdb" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 70 },
+              { "color": "red", "value": 90 }
+            ]
+          }
+        }
+      },
+      "options": { "showThresholdLabels": false, "showThresholdMarkers": true },
+      "targets": [
+        {
+          "refId": "A",
+          "query": "from(bucket: \"muni\")\n  |> range(start: -5m)\n  |> filter(fn: (r) => r._measurement == \"system\" and r.rover == \"${rover}\" and r._field == \"mem\")\n  |> last()"
+        }
+      ]
+    },
+    {
+      "id": 13,
+      "title": "Disk",
+      "type": "gauge",
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 24 },
+      "datasource": { "type": "influxdb", "uid": "influxdb" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 70 },
+              { "color": "red", "value": 90 }
+            ]
+          }
+        }
+      },
+      "options": { "showThresholdLabels": false, "showThresholdMarkers": true },
+      "targets": [
+        {
+          "refId": "A",
+          "query": "from(bucket: \"muni\")\n  |> range(start: -5m)\n  |> filter(fn: (r) => r._measurement == \"system\" and r.rover == \"${rover}\" and r._field == \"disk\")\n  |> last()"
+        }
+      ]
+    },
+    {
+      "id": 14,
+      "title": "CPU & Load Over Time",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 28 },
+      "datasource": { "type": "influxdb", "uid": "influxdb" },
+      "fieldConfig": {
+        "defaults": {
+          "custom": { "fillOpacity": 10 }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "load1" },
+            "properties": [{ "id": "displayName", "value": "Load (1m)" }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "load5" },
+            "properties": [{ "id": "displayName", "value": "Load (5m)" }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "process_cpu" },
+            "properties": [{ "id": "displayName", "value": "bvrd CPU %" }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "cpu" },
+            "properties": [{ "id": "displayName", "value": "System CPU %" }]
+          }
+        ]
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "query": "from(bucket: \"muni\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"system\" and r.rover == \"${rover}\" and (r._field == \"load1\" or r._field == \"load5\" or r._field == \"process_cpu\" or r._field == \"cpu\"))\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)"
+        }
+      ]
+    },
+    {
+      "id": 15,
+      "title": "Memory & Disk Over Time",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 28 },
+      "datasource": { "type": "influxdb", "uid": "influxdb" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "custom": { "fillOpacity": 10 }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "mem" },
+            "properties": [{ "id": "displayName", "value": "Memory %" }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "disk" },
+            "properties": [{ "id": "displayName", "value": "Disk %" }]
+          }
+        ]
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "query": "from(bucket: \"muni\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"system\" and r.rover == \"${rover}\" and (r._field == \"mem\" or r._field == \"disk\"))\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)"
+        }
+      ]
     }
   ]
 }
