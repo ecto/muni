@@ -945,29 +945,33 @@ async fn main() -> Result<()> {
                         let video_tx_rtc_camera = video_tx_rtc.clone();
                         let video_tx_udp_camera = video_tx_udp.clone();
 
-                        // Spawn async task to bridge sync channel to async video servers
-                        // Uses spawn_blocking to avoid blocking the tokio runtime
+                        // Bridge sync channel to async using spawn_blocking for proper blocking receive.
+                        // This avoids the CPU-spinning issue with try_recv polling.
+                        let (async_tx, mut async_rx) = mpsc::channel::<camera::Frame>(4);
+
+                        // Blocking task: receive from sync channel, send to async channel
+                        tokio::task::spawn_blocking(move || {
+                            loop {
+                                // Blocking receive - waits for frame without spinning
+                                match frame_rx.recv() {
+                                    Ok(frame) => {
+                                        // Send to async channel (blocking if full, which throttles camera)
+                                        if async_tx.blocking_send(frame).is_err() {
+                                            break; // Receiver dropped
+                                        }
+                                    }
+                                    Err(_) => break, // Camera thread stopped
+                                }
+                            }
+                        });
+
+                        // Async task: receive from async channel, forward to video servers
                         tokio::spawn(async move {
                             let mut frame_count: u64 = 0;
                             let mut total_bytes: u64 = 0;
                             let mut last_log = std::time::Instant::now();
 
-                            // Bridge sync mpsc to async - use try_recv in a loop with yield
-                            loop {
-                                // Try to receive without blocking
-                                let frame = match frame_rx.try_recv() {
-                                    Ok(frame) => frame,
-                                    Err(std::sync::mpsc::TryRecvError::Empty) => {
-                                        // No frame ready, yield and try again
-                                        tokio::time::sleep(std::time::Duration::from_millis(1)).await;
-                                        continue;
-                                    }
-                                    Err(std::sync::mpsc::TryRecvError::Disconnected) => {
-                                        // Camera thread stopped
-                                        break;
-                                    }
-                                };
-
+                            while let Some(frame) = async_rx.recv().await {
                                 let frame_size = frame.data.len();
                                 // frame.data is already Arc<Vec<u8>> - zero-copy sharing
                                 let video_frame = VideoFrame {

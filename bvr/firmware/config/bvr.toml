@@ -175,3 +175,39 @@ lidar_ip = "192.168.1.100"
 point_cloud_port = 56301
 # IMU data UDP port (Livox default: 56401, 0 to disable)
 imu_port = 56401
+# Point cloud streaming settings (for teleop visualization)
+stream_voxel_size = 0.2   # Voxel size for downsampling (meters), smaller = more detail
+stream_max_points = 1000  # Maximum points per frame for streaming
+
+[slam]
+# Enable SLAM (Simultaneous Localization and Mapping)
+enabled = true
+# Resolution for scan matching correlation grid (meters)
+scan_match_resolution = 0.05
+# Distance threshold for inserting new keyframe (meters)
+keyframe_distance = 1.0
+# Rotation threshold for inserting new keyframe (radians)
+keyframe_rotation = 0.5
+# Score threshold for accepting loop closure match (0.0-1.0)
+loop_closure_threshold = 0.7
+
+[camera]
+# Enable camera capture
+enabled = true
+# Maximum number of cameras to initialize
+# Set to 1 on Jetson to reduce CPU usage (~35% per camera)
+# Set to 0 to use all detected cameras
+max_cameras = 1
+
+[kiosk]
+# Dashboard kiosk mode on the rover's local display
+# When enabled, Firefox opens in fullscreen kiosk mode on boot
+# Disable to save ~12% CPU when the local display isn't needed
+#
+# To apply changes, run on the rover:
+#   Enable:  sed -i 's/X-GNOME-Autostart-enabled=false/X-GNOME-Autostart-enabled=true/' ~/.config/autostart/bvr-kiosk.desktop
+#   Disable: sed -i 's/X-GNOME-Autostart-enabled=true/X-GNOME-Autostart-enabled=false/' ~/.config/autostart/bvr-kiosk.desktop
+# Then reboot or manually start/kill Firefox.
+enabled = false
+# URL to display in kiosk mode
+url = "http://localhost:8080"
