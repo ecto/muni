@@ -15,6 +15,8 @@ export default function AboutPage() {
         <NavBar />
 
         <main className="content">
+          <h1 className="sr-only">About Municipal Robotics</h1>
+
           <Card title="WHY WE BUILD">
             <Pre>
 {`We watched people (parents with strollers, elderly neighbors,

@@ -16,6 +16,8 @@ export default function InvestorsPage() {
         <NavBar />
 
         <main className="content investor-content">
+          <h1 className="sr-only">Investor Information</h1>
+
           <Card title="THE PROBLEM">
             <div className="problem-images">
               <figure className="problem-image">

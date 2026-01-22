@@ -20,6 +20,85 @@ export const metadata: Metadata = {
   title: "Products",
   description:
     "BVR1 autonomous sidewalk rover: 4-wheel skid-steer, Jetson Orin NX, modular attachments.",
+  alternates: {
+    canonical: "https://muni.works/products",
+  },
+};
+
+const productSchema = {
+  "@context": "https://schema.org",
+  "@type": "Product",
+  name: "BVR1 Autonomous Sidewalk Rover",
+  description:
+    "Fully autonomous sidewalk clearing robot. 4-wheel skid-steer platform with Jetson Orin NX, Livox LiDAR, and modular tool attachments.",
+  image: "https://muni.works/images/bvr1.png",
+  brand: {
+    "@type": "Brand",
+    name: "Municipal Robotics",
+  },
+  offers: {
+    "@type": "Offer",
+    price: "18000",
+    priceCurrency: "USD",
+    availability: "https://schema.org/PreOrder",
+    url: "https://muni.works/products#get-started",
+  },
+  aggregateRating: undefined, // Remove when reviews are available
+};
+
+const faqSchema = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  mainEntity: [
+    {
+      "@type": "Question",
+      name: "Is the BVR1 fully autonomous?",
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: "Yes. BVR operates autonomously using HD maps + real-time LiDAR. The rover plans paths, avoids obstacles, and navigates without human supervision. Remote monitoring and override capability available through secure web interface.",
+      },
+    },
+    {
+      "@type": "Question",
+      name: "Do I need supervision for the rover?",
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: "No continuous supervision required. The multi-layer safety system (LiDAR + computer vision + e-stop) prevents collisions automatically. Remote monitoring optional for peace of mind.",
+      },
+    },
+    {
+      "@type": "Question",
+      name: "How does the safety system work?",
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: "The Livox Mid-360 LiDAR scans 360° × 59° FOV at 200k points/sec. If anything enters the 1.5m safety radius, immediate E-stop. This is pure geometry, no ML. At 1 m/s, it stops within 22cm of detection.",
+      },
+    },
+    {
+      "@type": "Question",
+      name: "How long does the battery last?",
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: "BVR1: 4-8 hours depending on tool usage and terrain. Quick-swap battery packs enable extended operation.",
+      },
+    },
+    {
+      "@type": "Question",
+      name: "What is the total cost of ownership?",
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: "Hardware: $18,000 (one-time). Software: $300/month (optional, can self-host free). LTE data: $30-50/month per rover. Electricity: ~$10/day per rover. Maintenance: ~$500/year per rover. Labor: $0 (fully autonomous).",
+      },
+    },
+    {
+      "@type": "Question",
+      name: "Is everything really open source?",
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: "Yes. All firmware, CAD files, schematics, and documentation are on GitHub under permissive licenses (MIT, Apache 2.0). You can build your own BVR0 for ~$5,000.",
+      },
+    },
+  ],
 };
 
 export default function ProductsPage() {
@@ -30,6 +109,8 @@ export default function ProductsPage() {
         <NavBar />
 
         <main className="content">
+          <h1 className="sr-only">BVR1 Autonomous Sidewalk Rover</h1>
+
           {/* HERO */}
           <Card>
             <Pre>
@@ -621,6 +702,15 @@ Questions? `}
 
         <Footer />
       </div>
+
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(productSchema) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
+      />
     </div>
   );
 }

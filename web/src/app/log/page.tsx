@@ -15,6 +15,8 @@ export default function LogPage() {
         <NavBar />
 
         <main className="content">
+          <h1 className="sr-only">Engineering Log</h1>
+
           <Card title="ATTACHMENT MCU FIRMWARE">
             <Pre>
               <span className="entry-date">2025-12-28</span>

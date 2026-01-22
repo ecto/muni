@@ -16,6 +16,8 @@ export default function DocsPage() {
         <NavBar />
 
         <main className="content">
+          <h1 className="sr-only">Documentation</h1>
+
           <Card title="TECHNICAL MANUALS" highlight>
             <Pre>
               <a href="/docs/bvr0-manual.pdf">BVR0 Technical Manual</a>

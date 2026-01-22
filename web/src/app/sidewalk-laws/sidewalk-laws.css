@@ -1,0 +1,108 @@
+.states-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.state-card {
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  text-decoration: none;
+  transition: border-color 0.15s ease;
+}
+
+.state-card:hover {
+  border-color: var(--orange);
+  background: var(--card-bg);
+}
+
+.state-abbr {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--orange);
+  line-height: 1;
+  margin-bottom: 4px;
+}
+
+.state-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--fg);
+  margin-bottom: 4px;
+}
+
+.state-snow {
+  font-size: 11px;
+  color: var(--fg-muted);
+}
+
+/* State detail page styles */
+.state-overview {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.overview-stat {
+  text-align: center;
+  padding: 16px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+}
+
+.overview-stat .stat-value {
+  display: block;
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--orange);
+  line-height: 1;
+  margin-bottom: 4px;
+}
+
+.overview-stat .stat-label {
+  display: block;
+  font-size: 11px;
+  color: var(--fg-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.other-states {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.other-state-link {
+  display: inline-block;
+  padding: 4px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--fg);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  text-decoration: none;
+}
+
+.other-state-link:hover {
+  border-color: var(--orange);
+  background: var(--bg);
+}
+
+.state-page-title {
+  font-size: 24px;
+  font-weight: 700;
+  margin-bottom: 32px;
+  color: var(--fg);
+}
+
+@media (max-width: 480px) {
+  .state-overview {
+    grid-template-columns: 1fr;
+  }
+}
