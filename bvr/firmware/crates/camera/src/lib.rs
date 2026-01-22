@@ -9,6 +9,7 @@ use gstreamer_app as gst_app;
 use image::codecs::jpeg::JpegEncoder;
 use std::io::Cursor;
 use std::sync::mpsc;
+use std::sync::Arc;
 use thiserror::Error;
 use tracing::{debug, error, info, trace, warn};
 
@@ -69,10 +70,13 @@ impl Default for Config {
 }
 
 /// A captured and encoded frame.
+///
+/// Uses `Arc<Vec<u8>>` for zero-copy sharing between multiple consumers
+/// (WebRTC, UDP streaming). Clone is cheap (~8 bytes atomic increment).
 #[derive(Debug, Clone)]
 pub struct Frame {
-    /// JPEG-encoded image data
-    pub data: Vec<u8>,
+    /// JPEG-encoded image data (Arc for zero-copy sharing)
+    pub data: Arc<Vec<u8>>,
     /// Frame width
     pub width: u32,
     /// Frame height
@@ -686,7 +690,7 @@ fn capture_loop(
                 );
 
                 let frame = Frame {
-                    data: jpeg_buf,
+                    data: Arc::new(jpeg_buf),
                     width,
                     height,
                     timestamp_ms,

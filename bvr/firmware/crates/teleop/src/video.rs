@@ -12,6 +12,9 @@ use tokio::net::UdpSocket;
 use tokio::sync::watch;
 use tracing::{debug, error, trace, warn};
 
+// Re-export Arc for convenience
+pub use std::sync::Arc as DataArc;
+
 /// Maximum payload per UDP packet (leaving room for headers).
 const MAX_CHUNK_SIZE: usize = 1400;
 
@@ -37,12 +40,15 @@ impl Default for VideoConfig {
 }
 
 /// A video frame ready for display.
+///
+/// Uses `Arc<Vec<u8>>` for zero-copy sharing between WebRTC and UDP streaming.
+/// Clone is cheap (~8 bytes atomic increment instead of copying 50-100KB).
 #[derive(Debug, Clone)]
 pub struct VideoFrame {
     /// Camera ID (0, 1, etc. for multi-camera setups)
     pub camera_id: u8,
-    /// JPEG-encoded image data
-    pub data: Vec<u8>,
+    /// JPEG-encoded image data (Arc for zero-copy sharing)
+    pub data: Arc<Vec<u8>>,
     /// Frame width
     pub width: u32,
     /// Frame height
@@ -216,7 +222,7 @@ impl FrameReassembler {
 
             return Some(VideoFrame {
                 camera_id: 0, // UDP protocol doesn't support camera_id yet
-                data,
+                data: Arc::new(data),
                 width: partial.width,
                 height: partial.height,
                 sequence,
@@ -253,7 +259,7 @@ mod tests {
     fn test_encode_decode_small_frame() {
         let frame = VideoFrame {
             camera_id: 0,
-            data: vec![0xFF, 0xD8, 0xFF, 0xE0], // Minimal JPEG header
+            data: Arc::new(vec![0xFF, 0xD8, 0xFF, 0xE0]), // Minimal JPEG header
             width: 640,
             height: 480,
             sequence: 42,
@@ -269,7 +275,7 @@ mod tests {
         assert_eq!(decoded.sequence, 42);
         assert_eq!(decoded.width, 640);
         assert_eq!(decoded.height, 480);
-        assert_eq!(decoded.data, frame.data);
+        assert_eq!(*decoded.data, *frame.data);
     }
 
     #[test]
@@ -277,7 +283,7 @@ mod tests {
         // Create a frame larger than one packet
         let frame = VideoFrame {
             camera_id: 1,
-            data: vec![0xAB; 5000],
+            data: Arc::new(vec![0xAB; 5000]),
             width: 1280,
             height: 720,
             sequence: 100,
