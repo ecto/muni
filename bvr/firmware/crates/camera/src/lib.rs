@@ -2,6 +2,9 @@
 //!
 //! Uses GStreamer for camera capture, supporting both USB (v4l2src) and
 //! CSI cameras (nvarguscamerasrc on Jetson).
+//!
+//! CSI cameras use a subprocess architecture to avoid GStreamer/tokio conflicts.
+//! See the `subprocess` module for details.
 
 use gstreamer as gst;
 use gstreamer::prelude::*;
@@ -12,6 +15,10 @@ use std::sync::mpsc;
 use std::sync::Arc;
 use thiserror::Error;
 use tracing::{debug, error, info, trace, warn};
+
+// Subprocess backend for CSI cameras (Linux only)
+#[cfg(target_os = "linux")]
+pub mod subprocess;
 
 #[derive(Error, Debug)]
 pub enum CameraError {

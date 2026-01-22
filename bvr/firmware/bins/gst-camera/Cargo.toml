@@ -1,0 +1,18 @@
+[package]
+name = "gst-camera"
+description = "GStreamer camera capture subprocess for bvrd"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+clap = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+
+# GStreamer for camera capture
+gstreamer = "0.23"
+gstreamer-app = "0.23"
+
+# Signal handling
+ctrlc = "3.4"
