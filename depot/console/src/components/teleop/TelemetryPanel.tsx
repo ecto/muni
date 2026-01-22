@@ -6,6 +6,7 @@ import {
   TooltipTrigger,
   TooltipContent,
 } from "@/components/ui/tooltip";
+import { Sparkline, getChannelColor } from "@/components/ui/sparkline";
 import {
   BatteryFull,
   BatteryLow,
@@ -22,6 +23,7 @@ import {
   CaretRight,
   Cpu,
   HardDrives,
+  WifiHigh,
 } from "@phosphor-icons/react";
 import { useConsoleStore } from "@/store";
 import { Mode, ModeLabels, CameraMode, WheelStatus } from "@/lib/types";
@@ -119,7 +121,7 @@ interface TelemetryPanelProps {
 }
 
 export function TelemetryPanel({ onToggleLidar }: TelemetryPanelProps) {
-  const { telemetry, connected, latencyMs, renderPose, cameraMode, setCameraMode, pointCloudEnabled, setPointCloudEnabled } = useConsoleStore();
+  const { telemetry, connected, latencyMs, renderPose, cameraMode, setCameraMode, pointCloudEnabled, setPointCloudEnabled, channelMetrics } = useConsoleStore();
   const [collapsed, setCollapsed] = useState(false);
 
   const batteryPercent = getBatteryPercent(telemetry.power.battery_voltage);
@@ -330,6 +332,44 @@ export function TelemetryPanel({ onToggleLidar }: TelemetryPanelProps) {
                 )}
                 <HealthIndicator label="SLAM" healthy={telemetry.health.slam_running} tooltip="Simultaneous Localization and Mapping running" />
                 <HealthIndicator label="Rec" healthy={telemetry.health.recording_active} tooltip="Session recording to .rrd file" />
+              </div>
+            </div>
+          )}
+
+          {/* Channel Metrics */}
+          {connected && (
+            <div className="space-y-1 pt-1 border-t border-border">
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <WifiHigh className="h-3.5 w-3.5" weight="fill" />
+                Channels
+              </div>
+              <div className="space-y-0.5">
+                {[
+                  { key: "telemetry", label: "Telem", tooltip: "Telemetry data channel (~30-60 msg/s)" },
+                  { key: "video", label: "Video", tooltip: "Video frames channel (~10-15 FPS per camera)" },
+                  { key: "pointcloud", label: "Cloud", tooltip: "LiDAR point cloud channel (~5 msg/s when enabled)" },
+                ].map(({ key, label, tooltip }) => {
+                  const metrics = channelMetrics.get(key);
+                  const rate = metrics?.messagesPerSec ?? 0;
+                  const lastTime = metrics?.lastMessageTime ?? 0;
+                  const history = metrics?.history ?? [];
+                  const color = getChannelColor(rate, lastTime, connected);
+
+                  return (
+                    <Tooltip key={key}>
+                      <TooltipTrigger asChild>
+                        <div className="flex items-center justify-between text-xs cursor-help">
+                          <span className="text-muted-foreground w-10">{label}</span>
+                          <Sparkline data={history} color={color} width={48} height={14} />
+                          <span className="font-mono text-stone-900 dark:text-stone-100 w-10 text-right" style={{ color }}>
+                            {rate.toFixed(0)}/s
+                          </span>
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent side="right">{tooltip}</TooltipContent>
+                    </Tooltip>
+                  );
+                })}
               </div>
             </div>
           )}

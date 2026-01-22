@@ -66,6 +66,8 @@ export function useRoverConnectionRtc() {
     setVideoFrame,
     setCameraFrame,
     setPointCloud,
+    updateChannelMetrics,
+    resetChannelMetrics,
   } = useConsoleStore();
 
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
@@ -89,6 +91,17 @@ export function useRoverConnectionRtc() {
   const lastVideoFpsUpdateRef = useRef(0);
   const cameraBlobUrlsRef = useRef<Map<number, string>>(new Map());
   const firstFrameLoggedRef = useRef(false);
+
+  // Channel metrics tracking
+  const channelStatsRef = useRef<Map<string, { count: number; lastTime: number }>>(
+    new Map([
+      ["telemetry", { count: 0, lastTime: 0 }],
+      ["video", { count: 0, lastTime: 0 }],
+      ["pointcloud", { count: 0, lastTime: 0 }],
+    ])
+  );
+  const metricsIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const lastMetricsUpdateRef = useRef<number>(performance.now());
 
   // Current input state (updated from main thread)
   const currentInputRef = useRef({
@@ -123,6 +136,10 @@ export function useRoverConnectionRtc() {
     if (inputIntervalRef.current) {
       clearInterval(inputIntervalRef.current);
       inputIntervalRef.current = null;
+    }
+    if (metricsIntervalRef.current) {
+      clearInterval(metricsIntervalRef.current);
+      metricsIntervalRef.current = null;
     }
   }, []);
 
@@ -221,6 +238,30 @@ export function useRoverConnectionRtc() {
           }
         }, HEARTBEAT_INTERVAL_MS);
 
+        // Start metrics calculation interval (1Hz)
+        lastMetricsUpdateRef.current = performance.now();
+        metricsIntervalRef.current = setInterval(() => {
+          const now = performance.now();
+          const elapsed = (now - lastMetricsUpdateRef.current) / 1000; // seconds
+          lastMetricsUpdateRef.current = now;
+
+          channelStatsRef.current.forEach((stats, channelName) => {
+            const messagesPerSec = elapsed > 0 ? stats.count / elapsed : 0;
+            stats.count = 0; // Reset count for next interval
+
+            // Get existing history and append new sample (keep last 30)
+            const existing = useConsoleStore.getState().channelMetrics.get(channelName);
+            const history = existing?.history ?? [];
+            const newHistory = [...history, messagesPerSec].slice(-30);
+
+            updateChannelMetrics(channelName, {
+              messagesPerSec,
+              lastMessageTime: stats.lastTime,
+              history: newHistory,
+            });
+          });
+        }, 1000);
+
         // Start polling input state
         inputIntervalRef.current = setInterval(() => {
           const { input } = useConsoleStore.getState();
@@ -286,6 +327,13 @@ export function useRoverConnectionRtc() {
           channel.binaryType = "arraybuffer";
           channel.onmessage = (msgEvent) => {
             if (msgEvent.data instanceof ArrayBuffer) {
+              // Track channel metrics
+              const stats = channelStatsRef.current.get("telemetry");
+              if (stats) {
+                stats.count++;
+                stats.lastTime = performance.now();
+              }
+
               const decoded = decodeTelemetry(msgEvent.data);
               if (decoded) {
                 const telemetry = telemetryFromDecoded(decoded);
@@ -337,6 +385,13 @@ export function useRoverConnectionRtc() {
             if (!(msgEvent.data instanceof ArrayBuffer)) {
               console.warn("[WebRTC] Video message not ArrayBuffer:", typeof msgEvent.data);
               return;
+            }
+
+            // Track channel metrics
+            const stats = channelStatsRef.current.get("video");
+            if (stats) {
+              stats.count++;
+              stats.lastTime = performance.now();
             }
 
             const frame = decodeVideoFrame(msgEvent.data);
@@ -393,6 +448,13 @@ export function useRoverConnectionRtc() {
             if (!(msgEvent.data instanceof ArrayBuffer)) {
               console.warn("[WebRTC] Pointcloud message not ArrayBuffer");
               return;
+            }
+
+            // Track channel metrics
+            const stats = channelStatsRef.current.get("pointcloud");
+            if (stats) {
+              stats.count++;
+              stats.lastTime = performance.now();
             }
 
             const cloud = decodePointCloud(msgEvent.data);
@@ -512,6 +574,7 @@ export function useRoverConnectionRtc() {
     setVideoFrame,
     setCameraFrame,
     setPointCloud,
+    updateChannelMetrics,
     clearIntervals,
     sendCommands,
   ]);
@@ -526,6 +589,9 @@ export function useRoverConnectionRtc() {
 
     // Release operator status on disconnect
     isOperatorRef.current = false;
+
+    // Reset channel metrics
+    resetChannelMetrics();
 
     if (reconnectTimeoutRef.current) {
       clearTimeout(reconnectTimeoutRef.current);
@@ -547,7 +613,7 @@ export function useRoverConnectionRtc() {
     setVideoConnected(false);
     setVideoFrame(null, 0);
     setVideoFps(0);
-  }, [clearIntervals, setConnected, setVideoConnected, setVideoFrame, setVideoFps]);
+  }, [clearIntervals, setConnected, setVideoConnected, setVideoFrame, setVideoFps, resetChannelMetrics]);
 
   // Stable disconnect ref for cleanup
   const disconnectRef = useRef(disconnect);

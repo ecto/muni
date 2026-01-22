@@ -22,6 +22,14 @@ import {
 
 export type Theme = "light" | "dark" | "system";
 
+// Channel health metrics for WebRTC diagnostics
+export interface ChannelMetrics {
+  name: string;
+  messagesPerSec: number;
+  lastMessageTime: number; // performance.now()
+  history: number[]; // Last 30 samples of messagesPerSec
+}
+
 interface ConsoleState {
   // Fleet management
   rovers: RoverInfo[];
@@ -109,6 +117,11 @@ interface ConsoleState {
   // Theme
   theme: Theme;
   setTheme: (theme: Theme) => void;
+
+  // Channel metrics (WebRTC diagnostics)
+  channelMetrics: Map<string, ChannelMetrics>;
+  updateChannelMetrics: (name: string, metrics: Partial<ChannelMetrics>) => void;
+  resetChannelMetrics: () => void;
 }
 
 const defaultTelemetry: Telemetry = {
@@ -268,6 +281,28 @@ export const useConsoleStore = create<ConsoleState>()(
   // Theme
   theme: "system",
   setTheme: (theme) => set({ theme }),
+
+  // Channel metrics
+  channelMetrics: new Map([
+    ["telemetry", { name: "telemetry", messagesPerSec: 0, lastMessageTime: 0, history: [] }],
+    ["video", { name: "video", messagesPerSec: 0, lastMessageTime: 0, history: [] }],
+    ["pointcloud", { name: "pointcloud", messagesPerSec: 0, lastMessageTime: 0, history: [] }],
+  ]),
+  updateChannelMetrics: (name, metrics) =>
+    set((state) => {
+      const newMap = new Map(state.channelMetrics);
+      const existing = newMap.get(name) || { name, messagesPerSec: 0, lastMessageTime: 0, history: [] };
+      newMap.set(name, { ...existing, ...metrics });
+      return { channelMetrics: newMap };
+    }),
+  resetChannelMetrics: () =>
+    set({
+      channelMetrics: new Map([
+        ["telemetry", { name: "telemetry", messagesPerSec: 0, lastMessageTime: 0, history: [] }],
+        ["video", { name: "video", messagesPerSec: 0, lastMessageTime: 0, history: [] }],
+        ["pointcloud", { name: "pointcloud", messagesPerSec: 0, lastMessageTime: 0, history: [] }],
+      ]),
+    }),
     }),
     {
       name: "console-storage",
