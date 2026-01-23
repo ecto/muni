@@ -131,6 +131,8 @@ struct LidarFileConfig {
     enabled: bool,
     /// LiDAR IP address (Livox Mid360)
     lidar_ip: String,
+    /// Host IP address for receiving data (must match rover's eth interface)
+    host_ip: String,
     /// Point cloud UDP port (default 56301)
     point_cloud_port: u16,
     /// IMU data UDP port (default 56401, 0 to disable)
@@ -139,9 +141,9 @@ struct LidarFileConfig {
     stream_voxel_size: f32,
     /// Maximum points per frame for streaming. Higher = more detail but more bandwidth.
     stream_max_points: usize,
-    /// IMU mounting pitch angle in radians (positive = sensor tilted forward/down).
-    /// Used to transform IMU readings from sensor frame to body frame.
-    imu_mount_pitch: f32,
+    /// Mounting pitch angle in degrees (positive = sensor tilted forward/down).
+    /// Applied to both point cloud transform and IMU readings.
+    mounting_pitch_deg: f32,
 }
 
 impl Default for LidarFileConfig {
@@ -149,11 +151,12 @@ impl Default for LidarFileConfig {
         Self {
             enabled: true,
             lidar_ip: "192.168.1.100".to_string(),
+            host_ip: "0.0.0.0".to_string(),
             point_cloud_port: 56301,
             imu_port: 56401,
             stream_voxel_size: 0.3,
             stream_max_points: 500,
-            imu_mount_pitch: 0.0,
+            mounting_pitch_deg: 0.0,
         }
     }
 }
@@ -1193,10 +1196,14 @@ async fn main() -> Result<()> {
     if file_config.lidar.enabled {
         let lidar_ip = file_config.lidar.lidar_ip.parse()
             .unwrap_or(std::net::Ipv4Addr::new(192, 168, 1, 100));
+        let host_ip = file_config.lidar.host_ip.parse()
+            .unwrap_or(std::net::Ipv4Addr::new(0, 0, 0, 0));
         let lidar_config = LidarConfig {
             lidar_ip,
+            host_ip,
             point_cloud_port: file_config.lidar.point_cloud_port,
             imu_port: file_config.lidar.imu_port,
+            mounting_pitch_deg: file_config.lidar.mounting_pitch_deg,
             ..Default::default()
         };
 
@@ -1363,6 +1370,10 @@ async fn main() -> Result<()> {
 
     let control_period = Duration::from_millis(10); // 100 Hz
     let mut last_tick = Instant::now();
+
+    // Heartbeat tracking for debugging watchdog issues
+    let mut heartbeat_count: u32 = 0;
+    let mut last_heartbeat_log = Instant::now();
 
     // Current tool command (from teleop)
     let mut tool_command = types::ToolCommand::default();
@@ -1581,10 +1592,10 @@ async fn main() -> Result<()> {
                         state.state_machine.transition(Event::EStopRelease);
                     }
                     Command::SetMode(mode) => {
-                        debug!(
+                        info!(
                             requested_mode = ?mode,
                             current_mode = ?state.state_machine.mode(),
-                            "SetMode command received"
+                            "SetMode command processing"
                         );
                         let event = match mode {
                             Mode::Disabled => Event::Disable,
@@ -1605,8 +1616,18 @@ async fn main() -> Result<()> {
                         state.state_machine.transition(event);
                     }
                     Command::Heartbeat => {
-                        debug!("Heartbeat received, feeding watchdog");
                         watchdog.feed();
+                        heartbeat_count += 1;
+                        // Log heartbeat rate every 10 seconds when in teleop
+                        if last_heartbeat_log.elapsed() > Duration::from_secs(10) {
+                            let state = shared.lock().unwrap();
+                            if state.state_machine.mode() == Mode::Teleop {
+                                let rate = heartbeat_count as f64 / last_heartbeat_log.elapsed().as_secs_f64();
+                                info!(count = heartbeat_count, rate = format!("{:.1}/s", rate), "Heartbeats received (10s window)");
+                            }
+                            heartbeat_count = 0;
+                            last_heartbeat_log = Instant::now();
+                        }
                     }
                     Command::Tool(tc) => {
                         watchdog.feed();
@@ -1720,7 +1741,14 @@ async fn main() -> Result<()> {
                 match current_mode {
                     Mode::Teleop => {
                         // Teleop timeout: operator stopped sending commands, return to Idle
-                        warn!("Command watchdog timeout in teleop mode");
+                        let elapsed_ms = watchdog.elapsed_since_last_command()
+                            .map(|d| d.as_millis() as u64)
+                            .unwrap_or(0);
+                        warn!(
+                            elapsed_ms,
+                            heartbeat_count,
+                            "Command watchdog timeout in teleop mode (no commands received)"
+                        );
                         let mut state = shared.lock().unwrap();
                         state.state_machine.transition(Event::CommandTimeout);
                         state.commanded_twist = Twist::default();
@@ -2271,14 +2299,20 @@ async fn main() -> Result<()> {
         // The IMU is mounted tilted forward, so we transform readings to body frame first.
         let (roll, pitch) = if let Some(imu) = imu_rx.borrow().as_ref() {
             // Transform both accel and gyro from sensor frame to body frame.
-            // Sensor is pitched forward by imu_mount_pitch radians, so we rotate back.
-            let mount_pitch = file_config.lidar.imu_mount_pitch;
-            let (sin_p, cos_p) = mount_pitch.sin_cos();
+            // Sensor is pitched forward by mounting_pitch_deg degrees, so we rotate back.
+            let mount_pitch_rad = file_config.lidar.mounting_pitch_deg.to_radians();
+            let (sin_p, cos_p) = mount_pitch_rad.sin_cos();
+
+            // Livox Mid360 IMU outputs acceleration in g's, convert to m/s²
+            const GRAVITY: f32 = 9.81;
+            let accel_x_ms2 = imu.accel_x * GRAVITY;
+            let accel_y_ms2 = imu.accel_y * GRAVITY;
+            let accel_z_ms2 = imu.accel_z * GRAVITY;
 
             let accel = [
-                imu.accel_x * cos_p + imu.accel_z * sin_p,
-                imu.accel_y,
-                -imu.accel_x * sin_p + imu.accel_z * cos_p,
+                accel_x_ms2 * cos_p + accel_z_ms2 * sin_p,
+                accel_y_ms2,
+                -accel_x_ms2 * sin_p + accel_z_ms2 * cos_p,
             ];
             let gyro = [
                 imu.gyro_x * cos_p + imu.gyro_z * sin_p,
