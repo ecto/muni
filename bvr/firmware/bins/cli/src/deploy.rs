@@ -6,7 +6,10 @@
 
 use anyhow::{bail, Context, Result};
 use clap::Subcommand;
-use std::path::PathBuf;
+use sha2::{Digest, Sha256};
+use std::fs::File;
+use std::io::Read as _;
+use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::time::Instant;
 
@@ -56,6 +59,9 @@ pub enum DeployCommands {
         /// Full deploy: cli + config + restart
         #[arg(long)]
         all: bool,
+        /// Skip upload if binary is unchanged (compare SHA256 hashes)
+        #[arg(long)]
+        skip_unchanged: bool,
     },
 }
 
@@ -75,11 +81,12 @@ pub async fn run(cmd: DeployCommands) -> Result<()> {
             config,
             no_restart,
             all,
+            skip_unchanged,
         } => {
             let deploy_cli = cli || all;
             let sync_config = config || all;
             let restart = !no_restart;
-            deploy_rover(&hostname, &user, deploy_cli, sync_config, restart).await
+            deploy_rover(&hostname, &user, deploy_cli, sync_config, restart, skip_unchanged).await
         }
     }
 }
@@ -209,6 +216,7 @@ async fn deploy_rover(
     deploy_cli: bool,
     sync_config: bool,
     restart: bool,
+    skip_unchanged: bool,
 ) -> Result<()> {
     let start = Instant::now();
     let remote = format!("{}@{}", user, hostname);
@@ -222,6 +230,9 @@ async fn deploy_rover(
     println!("  CLI:      {deploy_cli}");
     println!("  Config:   {sync_config}");
     println!("  Restart:  {restart}");
+    if skip_unchanged {
+        println!("  Skip:     {YELLOW}unchanged binaries{NC}");
+    }
     println!("{BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{NC}");
     println!();
 
@@ -243,16 +254,38 @@ async fn deploy_rover(
         "cargo"
     };
 
-    // Build bvrd
-    println!("{BLUE}▸ Building bvrd for {target}...{NC}");
-    let build_status = Command::new(build_cmd)
-        .current_dir(&firmware_path)
-        .args(["build", "--release", "--target", target, "--bin", "bvrd"])
-        .status()
-        .context("Failed to build bvrd")?;
+    // Build binaries - use single command if building both bvrd and CLI (shared deps)
+    if deploy_cli {
+        println!("{BLUE}▸ Building bvrd + muni CLI for {target}...{NC}");
+        let build_status = Command::new(build_cmd)
+            .current_dir(&firmware_path)
+            .args([
+                "build",
+                "--release",
+                "--target",
+                target,
+                "--bin",
+                "bvrd",
+                "--bin",
+                "muni",
+            ])
+            .status()
+            .context("Failed to build binaries")?;
 
-    if !build_status.success() {
-        bail!("Build failed");
+        if !build_status.success() {
+            bail!("Build failed");
+        }
+    } else {
+        println!("{BLUE}▸ Building bvrd for {target}...{NC}");
+        let build_status = Command::new(build_cmd)
+            .current_dir(&firmware_path)
+            .args(["build", "--release", "--target", target, "--bin", "bvrd"])
+            .status()
+            .context("Failed to build bvrd")?;
+
+        if !build_status.success() {
+            bail!("Build failed");
+        }
     }
 
     let bvrd_path = firmware_path
@@ -270,19 +303,8 @@ async fn deploy_rover(
     let size_mb = metadata.len() as f64 / 1_000_000.0;
     println!("{GREEN}✓ Built bvrd ({:.1} MB){NC}", size_mb);
 
-    // Build CLI if requested
+    // Get CLI path if requested
     let cli_path = if deploy_cli {
-        println!("{BLUE}▸ Building muni CLI...{NC}");
-        let cli_status = Command::new(build_cmd)
-            .current_dir(&firmware_path)
-            .args(["build", "--release", "--target", target, "--bin", "muni"])
-            .status()
-            .context("Failed to build CLI")?;
-
-        if !cli_status.success() {
-            bail!("CLI build failed");
-        }
-
         let path = firmware_path
             .join("target")
             .join(target)
@@ -290,7 +312,9 @@ async fn deploy_rover(
             .join("muni");
 
         if path.exists() {
-            println!("{GREEN}✓ Built muni CLI{NC}");
+            let cli_metadata = std::fs::metadata(&path)?;
+            let cli_size_mb = cli_metadata.len() as f64 / 1_000_000.0;
+            println!("{GREEN}✓ Built muni CLI ({:.1} MB){NC}", cli_size_mb);
             Some(path)
         } else {
             println!("{YELLOW}Warning: CLI binary not found{NC}");
@@ -327,39 +351,41 @@ async fn deploy_rover(
     let current_version = String::from_utf8_lossy(&version_output.stdout);
     println!("{YELLOW}{}{NC}", current_version.trim());
 
-    // Upload binaries
-    println!("{BLUE}▸ Uploading bvrd...{NC}");
-    let scp_status = Command::new("scp")
-        .args([
-            "-q",
-            bvrd_path.to_str().unwrap(),
-            &format!("{}:/tmp/bvrd.new", remote),
-        ])
-        .status()
-        .context("Failed to upload bvrd")?;
-
-    if !scp_status.success() {
-        bail!("Upload failed");
-    }
-    println!("{GREEN}✓ Uploaded bvrd{NC}");
+    // Upload binaries (with optional hash comparison)
+    let bvrd_skipped = if skip_unchanged {
+        let local_hash = sha256_file(&bvrd_path)?;
+        let remote_hash = get_remote_hash(&remote, "/usr/local/bin/bvrd")?;
+        if local_hash == remote_hash {
+            println!("{GREEN}✓ bvrd unchanged, skipping upload{NC}");
+            true
+        } else {
+            upload_file(&bvrd_path, &remote, "/tmp/bvrd.new", "bvrd")?;
+            false
+        }
+    } else {
+        upload_file(&bvrd_path, &remote, "/tmp/bvrd.new", "bvrd")?;
+        false
+    };
 
     // Upload CLI if built
-    if let Some(ref cli) = cli_path {
-        println!("{BLUE}▸ Uploading muni CLI...{NC}");
-        let scp_status = Command::new("scp")
-            .args([
-                "-q",
-                cli.to_str().unwrap(),
-                &format!("{}:/tmp/muni.new", remote),
-            ])
-            .status()
-            .context("Failed to upload CLI")?;
-
-        if !scp_status.success() {
-            bail!("CLI upload failed");
+    let cli_skipped = if let Some(ref cli) = cli_path {
+        if skip_unchanged {
+            let local_hash = sha256_file(cli)?;
+            let remote_hash = get_remote_hash(&remote, "/usr/local/bin/muni")?;
+            if local_hash == remote_hash {
+                println!("{GREEN}✓ muni CLI unchanged, skipping upload{NC}");
+                true
+            } else {
+                upload_file(cli, &remote, "/tmp/muni.new", "muni CLI")?;
+                false
+            }
+        } else {
+            upload_file(cli, &remote, "/tmp/muni.new", "muni CLI")?;
+            false
         }
-        println!("{GREEN}✓ Uploaded muni CLI{NC}");
-    }
+    } else {
+        true // No CLI to upload
+    };
 
     // Upload config if requested
     if sync_config {
@@ -384,6 +410,24 @@ async fn deploy_rover(
         }
     }
 
+    // Check if there's anything to install
+    let has_bvrd = !bvrd_skipped;
+    let has_cli = !cli_skipped && cli_path.is_some();
+    let has_config = sync_config;
+    let has_work = has_bvrd || has_cli || has_config;
+
+    if !has_work && !restart {
+        println!("{GREEN}✓ Nothing to install (all binaries unchanged){NC}");
+        println!();
+        println!("{GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{NC}");
+        println!(
+            "{GREEN}  ✓ Deploy complete ({:.1}s){NC}",
+            start.elapsed().as_secs_f32()
+        );
+        println!("{GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{NC}");
+        return Ok(());
+    }
+
     // Install on remote
     println!("{BLUE}▸ Installing...{NC}");
 
@@ -391,15 +435,17 @@ async fn deploy_rover(
         r#"
 set -e
 
-# Stop service if we're restarting
-if [ "{restart}" = "true" ] && systemctl is-active --quiet bvrd 2>/dev/null; then
+# Stop service if we're restarting and bvrd changed
+if [ "{restart}" = "true" ] && [ "{has_bvrd}" = "true" ] && systemctl is-active --quiet bvrd 2>/dev/null; then
     echo "  Stopping bvrd..."
     sudo systemctl stop bvrd
 fi
 
-# Atomic move of binary
-sudo mv /tmp/bvrd.new /usr/local/bin/bvrd
-sudo chmod +x /usr/local/bin/bvrd
+# Atomic move of bvrd binary if uploaded
+if [ -f /tmp/bvrd.new ]; then
+    sudo mv /tmp/bvrd.new /usr/local/bin/bvrd
+    sudo chmod +x /usr/local/bin/bvrd
+fi
 
 # CLI if present
 if [ -f /tmp/muni.new ]; then
@@ -415,8 +461,8 @@ if [ -f /tmp/bvr.toml.new ]; then
     sudo mv /tmp/bvr.toml.new /etc/bvr/bvr.toml
 fi
 
-# Restart service if requested
-if [ "{restart}" = "true" ]; then
+# Restart service if requested and we have changes
+if [ "{restart}" = "true" ] && [ "{has_bvrd}" = "true" ]; then
     if systemctl list-unit-files | grep -q bvrd; then
         # Ensure CAN interface is up
         if systemctl list-unit-files | grep -q can.service; then
@@ -436,7 +482,8 @@ if [ "{restart}" = "true" ]; then
     fi
 fi
 "#,
-        restart = restart
+        restart = restart,
+        has_bvrd = has_bvrd,
     );
 
     // Run the install script
@@ -537,4 +584,51 @@ fn find_firmware_path() -> Result<PathBuf> {
     bail!(
         "Could not find firmware directory. Run from muni repo or set MUNI_ROOT env var."
     )
+}
+
+/// Calculate SHA256 hash of a local file
+fn sha256_file(path: &Path) -> Result<String> {
+    let mut file = File::open(path).context("Failed to open file for hashing")?;
+    let mut hasher = Sha256::new();
+    let mut buffer = [0u8; 8192];
+
+    loop {
+        let bytes_read = file.read(&mut buffer)?;
+        if bytes_read == 0 {
+            break;
+        }
+        hasher.update(&buffer[..bytes_read]);
+    }
+
+    Ok(format!("{:x}", hasher.finalize()))
+}
+
+/// Get SHA256 hash of a remote file via SSH
+fn get_remote_hash(remote: &str, remote_path: &str) -> Result<String> {
+    let output = Command::new("ssh")
+        .args([
+            "-o",
+            "ConnectTimeout=5",
+            remote,
+            &format!("sha256sum {} 2>/dev/null | cut -d' ' -f1", remote_path),
+        ])
+        .output()
+        .context("Failed to get remote hash")?;
+
+    Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
+}
+
+/// Upload a file via SCP
+fn upload_file(local_path: &Path, remote: &str, remote_path: &str, name: &str) -> Result<()> {
+    println!("{BLUE}▸ Uploading {name}...{NC}");
+    let scp_status = Command::new("scp")
+        .args(["-q", local_path.to_str().unwrap(), &format!("{remote}:{remote_path}")])
+        .status()
+        .context("Failed to upload")?;
+
+    if !scp_status.success() {
+        bail!("{} upload failed", name);
+    }
+    println!("{GREEN}✓ Uploaded {name}{NC}");
+    Ok(())
 }

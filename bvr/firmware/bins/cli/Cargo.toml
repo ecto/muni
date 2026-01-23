@@ -26,5 +26,8 @@ crossterm = "0.28"
 # Serial for GPS
 tokio-serial = "5.4"
 
+# Hash comparison for deploy
+sha2 = "0.10"
+
 
 
