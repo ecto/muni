@@ -32,11 +32,11 @@ impl Default for BlowerNozzleConfig {
     fn default() -> Self {
         Self {
             inlet_size: 90.0,        // 90mm square (matches blower outlet)
-            outlet_width: 400.0,     // Wide slot
+            outlet_width: 200.0,     // Sized for H2D build volume (256mm max)
             outlet_height: 6.0,      // Thin slot for velocity boost
-            length: 180.0,           // Total length
+            length: 150.0,           // Shorter transition, fits H2D
             wall_thickness: 2.5,     // 3D print friendly
-            flange_width: 20.0,
+            flange_width: 15.0,      // Reduced to maximize outlet width
             flange_thickness: 3.0,
             mount_hole_diameter: 4.5, // M4 clearance
             mount_hole_count: 8,
@@ -311,17 +311,17 @@ mod tests {
     fn test_config_defaults() {
         let cfg = BlowerNozzleConfig::default();
         assert_eq!(cfg.inlet_size, 90.0);
-        assert_eq!(cfg.outlet_width, 400.0);
+        assert_eq!(cfg.outlet_width, 200.0);
         assert_eq!(cfg.outlet_height, 6.0);
     }
 
     #[test]
     fn test_velocity_ratio() {
         let cfg = BlowerNozzleConfig::default();
-        // 90×90 = 8100mm² inlet, 400×6 = 2400mm² outlet
-        // Ratio = 8100/2400 = 3.375
+        // 90×90 = 8100mm² inlet, 200×6 = 1200mm² outlet
+        // Ratio = 8100/1200 = 6.75
         let ratio = cfg.velocity_ratio();
-        assert!(ratio > 3.0 && ratio < 4.0);
+        assert!(ratio > 6.0 && ratio < 7.5);
     }
 
     #[test]
@@ -362,7 +362,7 @@ mod tests {
     #[test]
     fn test_total_length() {
         let cfg = BlowerNozzleConfig::default();
-        assert_eq!(cfg.total_length(), 180.0);
+        assert_eq!(cfg.total_length(), 150.0);
     }
 
     #[test]
