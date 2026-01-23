@@ -1,4 +1,6 @@
+import { useCallback, useRef, useState } from "react";
 import { Canvas } from "@react-three/fiber";
+import type { RootState } from "@react-three/fiber";
 import { Ground } from "./Ground";
 import { RoverModel } from "./RoverModel";
 import { RoverTrail } from "./RoverTrail";
@@ -29,6 +31,10 @@ export function Scene({ mode = "teleop", zones: propZones, activeTasks, onZoneCl
   const { videoConnected, selectedRoverId } = useConsoleStore();
   const { zones: fetchedZones } = useMapData();
 
+  // Track WebGL context state for recovery
+  const glRef = useRef<WebGLRenderingContext | null>(null);
+  const [contextLost, setContextLost] = useState(false);
+
   // Use provided zones or fetch them
   const zones = propZones ?? fetchedZones;
 
@@ -36,23 +42,73 @@ export function Scene({ mode = "teleop", zones: propZones, activeTasks, onZoneCl
   const showFleetMarkers = mode === "dispatch";
   const showSingleRover = mode === "teleop";
 
+  // Performance optimization: when video is active in teleop mode, disable
+  // expensive rendering (shadows, World3D) since they're not visible anyway
+  const videoActive = videoConnected && showSingleRover;
+
+  // Reduce shadow map size when video not active (still useful for dispatch mode)
+  const shadowMapSize = videoActive ? 512 : 1024;
+
+  // Handle WebGL context events
+  const handleCreated = useCallback((state: RootState) => {
+    const gl = state.gl.getContext();
+    glRef.current = gl as WebGLRenderingContext;
+
+    const canvas = state.gl.domElement;
+
+    const handleContextLost = (event: Event) => {
+      event.preventDefault();
+      console.warn("[Scene] WebGL context lost");
+      setContextLost(true);
+    };
+
+    const handleContextRestored = () => {
+      console.info("[Scene] WebGL context restored");
+      setContextLost(false);
+    };
+
+    canvas.addEventListener("webglcontextlost", handleContextLost);
+    canvas.addEventListener("webglcontextrestored", handleContextRestored);
+
+    // Return cleanup function via onPointerMissed trick is not available,
+    // but R3F handles canvas cleanup automatically
+  }, []);
+
+  // Show fallback when context is lost
+  if (contextLost) {
+    return (
+      <div className="absolute inset-0 flex items-center justify-center bg-stone-900 text-stone-400">
+        <div className="text-center">
+          <p className="text-lg font-medium">WebGL context lost</p>
+          <p className="text-sm">Recovering...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <Canvas
-      shadows
+      shadows={!videoActive}
       camera={{ position: [3, 2.5, 3], fov: 60 }}
-      gl={{ antialias: true }}
+      gl={{
+        antialias: true,
+        powerPreference: "high-performance",
+      }}
+      // Limit pixel ratio to reduce GPU memory on high-DPI displays
+      dpr={[1, 2]}
+      onCreated={handleCreated}
       className="absolute inset-0"
     >
       {/* 360 video skybox (when connected) - only in teleop mode */}
       {showSingleRover && <EquirectangularSky />}
 
       {/* Lighting: reduce when video is active for better visibility */}
-      <ambientLight intensity={videoConnected && showSingleRover ? 0.5 : 0.3} />
+      <ambientLight intensity={videoActive ? 0.5 : 0.3} />
       <directionalLight
         position={[10, 20, 10]}
-        intensity={videoConnected && showSingleRover ? 0.8 : 1.5}
-        castShadow
-        shadow-mapSize={[2048, 2048]}
+        intensity={videoActive ? 0.8 : 1.5}
+        castShadow={!videoActive}
+        shadow-mapSize={[shadowMapSize, shadowMapSize]}
         shadow-camera-far={50}
         shadow-camera-left={-20}
         shadow-camera-right={20}
@@ -62,6 +118,7 @@ export function Scene({ mode = "teleop", zones: propZones, activeTasks, onZoneCl
 
       {/* Scene elements */}
       <Ground />
+      {/* Always render World3D - it provides context even with camera planes */}
       <World3D />
       <MapOverlay zones={zones} activeTasks={activeTasks} onZoneClick={onZoneClick} />
 

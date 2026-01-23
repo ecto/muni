@@ -6,6 +6,9 @@ import { useConsoleStore } from "@/store";
 /** Maximum accumulated points to render. */
 const MAX_POINTS = 5000;
 
+/** Reduced point count when video is active for performance. */
+const MAX_POINTS_VIDEO_ACTIVE = 2000;
+
 /** Point lifetime in seconds before fully faded. */
 const POINT_LIFETIME = 3.0;
 
@@ -31,8 +34,11 @@ interface AccumulatedPoint {
  * New points are transformed to world coordinates using the rover's pose.
  */
 export function PointCloud3D() {
-  const { pointCloud, pointCloudReflectivity, pointCloudEnabled, renderPose } =
+  const { pointCloud, pointCloudReflectivity, pointCloudEnabled, renderPose, videoConnected } =
     useConsoleStore();
+
+  // Use reduced point count when video is active to reduce GPU work
+  const maxPoints = videoConnected ? MAX_POINTS_VIDEO_ACTIVE : MAX_POINTS;
 
   const pointsRef = useRef<THREE.Points>(null);
 
@@ -42,8 +48,14 @@ export function PointCloud3D() {
   // Track last processed frame to avoid duplicate processing
   const lastFrameRef = useRef<Float32Array | null>(null);
 
-  // Pre-allocate buffer geometry
+  // Pre-allocate buffer geometry with cleanup
+  const geometryRef = useRef<THREE.BufferGeometry | null>(null);
   const geometry = useMemo(() => {
+    // Dispose previous geometry if it exists (shouldn't happen with stable useMemo, but safety)
+    if (geometryRef.current) {
+      geometryRef.current.dispose();
+    }
+
     const geo = new THREE.BufferGeometry();
 
     // Position buffer (x, y, z per point)
@@ -55,22 +67,45 @@ export function PointCloud3D() {
     geo.setAttribute("color", new THREE.BufferAttribute(colors, 3));
 
     geo.setDrawRange(0, 0);
+    geometryRef.current = geo;
     return geo;
   }, []);
 
-  // Point material
-  const material = useMemo(
-    () =>
-      new THREE.PointsMaterial({
-        size: POINT_SIZE,
-        vertexColors: true,
-        sizeAttenuation: true,
-        transparent: true,
-        opacity: 0.85,
-        depthWrite: false, // Better blending for overlapping points
-      }),
-    []
-  );
+  // Point material with cleanup
+  const materialRef = useRef<THREE.PointsMaterial | null>(null);
+  const material = useMemo(() => {
+    // Dispose previous material if it exists
+    if (materialRef.current) {
+      materialRef.current.dispose();
+    }
+
+    const mat = new THREE.PointsMaterial({
+      size: POINT_SIZE,
+      vertexColors: true,
+      sizeAttenuation: true,
+      transparent: true,
+      opacity: 0.85,
+      depthWrite: false, // Better blending for overlapping points
+    });
+    materialRef.current = mat;
+    return mat;
+  }, []);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (geometryRef.current) {
+        geometryRef.current.dispose();
+        geometryRef.current = null;
+      }
+      if (materialRef.current) {
+        materialRef.current.dispose();
+        materialRef.current = null;
+      }
+      // Clear accumulated points
+      accumulatedRef.current = [];
+    };
+  }, []);
 
   // Add new points when data arrives
   useEffect(() => {
@@ -121,11 +156,11 @@ export function PointCloud3D() {
       });
     }
 
-    // Trim to max points (remove oldest)
-    if (accumulated.length > MAX_POINTS) {
-      accumulated.splice(0, accumulated.length - MAX_POINTS);
+    // Trim to max points (reduced when video is active for performance)
+    if (accumulated.length > maxPoints) {
+      accumulated.splice(0, accumulated.length - maxPoints);
     }
-  }, [pointCloud, pointCloudReflectivity, pointCloudEnabled, renderPose]);
+  }, [pointCloud, pointCloudReflectivity, pointCloudEnabled, renderPose, maxPoints]);
 
   // Clear accumulated points when disabled
   useEffect(() => {
