@@ -2,7 +2,7 @@
 //!
 //! Protocol reference: https://livox-wiki-en.readthedocs.io/en/latest/tutorials/new_product/mid360/livox_eth_protocol_mid360.html
 
-use crate::{Config, ImuData, LidarError, Point3D, PointCloud};
+use crate::{Config, FovRegion, ImuData, LidarError, Point3D, PointCloud, PointDataType, TimeSyncMode};
 use std::net::SocketAddr;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::time::{Duration, Instant};
@@ -13,12 +13,28 @@ use tracing::{debug, error, info, trace, warn};
 /// Livox SDK2 control port on the device
 const LIVOX_CONTROL_PORT: u16 = 56000;
 
-/// SDK2 command types
+// SDK2 general command set (cmd_set = 0x00)
 const CMD_HANDSHAKE: u8 = 0x01;
 const CMD_HEARTBEAT: u8 = 0x03;
 const CMD_START_SAMPLING: u8 = 0x04;
+#[allow(dead_code)]
 const CMD_STOP_SAMPLING: u8 = 0x05;
+#[allow(dead_code)]
 const CMD_PUSH_CONFIG: u8 = 0x07;
+
+// SDK2 LiDAR command set (cmd_set = 0x01)
+const CMD_SET_PARAM: u8 = 0x00;      // Set LiDAR parameters
+#[allow(dead_code)]
+const CMD_GET_PARAM: u8 = 0x01;      // Get LiDAR parameters
+
+// Parameter keys for CMD_SET_PARAM
+const PARAM_KEY_DATA_TYPE: u16 = 0x0000;     // Point cloud data format
+#[allow(dead_code)]
+const PARAM_KEY_PATTERN_MODE: u16 = 0x0001;  // Scan pattern mode
+const PARAM_KEY_FOV_CFG0: u16 = 0x0005;      // FOV region 1 configuration
+const PARAM_KEY_FOV_CFG1: u16 = 0x0006;      // FOV region 2 configuration
+const PARAM_KEY_FOV_CFG_EN: u16 = 0x0007;    // FOV enable flags
+const PARAM_KEY_TIME_SYNC: u16 = 0x0008;     // Time synchronization mode
 
 /// Point cloud packet header size (bytes)
 /// SDK2 header: version(1) + length(2) + time_interval(2) + dot_num(2) + udp_cnt(2) +
@@ -45,6 +61,7 @@ const IMU_PACKET_SIZE: usize = 48;
 struct FrameAccumulator {
     points: Vec<Point3D>,
     frame_id: AtomicU32,
+    #[allow(dead_code)] // Reserved for future frame_cnt-based detection
     last_frame_counter: u8,
     timestamp_ns: u64,
     frame_start: Instant,
@@ -198,6 +215,230 @@ pub async fn connect_and_start(config: &Config) -> Result<(), LidarError> {
     Ok(())
 }
 
+/// Sequence number generator for commands
+static CMD_SEQ: AtomicU32 = AtomicU32::new(10);
+
+fn next_seq() -> u32 {
+    CMD_SEQ.fetch_add(1, Ordering::Relaxed)
+}
+
+/// Build a parameter set command packet.
+fn build_set_param_cmd(key: u16, value: &[u8]) -> Vec<u8> {
+    // SDK2 parameter command format:
+    // Header: SOF(1) + Version(1) + Length(2) + Seq(4) + CmdSet(1) + CmdId(1)
+    // Data: KeyNum(1) + [Key(2) + ValueLen(2) + Value(...)]
+    let value_len = value.len() as u16;
+    let data_len = 1 + 2 + 2 + value.len(); // KeyNum + Key + ValueLen + Value
+    let total_len = 10 + data_len; // Header(10) + Data
+
+    let mut cmd = Vec::with_capacity(total_len);
+    cmd.push(0xAA); // SOF
+    cmd.push(0x01); // Version
+    cmd.extend_from_slice(&(total_len as u16).to_le_bytes()); // Length
+    cmd.extend_from_slice(&next_seq().to_le_bytes()); // Seq
+    cmd.push(0x01); // CmdSet (LiDAR command set)
+    cmd.push(CMD_SET_PARAM); // CmdId
+
+    // Data
+    cmd.push(1); // KeyNum = 1 (setting one parameter)
+    cmd.extend_from_slice(&key.to_le_bytes()); // Key
+    cmd.extend_from_slice(&value_len.to_le_bytes()); // ValueLen
+    cmd.extend_from_slice(value); // Value
+
+    cmd
+}
+
+/// Send a configuration command and wait for response.
+async fn send_config_cmd(
+    socket: &UdpSocket,
+    addr: SocketAddr,
+    cmd: &[u8],
+    name: &str,
+) -> Result<(), LidarError> {
+    debug!(name, len = cmd.len(), "Sending config command");
+    socket.send_to(cmd, addr)
+        .await
+        .map_err(|e| LidarError::Network(format!("Failed to send {}: {}", name, e)))?;
+
+    let mut response = [0u8; 256];
+    match tokio::time::timeout(Duration::from_millis(500), socket.recv(&mut response)).await {
+        Ok(Ok(len)) => {
+            debug!(name, len, "Received config response");
+            // Check response status (byte 10 in SDK2 response)
+            if len >= 11 && response[10] != 0 {
+                warn!(name, status = response[10], "Config command returned error status");
+            }
+        }
+        Ok(Err(e)) => {
+            warn!(name, ?e, "Error receiving config response");
+        }
+        Err(_) => {
+            debug!(name, "Config response timeout - continuing");
+        }
+    }
+    Ok(())
+}
+
+/// Configure point cloud data type.
+pub async fn configure_data_type(
+    socket: &UdpSocket,
+    addr: SocketAddr,
+    data_type: PointDataType,
+) -> Result<(), LidarError> {
+    let cmd = build_set_param_cmd(PARAM_KEY_DATA_TYPE, &[data_type as u8]);
+    send_config_cmd(socket, addr, &cmd, "data_type").await
+}
+
+/// Configure time synchronization mode.
+pub async fn configure_time_sync(
+    socket: &UdpSocket,
+    addr: SocketAddr,
+    mode: TimeSyncMode,
+) -> Result<(), LidarError> {
+    let cmd = build_set_param_cmd(PARAM_KEY_TIME_SYNC, &[mode as u8]);
+    send_config_cmd(socket, addr, &cmd, "time_sync").await
+}
+
+/// Configure FOV regions.
+///
+/// Each region is defined by yaw and pitch angle ranges.
+/// If both regions are None, full FOV is used.
+pub async fn configure_fov(
+    socket: &UdpSocket,
+    addr: SocketAddr,
+    region1: Option<FovRegion>,
+    region2: Option<FovRegion>,
+) -> Result<(), LidarError> {
+    // Build enable flags: bit 0 = region1, bit 1 = region2
+    let enable_flags: u8 = (region1.is_some() as u8) | ((region2.is_some() as u8) << 1);
+
+    // If no regions configured, just disable FOV limiting
+    if enable_flags == 0 {
+        let cmd = build_set_param_cmd(PARAM_KEY_FOV_CFG_EN, &[0]);
+        return send_config_cmd(socket, addr, &cmd, "fov_disable").await;
+    }
+
+    // Configure region 1 if present
+    if let Some(ref region) = region1 {
+        let mut data = Vec::with_capacity(16);
+        // FOV config format: yaw_start(i32, 0.01°) + yaw_stop(i32) + pitch_start(i32) + pitch_stop(i32)
+        data.extend_from_slice(&((region.yaw_start * 100.0) as i32).to_le_bytes());
+        data.extend_from_slice(&((region.yaw_stop * 100.0) as i32).to_le_bytes());
+        data.extend_from_slice(&((region.pitch_start * 100.0) as i32).to_le_bytes());
+        data.extend_from_slice(&((region.pitch_stop * 100.0) as i32).to_le_bytes());
+        let cmd = build_set_param_cmd(PARAM_KEY_FOV_CFG0, &data);
+        send_config_cmd(socket, addr, &cmd, "fov_region1").await?;
+    }
+
+    // Configure region 2 if present
+    if let Some(ref region) = region2 {
+        let mut data = Vec::with_capacity(16);
+        data.extend_from_slice(&((region.yaw_start * 100.0) as i32).to_le_bytes());
+        data.extend_from_slice(&((region.yaw_stop * 100.0) as i32).to_le_bytes());
+        data.extend_from_slice(&((region.pitch_start * 100.0) as i32).to_le_bytes());
+        data.extend_from_slice(&((region.pitch_stop * 100.0) as i32).to_le_bytes());
+        let cmd = build_set_param_cmd(PARAM_KEY_FOV_CFG1, &data);
+        send_config_cmd(socket, addr, &cmd, "fov_region2").await?;
+    }
+
+    // Enable configured regions
+    let cmd = build_set_param_cmd(PARAM_KEY_FOV_CFG_EN, &[enable_flags]);
+    send_config_cmd(socket, addr, &cmd, "fov_enable").await
+}
+
+/// Build and send a heartbeat command.
+async fn send_heartbeat(socket: &UdpSocket, addr: SocketAddr) -> Result<(), LidarError> {
+    let mut cmd = Vec::with_capacity(16);
+    cmd.push(0xAA); // SOF
+    cmd.push(0x01); // Version
+    cmd.extend_from_slice(&10u16.to_le_bytes()); // Length
+    cmd.extend_from_slice(&next_seq().to_le_bytes()); // Seq
+    cmd.push(0x00); // CmdSet (general)
+    cmd.push(CMD_HEARTBEAT); // CmdId
+
+    socket.send_to(&cmd, addr)
+        .await
+        .map_err(|e| LidarError::Network(format!("Failed to send heartbeat: {}", e)))?;
+    Ok(())
+}
+
+/// Spawn a heartbeat task that sends periodic heartbeats to the LiDAR.
+fn spawn_heartbeat_task(
+    lidar_ip: std::net::Ipv4Addr,
+    host_ip: std::net::Ipv4Addr,
+    interval_ms: u32,
+) -> tokio::task::JoinHandle<()> {
+    tokio::spawn(async move {
+        if interval_ms == 0 {
+            return; // Heartbeat disabled
+        }
+
+        let interval = Duration::from_millis(interval_ms as u64);
+        let control_addr: SocketAddr = (lidar_ip, LIVOX_CONTROL_PORT).into();
+
+        // Bind a socket for heartbeats
+        let socket = match UdpSocket::bind((host_ip, 0)).await {
+            Ok(s) => s,
+            Err(e) => {
+                warn!(?e, "Failed to bind heartbeat socket");
+                return;
+            }
+        };
+
+        let mut heartbeat_count: u64 = 0;
+        loop {
+            tokio::time::sleep(interval).await;
+
+            if let Err(e) = send_heartbeat(&socket, control_addr).await {
+                debug!(?e, "Heartbeat send failed");
+            } else {
+                heartbeat_count += 1;
+                if heartbeat_count % 60 == 0 {
+                    trace!(count = heartbeat_count, "Heartbeats sent");
+                }
+            }
+        }
+    })
+}
+
+/// Connect to Livox and apply all configuration.
+pub async fn connect_and_configure(config: &Config) -> Result<(), LidarError> {
+    let control_addr: SocketAddr = (config.lidar_ip, LIVOX_CONTROL_PORT).into();
+
+    // First do the basic handshake and start sampling
+    connect_and_start(config).await?;
+
+    // Bind a socket for configuration commands
+    let cmd_socket = UdpSocket::bind((config.host_ip, 0))
+        .await
+        .map_err(|e| LidarError::Network(format!("Failed to bind config socket: {}", e)))?;
+
+    // Configure data type if not default
+    if config.data_type != PointDataType::Cartesian32 {
+        info!(data_type = ?config.data_type, "Configuring point data type");
+        configure_data_type(&cmd_socket, control_addr, config.data_type).await?;
+    }
+
+    // Configure time sync if enabled
+    if config.time_sync != TimeSyncMode::None {
+        info!(mode = ?config.time_sync, "Configuring time synchronization");
+        configure_time_sync(&cmd_socket, control_addr, config.time_sync).await?;
+    }
+
+    // Configure FOV if specified
+    if config.fov_region1.is_some() || config.fov_region2.is_some() {
+        info!(
+            region1 = config.fov_region1.is_some(),
+            region2 = config.fov_region2.is_some(),
+            "Configuring FOV regions"
+        );
+        configure_fov(&cmd_socket, control_addr, config.fov_region1, config.fov_region2).await?;
+    }
+
+    info!("Livox configuration complete");
+    Ok(())
+}
+
 /// Run the LiDAR reader (point cloud only).
 pub async fn run_reader(
     config: Config,
@@ -216,13 +457,28 @@ pub async fn run_reader_with_imu(
     info!(
         lidar_ip = %config.lidar_ip,
         point_port = config.point_cloud_port,
+        data_type = ?config.data_type,
+        time_sync = ?config.time_sync,
+        heartbeat_ms = config.heartbeat_interval_ms,
         "Starting Livox Mid360 reader"
     );
 
-    // Attempt to connect and start data streaming
-    if let Err(e) = connect_and_start(&config).await {
-        warn!(?e, "Failed to send connect/start commands - will listen anyway");
+    // Attempt to connect, configure, and start data streaming
+    if let Err(e) = connect_and_configure(&config).await {
+        warn!(?e, "Failed to send connect/configure commands - will listen anyway");
     }
+
+    // Spawn heartbeat task if enabled
+    let _heartbeat_handle = if config.heartbeat_interval_ms > 0 {
+        info!(interval_ms = config.heartbeat_interval_ms, "Starting heartbeat task");
+        Some(spawn_heartbeat_task(
+            config.lidar_ip,
+            config.host_ip,
+            config.heartbeat_interval_ms,
+        ))
+    } else {
+        None
+    };
 
     // Bind UDP socket for point cloud data
     let point_addr: SocketAddr = (config.host_ip, config.point_cloud_port).into();

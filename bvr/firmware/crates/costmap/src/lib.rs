@@ -160,7 +160,22 @@ impl OccupancyGrid {
     /// Integrate a LiDAR point cloud into the grid using raycasting.
     ///
     /// Projects 3D points to 2D ground plane and filters by height.
+    /// Also filters points based on confidence and interference flags from the
+    /// Livox Mid-360 point tag field.
     pub fn integrate_scan(&mut self, cloud: &PointCloud, robot_pose: &Transform2D) {
+        self.integrate_scan_filtered(cloud, robot_pose, true)
+    }
+
+    /// Integrate a LiDAR point cloud with optional quality filtering.
+    ///
+    /// When `filter_low_quality` is true, points with low confidence or
+    /// interference (rain/fog/dust) are excluded from obstacle detection.
+    pub fn integrate_scan_filtered(
+        &mut self,
+        cloud: &PointCloud,
+        robot_pose: &Transform2D,
+        filter_low_quality: bool,
+    ) {
         let sensor_pos = robot_pose.translation();
 
         // Height filter: only consider points near ground plane
@@ -170,6 +185,12 @@ impl OccupancyGrid {
         const MAX_RANGE: f32 = 50.0;
 
         for point in &cloud.points {
+            // Skip low-quality points (low confidence or interference detected)
+            // This filters out rain, fog, dust, and crosstalk artifacts
+            if filter_low_quality && !point.is_navigation_quality() {
+                continue;
+            }
+
             // Skip points outside height range
             if point.z < MIN_Z || point.z > MAX_Z {
                 continue;

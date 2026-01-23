@@ -182,6 +182,44 @@ stream_max_points = 1000  # Maximum points per frame for streaming
 # Mid360 is mounted at 30 degrees forward tilt for maximum coverage
 imu_mount_pitch = 0.5236  # ~30 degrees
 
+# Point cloud data format:
+#   "cartesian32" - 32-bit coordinates, mm precision (14 bytes/point, default)
+#   "cartesian16" - 16-bit coordinates, 10mm precision (8 bytes/point, lower bandwidth)
+#   "spherical"   - Spherical coordinates (10 bytes/point)
+data_type = "cartesian32"
+
+# Time synchronization mode:
+#   "none" - Use device internal clock (default)
+#   "ptp"  - PTP/IEEE 1588v2 network time sync
+#   "gps"  - GPS time synchronization
+time_sync = "none"
+
+# Heartbeat interval in milliseconds (0 to disable)
+# SDK2 protocol expects periodic heartbeats to maintain connection
+heartbeat_interval_ms = 1000
+
+# Filter low-quality points in costmap (rain, fog, dust, low confidence)
+# When true, points with interference or low confidence are excluded from obstacle detection
+filter_low_quality_points = true
+
+# FOV Configuration (optional)
+# Limit scanning to specific regions to reduce bandwidth and focus on relevant areas.
+# Each region defines yaw (-180 to 180°) and pitch (-25 to 34°) angle ranges.
+# Uncomment to enable:
+#
+# [lidar.fov_region1]
+# yaw_start = -90.0   # Focus on front 180 degrees
+# yaw_stop = 90.0
+# pitch_start = -25.0  # Full vertical range
+# pitch_stop = 15.0    # Exclude sky above 15 degrees
+#
+# [lidar.fov_region2]
+# # Second region for rear coverage (optional)
+# yaw_start = 135.0
+# yaw_stop = -135.0   # Wraps around
+# pitch_start = -10.0
+# pitch_stop = 5.0
+
 [slam]
 # Enable SLAM (Simultaneous Localization and Mapping)
 enabled = true
