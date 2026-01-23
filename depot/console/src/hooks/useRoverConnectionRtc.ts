@@ -311,12 +311,19 @@ export function useRoverConnectionRtc() {
 
         // Handle enable key held during connection (fixes race condition where
         // user presses Enter before WebRTC is ready)
-        const { input } = useConsoleStore.getState();
+        const { input, pointCloudEnabled } = useConsoleStore.getState();
         if (input.enable && !isOperatorRef.current) {
           isOperatorRef.current = true;
           commandChannelRef.current!.send(encodeSetMode(Mode.Idle));
           commandChannelRef.current!.send(encodeSetMode(Mode.Teleop));
           prevEnableRef.current = true;
+        }
+
+        // Sync LiDAR state on connection - rover starts with streaming disabled,
+        // but console may have it enabled from a previous session
+        if (pointCloudEnabled) {
+          console.log("[WebRTC] Syncing LiDAR state: enabled");
+          commandChannelRef.current!.send(encodeLidarToggle(true));
         }
       };
 

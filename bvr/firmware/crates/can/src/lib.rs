@@ -73,8 +73,11 @@ mod platform {
         pub fn open(interface: &str) -> Result<Self, CanError> {
             let socket =
                 CanSocket::open(interface).map_err(|e| CanError::Socket(e.to_string()))?;
+            // Short read timeout to minimize blocking on the control loop.
+            // VESCs send ~4000 frames/sec total, so frames arrive every ~0.25ms.
+            // 1ms timeout catches most frames while keeping loop latency low.
             socket
-                .set_read_timeout(Duration::from_millis(10))
+                .set_read_timeout(Duration::from_millis(1))
                 .map_err(|e| CanError::Socket(e.to_string()))?;
             socket
                 .set_write_timeout(Duration::from_millis(10))
