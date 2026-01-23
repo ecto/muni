@@ -14,6 +14,7 @@ use bvr_cad::parts::{
     // Custom fabricated
     BVR1Frame, CornerBracket, ElectronicsPlate, Extrusion2020, MotorMount, SensorMount, TNut,
     WheelSpacer, BatteryTray, BaseTray, AccessPanel, UUMotor, UUMotorMount, SingleDropoutMount,
+    BlowerNozzle, BlowerNozzleConfig,
     // "Friendly Industrial" Shell (Wall Wrap + Top Lid + Sensor Dome)
     ShellConfig, ShellAssembly, WallWrap, WallWrapConfig, TopLid, TopLidConfig,
     SkidPlate, SkidPlateConfig, SensorDome, SensorDomeConfig,
@@ -220,6 +221,18 @@ fn main() -> Result<()> {
     println!("    - LiDAR-only: Livox Mid-360 fits inside");
     println!("    - Low profile: \"subtle, not towering\"");
     println!("    - 4 mounting tabs with M4 holes");
+
+    // Blower Nozzle: 3D printed square-to-slot transition for airflow
+    let nozzle_config = BlowerNozzleConfig::default();
+    let blower_nozzle = BlowerNozzle::new(nozzle_config.clone());
+    let part = blower_nozzle.generate();
+    export_part("blower_nozzle", &part, "3d_printed")?;
+    println!("  Blower Nozzle (3D printed, {:.0}mm inlet → {:.0}mm × {:.0}mm outlet)",
+             nozzle_config.inlet_size, nozzle_config.outlet_width, nozzle_config.outlet_height);
+    println!("    - Velocity boost: {:.1}× (converging profile)",
+             nozzle_config.velocity_ratio());
+    println!("    - Length: {:.0}mm", nozzle_config.length);
+    println!("    - {} mounting holes for shell attachment", nozzle_config.mount_hole_count);
 
     // Export DXF files for SendCutSend
     let shell_assembly = ShellAssembly::default_bvr1();

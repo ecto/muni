@@ -23,6 +23,7 @@
 // Custom fabricated parts
 pub mod access_panel;
 pub mod base_tray;
+pub mod blower_nozzle;
 pub mod electronics_plate;
 pub mod frame;
 pub mod motor_mount;
@@ -44,6 +45,7 @@ pub mod assembly;
 // Custom fabricated exports
 pub use access_panel::AccessPanel;
 pub use base_tray::BaseTray;
+pub use blower_nozzle::{BlowerNozzle, BlowerNozzleConfig};
 pub use electronics_plate::ElectronicsPlate;
 pub use frame::{BVR1Frame, CornerBracket, Extrusion2020, TNut};
 pub use motor_mount::MotorMount;
