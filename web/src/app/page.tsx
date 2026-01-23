@@ -1,7 +1,16 @@
 import {
-  BookOpen,
+  GithubLogo,
+  BookOpenText,
   MapPin,
-  ArrowDown,
+  Shield,
+  Lightning,
+  Sun,
+  Eye,
+  Gear,
+  ArrowRight,
+  CheckCircle,
+  Clock,
+  CurrencyDollar,
 } from "@phosphor-icons/react/dist/ssr";
 import { Footer, FloatingHeader } from "@/components/layout";
 import { HeroViewer } from "@/components/home/HeroViewer";
@@ -11,152 +20,422 @@ export default function HomePage() {
   return (
     <>
       <FloatingHeader />
-      <main className="home-frames">
-      {/* ═══════════════════════════════════════════════════════════════════════
-          FRAME 1: THE HOOK
-          Goal: Arrest attention, establish what this is in 3 seconds
-          ═══════════════════════════════════════════════════════════════════════ */}
-      <section className="frame frame-hero">
-        <div className="hero-background">
-          <HeroViewer />
-        </div>
-        <div className="frame-content frame-content-centered hero-content-overlay">
-          <div className="hero-message">
-            <h1 className="hero-title">
-              Clear 50 miles of sidewalk. <span className="hero-title-accent">Autonomously.</span>
-            </h1>
-            <p className="hero-value-prop">
-              Fully autonomous snow clearing rovers for municipalities and campuses.
-              <strong> Zero labor cost. Operates 24/7.</strong>
-            </p>
-            <div className="hero-action">
-              <a href="https://muni.cal.com/cam/30min" className="btn-primary btn-large">
-                Schedule a Call
+      <main className="landing">
+        {/* ═══════════════════════════════════════════════════════════════════════
+            HERO: The Hook
+            ═══════════════════════════════════════════════════════════════════════ */}
+        <section className="landing-hero">
+          <div className="landing-hero-bg">
+            <div className="landing-hero-grid" />
+            <div className="landing-hero-glow" />
+          </div>
+
+          <div className="landing-container">
+            <div className="landing-hero-content">
+              <div className="landing-hero-text">
+                <div className="landing-badge">
+                  <span className="landing-badge-dot" />
+                  Only 2 pilot slots remaining for Winter 2026
+                </div>
+
+                <h1 className="landing-headline">
+                  Autonomous sidewalk clearing.
+                  <span className="landing-headline-accent"> Zero labor cost.</span>
+                </h1>
+
+                <p className="landing-subheadline">
+                  Deploy rovers that clear 50 miles of sidewalk per night.
+                  No crews. No overtime. No 3AM callouts.
+                </p>
+
+                <div className="landing-hero-cta">
+                  <a href="https://muni.cal.com/cam/30min" className="landing-btn landing-btn-primary">
+                    Schedule a Call
+                    <ArrowRight size={18} weight="bold" />
+                  </a>
+                  <a href="/docs/whitepaper.pdf" className="landing-btn landing-btn-secondary" target="_blank" rel="noopener noreferrer">
+                    Read Whitepaper
+                  </a>
+                </div>
+
+                <div className="landing-trust-row">
+                  <a href="https://github.com/ecto/muni" className="landing-trust-item" target="_blank" rel="noopener noreferrer">
+                    <GithubLogo size={16} weight="bold" />
+                    <span>Open Source</span>
+                  </a>
+                  <div className="landing-trust-divider" />
+                  <div className="landing-trust-item">
+                    <Shield size={16} weight="bold" />
+                    <span>LiDAR Safety System</span>
+                  </div>
+                  <div className="landing-trust-divider" />
+                  <div className="landing-trust-item">
+                    <Lightning size={16} weight="bold" />
+                    <span>24/7 Operation</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="landing-hero-visual">
+                <div className="landing-hero-viewer-wrap">
+                  <HeroViewer />
+                  <div className="landing-hero-viewer-label">
+                    <span>BVR1</span>
+                    <span className="landing-hero-viewer-sublabel">Production Model</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ═══════════════════════════════════════════════════════════════════════
+            PROBLEM: The Pain
+            ═══════════════════════════════════════════════════════════════════════ */}
+        <section className="landing-section landing-problem">
+          <div className="landing-container">
+            <div className="landing-section-header">
+              <span className="landing-eyebrow">The Problem</span>
+              <h2 className="landing-section-title">
+                Snow removal is broken.
+              </h2>
+              <p className="landing-section-desc">
+                Municipalities spend millions on manual labor while pedestrians face dangerous conditions.
+              </p>
+            </div>
+
+            <div className="landing-stats-grid">
+              <div className="landing-stat-card">
+                <div className="landing-stat-icon">
+                  <CurrencyDollar size={24} weight="bold" />
+                </div>
+                <div className="landing-stat-value">$14B</div>
+                <div className="landing-stat-label">spent annually on snow removal in the US</div>
+              </div>
+
+              <div className="landing-stat-card">
+                <div className="landing-stat-icon">
+                  <Clock size={24} weight="bold" />
+                </div>
+                <div className="landing-stat-value">$960</div>
+                <div className="landing-stat-label">per day for a 4-person manual crew</div>
+              </div>
+
+              <div className="landing-stat-card landing-stat-card-highlight">
+                <div className="landing-stat-icon">
+                  <Shield size={24} weight="bold" />
+                </div>
+                <div className="landing-stat-value">$1B+</div>
+                <div className="landing-stat-label">reserved annually for slip-and-fall liability</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ═══════════════════════════════════════════════════════════════════════
+            SLIP-AND-FALL: The Human Cost
+            ═══════════════════════════════════════════════════════════════════════ */}
+        <section
+          className="landing-section landing-slipfall"
+          style={{ backgroundImage: "url('/images/pedestrian-road.jpg')" }}
+        >
+          <div className="landing-slipfall-overlay" />
+          <div className="landing-container">
+            <div className="landing-slipfall-content">
+              <span className="landing-eyebrow">The Human Cost</span>
+              <h2 className="landing-slipfall-title">
+                1 million slip-and-fall injuries per year.
+              </h2>
+              <p className="landing-slipfall-desc">
+                Icy sidewalks send people to the emergency room. Lawsuits cost municipalities millions.
+                Clear sidewalks save lives and budgets.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        {/* ═══════════════════════════════════════════════════════════════════════
+            COVERAGE: Rovers in Action
+            ═══════════════════════════════════════════════════════════════════════ */}
+        <section className="landing-section landing-coverage">
+          <div className="landing-container">
+            <div className="landing-section-header">
+              <span className="landing-eyebrow">Coverage</span>
+              <h2 className="landing-section-title">
+                50 miles cleared per night.
+              </h2>
+              <p className="landing-section-desc">
+                Three rovers working in parallel clear an entire neighborhood before the morning commute.
+              </p>
+            </div>
+
+            <div className="landing-coverage-viewer">
+              <CoverageMapViewer />
+            </div>
+          </div>
+        </section>
+
+        {/* ═══════════════════════════════════════════════════════════════════════
+            SOLUTION: The Answer
+            ═══════════════════════════════════════════════════════════════════════ */}
+        <section className="landing-section landing-solution">
+          <div className="landing-container">
+            <div className="landing-section-header">
+              <span className="landing-eyebrow">The Solution</span>
+              <h2 className="landing-section-title">
+                The math works.
+              </h2>
+            </div>
+
+            <div className="landing-comparison">
+              <div className="landing-comparison-row">
+                <div className="landing-comparison-label">Manual Crew</div>
+                <div className="landing-comparison-bar-wrap">
+                  <div className="landing-comparison-bar landing-comparison-bar-full" />
+                </div>
+                <div className="landing-comparison-value">$960/day</div>
+              </div>
+
+              <div className="landing-comparison-row landing-comparison-highlight">
+                <div className="landing-comparison-label">Muni Rover</div>
+                <div className="landing-comparison-bar-wrap">
+                  <div className="landing-comparison-bar landing-comparison-bar-small" />
+                </div>
+                <div className="landing-comparison-value">$38/day</div>
+              </div>
+            </div>
+
+            <div className="landing-solution-metrics">
+              <div className="landing-metric">
+                <div className="landing-metric-value">50 mi</div>
+                <div className="landing-metric-label">cleared per night</div>
+              </div>
+              <div className="landing-metric">
+                <div className="landing-metric-value">6 AM</div>
+                <div className="landing-metric-label">cleared before commute</div>
+              </div>
+              <div className="landing-metric">
+                <div className="landing-metric-value">96%</div>
+                <div className="landing-metric-label">cost reduction</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ═══════════════════════════════════════════════════════════════════════
+            FEATURES: How It Works
+            ═══════════════════════════════════════════════════════════════════════ */}
+        <section className="landing-section landing-features">
+          <div className="landing-container">
+            <div className="landing-section-header">
+              <span className="landing-eyebrow">How It Works</span>
+              <h2 className="landing-section-title">
+                Fully autonomous operation.
+              </h2>
+              <p className="landing-section-desc">
+                Deploy once. The rover handles the rest.
+              </p>
+            </div>
+
+            <div className="landing-features-grid">
+              <div className="landing-feature-card">
+                <div className="landing-feature-icon">
+                  <Eye size={28} weight="bold" />
+                </div>
+                <h3 className="landing-feature-title">360° LiDAR Vision</h3>
+                <p className="landing-feature-desc">
+                  Livox Mid-360 scans at 200k points/sec. 1.5m safety radius with automatic e-stop.
+                  Pure geometry, no ML in the safety path.
+                </p>
+              </div>
+
+              <div className="landing-feature-card">
+                <div className="landing-feature-icon">
+                  <MapPin size={28} weight="bold" />
+                </div>
+                <h3 className="landing-feature-title">RTK GPS Navigation</h3>
+                <p className="landing-feature-desc">
+                  Centimeter-accurate positioning using HD maps. Define coverage areas once,
+                  the rover follows optimal paths automatically.
+                </p>
+              </div>
+
+              <div className="landing-feature-card">
+                <div className="landing-feature-icon">
+                  <Sun size={28} weight="bold" />
+                </div>
+                <h3 className="landing-feature-title">All-Weather Operation</h3>
+                <p className="landing-feature-desc">
+                  Built for snow. Operates in active snowfall, adapts speed to conditions.
+                  4-8 hour runtime with hot-swap battery packs.
+                </p>
+              </div>
+
+              <div className="landing-feature-card">
+                <div className="landing-feature-icon">
+                  <Gear size={28} weight="bold" />
+                </div>
+                <h3 className="landing-feature-title">Modular Attachments</h3>
+                <p className="landing-feature-desc">
+                  Hot-swap tools via CAN bus. Snow auger, salt spreader, plow blade.
+                  Each tool has its own MCU for plug-and-play operation.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ═══════════════════════════════════════════════════════════════════════
+            TRUST: Why Muni
+            ═══════════════════════════════════════════════════════════════════════ */}
+        <section className="landing-section landing-trust">
+          <div className="landing-container">
+            <div className="landing-section-header">
+              <span className="landing-eyebrow">Why Muni</span>
+              <h2 className="landing-section-title">
+                Built different.
+              </h2>
+            </div>
+
+            <div className="landing-trust-grid">
+              <div className="landing-trust-card">
+                <div className="landing-trust-card-header">
+                  <GithubLogo size={24} weight="bold" />
+                  <h3>Fully Open Source</h3>
+                </div>
+                <p>
+                  All firmware, CAD files, schematics, and documentation on GitHub under MIT/Apache 2.0.
+                  No vendor lock-in. Build your own for ~$5k.
+                </p>
+                <a href="https://github.com/ecto/muni" className="landing-trust-link" target="_blank" rel="noopener noreferrer">
+                  View on GitHub <ArrowRight size={14} weight="bold" />
+                </a>
+              </div>
+
+              <div className="landing-trust-card">
+                <div className="landing-trust-card-header">
+                  <Shield size={24} weight="bold" />
+                  <h3>Safety-First Design</h3>
+                </div>
+                <p>
+                  Multi-layer safety: LiDAR detection, watchdog timer, automatic e-stop on connection loss.
+                  Rate limiting prevents dangerous commands. No ML in safety path.
+                </p>
+              </div>
+
+              <div className="landing-trust-card">
+                <div className="landing-trust-card-header">
+                  <BookOpenText size={24} weight="bold" />
+                  <h3>Real Engineering</h3>
+                </div>
+                <p>
+                  Production-grade Rust firmware. Jetson Orin NX compute with 30 TOPS AI.
+                  4-wheel skid-steer platform tested in real Cleveland winters.
+                </p>
+                <a href="/docs/whitepaper.pdf" className="landing-trust-link" target="_blank" rel="noopener noreferrer">
+                  Read the whitepaper <ArrowRight size={14} weight="bold" />
+                </a>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ═══════════════════════════════════════════════════════════════════════
+            SPECS: Quick Reference
+            ═══════════════════════════════════════════════════════════════════════ */}
+        <section className="landing-section landing-specs">
+          <div className="landing-container">
+            <div className="landing-specs-content">
+              <div className="landing-specs-header">
+                <span className="landing-eyebrow">BVR1 Specifications</span>
+                <h2 className="landing-section-title">Production-ready.</h2>
+              </div>
+
+              <div className="landing-specs-grid">
+                <div className="landing-spec-item">
+                  <span className="landing-spec-label">Platform</span>
+                  <span className="landing-spec-value">600mm × 600mm × 400mm</span>
+                </div>
+                <div className="landing-spec-item">
+                  <span className="landing-spec-label">Weight</span>
+                  <span className="landing-spec-value">~60 kg (132 lbs)</span>
+                </div>
+                <div className="landing-spec-item">
+                  <span className="landing-spec-label">Speed</span>
+                  <span className="landing-spec-value">0-1 m/s (0-2.2 mph)</span>
+                </div>
+                <div className="landing-spec-item">
+                  <span className="landing-spec-label">Battery</span>
+                  <span className="landing-spec-value">48V 40Ah LiFePO4</span>
+                </div>
+                <div className="landing-spec-item">
+                  <span className="landing-spec-label">Runtime</span>
+                  <span className="landing-spec-value">4-8 hours</span>
+                </div>
+                <div className="landing-spec-item">
+                  <span className="landing-spec-label">Compute</span>
+                  <span className="landing-spec-value">Jetson Orin NX</span>
+                </div>
+                <div className="landing-spec-item">
+                  <span className="landing-spec-label">LiDAR</span>
+                  <span className="landing-spec-value">Livox Mid-360</span>
+                </div>
+                <div className="landing-spec-item">
+                  <span className="landing-spec-label">Price</span>
+                  <span className="landing-spec-value landing-spec-value-highlight">$18,000</span>
+                </div>
+              </div>
+
+              <a href="/rover" className="landing-specs-link">
+                View full specifications <ArrowRight size={14} weight="bold" />
               </a>
             </div>
           </div>
-        </div>
-        <div className="frame-scroll-hint" aria-hidden="true">
-          <ArrowDown size={24} />
-        </div>
-      </section>
+        </section>
 
-      {/* ═══════════════════════════════════════════════════════════════════════
-          FRAME 2: THE PROBLEM
-          Goal: Create urgency by making the pain visceral
-          ═══════════════════════════════════════════════════════════════════════ */}
-      <section className="frame frame-problem">
-        <div className="frame-background">
-          <img
-            src="/images/pedestrian-road.jpg"
-            alt=""
-            className="frame-background-image"
-          />
-        </div>
-        <div className="frame-content frame-content-centered frame-content-overlay">
-          <div className="problem-message">
-            <p className="problem-eyebrow">The problem</p>
-            <h2 className="problem-headline">
-              Uncleared sidewalks aren&apos;t just inconvenient. <span className="problem-headline-accent">They&apos;re dangerous.</span>
-            </h2>
-            <div className="problem-stats">
-              <div className="problem-stat">
-                <span className="problem-stat-value">65%</span>
-                <span className="problem-stat-label">of pedestrian fatalities occur where sidewalks aren&apos;t cleared</span>
+        {/* ═══════════════════════════════════════════════════════════════════════
+            CTA: Close
+            ═══════════════════════════════════════════════════════════════════════ */}
+        <section className="landing-section landing-cta">
+          <div className="landing-container">
+            <div className="landing-cta-content">
+              <div className="landing-cta-badge">
+                <CheckCircle size={16} weight="bold" />
+                Shipping Summer 2026
               </div>
-              <div className="problem-stat">
-                <span className="problem-stat-value">$1B</span>
-                <span className="problem-stat-label">reserved annually for slip-and-fall claims</span>
+
+              <h2 className="landing-cta-title">
+                Ready to automate your snow removal?
+              </h2>
+
+              <p className="landing-cta-desc">
+                Schedule a 30-minute call to discuss your deployment needs.
+              </p>
+
+              <div className="landing-cta-buttons">
+                <a href="https://muni.cal.com/cam/30min" className="landing-btn landing-btn-primary landing-btn-large">
+                  Schedule a Call
+                  <ArrowRight size={20} weight="bold" />
+                </a>
               </div>
-              <div className="problem-stat">
-                <span className="problem-stat-value">$960</span>
-                <span className="problem-stat-label">per day for a 4-person manual crew</span>
+
+              <div className="landing-cta-alt">
+                <span>Or explore:</span>
+                <a href="https://github.com/ecto/muni/tree/main/bvr/docs/hardware">Build it yourself</a>
+                <span className="landing-cta-alt-divider">/</span>
+                <a href="mailto:info@muni.works?subject=Pilot%20program">Join pilot program</a>
               </div>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* ═══════════════════════════════════════════════════════════════════════
-          FRAME 3: THE PROOF
-          Goal: Close the loop - answer the problem stats with solution stats
-          ═══════════════════════════════════════════════════════════════════════ */}
-      <section className="frame frame-solution">
-        <div className="frame-background">
-          <CoverageMapViewer />
-        </div>
-        <div className="frame-content frame-content-centered frame-content-overlay">
-          <div className="solution-message">
-            <p className="solution-eyebrow">The solution</p>
-            <h2 className="solution-headline">
-              The math works.
-            </h2>
-            <div className="solution-stats">
-              <div className="solution-stat">
-                <span className="solution-stat-value">$38/day</span>
-                <span className="solution-stat-label">vs $960 for manual crews</span>
-              </div>
-              <div className="solution-stat">
-                <span className="solution-stat-value">50 mi/night</span>
-                <span className="solution-stat-label">per rover</span>
-              </div>
-              <div className="solution-stat">
-                <span className="solution-stat-value">Cleared by 6AM</span>
-                <span className="solution-stat-label">before the morning commute</span>
-              </div>
-            </div>
-            <p className="solution-tagline">
-              One rover. No overtime. No 3AM callouts.
-            </p>
+        {/* Footer */}
+        <footer className="landing-footer">
+          <div className="landing-container">
+            <Footer />
           </div>
-        </div>
-      </section>
-
-      {/* ═══════════════════════════════════════════════════════════════════════
-          FINAL CTA
-          Goal: Close the sale
-          ═══════════════════════════════════════════════════════════════════════ */}
-      <section className="frame frame-cta">
-        <div className="frame-content frame-content-centered">
-          <p className="cta-eyebrow">Get started</p>
-          <h2 className="cta-headline">Let&apos;s talk about your deployment</h2>
-          <p className="cta-subtitle">
-            Schedule a 30-minute call to discuss your needs.
-          </p>
-
-          <div className="hero-action">
-            <a href="https://muni.cal.com/cam/30min" className="btn-primary btn-large">
-              Schedule a Call
-            </a>
-          </div>
-
-          <div className="cta-trust-signals">
-            <span><BookOpen size={16} aria-hidden="true" /> Fully open source</span>
-            <span><MapPin size={16} aria-hidden="true" /> Operating in Cleveland, OH</span>
-          </div>
-
-          <div className="cta-learn-more">
-            <p>Learn more:</p>
-            <div className="cta-alt-buttons">
-              <a href="/docs/whitepaper.pdf" className="cta-button-secondary" target="_blank" rel="noopener noreferrer">Read the whitepaper</a>
-              <a href="https://github.com/ecto/muni/tree/main/bvr/docs/hardware" className="cta-button-secondary">
-                Build it yourself
-              </a>
-              <a href="mailto:info@muni.works?subject=Pilot%20program" className="cta-button-secondary">
-                Join the pilot program
-              </a>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Minimal footer */}
-      <footer className="frame-footer">
-        <div className="frame-content">
-          <Footer />
-        </div>
-      </footer>
-    </main>
+        </footer>
+      </main>
     </>
   );
 }

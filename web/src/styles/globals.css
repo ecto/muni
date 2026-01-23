@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "./landing.css";
 
 /* Berkeley Mono font family */
 @font-face {
@@ -2980,7 +2981,7 @@ body > div:not(.frame-footer):not([class*="frame"]) > .formkit-form[data-uid="cb
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
-   FLOATING HEADER
+   FLOATING HEADER - Console Aesthetic (Sharp Corners, Monospace)
    ───────────────────────────────────────────────────────────────────────────── */
 
 .floating-header {
@@ -2991,23 +2992,25 @@ body > div:not(.frame-footer):not([class*="frame"]) > .formkit-form[data-uid="cb
   z-index: var(--z-header);
   backdrop-filter: blur(12px) saturate(180%);
   -webkit-backdrop-filter: blur(12px) saturate(180%);
-  background: rgba(0, 0, 0, 0.8);
-  border: 1px solid rgba(255, 102, 0, 0.2);
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+  background: oklch(0.147 0.004 49.25 / 92%);
+  border: 1px solid oklch(1 0 0 / 10%);
+  box-shadow:
+    0 4px 24px oklch(0 0 0 / 25%),
+    0 1px 2px oklch(0 0 0 / 15%);
 }
 
 .floating-header-content {
   padding: 12px 32px;
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 64px;
+  justify-content: space-between;
+  gap: 48px;
 }
 
 .floating-header-brand {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   text-decoration: none;
   background: transparent !important;
 }
@@ -3018,16 +3021,17 @@ body > div:not(.frame-footer):not([class*="frame"]) > .formkit-form[data-uid="cb
 }
 
 .floating-header-logo {
-  height: 32px;
+  height: 24px;
   width: auto;
   background: transparent !important;
 }
 
 .floating-header-name {
   font-family: var(--font-mono);
-  font-size: var(--text-sm);
+  font-size: 13px;
   font-weight: 700;
   letter-spacing: 0.02em;
+  text-transform: uppercase;
   color: var(--fg) !important;
   white-space: nowrap;
   background: transparent !important;
@@ -3036,53 +3040,63 @@ body > div:not(.frame-footer):not([class*="frame"]) > .formkit-form[data-uid="cb
 .floating-header-nav {
   display: flex;
   align-items: center;
-  gap: 32px;
+  gap: 20px;
 }
 
 .floating-header-link {
   font-family: var(--font-mono);
-  font-size: var(--text-sm);
-  color: var(--fg-muted);
+  font-size: 12px;
+  font-weight: 500;
+  color: oklch(0.709 0.01 56.259);
   text-decoration: none;
-  transition: color 0.2s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  transition: color 0.15s ease;
   background: transparent !important;
 }
 
 .floating-header-link:hover {
-  color: var(--orange) !important;
+  color: oklch(0.985 0.001 106.423) !important;
   background: transparent !important;
 }
 
 .floating-header-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-family: var(--font-mono);
-  font-size: var(--text-sm);
+  font-size: 12px;
   font-weight: 600;
-  color: #ffffff !important;
-  background: var(--orange) !important;
-  padding: 8px 20px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: oklch(0.147 0.004 49.25) !important;
+  background: oklch(0.705 0.191 47.604) !important;
+  padding: 8px 14px;
   text-decoration: none;
-  transition: opacity 0.2s ease;
+  transition: all 0.15s ease;
 }
 
 .floating-header-cta:hover {
-  opacity: 0.9;
-  color: #ffffff !important;
-  background: var(--orange) !important;
+  background: oklch(0.75 0.2 47.604) !important;
+  color: oklch(0.147 0.004 49.25) !important;
 }
 
 /* Mobile responsive */
 @media (max-width: 768px) {
   .floating-header {
     top: 12px;
+    left: 12px;
+    right: 12px;
+    transform: none;
   }
 
   .floating-header-content {
-    padding: 10px 24px;
-    gap: 32px;
+    padding: 8px 14px;
+    gap: 16px;
   }
 
   .floating-header-nav {
-    gap: 16px;
+    gap: 12px;
   }
 
   .floating-header-link {
@@ -3090,12 +3104,8 @@ body > div:not(.frame-footer):not([class*="frame"]) > .formkit-form[data-uid="cb
   }
 
   .floating-header-cta {
-    font-size: var(--text-xs);
-    padding: 6px 16px;
-  }
-
-  .home-frames {
-    padding-top: 72px;
+    font-size: 11px;
+    padding: 6px 12px;
   }
 }
 
@@ -3104,37 +3114,38 @@ body > div:not(.frame-footer):not([class*="frame"]) > .formkit-form[data-uid="cb
     top: 8px;
     left: 8px;
     right: 8px;
-    transform: none;
   }
 
   .floating-header-content {
-    padding: 8px 16px;
-    gap: 12px;
+    padding: 6px 12px;
   }
 
   .floating-header-name {
-    font-size: 10px;
+    font-size: 11px;
   }
 
   .floating-header-logo {
-    height: 24px;
+    height: 20px;
   }
 
   .floating-header-cta {
     font-size: 10px;
-    padding: 6px 12px;
-  }
-
-  .home-frames {
-    padding-top: 64px;
+    padding: 6px 10px;
   }
 }
 
 /* Light mode adjustments for floating header */
 @media (prefers-color-scheme: light) {
   .floating-header {
-    background: rgba(255, 255, 255, 0.9);
-    border: 1px solid rgba(0, 0, 0, 0.1);
-    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.1);
+    background: oklch(0.985 0.001 106.423 / 92%);
+    border: 1px solid oklch(0 0 0 / 8%);
+  }
+
+  .floating-header-link {
+    color: oklch(0.553 0.013 58.071);
+  }
+
+  .floating-header-link:hover {
+    color: oklch(0.147 0.004 49.25) !important;
   }
 }

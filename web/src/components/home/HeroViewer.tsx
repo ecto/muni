@@ -67,13 +67,19 @@ function Scene({ enableRotation, isDarkMode, onLoaded }: SceneProps) {
   return (
     <>
       {/* Lighting - higher contrast for ASCII */}
-      <ambientLight intensity={0.3} />
-      <directionalLight position={[300, 400, 200]} intensity={1.2} />
-      <directionalLight position={[-200, 100, -100]} intensity={0.4} />
+      <ambientLight intensity={0.35} />
+      <directionalLight position={[300, 400, 200]} intensity={1.3} />
+      <directionalLight position={[-200, 100, -100]} intensity={0.5} />
       <directionalLight
         position={[0, -100, -200]}
-        intensity={0.2}
+        intensity={0.25}
         color="#ff6600"
+      />
+      {/* Rim light for better silhouette */}
+      <directionalLight
+        position={[-300, 200, -300]}
+        intensity={0.3}
+        color="#ffffff"
       />
 
       {/* Model */}
@@ -81,17 +87,18 @@ function Scene({ enableRotation, isDarkMode, onLoaded }: SceneProps) {
         <AutoRotatingModel
           path="/models/bvr1_assembly.glb"
           enableRotation={enableRotation}
+          rotationSpeed={0.12}
           onLoaded={onLoaded}
         />
       </Suspense>
 
-      {/* ASCII Effect */}
+      {/* ASCII Effect - refined character set */}
       <AsciiRenderer
         fgColor={fgColor}
         bgColor={bgColor}
-        characters={" .'`^,:;Il!i><~+_-?][}{1)(|/tfjrxnuvczXYUJCLQ0OZmwqpdbkhao*#MW&8%B@$"}
+        characters={" .:-=+*#%@"}
         invert={false}
-        resolution={0.22}
+        resolution={0.2}
       />
     </>
   );

@@ -1,5 +1,8 @@
+"use client";
+
 import Link from "next/link";
 import { MuniLogo } from "./Header";
+import { ArrowRight } from "@phosphor-icons/react";
 
 export function FloatingHeader() {
   return (
@@ -7,21 +10,24 @@ export function FloatingHeader() {
       <div className="floating-header-content">
         <Link href="/" className="floating-header-brand">
           <MuniLogo className="floating-header-logo" />
-          <span className="floating-header-name">Municipal Robotics</span>
         </Link>
 
         <nav className="floating-header-nav" aria-label="Main navigation">
+          <Link href="/rover" className="floating-header-link">
+            Rover
+          </Link>
           <a href="/docs/whitepaper.pdf" className="floating-header-link" target="_blank" rel="noopener noreferrer">
-            Whitepaper<span className="sr-only"> (opens in new tab)</span>
+            Whitepaper
           </a>
           <a href="https://github.com/ecto/muni" className="floating-header-link" target="_blank" rel="noopener noreferrer">
-            GitHub<span className="sr-only"> (opens in new tab)</span>
+            GitHub
           </a>
           <a
             href="https://muni.cal.com/cam/30min"
             className="floating-header-cta"
           >
-            Schedule a Call
+            Talk to Us
+            <ArrowRight size={14} weight="bold" />
           </a>
         </nav>
       </div>

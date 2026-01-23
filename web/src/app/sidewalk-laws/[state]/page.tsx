@@ -121,7 +121,7 @@ Average sidewalk clearing cost savings: 90%+
 Typical payback period: <1 season
 
 `}
-              <Link href="/products" className="cta-inline">
+              <Link href="/rover" className="cta-inline">
                 Learn about BVR1 →
               </Link>
               {" "}

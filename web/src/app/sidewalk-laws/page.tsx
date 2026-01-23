@@ -76,7 +76,7 @@ Browse state-specific information below.`}
   • Zero labor dependency during labor shortages
 
 `}
-              <Link href="/products" className="cta">
+              <Link href="/rover" className="cta">
                 See how Muni rovers can help →
               </Link>
             </Pre>
