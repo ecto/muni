@@ -64,10 +64,14 @@ impl SimVesc {
             }
             // Set duty
             0 if frame.data.len() >= 4 => {
-                let duty =
+                let duty_scaled =
                     i32::from_be_bytes([frame.data[0], frame.data[1], frame.data[2], frame.data[3]]);
-                // Convert duty to approximate RPM
-                self.target_erpm = (duty as f32 * 0.5) as i32;
+                // Duty is sent as duty * 100000 (so 0.5 duty = 50000)
+                // Convert back to normalized duty (-1.0 to 1.0) and multiply by max ERPM
+                // Max ERPM of ~8000 gives max wheel speed of ~5 m/s with 15 pole pairs
+                const MAX_ERPM: f32 = 8000.0;
+                let duty_normalized = duty_scaled as f32 / 100000.0;
+                self.target_erpm = (duty_normalized * MAX_ERPM) as i32;
                 true
             }
             _ => false,
