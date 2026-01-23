@@ -10,6 +10,44 @@ use tokio::net::UdpSocket;
 use tokio::sync::watch;
 use tracing::{debug, error, info, trace, warn};
 
+/// Transform for rotating points from LiDAR frame to rover body frame.
+/// Precomputed sin/cos for efficiency.
+struct MountingTransform {
+    cos_pitch: f32,
+    sin_pitch: f32,
+}
+
+impl MountingTransform {
+    fn new(pitch_deg: f32) -> Self {
+        let pitch_rad = pitch_deg.to_radians();
+        Self {
+            cos_pitch: pitch_rad.cos(),
+            sin_pitch: pitch_rad.sin(),
+        }
+    }
+
+    /// Apply pitch rotation (around Y axis) to a point.
+    /// Transforms from LiDAR frame to rover body frame.
+    #[inline]
+    fn apply(&self, point: &mut Point3D) {
+        // Rotation matrix for pitch (around Y axis):
+        // [cos(θ)   0   sin(θ)]   [x]
+        // [  0      1     0   ] * [y]
+        // [-sin(θ)  0   cos(θ)]   [z]
+        let x = point.x * self.cos_pitch + point.z * self.sin_pitch;
+        let z = -point.x * self.sin_pitch + point.z * self.cos_pitch;
+        point.x = x;
+        point.z = z;
+    }
+
+    /// Apply transform to all points in a cloud.
+    fn apply_to_cloud(&self, cloud: &mut PointCloud) {
+        for point in &mut cloud.points {
+            self.apply(point);
+        }
+    }
+}
+
 /// Livox SDK2 control port on the device
 const LIVOX_CONTROL_PORT: u16 = 56000;
 
@@ -216,8 +254,19 @@ pub async fn run_reader_with_imu(
     info!(
         lidar_ip = %config.lidar_ip,
         point_port = config.point_cloud_port,
+        mounting_pitch_deg = config.mounting_pitch_deg,
         "Starting Livox Mid360 reader"
     );
+
+    // Create mounting transform (applied to all points)
+    let transform = MountingTransform::new(config.mounting_pitch_deg);
+    let has_transform = config.mounting_pitch_deg.abs() > 0.01;
+    if has_transform {
+        info!(
+            pitch_deg = config.mounting_pitch_deg,
+            "Applying mounting pitch transform to point cloud"
+        );
+    }
 
     // Attempt to connect and start data streaming
     if let Err(e) = connect_and_start(&config).await {
@@ -272,7 +321,12 @@ pub async fn run_reader_with_imu(
                                     "Parsed point packet"
                                 );
 
-                                if let Some(cloud) = frame_acc.add_packet(frame_counter, timestamp_ns, points) {
+                                if let Some(mut cloud) = frame_acc.add_packet(frame_counter, timestamp_ns, points) {
+                                    // Apply mounting transform if configured
+                                    if has_transform {
+                                        transform.apply_to_cloud(&mut cloud);
+                                    }
+
                                     debug!(
                                         frame = cloud.frame_id,
                                         points = cloud.points.len(),

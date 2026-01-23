@@ -36,6 +36,9 @@ pub struct Config {
     pub imu_port: u16,
     /// Command port for control messages (default: 56101)
     pub cmd_port: u16,
+    /// Mounting pitch angle in degrees (positive = tilted down/forward)
+    /// Used to transform points from LiDAR frame to rover body frame.
+    pub mounting_pitch_deg: f32,
 }
 
 impl Default for Config {
@@ -46,6 +49,7 @@ impl Default for Config {
             point_cloud_port: 56301,
             imu_port: 56401,
             cmd_port: 56101,
+            mounting_pitch_deg: 0.0,
         }
     }
 }

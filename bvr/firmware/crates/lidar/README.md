@@ -36,6 +36,35 @@ The Mid360 uses fixed UDP ports:
 
 Default LiDAR IP: `192.168.1.1xx` (last two digits from serial number)
 
+### Network Setup (BVR Rover)
+
+The Mid360 uses the HAP (High-speed API Protocol) which broadcasts its configuration on startup. The LiDAR sends data to a pre-configured host IP that may differ from the rover's primary interface.
+
+**Discovering the LiDAR:**
+```bash
+# Capture HAP broadcast packets to find the LiDAR
+sudo tcpdump -i eth0 udp port 10001 -c 5
+
+# Look for packets from 192.168.1.1xx containing DevType:Mid-360
+# The packet also shows what host IP the LiDAR expects to send data to
+```
+
+**Adding a secondary IP (if LiDAR expects a different host):**
+```bash
+# Temporary (lost on reboot)
+sudo ip addr add 192.168.1.5/24 dev eth0
+
+# Permanent (NetworkManager)
+sudo nmcli connection modify eth0 +ipv4.addresses '192.168.1.5/24'
+sudo nmcli connection up eth0
+```
+
+**Verify data is flowing:**
+```bash
+# Should see UDP packets on port 56301 (point cloud) and 56401 (IMU)
+sudo tcpdump -i eth0 host 192.168.1.177 -c 20
+```
+
 ## Usage
 
 ```rust
@@ -105,10 +134,18 @@ In `bvr.toml`:
 ```toml
 [lidar]
 enabled = true
-lidar_ip = "192.168.1.100"
+lidar_ip = "192.168.1.177"      # LiDAR IP (find via HAP broadcast)
+host_ip = "192.168.1.5"         # Host IP the LiDAR sends data to
 point_cloud_port = 56301
-imu_port = 56401  # Set to 0 to disable IMU
+imu_port = 56401                # Set to 0 to disable IMU
+mounting_pitch_deg = 30.0       # LiDAR tilt angle (positive = tilted down)
 ```
+
+### Mounting Angle
+
+The `mounting_pitch_deg` parameter compensates for the physical mounting angle of the LiDAR. When the LiDAR is tilted forward (pitched down), set this to a positive value. The driver applies a rotation to transform points from the LiDAR frame to the rover body frame.
+
+For BVR rovers, the Mid360 is typically mounted at 30° pitch to provide better ground coverage for obstacle detection.
 
 ## Integration
 
