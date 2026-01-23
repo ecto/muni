@@ -23,6 +23,56 @@ pub enum LidarError {
     NotFound,
 }
 
+/// Point cloud data format.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[repr(u8)]
+pub enum PointDataType {
+    /// 32-bit Cartesian coordinates (14 bytes/point, mm precision)
+    #[default]
+    Cartesian32 = 1,
+    /// 16-bit Cartesian coordinates (8 bytes/point, 10mm precision)
+    Cartesian16 = 2,
+    /// Spherical coordinates (10 bytes/point)
+    Spherical = 3,
+}
+
+/// Time synchronization mode.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[repr(u8)]
+pub enum TimeSyncMode {
+    /// No time synchronization (use device internal clock)
+    #[default]
+    None = 0,
+    /// PTP time synchronization (IEEE 1588v2.0)
+    Ptp = 1,
+    /// GPS time synchronization
+    Gps = 2,
+}
+
+/// Field of View configuration for a single scan region.
+#[derive(Debug, Clone, Copy)]
+pub struct FovRegion {
+    /// Yaw start angle in degrees (-180 to 180)
+    pub yaw_start: f32,
+    /// Yaw stop angle in degrees (-180 to 180)
+    pub yaw_stop: f32,
+    /// Pitch start angle in degrees (-25 to 34 for Mid-360)
+    pub pitch_start: f32,
+    /// Pitch stop angle in degrees (-25 to 34 for Mid-360)
+    pub pitch_stop: f32,
+}
+
+impl Default for FovRegion {
+    fn default() -> Self {
+        Self {
+            yaw_start: -180.0,
+            yaw_stop: 180.0,
+            pitch_start: -25.0,
+            pitch_stop: 34.0,
+        }
+    }
+}
+
 /// Livox Mid360 configuration.
 #[derive(Debug, Clone)]
 pub struct Config {
@@ -36,6 +86,16 @@ pub struct Config {
     pub imu_port: u16,
     /// Command port for control messages (default: 56101)
     pub cmd_port: u16,
+    /// Point cloud data format (default: Cartesian32)
+    pub data_type: PointDataType,
+    /// Time synchronization mode (default: None)
+    pub time_sync: TimeSyncMode,
+    /// Heartbeat interval in milliseconds (0 to disable, default: 1000)
+    pub heartbeat_interval_ms: u32,
+    /// FOV region 1 (optional, None = full FOV)
+    pub fov_region1: Option<FovRegion>,
+    /// FOV region 2 (optional, None = disabled)
+    pub fov_region2: Option<FovRegion>,
 }
 
 impl Default for Config {
@@ -46,6 +106,61 @@ impl Default for Config {
             point_cloud_port: 56301,
             imu_port: 56401,
             cmd_port: 56101,
+            data_type: PointDataType::default(),
+            time_sync: TimeSyncMode::default(),
+            heartbeat_interval_ms: 1000,
+            fov_region1: None,
+            fov_region2: None,
+        }
+    }
+}
+
+/// Point confidence level extracted from tag field.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
+pub enum PointConfidence {
+    /// Normal detection, high confidence
+    High = 0,
+    /// Reduced confidence
+    Medium = 1,
+    /// Low confidence (possible interference)
+    Low = 2,
+    /// Very low confidence (likely noise)
+    VeryLow = 3,
+}
+
+impl From<u8> for PointConfidence {
+    fn from(val: u8) -> Self {
+        match val & 0b11 {
+            0 => PointConfidence::High,
+            1 => PointConfidence::Medium,
+            2 => PointConfidence::Low,
+            _ => PointConfidence::VeryLow,
+        }
+    }
+}
+
+/// Return type information extracted from tag field.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
+pub enum ReturnType {
+    /// Single return (normal)
+    Single = 0,
+    /// First of multiple returns
+    FirstMulti = 1,
+    /// Second of multiple returns
+    SecondMulti = 2,
+    /// Third or later return
+    ThirdMulti = 3,
+}
+
+impl From<u8> for ReturnType {
+    fn from(val: u8) -> Self {
+        match val & 0b11 {
+            0 => ReturnType::Single,
+            1 => ReturnType::FirstMulti,
+            2 => ReturnType::SecondMulti,
+            _ => ReturnType::ThirdMulti,
         }
     }
 }
@@ -62,7 +177,44 @@ pub struct Point3D {
     /// Reflectivity (0-255)
     pub reflectivity: u8,
     /// Point tag (classification flags)
+    /// - Bits 0-1: Confidence (0=high, 3=very low)
+    /// - Bits 2-3: Return type (0=single, 1-3=multi-return index)
+    /// - Bits 4-5: Interference flags (rain/fog/dust/crosstalk)
+    /// - Bits 6-7: Reserved
     pub tag: u8,
+}
+
+impl Point3D {
+    /// Get confidence level of this point detection.
+    #[inline]
+    pub fn confidence(&self) -> PointConfidence {
+        PointConfidence::from(self.tag & 0b11)
+    }
+
+    /// Get return type (single vs multi-return).
+    #[inline]
+    pub fn return_type(&self) -> ReturnType {
+        ReturnType::from((self.tag >> 2) & 0b11)
+    }
+
+    /// Check if interference was detected (rain, fog, dust, or crosstalk).
+    #[inline]
+    pub fn has_interference(&self) -> bool {
+        (self.tag >> 4) & 0b11 != 0
+    }
+
+    /// Check if this is a high-quality point (high confidence, no interference).
+    #[inline]
+    pub fn is_high_quality(&self) -> bool {
+        self.confidence() == PointConfidence::High && !self.has_interference()
+    }
+
+    /// Check if this point should be used for navigation (medium+ confidence, no interference).
+    #[inline]
+    pub fn is_navigation_quality(&self) -> bool {
+        matches!(self.confidence(), PointConfidence::High | PointConfidence::Medium)
+            && !self.has_interference()
+    }
 }
 
 /// A complete point cloud frame from the LiDAR.
@@ -169,5 +321,75 @@ mod tests {
         assert_eq!(point.y, 0.0);
         assert_eq!(point.z, 0.0);
         assert_eq!(point.reflectivity, 0);
+    }
+
+    #[test]
+    fn test_point_confidence() {
+        // Tag = 0b00 -> High confidence
+        let point = Point3D { tag: 0b00, ..Default::default() };
+        assert_eq!(point.confidence(), PointConfidence::High);
+
+        // Tag = 0b01 -> Medium confidence
+        let point = Point3D { tag: 0b01, ..Default::default() };
+        assert_eq!(point.confidence(), PointConfidence::Medium);
+
+        // Tag = 0b10 -> Low confidence
+        let point = Point3D { tag: 0b10, ..Default::default() };
+        assert_eq!(point.confidence(), PointConfidence::Low);
+
+        // Tag = 0b11 -> Very low confidence
+        let point = Point3D { tag: 0b11, ..Default::default() };
+        assert_eq!(point.confidence(), PointConfidence::VeryLow);
+    }
+
+    #[test]
+    fn test_point_return_type() {
+        // Bits 2-3 = 0b00 -> Single return
+        let point = Point3D { tag: 0b0000, ..Default::default() };
+        assert_eq!(point.return_type(), ReturnType::Single);
+
+        // Bits 2-3 = 0b01 -> First multi
+        let point = Point3D { tag: 0b0100, ..Default::default() };
+        assert_eq!(point.return_type(), ReturnType::FirstMulti);
+
+        // Bits 2-3 = 0b10 -> Second multi
+        let point = Point3D { tag: 0b1000, ..Default::default() };
+        assert_eq!(point.return_type(), ReturnType::SecondMulti);
+    }
+
+    #[test]
+    fn test_point_interference() {
+        // No interference (bits 4-5 = 0)
+        let point = Point3D { tag: 0b00_00_00, ..Default::default() };
+        assert!(!point.has_interference());
+
+        // Interference detected (bits 4-5 != 0)
+        let point = Point3D { tag: 0b01_00_00, ..Default::default() };
+        assert!(point.has_interference());
+
+        let point = Point3D { tag: 0b10_00_00, ..Default::default() };
+        assert!(point.has_interference());
+    }
+
+    #[test]
+    fn test_point_quality() {
+        // High quality: confidence=high, no interference
+        let point = Point3D { tag: 0b00_00_00, ..Default::default() };
+        assert!(point.is_high_quality());
+        assert!(point.is_navigation_quality());
+
+        // Medium confidence, no interference -> nav quality but not high quality
+        let point = Point3D { tag: 0b00_00_01, ..Default::default() };
+        assert!(!point.is_high_quality());
+        assert!(point.is_navigation_quality());
+
+        // High confidence but interference -> not high quality, not nav quality
+        let point = Point3D { tag: 0b01_00_00, ..Default::default() };
+        assert!(!point.is_high_quality());
+        assert!(!point.is_navigation_quality());
+
+        // Low confidence -> not nav quality
+        let point = Point3D { tag: 0b00_00_10, ..Default::default() };
+        assert!(!point.is_navigation_quality());
     }
 }
