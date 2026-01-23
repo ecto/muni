@@ -27,6 +27,8 @@ function CameraProjection({
   const textureRef = useRef<Texture | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [hasTexture, setHasTexture] = useState(false);
+  // Track mount generation to force texture reload on remount
+  const [mountId] = useState(() => Math.random());
 
   // Create plane geometry sized for 4:3 aspect ratio
   const geometry = useMemo(() => {
@@ -37,6 +39,7 @@ function CameraProjection({
   }, []);
 
   // Load frame and update texture
+  // Include mountId to ensure effect runs on remount even if frameUrl unchanged
   useEffect(() => {
     if (!frameUrl) return;
 
@@ -62,18 +65,16 @@ function CameraProjection({
       // Mark texture as needing update (canvas content changed)
       textureRef.current.needsUpdate = true;
 
-      // Update material
+      // Update material - always reattach texture in case material was recreated
       if (materialRef.current) {
-        if (!materialRef.current.map) {
-          materialRef.current.map = textureRef.current;
-        }
+        materialRef.current.map = textureRef.current;
         materialRef.current.needsUpdate = true;
       }
 
       setHasTexture(true);
     };
     img.src = frameUrl;
-  }, [frameUrl]);
+  }, [frameUrl, mountId]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -114,6 +115,22 @@ export function EquirectangularSky() {
     return Array.from(cameraFrames.entries()).sort((a, b) => a[0] - b[0]);
   }, [cameraFrames, cameraCount]);
 
+  // Memoize camera positions to prevent unnecessary remounts
+  // Each camera gets a stable position tuple based on its index and total count
+  // NOTE: Must be before early return to maintain hooks order
+  const positions = useMemo(() => {
+    const total = cameras.length;
+    if (total === 0) return [];
+    return cameras.map((_, index) => {
+      if (total === 1) return [0, 1.5, -3] as [number, number, number];
+      // Spread cameras horizontally in front of rover (planes are ~2.67m wide)
+      const spacing = 3;
+      const offset = ((total - 1) / 2) * spacing;
+      const x = index * spacing - offset;
+      return [x, 1.5, -3] as [number, number, number];
+    });
+  }, [cameras.length]);
+
   // Follow the rover's position using the same interpolation as RoverModel
   useFrame(() => {
     if (!groupRef.current) return;
@@ -131,24 +148,13 @@ export function EquirectangularSky() {
     return null;
   }
 
-  // Position cameras relative to the rover (local coordinates)
-  // Planes are positioned in front of the rover in local space
-  const getPosition = (index: number, total: number): [number, number, number] => {
-    if (total === 1) return [0, 1.5, -3];
-    // Spread cameras horizontally in front of rover (planes are ~2.67m wide)
-    const spacing = 3;
-    const offset = ((total - 1) / 2) * spacing;
-    const x = index * spacing - offset;
-    return [x, 1.5, -3];
-  };
-
   return (
     <group ref={groupRef}>
       {cameras.map(([cameraId, frame], index) => (
         <CameraProjection
           key={cameraId}
           frameUrl={frame.url}
-          position={getPosition(index, cameras.length)}
+          position={positions[index]}
         />
       ))}
     </group>

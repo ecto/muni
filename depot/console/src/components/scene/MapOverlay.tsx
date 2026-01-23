@@ -120,6 +120,14 @@ function ZoneVisualization({ zone, activeTask, onClick }: ZoneVisualizationProps
   );
 }
 
+// Memoized geometry instances to avoid recreation
+const SPHERE_GEOMETRY_ACTIVE = new THREE.SphereGeometry(0.12, 16, 16);
+const SPHERE_GEOMETRY_INACTIVE = new THREE.SphereGeometry(0.08, 16, 16);
+const CONE_GEOMETRY = new THREE.ConeGeometry(0.05, 0.1, 8);
+
+// Constant position tuples
+const LABEL_POSITION: [number, number, number] = [0, 0.35, 0];
+
 function WaypointMarker({
   waypoint,
   index,
@@ -135,13 +143,26 @@ function WaypointMarker({
 }) {
   const hasHeading = waypoint.theta !== undefined;
   const displayColor = isActive ? ACTIVE_WAYPOINT_COLOR : color;
-  const markerSize = isActive ? 0.12 : 0.08;
+
+  // Memoize position to avoid recreating array on every render
+  const position = useMemo(
+    (): [number, number, number] => [waypoint.x, 0.05, -waypoint.y],
+    [waypoint.x, waypoint.y]
+  );
+
+  // Memoize direction indicator position
+  const directionPosition = useMemo(
+    (): [number, number, number] | null =>
+      hasHeading
+        ? [Math.cos(waypoint.theta!) * 0.15, 0, -Math.sin(waypoint.theta!) * 0.15]
+        : null,
+    [hasHeading, waypoint.theta]
+  );
 
   return (
-    <group position={[waypoint.x, 0.05, -waypoint.y]}>
+    <group position={position}>
       {/* Marker sphere */}
-      <mesh>
-        <sphereGeometry args={[markerSize, 16, 16]} />
+      <mesh geometry={isActive ? SPHERE_GEOMETRY_ACTIVE : SPHERE_GEOMETRY_INACTIVE}>
         <meshStandardMaterial
           color={displayColor}
           emissive={isActive ? displayColor : "#000000"}
@@ -153,18 +174,15 @@ function WaypointMarker({
       {isActive && <PulsingRing color={displayColor} />}
 
       {/* Direction indicator if theta is set */}
-      {hasHeading && (
-        <mesh
-          position={[Math.cos(waypoint.theta!) * 0.15, 0, -Math.sin(waypoint.theta!) * 0.15]}
-        >
-          <coneGeometry args={[0.05, 0.1, 8]} />
+      {directionPosition && (
+        <mesh position={directionPosition} geometry={CONE_GEOMETRY}>
           <meshBasicMaterial color={displayColor} />
         </mesh>
       )}
 
       {/* Index label */}
       {showLabel && (
-        <Billboard position={[0, 0.35, 0]}>
+        <Billboard position={LABEL_POSITION}>
           <Text
             fontSize={isActive ? 0.2 : 0.15}
             color={displayColor}
@@ -181,6 +199,11 @@ function WaypointMarker({
   );
 }
 
+// Constant geometry and transforms for PulsingRing
+const RING_GEOMETRY = new THREE.RingGeometry(0.15, 0.25, 24);
+const RING_ROTATION: [number, number, number] = [-Math.PI / 2, 0, 0];
+const RING_POSITION: [number, number, number] = [0, 0.01, 0];
+
 /** Pulsing ring effect for active waypoints */
 function PulsingRing({ color }: { color: string }) {
   const ringRef = useRef<THREE.Mesh>(null);
@@ -196,8 +219,7 @@ function PulsingRing({ color }: { color: string }) {
   });
 
   return (
-    <mesh ref={ringRef} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.01, 0]}>
-      <ringGeometry args={[0.15, 0.25, 24]} />
+    <mesh ref={ringRef} rotation={RING_ROTATION} position={RING_POSITION} geometry={RING_GEOMETRY}>
       <meshBasicMaterial color={color} transparent opacity={0.5} side={THREE.DoubleSide} />
     </mesh>
   );
