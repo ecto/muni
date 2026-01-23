@@ -3,12 +3,15 @@
 //! Provides:
 //! - Wheel odometry from VESC tachometer readings
 //! - Pose estimator that fuses odometry with GPS
+//! - IMU attitude estimation with Kalman filtering
 
-mod odometry;
+mod attitude;
 mod estimator;
+mod odometry;
 
-pub use odometry::WheelOdometry;
+pub use attitude::{Attitude, AttitudeConfig, AttitudeFilter};
 pub use estimator::PoseEstimator;
+pub use odometry::WheelOdometry;
 
 
 

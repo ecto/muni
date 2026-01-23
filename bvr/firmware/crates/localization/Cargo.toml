@@ -6,6 +6,7 @@ edition.workspace = true
 license.workspace = true
 
 [dependencies]
+nalgebra = { workspace = true }
 tracing = { workspace = true }
 types = { workspace = true }
 control = { workspace = true }

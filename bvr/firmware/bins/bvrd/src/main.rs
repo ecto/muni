@@ -10,7 +10,7 @@ use control::{ChassisParams, DiffDriveMixer, Limits, RateLimiter, Watchdog};
 use gps::{Config as GpsConfig, GpsReader, GpsState};
 use hal::EStopEvent;
 use lidar::{Config as LidarConfig, LidarReader};
-use localization::{PoseEstimator, WheelOdometry};
+use localization::{AttitudeFilter, PoseEstimator, WheelOdometry};
 use slam::{SlamConfig, SlamProcessor, SlamState};
 use planner::PlannerConfig;
 use pursuit::PursuitConfig;
@@ -1411,6 +1411,9 @@ async fn main() -> Result<()> {
     let mut dispatch_tasks: JoinSet<()> = JoinSet::new();
     let mut last_task_cleanup = Instant::now();
 
+    // IMU attitude filter (fuses gyro + accelerometer for smooth roll/pitch)
+    let mut attitude_filter = AttitudeFilter::new();
+
     info!("Entering control loop");
     info!("Dashboard available at http://localhost:{}", args.ui_port);
     info!("Send commands to UDP port 4840");
@@ -2264,22 +2267,27 @@ async fn main() -> Result<()> {
         // Get system metrics for telemetry (reuses cached values from sys_metrics)
         let sys = sys_metrics.metrics();
 
-        // Compute roll/pitch from IMU accelerometer data
+        // Compute roll/pitch from IMU using Kalman filter (fuses gyro + accelerometer)
         // The IMU is mounted tilted forward, so we transform readings to body frame first.
-        // Roll: rotation about forward axis (X), computed from gravity in Y-Z plane
-        // Pitch: rotation about lateral axis (Y), computed from gravity in X-Z plane
         let (roll, pitch) = if let Some(imu) = imu_rx.borrow().as_ref() {
-            // Transform accelerometer from sensor frame to body frame.
+            // Transform both accel and gyro from sensor frame to body frame.
             // Sensor is pitched forward by imu_mount_pitch radians, so we rotate back.
             let mount_pitch = file_config.lidar.imu_mount_pitch;
             let (sin_p, cos_p) = mount_pitch.sin_cos();
-            let accel_x = imu.accel_x * cos_p + imu.accel_z * sin_p;
-            let accel_y = imu.accel_y;
-            let accel_z = -imu.accel_x * sin_p + imu.accel_z * cos_p;
 
-            let roll = accel_y.atan2(accel_z);
-            let pitch = (-accel_x).atan2((accel_y.powi(2) + accel_z.powi(2)).sqrt());
-            (roll, pitch)
+            let accel = [
+                imu.accel_x * cos_p + imu.accel_z * sin_p,
+                imu.accel_y,
+                -imu.accel_x * sin_p + imu.accel_z * cos_p,
+            ];
+            let gyro = [
+                imu.gyro_x * cos_p + imu.gyro_z * sin_p,
+                imu.gyro_y,
+                -imu.gyro_x * sin_p + imu.gyro_z * cos_p,
+            ];
+
+            let att = attitude_filter.update(gyro, accel, dt);
+            (att.roll, att.pitch)
         } else {
             (0.0, 0.0)
         };
