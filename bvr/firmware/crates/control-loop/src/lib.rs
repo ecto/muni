@@ -31,6 +31,7 @@ mod autonomous_controller;
 mod command_processor;
 mod dispatch_handler;
 mod motor_controller;
+mod navigation_controller;
 mod telemetry_builder;
 
 pub use autonomous_controller::{
@@ -40,6 +41,9 @@ pub use autonomous_controller::{
 pub use command_processor::{CommandProcessor, ProcessedCommands};
 pub use dispatch_handler::{DispatchHandler, DispatchResult};
 pub use motor_controller::{MotorController, MotorOutput};
+pub use navigation_controller::{
+    ActiveTask, NavigationConfig, NavigationController, NavigationOutput, NavigationState,
+};
 pub use telemetry_builder::TelemetryBuilder;
 
 use std::time::{Duration, Instant};

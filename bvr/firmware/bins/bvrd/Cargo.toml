@@ -33,6 +33,9 @@ dispatch = { workspace = true }
 transforms = { workspace = true }
 slam = { workspace = true }
 costmap = { workspace = true }
+planner = { workspace = true }
+pursuit = { workspace = true }
+control-loop = { workspace = true }
 
 tokio = { workspace = true }
 serde = { workspace = true }

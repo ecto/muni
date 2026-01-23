@@ -80,6 +80,9 @@ dispatch = { path = "crates/dispatch" }
 transforms = { path = "crates/transforms" }
 slam = { path = "crates/slam" }
 costmap = { path = "crates/costmap" }
+planner = { path = "crates/planner" }
+pursuit = { path = "crates/pursuit" }
+control-loop = { path = "crates/control-loop" }
 
 # RL training dependencies
 rand = "0.8"

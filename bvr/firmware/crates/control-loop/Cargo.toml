@@ -12,6 +12,11 @@ can = { path = "../can" }
 hal = { path = "../hal" }
 teleop = { path = "../teleop" }
 dispatch = { path = "../dispatch" }
+planner = { path = "../planner" }
+pursuit = { path = "../pursuit" }
+costmap = { path = "../costmap" }
+lidar = { path = "../lidar" }
+transforms = { path = "../transforms" }
 
 # External dependencies
 tokio = { workspace = true, features = ["sync"] }

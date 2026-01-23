@@ -12,6 +12,10 @@ use hal::EStopEvent;
 use lidar::{Config as LidarConfig, LidarReader};
 use localization::{PoseEstimator, WheelOdometry};
 use slam::{SlamConfig, SlamProcessor, SlamState};
+use planner::PlannerConfig;
+use pursuit::PursuitConfig;
+use control_loop::{NavigationConfig, NavigationController, NavigationState};
+use transforms::Transform2D;
 use metrics::{Config as MetricsConfig, DiscoveryClient, DiscoveryConfig, MetricsPusher, MetricsSnapshot, SystemMetricsCollector};
 use policy::{NormalizationConfig, Policy, PolicyManager, PolicyObservation};
 use recording::{Config as RecordingConfig, Recorder};
@@ -45,6 +49,7 @@ struct FileConfig {
     dispatch: DispatchFileConfig,
     lidar: LidarFileConfig,
     slam: SlamFileConfig,
+    navigation: NavigationFileConfig,
     estop: EStopFileConfig,
     camera: CameraFileConfig,
 }
@@ -172,6 +177,52 @@ impl Default for SlamFileConfig {
             keyframe_distance: 1.0,
             keyframe_rotation: 0.5,
             loop_closure_threshold: 0.7,
+        }
+    }
+}
+
+/// Classical navigation stack configuration (planner + pursuit).
+#[derive(Debug, Deserialize)]
+#[serde(default)]
+struct NavigationFileConfig {
+    /// Enable classical navigation (A* + pure pursuit) instead of policy
+    enabled: bool,
+    /// Costmap width in meters
+    costmap_width: f64,
+    /// Costmap height in meters
+    costmap_height: f64,
+    /// Costmap resolution (meters per cell)
+    costmap_resolution: f64,
+    /// Inflation radius around obstacles (meters)
+    inflation_radius: f64,
+    /// Robot inscribed radius (meters)
+    inscribed_radius: f64,
+    /// Lookahead distance for pure pursuit (meters)
+    lookahead_distance: f64,
+    /// Goal tolerance (meters)
+    goal_tolerance: f64,
+    /// Maximum linear velocity (m/s)
+    max_linear_vel: f64,
+    /// Maximum angular velocity (rad/s)
+    max_angular_vel: f64,
+    /// Blocked timeout before giving up (seconds)
+    blocked_timeout: f64,
+}
+
+impl Default for NavigationFileConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true, // Use classical navigation by default
+            costmap_width: 20.0,
+            costmap_height: 20.0,
+            costmap_resolution: 0.1,
+            inflation_radius: 0.4,
+            inscribed_radius: 0.35,
+            lookahead_distance: 0.5,
+            goal_tolerance: 0.3,
+            max_linear_vel: 1.0,
+            max_angular_vel: 0.5, // Note: gets 2.5x boost for skid steering, so effective is ~1.25 rad/s
+            blocked_timeout: 30.0,
         }
     }
 }
@@ -706,6 +757,55 @@ async fn main() -> Result<()> {
         info!("Autonomous mode disabled");
     }
 
+    // Initialize classical navigation controller (planner + pursuit)
+    let navigation_enabled = file_config.navigation.enabled && file_config.lidar.enabled;
+    let mut navigation_controller: Option<NavigationController> = if navigation_enabled {
+        let nav_config = NavigationConfig {
+            costmap_width: file_config.navigation.costmap_width,
+            costmap_height: file_config.navigation.costmap_height,
+            costmap_resolution: file_config.navigation.costmap_resolution,
+            inflation_radius: file_config.navigation.inflation_radius,
+            inscribed_radius: file_config.navigation.inscribed_radius,
+            planner: PlannerConfig::default(),
+            pursuit: PursuitConfig {
+                lookahead_distance: file_config.navigation.lookahead_distance,
+                goal_tolerance: file_config.navigation.goal_tolerance,
+                max_linear_velocity: file_config.navigation.max_linear_vel,
+                max_angular_velocity: file_config.navigation.max_angular_vel,
+                ..PursuitConfig::default()
+            },
+            replan_distance: 0.5,
+            blocked_timeout: file_config.navigation.blocked_timeout,
+        };
+        info!(
+            costmap = format!("{}x{}m @ {}m", nav_config.costmap_width, nav_config.costmap_height, nav_config.costmap_resolution),
+            "Classical navigation stack enabled (A* + pure pursuit)"
+        );
+        let mut nav = NavigationController::new(nav_config);
+
+        // Set static goal if provided via CLI or config
+        if let Some(goal) = autonomous_goal {
+            use planner::Waypoint;
+            nav.set_goal(Waypoint::new(goal[0], goal[1]));
+            info!(x = goal[0], y = goal[1], "Static goal set on navigation controller");
+        }
+
+        Some(nav)
+    } else {
+        if !file_config.navigation.enabled {
+            info!("Classical navigation disabled (using policy)");
+        } else if !file_config.lidar.enabled {
+            info!("Classical navigation requires LiDAR (using policy)");
+        }
+        None
+    };
+
+    // Auto-start autonomous mode if we have a goal and navigation is ready
+    let auto_start_autonomous = navigation_controller.as_ref()
+        .map(|nav| nav.current_task().is_some())
+        .unwrap_or(false)
+        || (autonomous_goal.is_some() && loaded_policy.is_some());
+
     // Initialize dispatch client for receiving mission waypoints
     let dispatch_enabled = !args.no_dispatch && file_config.dispatch.enabled;
     let dispatch_client = if dispatch_enabled {
@@ -761,6 +861,12 @@ async fn main() -> Result<()> {
     if args.sim {
         state_machine.transition(state::Event::Enable);
         info!("Sim mode: auto-enabled to Idle");
+
+        // Auto-start autonomous mode if we have a goal
+        if auto_start_autonomous {
+            state_machine.transition(state::Event::AutonomousRequest);
+            info!("Auto-starting Autonomous mode (goal provided)");
+        }
     }
 
     // Get initial mode before moving state_machine
@@ -796,6 +902,8 @@ async fn main() -> Result<()> {
         dt_ms: 0.0,
         last_cmd_seq: 0,
         ack_bits: 0,
+        roll: 0.0,
+        pitch: 0.0,
         cpu_percent: 0,
         mem_percent: 0,
         disk_percent: 0,
@@ -1075,6 +1183,8 @@ async fn main() -> Result<()> {
     }
 
     // LiDAR reader (Livox Mid360) - uses lidar_tx created earlier for RtcServer
+    // IMU channel for orientation data (roll/pitch) from the Mid360's built-in IMU
+    let (imu_tx, imu_rx) = watch::channel::<Option<lidar::ImuData>>(None);
     let mut lidar_rx_local = lidar_rx.clone();
     if file_config.lidar.enabled {
         let lidar_ip = file_config.lidar.lidar_ip.parse()
@@ -1087,11 +1197,12 @@ async fn main() -> Result<()> {
         };
 
         let lidar_reader = LidarReader::new(lidar_config);
-        let _lidar_handle = lidar_reader.spawn(lidar_tx);
+        let _lidar_handle = lidar_reader.spawn_with_imu(lidar_tx, imu_tx);
         info!(
             ip = %file_config.lidar.lidar_ip,
             port = file_config.lidar.point_cloud_port,
-            "LiDAR reader started (Livox Mid360)"
+            imu_port = file_config.lidar.imu_port,
+            "LiDAR reader started with IMU (Livox Mid360)"
         );
     } else {
         info!("LiDAR disabled in config");
@@ -1116,43 +1227,60 @@ async fn main() -> Result<()> {
         // Watch channel for receiving SLAM state updates
         let (state_tx, state_rx) = watch::channel(SlamState::default());
 
-        // Spawn SLAM background task
+        // Spawn SLAM on a dedicated thread (NOT tokio::spawn) to avoid blocking the async runtime.
+        // SLAM's process_scan() is CPU-intensive (10-100ms+) and would starve tokio worker threads.
+        // Using std::sync::mpsc for thread-safe channel from async to sync.
+        let (slam_thread_tx, slam_thread_rx) = std::sync::mpsc::channel::<(lidar::PointCloud, Pose)>();
+
+        // Bridge async mpsc to sync mpsc
         tokio::spawn(async move {
-            let mut slam = SlamProcessor::new(slam_config);
-            info!("SLAM background task started");
+            while let Some(item) = scan_rx.recv().await {
+                if slam_thread_tx.send(item).is_err() {
+                    break; // SLAM thread stopped
+                }
+            }
+        });
 
-            while let Some((scan, odom_pose)) = scan_rx.recv().await {
-                // Update odometry before processing scan
-                slam.update_odometry(&odom_pose);
+        // Dedicated SLAM thread - completely isolated from tokio runtime
+        std::thread::Builder::new()
+            .name("slam".to_string())
+            .spawn(move || {
+                let mut slam = SlamProcessor::new(slam_config);
+                info!("SLAM thread started (dedicated, non-blocking)");
 
-                // Process scan (this is the expensive operation: 10-100ms)
-                if let Some(update) = slam.process_scan(&scan) {
-                    if update.keyframe_added {
-                        debug!(
-                            keyframe_count = update.keyframe_count,
-                            "SLAM keyframe added"
-                        );
+                while let Ok((scan, odom_pose)) = slam_thread_rx.recv() {
+                    // Update odometry before processing scan
+                    slam.update_odometry(&odom_pose);
+
+                    // Process scan (CPU-intensive: 10-100ms) - safe because we're on dedicated thread
+                    if let Some(update) = slam.process_scan(&scan) {
+                        if update.keyframe_added {
+                            debug!(
+                                keyframe_count = update.keyframe_count,
+                                "SLAM keyframe added"
+                            );
+                        }
+                        if update.loop_closure_detected {
+                            info!(
+                                loop_closure_count = update.loop_closure_count,
+                                "SLAM loop closure detected"
+                            );
+                        }
                     }
-                    if update.loop_closure_detected {
-                        info!(
-                            loop_closure_count = update.loop_closure_count,
-                            "SLAM loop closure detected"
-                        );
-                    }
+
+                    // Send updated state to main loop
+                    let state = SlamState {
+                        pose: slam.pose(),
+                        keyframe_count: slam.keyframe_count() as u32,
+                        loop_closure_count: slam.loop_closure_count() as u32,
+                        keyframe_poses: slam.keyframe_poses(),
+                    };
+                    let _ = state_tx.send(state);
                 }
 
-                // Send updated state to main loop
-                let state = SlamState {
-                    pose: slam.pose(),
-                    keyframe_count: slam.keyframe_count() as u32,
-                    loop_closure_count: slam.loop_closure_count() as u32,
-                    keyframe_poses: slam.keyframe_poses(),
-                };
-                let _ = state_tx.send(state);
-            }
-
-            info!("SLAM background task shutting down");
-        });
+                info!("SLAM thread shutting down");
+            })
+            .expect("Failed to spawn SLAM thread");
 
         info!("SLAM enabled (background task)");
         (Some(scan_tx), Some(state_rx))
@@ -1222,6 +1350,12 @@ async fn main() -> Result<()> {
     let mixer = DiffDriveMixer::new(chassis);
     let mut rate_limiter = RateLimiter::new(limits);
     let mut watchdog = Watchdog::new(Duration::from_millis(500)); // Allow for network jitter over Tailscale
+
+    // Feed watchdog immediately if starting in autonomous mode
+    // (otherwise is_timed_out() returns true on first iteration before we can feed it)
+    if initial_mode == Mode::Autonomous {
+        watchdog.feed();
+    }
 
     let control_period = Duration::from_millis(10); // 100 Hz
     let mut last_tick = Instant::now();
@@ -1293,17 +1427,41 @@ async fn main() -> Result<()> {
         if elapsed < control_period {
             tokio::time::sleep(control_period - elapsed).await;
         }
+
         let dt = last_tick.elapsed().as_secs_f64();
         last_tick = Instant::now();
+
+        // Debug: warn if control loop is running slow
+        if dt > 0.1 {
+            warn!(dt_ms = format!("{:.0}", dt * 1000.0), "Control loop slow iteration");
+        }
 
         // Tick simulation if in sim mode
         can_interface.tick(dt);
 
-        // Read CAN frames
-        while let Ok(Some(frame)) = can_interface.recv() {
+        // Read CAN frames (limited per iteration to prevent cascade delays)
+        // VESCs send ~1kHz status each, so 4 VESCs = 4000 frames/sec.
+        // At 100Hz loop, expect ~40 frames/iteration. Cap at 100 to bound latency.
+        // Process all frames with a single mutex acquisition to minimize contention.
+        const MAX_CAN_FRAMES_PER_ITERATION: usize = 100;
+
+        // Collect frames first (no mutex needed for read)
+        let mut frames: Vec<can::Frame> = Vec::with_capacity(MAX_CAN_FRAMES_PER_ITERATION);
+        while frames.len() < MAX_CAN_FRAMES_PER_ITERATION {
+            match can_interface.recv() {
+                Ok(Some(frame)) => frames.push(frame),
+                Ok(None) => break, // No more frames
+                Err(_) => break,   // Error reading
+            }
+        }
+
+        // Process all collected frames with a single mutex acquisition
+        if !frames.is_empty() {
             let mut state = shared.lock().unwrap();
-            state.drivetrain.process_frame(&frame);
-            state.tool_registry.process_frame(&frame);
+            for frame in &frames {
+                state.drivetrain.process_frame(frame);
+                state.tool_registry.process_frame(frame);
+            }
         }
 
         // Process hardware e-stop events (highest priority - before any other commands)
@@ -1416,8 +1574,7 @@ async fn main() -> Result<()> {
                         state.state_machine.transition(Event::EStopRelease);
                     }
                     Command::SetMode(mode) => {
-                        // Debug: log all SetMode commands to trace source of mode flipping
-                        warn!(
+                        debug!(
                             requested_mode = ?mode,
                             current_mode = ?state.state_machine.mode(),
                             "SetMode command received"
@@ -1425,14 +1582,23 @@ async fn main() -> Result<()> {
                         let event = match mode {
                             Mode::Disabled => Event::Disable,
                             Mode::Idle => Event::Enable,
-                            Mode::Teleop => Event::TeleopCommand,
-                            Mode::Autonomous => Event::AutonomousRequest,
+                            Mode::Teleop => {
+                                // Feed watchdog when entering Teleop to prevent immediate timeout
+                                watchdog.feed();
+                                Event::TeleopCommand
+                            }
+                            Mode::Autonomous => {
+                                // Feed watchdog when entering Autonomous to prevent immediate timeout
+                                watchdog.feed();
+                                Event::AutonomousRequest
+                            }
                             Mode::EStop => Event::EStop,
                             _ => continue,
                         };
                         state.state_machine.transition(event);
                     }
                     Command::Heartbeat => {
+                        debug!("Heartbeat received, feeding watchdog");
                         watchdog.feed();
                     }
                     Command::Tool(tc) => {
@@ -1454,6 +1620,7 @@ async fn main() -> Result<()> {
             }
         }
 
+
         // Process dispatch events (task assignments/cancellations)
         if let Some(ref mut rx) = dispatch_rx {
             while let Ok(event) = rx.try_recv() {
@@ -1466,10 +1633,16 @@ async fn main() -> Result<()> {
                             is_loop = assignment.zone.is_loop,
                             "Task assigned from dispatch"
                         );
-                        
+
+                        // Set task on navigation controller if using classical nav
+                        if let Some(ref mut nav) = navigation_controller {
+                            nav.set_task(assignment.clone());
+                        }
+
+                        // Also set on legacy dispatch task for policy fallback
                         let task = DispatchedTask::from_assignment(assignment);
                         *dispatch_task_clone.lock().unwrap() = Some(task);
-                        
+
                         // Transition to autonomous mode to execute the task
                         let mut state = shared.lock().unwrap();
                         match state.state_machine.mode() {
@@ -1493,6 +1666,15 @@ async fn main() -> Result<()> {
                     }
                     DispatchEvent::TaskCancelled(task_id) => {
                         info!(task_id = %task_id, "Task cancelled by dispatch");
+
+                        // Cancel on navigation controller
+                        if let Some(ref mut nav) = navigation_controller {
+                            if nav.current_task().map(|t| t.task_id == task_id).unwrap_or(false) {
+                                nav.cancel();
+                            }
+                        }
+
+                        // Also handle legacy dispatch task
                         let mut task_guard = dispatch_task_clone.lock().unwrap();
                         if let Some(ref task) = *task_guard {
                             if task.task_id == task_id {
@@ -1515,6 +1697,7 @@ async fn main() -> Result<()> {
                 }
             }
         }
+
 
         // Check watchdog - different handling for teleop vs autonomous
         {
@@ -1583,137 +1766,41 @@ async fn main() -> Result<()> {
         // Compute motor outputs based on mode
         let (target_twist, boost_active) = match current_mode {
             Mode::Autonomous => {
-                // Autonomous mode: use policy for navigation
-                // Priority: dispatched task waypoints > static autonomous_goal
-                let goal = {
-                    let task_guard = current_dispatch_task.lock().unwrap();
-                    if let Some(ref task) = *task_guard {
-                        task.current_goal()
-                    } else {
-                        autonomous_goal
-                    }
+                // Autonomous mode: use classical navigation (A* + pursuit) or policy
+                let current_pose = if args.sim {
+                    can_interface.pose()
+                } else {
+                    pose_estimator.pose()
                 };
 
-                if let (Some(policy), Some(goal)) = (&loaded_policy, goal) {
-                    // Get current pose estimate
-                    let current_pose = if args.sim {
-                        can_interface.pose()
-                    } else {
-                        pose_estimator.pose()
-                    };
+                // Classical navigation stack (preferred when enabled)
+                if let Some(ref mut nav) = navigation_controller {
+                    // Update navigation controller
+                    let nav_output = nav.update(&current_pose, dt);
 
-                    // Get velocity estimate (use last commanded as approximation)
-                    let linear_vel = commanded_twist.linear;
-                    let angular_vel = commanded_twist.angular;
-
-                    // Build observation for policy
-                    let obs = PolicyObservation::from_raw(
-                        current_pose.x,
-                        current_pose.y,
-                        current_pose.theta,
-                        linear_vel,
-                        angular_vel,
-                        goal[0],
-                        goal[1],
-                        &norm_config,
-                    );
-
-                    // Run policy inference on blocking thread pool with timeout
-                    // This prevents inference from blocking the control loop
-                    let policy_start = Instant::now();
-                    let policy_clone = policy.clone();
-                    let obs_clone = obs.clone();
-
-                    let inference_result = tokio::time::timeout(
-                        POLICY_TIMEOUT,
-                        tokio::task::spawn_blocking(move || policy_clone.infer(&obs_clone)),
-                    )
-                    .await;
-
-                    let inference_time = policy_start.elapsed();
-
-                    // Process inference result with fallback to last action
-                    let action = match inference_result {
-                        Ok(Ok(Ok(action))) => {
-                            // Successful inference
-                            if inference_time > POLICY_ERROR_THRESHOLD {
-                                policy_slow_count += 1;
-                                error!(
-                                    duration_ms = inference_time.as_millis(),
-                                    slow_count = policy_slow_count,
-                                    "Policy inference critically slow - may cause control issues"
-                                );
-                            } else if inference_time > POLICY_WARN_THRESHOLD {
-                                policy_slow_count += 1;
-                                warn!(
-                                    duration_ms = inference_time.as_millis(),
-                                    slow_count = policy_slow_count,
-                                    "Policy inference slow"
-                                );
-                            } else {
-                                policy_slow_count = 0;
-                            }
-                            last_policy_action = Some(action);
-                            Some(action)
-                        }
-                        Ok(Ok(Err(e))) => {
-                            // Policy inference returned an error
-                            warn!(?e, "Policy inference error");
-                            last_policy_action
-                        }
-                        Ok(Err(e)) => {
-                            // spawn_blocking task panicked
-                            error!("Policy task panicked: {}", e);
-                            last_policy_action
-                        }
-                        Err(_) => {
-                            // Timeout
-                            warn!(
-                                timeout_ms = POLICY_TIMEOUT.as_millis(),
-                                "Policy inference timed out"
-                            );
-                            policy_slow_count += 1;
-                            last_policy_action
-                        }
-                    };
-
-                    if let Some(action) = action {
-                        // Feed watchdog on successful autonomous control loop
-                        watchdog.feed();
-
-                        let twist = action.to_twist(autonomous_max_linear, autonomous_max_angular);
+                    // Debug: log navigation state on first few iterations or state changes
+                    if loop_count < 5 || loop_count % 100 == 0 {
                         debug!(
-                            linear = twist.linear,
-                            angular = twist.angular,
-                            goal_x = goal[0],
-                            goal_y = goal[1],
-                            inference_ms = inference_time.as_micros() as f64 / 1000.0,
-                            "Autonomous policy output"
+                            state = ?nav_output.state,
+                            dist = format!("{:.2}", nav_output.distance_to_goal),
+                            twist_linear = format!("{:.3}", nav_output.twist.linear),
+                            twist_angular = format!("{:.3}", nav_output.twist.angular),
+                            pose_x = format!("{:.2}", current_pose.x),
+                            pose_y = format!("{:.2}", current_pose.y),
+                            pose_theta = format!("{:.2}", current_pose.theta),
+                            "Navigation update"
                         );
+                    }
 
-                        // Check if waypoint reached (within 0.5m)
-                        let dx = goal[0] - current_pose.x;
-                        let dy = goal[1] - current_pose.y;
-                        let dist = (dx * dx + dy * dy).sqrt();
-                        if dist < 0.5 {
-                            // Handle dispatched task waypoint progression
-                            let mut task_guard = current_dispatch_task.lock().unwrap();
-                            if let Some(ref mut task) = *task_guard {
-                                let wp_idx = task.current_waypoint;
-                                info!(
-                                    waypoint = wp_idx,
-                                    total = task.waypoints.len(),
-                                    distance = dist,
-                                    "Waypoint reached"
-                                );
+                    // Handle navigation state transitions
+                    match nav_output.state {
+                        NavigationState::GoalReached => {
+                            // Advance to next waypoint or complete task
+                            let task_complete = nav.advance_waypoint();
 
+                            if let Some((task_id, progress, waypoint, lap)) = nav.task_progress() {
                                 // Report progress to dispatch service
                                 if let Some(ref client) = dispatch_client {
-                                    let progress = task.progress_percent();
-                                    let waypoint = task.current_waypoint as i32;
-                                    let lap = task.lap;
-                                    let task_id = task.task_id;
-                                    // Spawn bounded async task for the report
                                     let client_clone = client.clone();
                                     let sem = dispatch_semaphore.clone();
                                     dispatch_tasks.spawn(async move {
@@ -1721,16 +1808,16 @@ async fn main() -> Result<()> {
                                         let _ = client_clone.report_progress(task_id, progress, waypoint, lap).await;
                                     });
                                 }
+                            }
 
-                                // Advance to next waypoint
-                                let task_complete = task.advance();
-                                if task_complete {
-                                    info!(task_id = %task.task_id, "Dispatch task complete");
+                            if task_complete {
+                                // Task complete - report and return to idle
+                                if let Some(task) = nav.current_task() {
+                                    let task_id = task.task_id;
+                                    let laps = task.lap;
+                                    info!(task_id = %task_id, laps, "Navigation task complete");
 
-                                    // Report completion (bounded task)
                                     if let Some(ref client) = dispatch_client {
-                                        let task_id = task.task_id;
-                                        let laps = task.lap;
                                         let client_clone = client.clone();
                                         let sem = dispatch_semaphore.clone();
                                         dispatch_tasks.spawn(async move {
@@ -1738,50 +1825,162 @@ async fn main() -> Result<()> {
                                             let _ = client_clone.report_complete(task_id, laps).await;
                                         });
                                     }
-
-                                    // Clear task and return to idle
-                                    let task_id = task.task_id;
-                                    drop(task_guard);
-                                    *current_dispatch_task.lock().unwrap() = None;
-
-                                    let mut state = shared.lock().unwrap();
-                                    state.state_machine.transition(Event::CommandTimeout);
-                                    info!(task_id = %task_id, "Returned to Idle after task completion");
                                 }
-                            } else {
-                                // Static goal reached (testing mode)
-                                info!(distance = dist, "Static goal reached!");
+
+                                let mut state = shared.lock().unwrap();
+                                state.state_machine.transition(Event::CommandTimeout);
                             }
                         }
-
-                        (twist, false)
-                    } else {
-                        // No action available (inference failed and no previous action)
-                        warn!("Policy inference failed with no fallback, stopping");
-
-                        // Report failure if executing dispatch task (bounded task)
-                        if let Some(ref task) = *current_dispatch_task.lock().unwrap() {
-                            if let Some(ref client) = dispatch_client {
+                        NavigationState::Failed => {
+                            // Navigation failed - report and return to idle
+                            if let Some(task) = nav.current_task() {
                                 let task_id = task.task_id;
-                                let client_clone = client.clone();
-                                let sem = dispatch_semaphore.clone();
-                                dispatch_tasks.spawn(async move {
-                                    let _permit = sem.acquire().await;
-                                    let _ = client_clone.report_failed(task_id, "Policy inference failed").await;
-                                });
-                            }
-                        }
+                                let error = nav_output.error.clone().unwrap_or_else(|| "Navigation failed".to_string());
+                                error!(task_id = %task_id, error = %error, "Navigation failed");
 
+                                if let Some(ref client) = dispatch_client {
+                                    let client_clone = client.clone();
+                                    let sem = dispatch_semaphore.clone();
+                                    dispatch_tasks.spawn(async move {
+                                        let _permit = sem.acquire().await;
+                                        let _ = client_clone.report_failed(task_id, &error).await;
+                                    });
+                                }
+                            }
+
+                            nav.cancel();
+                            let mut state = shared.lock().unwrap();
+                            state.state_machine.transition(Event::CommandTimeout);
+                        }
+                        NavigationState::ObstacleStopped => {
+                            debug!("Stopped for obstacle");
+                        }
+                        _ => {}
+                    }
+
+                    // Feed watchdog on active navigation (any non-idle/failed state)
+                    match nav_output.state {
+                        NavigationState::Planning
+                        | NavigationState::Replanning
+                        | NavigationState::Following
+                        | NavigationState::ObstacleStopped => {
+                            watchdog.feed();
+                        }
+                        _ => {}
+                    }
+
+                    (nav_output.twist, false)
+                } else {
+                    // Fallback: Policy-based navigation
+                    let goal = {
+                        let task_guard = current_dispatch_task.lock().unwrap();
+                        if let Some(ref task) = *task_guard {
+                            task.current_goal()
+                        } else {
+                            autonomous_goal
+                        }
+                    };
+
+                    if let (Some(policy), Some(goal)) = (&loaded_policy, goal) {
+                        let linear_vel = commanded_twist.linear;
+                        let angular_vel = commanded_twist.angular;
+
+                        let obs = PolicyObservation::from_raw(
+                            current_pose.x, current_pose.y, current_pose.theta,
+                            linear_vel, angular_vel,
+                            goal[0], goal[1],
+                            &norm_config,
+                        );
+
+                        let policy_start = Instant::now();
+                        let policy_clone = policy.clone();
+                        let obs_clone = obs.clone();
+
+                        let inference_result = tokio::time::timeout(
+                            POLICY_TIMEOUT,
+                            tokio::task::spawn_blocking(move || policy_clone.infer(&obs_clone)),
+                        ).await;
+
+                        let inference_time = policy_start.elapsed();
+
+                        let action = match inference_result {
+                            Ok(Ok(Ok(action))) => {
+                                if inference_time > POLICY_ERROR_THRESHOLD {
+                                    policy_slow_count += 1;
+                                    error!(duration_ms = inference_time.as_millis(), "Policy critically slow");
+                                } else if inference_time > POLICY_WARN_THRESHOLD {
+                                    policy_slow_count += 1;
+                                    warn!(duration_ms = inference_time.as_millis(), "Policy slow");
+                                } else {
+                                    policy_slow_count = 0;
+                                }
+                                last_policy_action = Some(action);
+                                Some(action)
+                            }
+                            Ok(Ok(Err(e))) => { warn!(?e, "Policy error"); last_policy_action }
+                            Ok(Err(e)) => { error!("Policy panic: {}", e); last_policy_action }
+                            Err(_) => { warn!("Policy timeout"); policy_slow_count += 1; last_policy_action }
+                        };
+
+                        if let Some(action) = action {
+                            watchdog.feed();
+                            let twist = action.to_twist(autonomous_max_linear, autonomous_max_angular);
+
+                            // Check waypoint reached (policy mode)
+                            let dx = goal[0] - current_pose.x;
+                            let dy = goal[1] - current_pose.y;
+                            let dist = (dx * dx + dy * dy).sqrt();
+                            if dist < 0.5 {
+                                let mut task_guard = current_dispatch_task.lock().unwrap();
+                                if let Some(ref mut task) = *task_guard {
+                                    info!(waypoint = task.current_waypoint, "Waypoint reached");
+
+                                    if let Some(ref client) = dispatch_client {
+                                        let progress = task.progress_percent();
+                                        let task_id = task.task_id;
+                                        let waypoint = task.current_waypoint as i32;
+                                        let lap = task.lap;
+                                        let client_clone = client.clone();
+                                        let sem = dispatch_semaphore.clone();
+                                        dispatch_tasks.spawn(async move {
+                                            let _permit = sem.acquire().await;
+                                            let _ = client_clone.report_progress(task_id, progress, waypoint, lap).await;
+                                        });
+                                    }
+
+                                    let task_complete = task.advance();
+                                    if task_complete {
+                                        let task_id = task.task_id;
+                                        let laps = task.lap;
+                                        info!(task_id = %task_id, "Task complete");
+
+                                        if let Some(ref client) = dispatch_client {
+                                            let client_clone = client.clone();
+                                            let sem = dispatch_semaphore.clone();
+                                            dispatch_tasks.spawn(async move {
+                                                let _permit = sem.acquire().await;
+                                                let _ = client_clone.report_complete(task_id, laps).await;
+                                            });
+                                        }
+
+                                        drop(task_guard);
+                                        *current_dispatch_task.lock().unwrap() = None;
+
+                                        let mut state = shared.lock().unwrap();
+                                        state.state_machine.transition(Event::CommandTimeout);
+                                    }
+                                }
+                            }
+
+                            (twist, false)
+                        } else {
+                            warn!("Policy failed, no fallback");
+                            (Twist::default(), false)
+                        }
+                    } else {
+                        debug!("No policy or goal");
                         (Twist::default(), false)
                     }
-                } else {
-                    // No policy or goal, stay stopped
-                    if loaded_policy.is_none() {
-                        debug!("Autonomous mode but no policy loaded");
-                    } else {
-                        debug!("Autonomous mode but no goal/waypoints");
-                    }
-                    (Twist::default(), false)
                 }
             }
             Mode::Teleop => {
@@ -1893,6 +2092,7 @@ async fn main() -> Result<()> {
             }
         }
 
+
         // Build telemetry
         let vesc_states = state.drivetrain.states();
         let motor_temps: [f32; 4] = [
@@ -1978,6 +2178,13 @@ async fn main() -> Result<()> {
                 // Log stats periodically (every 50 scans = ~5-10 seconds)
                 static LIDAR_COUNT: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
                 let count = LIDAR_COUNT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+
+                // Update costmap for navigation controller
+                // Uses O(n) distance transform for inflation (fixed from O(n*m²))
+                if let Some(ref mut nav) = navigation_controller {
+                    let robot_tf = Transform2D::from_pose(&pose_estimator.pose());
+                    nav.update_costmap(&scan, &robot_tf);
+                }
                 if count % 50 == 0 {
                     debug!(
                         points = scan.points.len(),
@@ -1986,6 +2193,7 @@ async fn main() -> Result<()> {
                 }
             }
         }
+
 
         let (active_tool, tool_status) = if let Some(tool) = state.tool_registry.active() {
             let status = tool.status();
@@ -2052,6 +2260,17 @@ async fn main() -> Result<()> {
         // Get system metrics for telemetry (reuses cached values from sys_metrics)
         let sys = sys_metrics.metrics();
 
+        // Compute roll/pitch from IMU accelerometer data
+        // Roll: rotation about forward axis (X), computed from gravity in Y-Z plane
+        // Pitch: rotation about lateral axis (Y), computed from gravity in X-Z plane
+        let (roll, pitch) = if let Some(imu) = imu_rx.borrow().as_ref() {
+            let roll = imu.accel_y.atan2(imu.accel_z);
+            let pitch = (-imu.accel_x).atan2((imu.accel_y.powi(2) + imu.accel_z.powi(2)).sqrt());
+            (roll, pitch)
+        } else {
+            (0.0, 0.0)
+        };
+
         let telemetry = Telemetry {
             sequence: telem_seq,
             timestamp_us: std::time::SystemTime::now()
@@ -2074,6 +2293,8 @@ async fn main() -> Result<()> {
             dt_ms: (dt * 1000.0) as f32,
             last_cmd_seq: 0,  // TODO: populate from SequenceTracker
             ack_bits: 0,      // TODO: populate from SequenceTracker
+            roll,
+            pitch,
             cpu_percent: sys.cpu_percent as u8,
             mem_percent: sys.mem_percent as u8,
             disk_percent: sys.disk_percent as u8,
@@ -2130,6 +2351,7 @@ async fn main() -> Result<()> {
         };
         drop(gps_state);
         let _ = metrics_tx.send(metrics_snapshot);
+
 
         // Record telemetry to Rerun session
         let time_secs = SystemTime::now()
@@ -2193,6 +2415,7 @@ async fn main() -> Result<()> {
         if let Some(ref status) = telemetry.tool_status {
             let _ = recorder.log_tool(&status.name, status.position, status.current);
         }
+
     }
 }
 
