@@ -372,8 +372,20 @@ impl Server {
                             last_recv = std::time::Instant::now();
 
                             if let Some(cmd) = Self::parse_command(&buf[..len]) {
-                                debug!(?cmd, "Received command");
-                                let _ = self.command_tx.send(cmd).await;
+                                // Log SetMode at info level for visibility
+                                match &cmd {
+                                    Command::SetMode(mode) => info!(?mode, %addr, "UDP SetMode received"),
+                                    _ => debug!(?cmd, %addr, "UDP command received"),
+                                }
+                                // Use try_send to avoid blocking if channel is full.
+                                // This prevents cascading stalls when main loop is slow.
+                                if let Err(e) = self.command_tx.try_send(cmd) {
+                                    warn!(?e, "Command channel full, dropping UDP command");
+                                }
+                            } else {
+                                // Log failed parses for debugging
+                                let hex: String = buf[..len.min(16)].iter().map(|b| format!("{:02x}", b)).collect::<Vec<_>>().join(" ");
+                                warn!(len, hex, %addr, "UDP failed to parse command");
                             }
                         }
                         Err(e) => {
@@ -565,22 +577,54 @@ pub fn serialize_telemetry(telemetry: &Telemetry) -> Option<Vec<u8>> {
 }
 
 /// Helper to send commands from operator station (for testing/CLI).
+/// Uses full 8-byte header format required by parse_command.
 pub async fn send_twist(addr: &str, twist: Twist) -> Result<(), TeleopError> {
     let socket = UdpSocket::bind("0.0.0.0:0").await?;
 
+    // Build full command: 8-byte header + 9-byte payload
     let mut buf = Vec::with_capacity(17);
-    buf.push(0x01);
-    buf.extend_from_slice(&twist.linear.to_le_bytes());
-    buf.extend_from_slice(&twist.angular.to_le_bytes());
+    buf.push(MSG_TWIST); // type
+    buf.push(0); // flags
+    buf.extend_from_slice(&0u16.to_le_bytes()); // sequence
+    buf.extend_from_slice(&0u32.to_le_bytes()); // timestamp_ms
+    buf.extend_from_slice(&(twist.linear as f32).to_le_bytes()); // linear (f32)
+    buf.extend_from_slice(&(twist.angular as f32).to_le_bytes()); // angular (f32)
+    buf.push(if twist.boost { 1 } else { 0 }); // boost
 
     socket.send_to(&buf, addr).await?;
     Ok(())
 }
 
 /// Helper to send e-stop.
+/// Uses full 8-byte header format required by parse_command.
 pub async fn send_estop(addr: &str) -> Result<(), TeleopError> {
     let socket = UdpSocket::bind("0.0.0.0:0").await?;
-    socket.send_to(&[0x02], addr).await?;
+
+    // Build full command: 8-byte header only (no payload)
+    let mut buf = Vec::with_capacity(8);
+    buf.push(MSG_ESTOP); // type
+    buf.push(0x01); // flags (MUST_ACK)
+    buf.extend_from_slice(&0u16.to_le_bytes()); // sequence
+    buf.extend_from_slice(&0u32.to_le_bytes()); // timestamp_ms
+
+    socket.send_to(&buf, addr).await?;
+    Ok(())
+}
+
+/// Helper to send SetMode command.
+/// Uses full 8-byte header format required by parse_command.
+pub async fn send_set_mode(addr: &str, mode: types::Mode) -> Result<(), TeleopError> {
+    let socket = UdpSocket::bind("0.0.0.0:0").await?;
+
+    // Build full command with 8-byte header + 1 byte payload
+    let mut buf = Vec::with_capacity(9);
+    buf.push(MSG_SET_MODE); // type
+    buf.push(0x01); // flags (MUST_ACK)
+    buf.extend_from_slice(&0u16.to_le_bytes()); // sequence
+    buf.extend_from_slice(&0u32.to_le_bytes()); // timestamp_ms
+    buf.push(mode as u8); // payload: mode
+
+    socket.send_to(&buf, addr).await?;
     Ok(())
 }
 

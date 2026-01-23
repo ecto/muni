@@ -1,11 +1,31 @@
 //! Rover control commands
 
 use anyhow::Result;
-use clap::Subcommand;
+use clap::{Subcommand, ValueEnum};
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
-use teleop::{send_estop, send_twist};
-use types::Twist;
+use teleop::{send_estop, send_set_mode, send_twist};
+use types::{Mode, Twist};
+
+/// Mode argument for SetMode command
+#[derive(Clone, Copy, ValueEnum)]
+pub enum ModeArg {
+    Disabled,
+    Idle,
+    Teleop,
+    Autonomous,
+}
+
+impl From<ModeArg> for Mode {
+    fn from(arg: ModeArg) -> Self {
+        match arg {
+            ModeArg::Disabled => Mode::Disabled,
+            ModeArg::Idle => Mode::Idle,
+            ModeArg::Teleop => Mode::Teleop,
+            ModeArg::Autonomous => Mode::Autonomous,
+        }
+    }
+}
 
 #[derive(Subcommand)]
 pub enum RoverCommands {
@@ -26,6 +46,15 @@ pub enum RoverCommands {
         /// Rover address (host:port)
         #[arg(short, long, default_value = "127.0.0.1:4840")]
         address: String,
+    },
+    /// Set rover mode (Disabled, Idle, Teleop, Autonomous)
+    SetMode {
+        /// Rover address (host:port)
+        #[arg(short, long, default_value = "127.0.0.1:4840")]
+        address: String,
+        /// Mode to set
+        #[arg(value_enum)]
+        mode: ModeArg,
     },
     /// Scan CAN bus for VESCs
     Scan {
@@ -61,6 +90,12 @@ pub async fn run(cmd: RoverCommands) -> Result<()> {
             println!("Sending E-STOP to {}", address);
             send_estop(&address).await?;
             println!("E-STOP sent.");
+        }
+        RoverCommands::SetMode { address, mode } => {
+            let mode_type: Mode = mode.into();
+            println!("Setting mode to {:?} on {}", mode_type, address);
+            send_set_mode(&address, mode_type).await?;
+            println!("SetMode sent.");
         }
         RoverCommands::Scan {
             interface,
