@@ -245,8 +245,12 @@ function interpolatePoses(
     t
   );
 
-  // Roll/pitch are passed through from the 'to' snapshot (high-frequency IMU, no interpolation needed)
-  return { x, y, theta: normalizeAngle(theta), roll: to.pose.roll, pitch: to.pose.pitch };
+  // Lerp roll/pitch for smooth visual transitions (handles angle wrapping)
+  const rollDiff = normalizeAngle(to.pose.roll - from.pose.roll);
+  const pitchDiff = normalizeAngle(to.pose.pitch - from.pose.pitch);
+  const roll = normalizeAngle(from.pose.roll + rollDiff * t);
+  const pitch = normalizeAngle(from.pose.pitch + pitchDiff * t);
+  return { x, y, theta: normalizeAngle(theta), roll, pitch };
 }
 
 /**

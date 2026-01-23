@@ -190,6 +190,11 @@ impl Watchdog {
     pub fn reset(&mut self) {
         self.last_command = None;
     }
+
+    /// Get the time elapsed since the last command (for debugging).
+    pub fn elapsed_since_last_command(&self) -> Option<Duration> {
+        self.last_command.map(|t| t.elapsed())
+    }
 }
 
 #[cfg(test)]
