@@ -30,8 +30,8 @@ export default function HomePage() {
               <strong> Zero labor cost. Operates 24/7.</strong>
             </p>
             <div className="hero-action">
-              <a href="https://buy.stripe.com/dRm8wH3aL91u5mybf3grS00" className="btn-primary btn-large">
-                Reserve Yours Now — $999 Deposit
+              <a href="https://muni.cal.com/cam/30min" className="btn-primary btn-large">
+                Schedule a Call
               </a>
             </div>
           </div>
@@ -118,21 +118,17 @@ export default function HomePage() {
           ═══════════════════════════════════════════════════════════════════════ */}
       <section className="frame frame-cta">
         <div className="frame-content frame-content-centered">
-          <p className="cta-eyebrow">Early access</p>
-          <h2 className="cta-headline">First production batch: 100 units</h2>
+          <p className="cta-eyebrow">Get started</p>
+          <h2 className="cta-headline">Let&apos;s talk about your deployment</h2>
           <p className="cta-subtitle">
-            Reserve your delivery slot. Production begins Q2 2026.
+            Schedule a 30-minute call to discuss your needs.
           </p>
 
           <div className="hero-action">
-            <a href="https://buy.stripe.com/dRm8wH3aL91u5mybf3grS00" className="btn-primary btn-large">
-              Reserve Yours Now — $999 Deposit
+            <a href="https://muni.cal.com/cam/30min" className="btn-primary btn-large">
+              Schedule a Call
             </a>
           </div>
-
-          <p className="cta-risk-reversal">
-            Fully refundable anytime before production begins.
-          </p>
 
           <div className="cta-trust-signals">
             <span><BookOpen size={16} aria-hidden="true" /> Fully open source</span>

@@ -40,8 +40,8 @@ const productSchema = {
     "@type": "Offer",
     price: "18000",
     priceCurrency: "USD",
-    availability: "https://schema.org/PreOrder",
-    url: "https://muni.works/products#get-started",
+    availability: "https://schema.org/InStock",
+    url: "https://muni.cal.com/cam/30min",
   },
   aggregateRating: undefined, // Remove when reviews are available
 };
@@ -634,7 +634,9 @@ BVR0: Build it now (`}
                 instructions on GitHub
               </a>
 {`)
-BVR1: Preorders coming soon, shipping summer 2026
+BVR1: Shipping summer 2026 — `}
+              <a href="https://muni.cal.com/cam/30min">schedule a call</a>
+{` to discuss
 Fleet packages: `}
               <a href="mailto:info@muni.works?subject=Fleet%20inquiry">Contact us</a>
 {` for custom quotes`}
@@ -644,31 +646,29 @@ Fleet packages: `}
           {/* GET STARTED */}
           <Card title="GET STARTED" id="get-started">
             <Pre>
-              <strong>Preorders now open</strong>
+              <strong>Schedule a call</strong>
 {`
 
-Reserve your BVR1 rover for $999 (fully refundable until
-production begins Q2 2026).
-
-Limited to 100 units in the first batch.
+Let's discuss your deployment needs. 30-minute intro call
+to understand your use case and answer questions.
 
 `}
             </Pre>
 
             <div style={{ textAlign: "center", margin: "20px 0" }}>
               <a
-                href="https://buy.stripe.com/dRm8wH3aL91u5mybf3grS00"
+                href="https://muni.cal.com/cam/30min"
                 className="cta-primary"
                 style={{ fontSize: "16px", padding: "14px 28px" }}
               >
-                Reserve Yours Now — $999 Deposit
+                Schedule a Call
               </a>
             </div>
 
             <Pre>
 {`
 `}
-              <strong>Not ready to commit?</strong>
+              <strong>Want to explore first?</strong>
 {`
 
   • `}

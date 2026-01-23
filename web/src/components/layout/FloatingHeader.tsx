@@ -18,10 +18,10 @@ export function FloatingHeader() {
             GitHub<span className="sr-only"> (opens in new tab)</span>
           </a>
           <a
-            href="https://buy.stripe.com/dRm8wH3aL91u5mybf3grS00"
+            href="https://muni.cal.com/cam/30min"
             className="floating-header-cta"
           >
-            Reserve Now
+            Schedule a Call
           </a>
         </nav>
       </div>
