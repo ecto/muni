@@ -12,6 +12,14 @@ import {
   type Group,
 } from "three";
 import { computeRenderPose, getInterpolationBuffer } from "@/lib/interpolation";
+import {
+  getAllCameraFrames,
+  getFrameVersion,
+  type CameraFrame,
+} from "@/lib/videoFrameStore";
+
+// Shared geometry for all camera projections (4:3 aspect ratio, 2m tall)
+const CAMERA_PLANE_GEOMETRY = new PlaneGeometry(2 * (640 / 480), 2);
 
 /**
  * Single camera projection plane.
@@ -23,28 +31,28 @@ function CameraProjection({
   frameUrl: string | null;
   position: [number, number, number];
 }) {
-  const materialRef = useRef<MeshBasicMaterial>(null);
+  const materialRef = useRef<MeshBasicMaterial | null>(null);
   const textureRef = useRef<Texture | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [hasTexture, setHasTexture] = useState(false);
   // Track mount generation to force texture reload on remount
   const [mountId] = useState(() => Math.random());
 
-  // Create plane geometry sized for 4:3 aspect ratio
-  const geometry = useMemo(() => {
-    const aspectRatio = 640 / 480;
-    const height = 2;  // 2 meters tall
-    const width = height * aspectRatio;
-    return new PlaneGeometry(width, height);
-  }, []);
-
   // Load frame and update texture
   // Include mountId to ensure effect runs on remount even if frameUrl unchanged
   useEffect(() => {
-    if (!frameUrl) return;
+    if (!frameUrl) {
+      console.log(`[CameraProjection] No frameUrl provided`);
+      return;
+    }
 
     const img = new Image();
+    img.onerror = (e) => {
+      console.error(`[CameraProjection] Failed to load image:`, e);
+    };
     img.onload = () => {
+      console.log(`[CameraProjection] Image loaded: ${img.width}x${img.height}`);
+
       // Create or reuse canvas
       if (!canvasRef.current) {
         canvasRef.current = document.createElement("canvas");
@@ -61,6 +69,7 @@ function CameraProjection({
         const newTexture = new CanvasTexture(canvas);
         newTexture.colorSpace = SRGBColorSpace;
         textureRef.current = newTexture;
+        console.log(`[CameraProjection] Created new texture`);
       }
       // Mark texture as needing update (canvas content changed)
       textureRef.current.needsUpdate = true;
@@ -76,18 +85,32 @@ function CameraProjection({
     img.src = frameUrl;
   }, [frameUrl, mountId]);
 
-  // Cleanup on unmount
+  // Cleanup on unmount - dispose texture, material, and canvas
   useEffect(() => {
     return () => {
       if (textureRef.current) {
         textureRef.current.dispose();
         textureRef.current = null;
       }
+      if (materialRef.current) {
+        materialRef.current.dispose();
+        materialRef.current = null;
+      }
+      // Clear canvas to free memory
+      if (canvasRef.current) {
+        const ctx = canvasRef.current.getContext("2d");
+        if (ctx) {
+          ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+        }
+        canvasRef.current.width = 0;
+        canvasRef.current.height = 0;
+        canvasRef.current = null;
+      }
     };
   }, []);
 
   return (
-    <mesh geometry={geometry} position={position}>
+    <mesh geometry={CAMERA_PLANE_GEOMETRY} position={position}>
       <meshBasicMaterial
         ref={materialRef}
         color={hasTexture ? 0xffffff : 0xff0000}
@@ -103,21 +126,21 @@ function CameraProjection({
  * Renders camera feeds as video planes positioned in front of the rover.
  * Creates a separate projection for each camera to avoid flickering.
  * The group follows the rover's position so planes are always in front.
+ *
+ * Reads video frames from the mutable store (videoFrameStore.ts) to avoid
+ * React re-renders at 15fps per camera.
  */
 export function EquirectangularSky() {
-  const cameraFrames = useConsoleStore((state) => state.cameraFrames);
   const videoConnected = useConsoleStore((state) => state.videoConnected);
   const groupRef = useRef<Group>(null);
 
-  // Convert Map to sorted array - need to track size for reactivity
-  const cameraCount = cameraFrames.size;
-  const cameras = useMemo(() => {
-    return Array.from(cameraFrames.entries()).sort((a, b) => a[0] - b[0]);
-  }, [cameraFrames, cameraCount]);
+  // Track frame version to detect changes from mutable store
+  const lastFrameVersionRef = useRef(0);
+  // Local state for cameras - updated when frame version changes
+  const [cameras, setCameras] = useState<Array<[number, CameraFrame]>>([]);
 
   // Memoize camera positions to prevent unnecessary remounts
   // Each camera gets a stable position tuple based on its index and total count
-  // NOTE: Must be before early return to maintain hooks order
   const positions = useMemo(() => {
     const total = cameras.length;
     if (total === 0) return [];
@@ -129,10 +152,25 @@ export function EquirectangularSky() {
       const x = index * spacing - offset;
       return [x, 1.5, -3] as [number, number, number];
     });
-  }, [cameras.length]);
+  }, [cameras]);
 
-  // Follow the rover's position using the same interpolation as RoverModel
+  // Check for frame updates from mutable store (runs even when not rendering)
+  // This must run before the early return to ensure cameras state gets updated
   useFrame(() => {
+    // Always check for frame updates, even if we're not rendering yet
+    const currentVersion = getFrameVersion();
+    if (currentVersion !== lastFrameVersionRef.current) {
+      lastFrameVersionRef.current = currentVersion;
+      // Read frames from mutable store and update local state
+      const frames = getAllCameraFrames();
+      const sorted = Array.from(frames.entries()).sort((a, b) => a[0] - b[0]);
+      if (sorted.length > 0 && cameras.length === 0) {
+        console.log(`[EquirectangularSky] First frames received: ${sorted.length} cameras, version=${currentVersion}`);
+      }
+      setCameras(sorted);
+    }
+
+    // Update group position if we have a ref
     if (!groupRef.current) return;
 
     const result = computeRenderPose(getInterpolationBuffer(), performance.now(), 0);
@@ -144,9 +182,21 @@ export function EquirectangularSky() {
     groupRef.current.rotation.y = result.pose.theta;
   });
 
+  // Debug: log render state
+  if (videoConnected && cameras.length === 0) {
+    // Video is connected but we have no frames yet - check store directly
+    const storeVersion = getFrameVersion();
+    const storeFrames = getAllCameraFrames();
+    if (storeFrames.size > 0) {
+      console.warn(`[EquirectangularSky] Store has ${storeFrames.size} frames (v${storeVersion}) but cameras state is empty`);
+    }
+  }
+
   if (!videoConnected || cameras.length === 0) {
     return null;
   }
+
+  console.log(`[EquirectangularSky] Rendering ${cameras.length} cameras`);
 
   return (
     <group ref={groupRef}>
@@ -212,13 +262,32 @@ function CameraFeed({ cameraId, url }: { cameraId: number; url: string | null })
  * Picture-in-picture camera feed card.
  * Displays raw video frames from all cameras as HTML images for debugging
  * and as an always-visible camera view for operators.
+ *
+ * Polls the mutable video frame store at 15Hz (matching frame rate) to
+ * update the display without excessive React re-renders.
  */
 export function CameraFeedCard() {
-  const { videoConnected, videoFps, cameraFrames, cameraCount } = useConsoleStore();
+  const { videoConnected, videoFps, cameraCount } = useConsoleStore();
   const [collapsed, setCollapsed] = useState(false);
+  const [cameras, setCameras] = useState<Array<[number, CameraFrame]>>([]);
+  const lastFrameVersionRef = useRef(0);
 
-  // Convert Map to array for rendering
-  const cameras = Array.from(cameraFrames.entries()).sort((a, b) => a[0] - b[0]);
+  // Poll the mutable store at 15Hz when not collapsed
+  useEffect(() => {
+    if (collapsed) return;
+
+    const interval = setInterval(() => {
+      const currentVersion = getFrameVersion();
+      if (currentVersion !== lastFrameVersionRef.current) {
+        lastFrameVersionRef.current = currentVersion;
+        const frames = getAllCameraFrames();
+        const sorted = Array.from(frames.entries()).sort((a, b) => a[0] - b[0]);
+        setCameras(sorted);
+      }
+    }, 67); // ~15Hz polling
+
+    return () => clearInterval(interval);
+  }, [collapsed]);
 
   return (
     <div className="bg-card/90 backdrop-blur-sm border border-border rounded-lg overflow-hidden shadow-lg">

@@ -28,6 +28,7 @@ import {
 } from "@/lib/protocol";
 import { pushSnapshotDirect } from "@/lib/interpolation";
 import { Mode } from "@/lib/types";
+import { setCameraFrame as setMutableCameraFrame, getCameraCount } from "@/lib/videoFrameStore";
 
 const RECONNECT_DELAY_MS = 2000;
 const COMMAND_INTERVAL_MS = 10; // 100Hz - matches rover control loop
@@ -64,7 +65,6 @@ export function useRoverConnectionRtc() {
     setVideoConnected,
     setVideoFps,
     setVideoFrame,
-    setCameraFrame,
     setPointCloud,
     updateChannelMetrics,
     resetChannelMetrics,
@@ -222,10 +222,11 @@ export function useRoverConnectionRtc() {
       });
       peerConnectionRef.current = pc;
 
-      // Create command channel (unordered for true UDP semantics)
-      // Critical commands (SetMode, EStop) use MUST_ACK flag with retry logic
+      // Create command channel with negotiated ID for Safari/webrtc-rs compatibility
       const commandChannel = pc.createDataChannel("commands", {
-        ordered: false,
+        ordered: true,
+        negotiated: true,
+        id: 0,  // Fixed channel ID agreed upon by both sides
       });
       commandChannelRef.current = commandChannel;
       commandChannel.binaryType = "arraybuffer";
@@ -441,12 +442,20 @@ export function useRoverConnectionRtc() {
             }
 
             cameraBlobUrlsRef.current.set(frame.cameraId, blobUrl);
-            setCameraFrame(frame.cameraId, blobUrl, frame.timestamp_ms);
+
+            // Store in mutable store (bypasses React for performance)
+            setMutableCameraFrame(frame.cameraId, blobUrl, frame.timestamp_ms);
 
             // Log first frame received for debugging (only once per connection)
             if (!firstFrameLoggedRef.current) {
               console.log(`[WebRTC] First video frame received: camera=${frame.cameraId}, ${frame.width}x${frame.height}, ${frame.jpegData.length} bytes`);
               firstFrameLoggedRef.current = true;
+            }
+
+            // Update camera count in Zustand store (for UI badge) - infrequent, only on change
+            const currentCount = getCameraCount();
+            if (useConsoleStore.getState().cameraCount !== currentCount) {
+              useConsoleStore.getState().setCameraCount(currentCount);
             }
 
             // Update FPS counter (total across all cameras)
@@ -602,7 +611,6 @@ export function useRoverConnectionRtc() {
     setVideoConnected,
     setVideoFps,
     setVideoFrame,
-    setCameraFrame,
     setPointCloud,
     updateChannelMetrics,
     clearIntervals,

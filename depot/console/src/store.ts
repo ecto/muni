@@ -75,19 +75,25 @@ interface ConsoleState {
   showToast: (message: string, duration?: number) => void;
 
   // Video (multi-camera support)
+  // Note: Video frames are stored in a mutable store (videoFrameStore.ts) to avoid
+  // React re-renders at 15fps per camera. Use getAllCameraFrames() from videoFrameStore
+  // to read frames in useFrame or polling loops.
   videoConnected: boolean;
   videoFps: number;
-  /** @deprecated Use cameraFrames instead */
+  /** @deprecated Use getLatestFrame() from videoFrameStore instead */
   videoFrame: string | null;
   videoTimestamp: number;
-  /** Frames from each camera, keyed by camera ID */
+  /** @deprecated Use getAllCameraFrames() from videoFrameStore instead */
   cameraFrames: Map<number, { url: string; timestamp: number }>;
-  /** Number of active cameras */
+  /** Number of active cameras (updated infrequently when cameras connect/disconnect) */
   cameraCount: number;
   setVideoConnected: (connected: boolean) => void;
   setVideoFps: (fps: number) => void;
   setVideoFrame: (frame: string | null, timestamp: number) => void;
+  /** @deprecated Use setCameraFrame from videoFrameStore instead */
   setCameraFrame: (cameraId: number, url: string, timestamp: number) => void;
+  /** Update camera count (called when cameras connect/disconnect, not on every frame) */
+  setCameraCount: (count: number) => void;
 
   // Point cloud
   pointCloud: Float32Array | null;
@@ -121,6 +127,7 @@ interface ConsoleState {
   // Channel metrics (WebRTC diagnostics)
   channelMetrics: Map<string, ChannelMetrics>;
   updateChannelMetrics: (name: string, metrics: Partial<ChannelMetrics>) => void;
+  setAllChannelMetrics: (updates: Map<string, Partial<ChannelMetrics>>) => void;
   resetChannelMetrics: () => void;
 }
 
@@ -239,6 +246,7 @@ export const useConsoleStore = create<ConsoleState>()(
   setVideoFps: (fps) => set({ videoFps: fps }),
   setVideoFrame: (frame, timestamp) =>
     set({ videoFrame: frame, videoTimestamp: timestamp }),
+  /** @deprecated Use setCameraFrame from videoFrameStore instead */
   setCameraFrame: (cameraId, url, timestamp) =>
     set((state) => {
       const newFrames = new Map(state.cameraFrames);
@@ -251,6 +259,7 @@ export const useConsoleStore = create<ConsoleState>()(
         videoTimestamp: timestamp,
       };
     }),
+  setCameraCount: (count) => set({ cameraCount: count }),
 
   // Point cloud
   pointCloud: null,
@@ -293,6 +302,15 @@ export const useConsoleStore = create<ConsoleState>()(
       const newMap = new Map(state.channelMetrics);
       const existing = newMap.get(name) || { name, messagesPerSec: 0, lastMessageTime: 0, history: [] };
       newMap.set(name, { ...existing, ...metrics });
+      return { channelMetrics: newMap };
+    }),
+  setAllChannelMetrics: (updates) =>
+    set((state) => {
+      const newMap = new Map(state.channelMetrics);
+      updates.forEach((metrics, name) => {
+        const existing = newMap.get(name) || { name, messagesPerSec: 0, lastMessageTime: 0, history: [] };
+        newMap.set(name, { ...existing, ...metrics });
+      });
       return { channelMetrics: newMap };
     }),
   resetChannelMetrics: () =>
