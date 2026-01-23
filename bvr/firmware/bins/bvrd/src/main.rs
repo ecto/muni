@@ -139,6 +139,9 @@ struct LidarFileConfig {
     stream_voxel_size: f32,
     /// Maximum points per frame for streaming. Higher = more detail but more bandwidth.
     stream_max_points: usize,
+    /// IMU mounting pitch angle in radians (positive = sensor tilted forward/down).
+    /// Used to transform IMU readings from sensor frame to body frame.
+    imu_mount_pitch: f32,
 }
 
 impl Default for LidarFileConfig {
@@ -150,6 +153,7 @@ impl Default for LidarFileConfig {
             imu_port: 56401,
             stream_voxel_size: 0.3,
             stream_max_points: 500,
+            imu_mount_pitch: 0.0,
         }
     }
 }
@@ -2261,11 +2265,20 @@ async fn main() -> Result<()> {
         let sys = sys_metrics.metrics();
 
         // Compute roll/pitch from IMU accelerometer data
+        // The IMU is mounted tilted forward, so we transform readings to body frame first.
         // Roll: rotation about forward axis (X), computed from gravity in Y-Z plane
         // Pitch: rotation about lateral axis (Y), computed from gravity in X-Z plane
         let (roll, pitch) = if let Some(imu) = imu_rx.borrow().as_ref() {
-            let roll = imu.accel_y.atan2(imu.accel_z);
-            let pitch = (-imu.accel_x).atan2((imu.accel_y.powi(2) + imu.accel_z.powi(2)).sqrt());
+            // Transform accelerometer from sensor frame to body frame.
+            // Sensor is pitched forward by imu_mount_pitch radians, so we rotate back.
+            let mount_pitch = file_config.lidar.imu_mount_pitch;
+            let (sin_p, cos_p) = mount_pitch.sin_cos();
+            let accel_x = imu.accel_x * cos_p + imu.accel_z * sin_p;
+            let accel_y = imu.accel_y;
+            let accel_z = -imu.accel_x * sin_p + imu.accel_z * cos_p;
+
+            let roll = accel_y.atan2(accel_z);
+            let pitch = (-accel_x).atan2((accel_y.powi(2) + accel_z.powi(2)).sqrt());
             (roll, pitch)
         } else {
             (0.0, 0.0)

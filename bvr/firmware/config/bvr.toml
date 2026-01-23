@@ -178,6 +178,9 @@ imu_port = 56401
 # Point cloud streaming settings (for teleop visualization)
 stream_voxel_size = 0.2   # Voxel size for downsampling (meters), smaller = more detail
 stream_max_points = 1000  # Maximum points per frame for streaming
+# IMU mounting pitch angle in radians (positive = tilted forward/down)
+# Mid360 is mounted at 30 degrees forward tilt for maximum coverage
+imu_mount_pitch = 0.5236  # ~30 degrees
 
 [slam]
 # Enable SLAM (Simultaneous Localization and Mapping)
