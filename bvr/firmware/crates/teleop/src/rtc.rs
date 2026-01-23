@@ -436,6 +436,29 @@ async fn handle_signaling(
         ))
     })?);
 
+    // Per-connection LiDAR streaming state (shared with command handler)
+    // Declared early so it can be used by the negotiated command channel
+    let lidar_streaming_enabled = Arc::new(AtomicBool::new(false));
+
+    // Create command DataChannel as NEGOTIATED for Safari/webrtc-rs compatibility
+    // Both sides create the channel with the same ID (0)
+    // In webrtc-rs, `negotiated: Some(id)` sets both negotiated mode and channel ID
+    let cmd_dc_config = RTCDataChannelInit {
+        ordered: Some(true),
+        negotiated: Some(0), // Channel ID 0, negotiated mode
+        ..Default::default()
+    };
+
+    let command_channel = peer_connection
+        .create_data_channel("commands", Some(cmd_dc_config))
+        .await
+        .map_err(|e| {
+            TeleopError::Network(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!("Failed to create command channel: {}", e),
+            ))
+        })?;
+
     // Create telemetry DataChannel (unreliable, unordered - like UDP)
     // Server creates this channel, browser receives it via ondatachannel
     let dc_config = RTCDataChannelInit {
@@ -453,6 +476,61 @@ async fn handle_signaling(
                 e.to_string(),
             ))
         })?;
+
+    // Set up negotiated command channel handler
+    let cmd_tx_negotiated = command_tx.clone();
+    let op_state_negotiated = operator_state.clone();
+    let lidar_enabled_negotiated = lidar_streaming_enabled.clone();
+
+    command_channel.on_open(Box::new(move || {
+        info!(conn_id, "WebRTC negotiated command channel opened");
+        Box::pin(async {})
+    }));
+
+    command_channel.on_message(Box::new(move |msg| {
+        let hex: String = msg.data.iter().take(12).map(|b| format!("{:02x}", b)).collect::<Vec<_>>().join(" ");
+        info!(len = msg.data.len(), hex, conn_id, "Command received on negotiated channel");
+
+        let cmd_tx = cmd_tx_negotiated.clone();
+        let op_state = op_state_negotiated.clone();
+        let lidar_enabled = lidar_enabled_negotiated.clone();
+        Box::pin(async move {
+            // Check for LiDAR toggle command first
+            if msg.data.len() >= CMD_HEADER_SIZE + 1 && msg.data[0] == MSG_LIDAR_TOGGLE {
+                let enabled = msg.data[CMD_HEADER_SIZE] != 0;
+                lidar_enabled.store(enabled, Ordering::Relaxed);
+                info!(enabled, conn_id, "LiDAR streaming toggled");
+                return;
+            }
+
+            if let Some(cmd) = parse_command(&msg.data) {
+                match filter_command(&cmd, conn_id, &op_state) {
+                    CommandFilter::Allow => {
+                        match &cmd {
+                            Command::SetMode(mode) => {
+                                info!(?mode, conn_id, "Mode change accepted");
+                            }
+                            Command::EStop => {
+                                info!(conn_id, "E-Stop command accepted");
+                            }
+                            _ => {}
+                        }
+                        // Use try_send to avoid blocking if channel is full.
+                        // This prevents cascading stalls when main loop is slow.
+                        if let Err(e) = cmd_tx.try_send(cmd) {
+                            warn!(?e, conn_id, "Command channel full, dropping WebRTC command");
+                        }
+                    }
+                    CommandFilter::Reject(reason) => {
+                        warn!(?cmd, conn_id, reason, "Command rejected by filter");
+                    }
+                }
+            } else {
+                let hex: String = msg.data.iter().take(16).map(|b| format!("{:02x}", b)).collect::<Vec<_>>().join(" ");
+                warn!(len = msg.data.len(), hex, conn_id, "Failed to parse command");
+            }
+        })
+    }));
 
     // Set up telemetry sender
     let telem_rx_clone = telemetry_rx.clone();
@@ -591,9 +669,6 @@ async fn handle_signaling(
         }));
     }
 
-    // Per-connection LiDAR streaming state (shared with command handler)
-    let lidar_streaming_enabled = Arc::new(AtomicBool::new(false));
-
     // Create pointcloud DataChannel if LiDAR streaming is available
     if let Some(lid_rx) = lidar_rx {
         let pointcloud_dc_config = RTCDataChannelInit {
@@ -689,54 +764,16 @@ async fn handle_signaling(
         let lidar_enabled = lidar_enabled_clone.clone();
         let label = channel.label().to_string();
 
-        info!(label, conn_id, "WebRTC received data channel from browser");
-
+        // Commands channel is negotiated (both sides create it), so it won't appear here
+        // Log any unexpected channels from browser
         if label == "commands" {
-            // Set up command handler SYNCHRONOUSLY to avoid missing early messages
-            channel.on_open(Box::new(move || {
-                info!(conn_id, "WebRTC command channel (from browser) opened");
-                Box::pin(async {})
-            }));
-
-            channel.on_message(Box::new(move |msg| {
-                let cmd_tx = cmd_tx.clone();
-                let op_state = op_state.clone();
-                let lidar_enabled = lidar_enabled.clone();
-                Box::pin(async move {
-                    // Check for LiDAR toggle command first (per-connection, not forwarded)
-                    if msg.data.len() >= CMD_HEADER_SIZE + 1 && msg.data[0] == MSG_LIDAR_TOGGLE {
-                        let enabled = msg.data[CMD_HEADER_SIZE] != 0;
-                        lidar_enabled.store(enabled, Ordering::Relaxed);
-                        info!(enabled, conn_id, "LiDAR streaming toggled");
-                        return;
-                    }
-
-                    if let Some(cmd) = parse_command(&msg.data) {
-                        // Filter commands based on operator status
-                        match filter_command(&cmd, conn_id, &op_state) {
-                            CommandFilter::Allow => {
-                                // Only log mode changes and important commands
-                                match &cmd {
-                                    Command::SetMode(mode) => {
-                                        info!(?mode, conn_id, "Mode change accepted");
-                                    }
-                                    Command::EStop => {
-                                        info!(conn_id, "E-Stop command accepted");
-                                    }
-                                    _ => {}
-                                }
-                                let _ = cmd_tx.send(cmd).await;
-                            }
-                            CommandFilter::Reject(reason) => {
-                                debug!(?cmd, conn_id, reason, "Command rejected");
-                            }
-                        }
-                    } else {
-                        warn!(len = msg.data.len(), conn_id, "Failed to parse WebRTC command");
-                    }
-                })
-            }));
+            warn!(conn_id, "Received non-negotiated commands channel from browser - ignoring");
+        } else {
+            info!(label, conn_id, "WebRTC received data channel from browser");
         }
+
+        // Suppress unused variable warnings for cloned values
+        let _ = (&cmd_tx, &op_state, &lidar_enabled);
 
         Box::pin(async {})
     }));
