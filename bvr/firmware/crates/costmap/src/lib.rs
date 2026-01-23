@@ -391,54 +391,103 @@ impl Costmap {
         self.inflate();
     }
 
-    /// Inflate obstacles by the inflation radius.
+    /// Inflate obstacles by the inflation radius using distance transform.
+    ///
+    /// Uses a two-pass distance transform (O(n) where n = total cells) instead of
+    /// the naive O(k*m²) approach where k = lethal cells, m = inflation radius.
+    /// This makes inflation fast even with dense LiDAR scans.
     fn inflate(&mut self) {
-        let inflation_cells = (self.inflation_radius / self.resolution).ceil() as i32;
-        let inscribed_cells = (self.inscribed_radius / self.resolution).ceil() as i32;
+        let inflation_cells = (self.inflation_radius / self.resolution).ceil() as usize;
+        let inscribed_cells = (self.inscribed_radius / self.resolution).ceil() as usize;
 
-        // Find lethal cells and inflate
-        let lethal_cells: Vec<(usize, usize)> = self
+        if inflation_cells == 0 {
+            return;
+        }
+
+        let w = self.width;
+        let h = self.height;
+
+        // Distance transform using two-pass algorithm (Rosenfeld & Pfaltz)
+        // Initialize distance grid: 0 for lethal cells, infinity for others
+        let inf = (w + h) as u32; // Large enough "infinity"
+        let mut dist: Vec<u32> = self
             .combined
             .iter()
-            .enumerate()
-            .filter(|(_, &cost)| cost >= costs::LETHAL)
-            .map(|(idx, _)| (idx % self.width, idx / self.width))
+            .map(|&cost| if cost >= costs::LETHAL { 0 } else { inf })
             .collect();
 
-        let mut inflated = self.combined.clone();
+        // Forward pass: propagate from top-left
+        for y in 0..h {
+            for x in 0..w {
+                let idx = y * w + x;
+                let mut d = dist[idx];
 
-        for (cx, cy) in lethal_cells {
-            for dy in -inflation_cells..=inflation_cells {
-                for dx in -inflation_cells..=inflation_cells {
-                    let x = cx as i32 + dx;
-                    let y = cy as i32 + dy;
-
-                    if x < 0 || y < 0 || x >= self.width as i32 || y >= self.height as i32 {
-                        continue;
-                    }
-
-                    let dist_sq = dx * dx + dy * dy;
-                    let dist = (dist_sq as f64).sqrt();
-
-                    let cost = if dist_sq == 0 {
-                        costs::LETHAL
-                    } else if dist <= inscribed_cells as f64 {
-                        costs::INSCRIBED
-                    } else if dist <= inflation_cells as f64 {
-                        // Exponential decay
-                        let scale = 1.0 - (dist - inscribed_cells as f64) / (inflation_cells - inscribed_cells) as f64;
-                        (costs::INSCRIBED as f64 * scale * scale) as u8
-                    } else {
-                        continue;
-                    };
-
-                    let idx = y as usize * self.width + x as usize;
-                    inflated[idx] = inflated[idx].max(cost);
+                // Check left neighbor
+                if x > 0 {
+                    d = d.min(dist[idx - 1].saturating_add(1));
                 }
+                // Check top neighbor
+                if y > 0 {
+                    d = d.min(dist[idx - w].saturating_add(1));
+                }
+                // Check diagonal neighbors (for better Euclidean approximation)
+                if x > 0 && y > 0 {
+                    // Approximate diagonal distance as 1.4 (~sqrt(2))
+                    d = d.min(dist[idx - w - 1].saturating_add(1));
+                }
+                if x < w - 1 && y > 0 {
+                    d = d.min(dist[idx - w + 1].saturating_add(1));
+                }
+
+                dist[idx] = d;
             }
         }
 
-        self.combined = inflated;
+        // Backward pass: propagate from bottom-right
+        for y in (0..h).rev() {
+            for x in (0..w).rev() {
+                let idx = y * w + x;
+                let mut d = dist[idx];
+
+                // Check right neighbor
+                if x < w - 1 {
+                    d = d.min(dist[idx + 1].saturating_add(1));
+                }
+                // Check bottom neighbor
+                if y < h - 1 {
+                    d = d.min(dist[idx + w].saturating_add(1));
+                }
+                // Check diagonal neighbors
+                if x < w - 1 && y < h - 1 {
+                    d = d.min(dist[idx + w + 1].saturating_add(1));
+                }
+                if x > 0 && y < h - 1 {
+                    d = d.min(dist[idx + w - 1].saturating_add(1));
+                }
+
+                dist[idx] = d;
+            }
+        }
+
+        // Apply costs based on distance
+        let inflation_cells = inflation_cells as u32;
+        let inscribed_cells = inscribed_cells as u32;
+
+        for (idx, &d) in dist.iter().enumerate() {
+            let cost = if d == 0 {
+                costs::LETHAL
+            } else if d <= inscribed_cells {
+                costs::INSCRIBED
+            } else if d <= inflation_cells {
+                // Exponential decay from inscribed to inflation radius
+                let scale = 1.0 - (d - inscribed_cells) as f64 / (inflation_cells - inscribed_cells) as f64;
+                (costs::INSCRIBED as f64 * scale * scale) as u8
+            } else {
+                continue; // Don't modify cells beyond inflation radius
+            };
+
+            self.combined[idx] = self.combined[idx].max(cost);
+        }
     }
 
     /// Get cost at world position.
