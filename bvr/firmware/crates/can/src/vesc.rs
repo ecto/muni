@@ -5,6 +5,54 @@
 use crate::{Bus, CanError, Frame};
 use tracing::debug;
 
+/// Simple exponential moving average (low-pass) filter.
+///
+/// Smooths noisy sensor readings: `filtered = α × new + (1-α) × filtered`
+#[derive(Debug, Clone, Copy)]
+pub struct LowPassFilter {
+    value: f32,
+    alpha: f32,
+    initialized: bool,
+}
+
+impl LowPassFilter {
+    /// Create a new filter with the given smoothing factor.
+    ///
+    /// Alpha should be in (0, 1]:
+    /// - Lower alpha = more smoothing, slower response
+    /// - Higher alpha = less smoothing, faster response
+    /// - Typical values: 0.1 (heavy smoothing) to 0.5 (light smoothing)
+    pub fn new(alpha: f32) -> Self {
+        Self {
+            value: 0.0,
+            alpha: alpha.clamp(0.01, 1.0),
+            initialized: false,
+        }
+    }
+
+    /// Update the filter with a new measurement and return the filtered value.
+    pub fn update(&mut self, measurement: f32) -> f32 {
+        if !self.initialized {
+            self.value = measurement;
+            self.initialized = true;
+        } else {
+            self.value = self.alpha * measurement + (1.0 - self.alpha) * self.value;
+        }
+        self.value
+    }
+
+    /// Get the current filtered value without updating.
+    pub fn value(&self) -> f32 {
+        self.value
+    }
+
+    /// Reset the filter to uninitialized state.
+    pub fn reset(&mut self) {
+        self.value = 0.0;
+        self.initialized = false;
+    }
+}
+
 /// VESC CAN command IDs (used in extended frame ID).
 #[repr(u8)]
 #[derive(Debug, Clone, Copy)]
@@ -383,6 +431,41 @@ mod tests {
         // Values should remain at defaults (0)
         assert_eq!(vesc.state.status.erpm, 0);
     }
+
+    #[test]
+    fn test_low_pass_filter_initialization() {
+        let mut filter = LowPassFilter::new(0.5);
+        // First value should be used directly
+        assert_eq!(filter.update(10.0), 10.0);
+        assert_eq!(filter.value(), 10.0);
+    }
+
+    #[test]
+    fn test_low_pass_filter_smoothing() {
+        let mut filter = LowPassFilter::new(0.5);
+        filter.update(10.0); // Initialize
+        // With alpha=0.5: new = 0.5 * 20 + 0.5 * 10 = 15
+        assert!((filter.update(20.0) - 15.0).abs() < 0.01);
+        // Next: 0.5 * 20 + 0.5 * 15 = 17.5
+        assert!((filter.update(20.0) - 17.5).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_low_pass_filter_heavy_smoothing() {
+        let mut filter = LowPassFilter::new(0.1);
+        filter.update(10.0);
+        // With alpha=0.1: new = 0.1 * 20 + 0.9 * 10 = 11
+        assert!((filter.update(20.0) - 11.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_low_pass_filter_reset() {
+        let mut filter = LowPassFilter::new(0.5);
+        filter.update(100.0);
+        filter.reset();
+        // After reset, next value is used directly
+        assert_eq!(filter.update(50.0), 50.0);
+    }
 }
 
 /// Drivetrain: manages 4 VESCs for the wheels.
@@ -393,7 +476,17 @@ pub struct Drivetrain {
     pub rear_right: Vesc,
     /// Motor pole pairs (for ERPM to RPM conversion)
     pub pole_pairs: u8,
+    /// Filtered battery voltage
+    voltage_filter: LowPassFilter,
+    /// Filtered total system current (sum of all VESCs)
+    current_filter: LowPassFilter,
 }
+
+/// Default smoothing factor for voltage filter (heavier smoothing, slower response).
+const VOLTAGE_FILTER_ALPHA: f32 = 0.1;
+
+/// Default smoothing factor for current filter (lighter smoothing, faster response).
+const CURRENT_FILTER_ALPHA: f32 = 0.3;
 
 impl Drivetrain {
     pub fn new(ids: [u8; 4], pole_pairs: u8) -> Self {
@@ -403,6 +496,8 @@ impl Drivetrain {
             rear_left: Vesc::new(ids[2]),
             rear_right: Vesc::new(ids[3]),
             pole_pairs,
+            voltage_filter: LowPassFilter::new(VOLTAGE_FILTER_ALPHA),
+            current_filter: LowPassFilter::new(CURRENT_FILTER_ALPHA),
         }
     }
 
@@ -418,18 +513,26 @@ impl Drivetrain {
         Ok(())
     }
 
-    /// Process a received CAN frame.
+    /// Process a received CAN frame and update filters.
     pub fn process_frame(&mut self, frame: &Frame) {
         self.front_left.process_frame(frame);
         self.front_right.process_frame(frame);
         self.rear_left.process_frame(frame);
         self.rear_right.process_frame(frame);
+
+        // Update voltage filter with raw reading from any VESC
+        let raw_voltage = self.raw_battery_voltage();
+        if raw_voltage > 0.0 {
+            self.voltage_filter.update(raw_voltage);
+        }
+
+        // Update current filter with sum of all VESC input currents
+        let raw_current = self.raw_total_current();
+        self.current_filter.update(raw_current);
     }
 
-    /// Get battery voltage (from any VESC that has reported).
-    pub fn battery_voltage(&self) -> f32 {
-        // Return voltage from any VESC that has a valid reading
-        // Check all 4 VESCs in case some aren't sending STATUS5
+    /// Get raw battery voltage (unfiltered, from any VESC that has reported).
+    pub fn raw_battery_voltage(&self) -> f32 {
         for vesc in [&self.front_left, &self.front_right, &self.rear_left, &self.rear_right] {
             let v = vesc.state.status5.voltage_in;
             if v > 0.0 {
@@ -437,6 +540,38 @@ impl Drivetrain {
             }
         }
         0.0
+    }
+
+    /// Get filtered battery voltage (smoothed to reduce noise).
+    pub fn battery_voltage(&self) -> f32 {
+        self.voltage_filter.value()
+    }
+
+    /// Get raw total system current (unfiltered sum of all VESCs).
+    ///
+    /// Uses input current (current_in from STATUS4) if available, otherwise
+    /// falls back to motor phase current sum (from STATUS1).
+    pub fn raw_total_current(&self) -> f32 {
+        // Try input current first (more accurate for power monitoring)
+        let input_current = self.front_left.state.status4.current_in
+            + self.front_right.state.status4.current_in
+            + self.rear_left.state.status4.current_in
+            + self.rear_right.state.status4.current_in;
+
+        if input_current.abs() > 0.01 {
+            return input_current;
+        }
+
+        // Fall back to motor phase current (less accurate but always available)
+        self.front_left.state.status.current
+            + self.front_right.state.status.current
+            + self.rear_left.state.status.current
+            + self.rear_right.state.status.current
+    }
+
+    /// Get filtered total system current (smoothed to reduce noise).
+    pub fn total_current(&self) -> f32 {
+        self.current_filter.value()
     }
 
     /// Get all VESC states.

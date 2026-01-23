@@ -2302,7 +2302,7 @@ async fn main() -> Result<()> {
             pose,
             power: PowerStatus {
                 battery_voltage: state.drivetrain.battery_voltage() as f64,
-                system_current: motor_currents.iter().sum::<f32>() as f64,
+                system_current: state.drivetrain.total_current() as f64,
             },
             cmd_velocity: twist,
             meas_velocity: (0.0, 0.0),  // TODO: populate from VelocityTracker
