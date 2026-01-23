@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import {
@@ -25,9 +25,10 @@ import {
   HardDrives,
   WifiHigh,
 } from "@phosphor-icons/react";
-import { useConsoleStore } from "@/store";
+import { useConsoleStore, type ChannelMetrics } from "@/store";
 import { Mode, ModeLabels, CameraMode, WheelStatus } from "@/lib/types";
 import { getBatteryPercent } from "@/lib/utils";
+import { useShallow } from "zustand/react/shallow";
 
 const cameraModeLabels: Record<CameraMode, string> = {
   [CameraMode.ThirdPerson]: "3rd",
@@ -120,24 +121,50 @@ interface TelemetryPanelProps {
   onToggleLidar?: (enabled: boolean) => void;
 }
 
+// Channel configuration - defined outside component to avoid recreation
+const CHANNEL_CONFIG = [
+  { key: "telemetry", label: "Telem", tooltip: "Telemetry data channel (~30-60 msg/s)" },
+  { key: "video", label: "Video", tooltip: "Video frames channel (~10-15 FPS per camera)" },
+  { key: "pointcloud", label: "Cloud", tooltip: "LiDAR point cloud channel (~5 msg/s when enabled)" },
+] as const;
+
 export function TelemetryPanel({ onToggleLidar }: TelemetryPanelProps) {
-  const { telemetry, connected, latencyMs, renderPose, cameraMode, setCameraMode, pointCloudEnabled, setPointCloudEnabled, channelMetrics } = useConsoleStore();
+  // Split selectors for granular updates
+  const telemetry = useConsoleStore((s) => s.telemetry);
+  const connected = useConsoleStore((s) => s.connected);
+  const latencyMs = useConsoleStore((s) => s.latencyMs);
+  const renderPose = useConsoleStore((s) => s.renderPose);
+  const cameraMode = useConsoleStore((s) => s.cameraMode);
+  const setCameraMode = useConsoleStore((s) => s.setCameraMode);
+  const pointCloudEnabled = useConsoleStore((s) => s.pointCloudEnabled);
+  const setPointCloudEnabled = useConsoleStore((s) => s.setPointCloudEnabled);
+  // Select only the metrics values we need, not the whole Map
+  // useShallow compares array elements by reference to avoid rerenders when Map updates
+  const channelMetricsData = useConsoleStore(
+    useShallow((s): (ChannelMetrics | undefined)[] =>
+      CHANNEL_CONFIG.map(({ key }) => s.channelMetrics.get(key))
+    )
+  );
+
   const [collapsed, setCollapsed] = useState(false);
 
-  const batteryPercent = getBatteryPercent(telemetry.power.battery_voltage);
+  const batteryPercent = useMemo(
+    () => getBatteryPercent(telemetry.power.battery_voltage),
+    [telemetry.power.battery_voltage]
+  );
 
-  const cycleCameraMode = () => {
+  const cycleCameraMode = useCallback(() => {
     const modes = [CameraMode.ThirdPerson, CameraMode.FirstPerson, CameraMode.FreeLook];
     const currentIndex = modes.indexOf(cameraMode);
     const nextIndex = (currentIndex + 1) % modes.length;
     setCameraMode(modes[nextIndex]);
-  };
+  }, [cameraMode, setCameraMode]);
 
-  const handleToggleLidar = () => {
+  const handleToggleLidar = useCallback(() => {
     const newEnabled = !pointCloudEnabled;
     setPointCloudEnabled(newEnabled);
     onToggleLidar?.(newEnabled);
-  };
+  }, [pointCloudEnabled, setPointCloudEnabled, onToggleLidar]);
 
   return (
     <div className="w-56 bg-card/90 backdrop-blur-sm border border-border rounded-lg overflow-hidden shadow-lg">
@@ -365,12 +392,8 @@ export function TelemetryPanel({ onToggleLidar }: TelemetryPanelProps) {
                 Channels
               </div>
               <div className="space-y-0.5">
-                {[
-                  { key: "telemetry", label: "Telem", tooltip: "Telemetry data channel (~30-60 msg/s)" },
-                  { key: "video", label: "Video", tooltip: "Video frames channel (~10-15 FPS per camera)" },
-                  { key: "pointcloud", label: "Cloud", tooltip: "LiDAR point cloud channel (~5 msg/s when enabled)" },
-                ].map(({ key, label, tooltip }) => {
-                  const metrics = channelMetrics.get(key);
+                {CHANNEL_CONFIG.map(({ key, label, tooltip }, index) => {
+                  const metrics = channelMetricsData[index];
                   const rate = metrics?.messagesPerSec ?? 0;
                   const lastTime = metrics?.lastMessageTime ?? 0;
                   const history = metrics?.history ?? [];

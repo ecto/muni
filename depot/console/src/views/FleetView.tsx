@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { useConsoleStore } from "@/store";
 import {
@@ -141,14 +142,17 @@ function RoverRow({ rover }: { rover: RoverInfo }) {
 export function FleetView() {
   const { rovers } = useConsoleStore();
 
-  const onlineRovers = rovers.filter((r) => r.online);
-  const offlineRovers = rovers.filter((r) => !r.online);
-
-  // Sort: online first, then by name
-  const sortedRovers = [...rovers].sort((a, b) => {
-    if (a.online !== b.online) return a.online ? -1 : 1;
-    return (a.name || a.id).localeCompare(b.name || b.id);
-  });
+  // Memoize derived arrays to avoid recomputation on every render
+  const { onlineRovers, offlineRovers, sortedRovers } = useMemo(() => {
+    const online = rovers.filter((r) => r.online);
+    const offline = rovers.filter((r) => !r.online);
+    // Sort: online first, then by name
+    const sorted = [...rovers].sort((a, b) => {
+      if (a.online !== b.online) return a.online ? -1 : 1;
+      return (a.name || a.id).localeCompare(b.name || b.id);
+    });
+    return { onlineRovers: online, offlineRovers: offline, sortedRovers: sorted };
+  }, [rovers]);
 
   return (
     <TooltipProvider delayDuration={0}>

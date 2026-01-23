@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useConsoleStore } from "@/store";
 import { CellTower, Robot } from "@phosphor-icons/react";
@@ -21,7 +22,7 @@ export function DashboardView() {
   const navigate = useNavigate();
   const { rovers, gpsStatus } = useConsoleStore();
 
-  const onlineRovers = rovers.filter((r) => r.online);
+  const onlineRovers = useMemo(() => rovers.filter((r) => r.online), [rovers]);
 
   const gpsOk = gpsStatus?.connected && gpsStatus.fixQuality !== "no_fix";
 
@@ -68,13 +69,12 @@ export function DashboardView() {
         )}
 
         {/* Online rover markers */}
-        {onlineRovers.map((rover) => {
+        {onlineRovers.map((rover, idx) => {
           // For now, show rovers at depot location with small offset
           // In the future, rovers will report their own GPS coordinates
           if (!hasDepotPosition) return null;
 
           // Offset each rover slightly from depot (roughly 10 meters per rover)
-          const idx = onlineRovers.indexOf(rover);
           const offset = 0.0001 * (idx + 1); // ~11 meters per unit at this latitude
           const roverLat = gpsStatus.latitude! + offset;
           const roverLon = gpsStatus.longitude! + offset;
