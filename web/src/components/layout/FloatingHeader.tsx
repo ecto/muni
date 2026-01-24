@@ -10,6 +10,7 @@ export function FloatingHeader() {
       <div className="floating-header-content">
         <Link href="/" className="floating-header-brand">
           <MuniLogo className="floating-header-logo" />
+          <span className="floating-header-name">Municipal Robotics</span>
         </Link>
 
         <nav className="floating-header-nav" aria-label="Main navigation">

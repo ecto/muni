@@ -2990,6 +2990,8 @@ body > div:not(.frame-footer):not([class*="frame"]) > .formkit-form[data-uid="cb
   left: 50%;
   transform: translateX(-50%);
   z-index: var(--z-header);
+  max-width: 800px;
+  width: calc(100% - 32px);
   backdrop-filter: blur(12px) saturate(180%);
   -webkit-backdrop-filter: blur(12px) saturate(180%);
   background: oklch(0.147 0.004 49.25 / 92%);
@@ -3085,13 +3087,11 @@ body > div:not(.frame-footer):not([class*="frame"]) > .formkit-form[data-uid="cb
 @media (max-width: 768px) {
   .floating-header {
     top: 12px;
-    left: 12px;
-    right: 12px;
-    transform: none;
+    width: calc(100% - 24px);
   }
 
   .floating-header-content {
-    padding: 8px 14px;
+    padding: 8px 20px;
     gap: 16px;
   }
 
@@ -3100,6 +3100,10 @@ body > div:not(.frame-footer):not([class*="frame"]) > .formkit-form[data-uid="cb
   }
 
   .floating-header-link {
+    display: none;
+  }
+
+  .floating-header-name {
     display: none;
   }
 
@@ -3112,12 +3116,11 @@ body > div:not(.frame-footer):not([class*="frame"]) > .formkit-form[data-uid="cb
 @media (max-width: 480px) {
   .floating-header {
     top: 8px;
-    left: 8px;
-    right: 8px;
+    width: calc(100% - 16px);
   }
 
   .floating-header-content {
-    padding: 6px 12px;
+    padding: 6px 16px;
   }
 
   .floating-header-name {
