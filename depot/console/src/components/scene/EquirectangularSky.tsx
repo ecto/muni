@@ -14,6 +14,7 @@ import {
 import { computeRenderPose, getInterpolationBuffer } from "@/lib/interpolation";
 import {
   getAllCameraFrames,
+  getCameraFrame,
   getFrameVersion,
   type CameraFrame,
 } from "@/lib/videoFrameStore";
@@ -23,35 +24,40 @@ const CAMERA_PLANE_GEOMETRY = new PlaneGeometry(2 * (640 / 480), 2);
 
 /**
  * Single camera projection plane.
+ * Reads frame URL directly from the mutable store to avoid React re-renders.
  */
 function CameraProjection({
-  frameUrl,
+  cameraId,
   position
 }: {
-  frameUrl: string | null;
+  cameraId: number;
   position: [number, number, number];
 }) {
   const materialRef = useRef<MeshBasicMaterial | null>(null);
   const textureRef = useRef<Texture | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [hasTexture, setHasTexture] = useState(false);
-  // Track mount generation to force texture reload on remount
-  const [mountId] = useState(() => Math.random());
+  // Track last loaded URL to avoid reloading same frame
+  const lastLoadedUrlRef = useRef<string | null>(null);
+  // Track pending image load to avoid race conditions
+  const pendingLoadRef = useRef<string | null>(null);
 
-  // Load frame and update texture
-  // Include mountId to ensure effect runs on remount even if frameUrl unchanged
-  useEffect(() => {
-    if (!frameUrl) {
-      console.log(`[CameraProjection] No frameUrl provided`);
+  // Poll store for new frames in useFrame (runs at 60fps, no React re-renders)
+  useFrame(() => {
+    const frame = getCameraFrame(cameraId);
+    const frameUrl = frame?.url ?? null;
+
+    // Skip if no URL, already loaded, or load in progress
+    if (!frameUrl || frameUrl === lastLoadedUrlRef.current || frameUrl === pendingLoadRef.current) {
       return;
     }
 
+    // Start loading new frame
+    pendingLoadRef.current = frameUrl;
     const img = new Image();
-    img.onerror = (e) => {
-      console.error(`[CameraProjection] Failed to load image:`, e);
-    };
     img.onload = () => {
-      console.log(`[CameraProjection] Image loaded: ${img.width}x${img.height}`);
+      // Verify this is still the frame we want (not stale)
+      if (pendingLoadRef.current !== frameUrl) return;
 
       // Create or reuse canvas
       if (!canvasRef.current) {
@@ -69,21 +75,24 @@ function CameraProjection({
         const newTexture = new CanvasTexture(canvas);
         newTexture.colorSpace = SRGBColorSpace;
         textureRef.current = newTexture;
-        console.log(`[CameraProjection] Created new texture`);
       }
-      // Mark texture as needing update (canvas content changed)
       textureRef.current.needsUpdate = true;
 
-      // Update material - always reattach texture in case material was recreated
+      // Update material
       if (materialRef.current) {
         materialRef.current.map = textureRef.current;
         materialRef.current.needsUpdate = true;
       }
 
-      setHasTexture(true);
+      lastLoadedUrlRef.current = frameUrl;
+      pendingLoadRef.current = null;
+      if (!hasTexture) setHasTexture(true);
+    };
+    img.onerror = () => {
+      pendingLoadRef.current = null;
     };
     img.src = frameUrl;
-  }, [frameUrl, mountId]);
+  });
 
   // Cleanup on unmount - dispose texture, material, and canvas
   useEffect(() => {
@@ -136,15 +145,17 @@ export function EquirectangularSky() {
 
   // Track frame version to detect changes from mutable store
   const lastFrameVersionRef = useRef(0);
-  // Local state for cameras - updated when frame version changes
-  const [cameras, setCameras] = useState<Array<[number, CameraFrame]>>([]);
+  // Only track camera IDs - frames are read directly from store by CameraProjection
+  const [cameraIds, setCameraIds] = useState<number[]>([]);
+  // Track previous camera IDs to avoid unnecessary state updates
+  const prevCameraIdsRef = useRef<string>("");
 
   // Memoize camera positions to prevent unnecessary remounts
   // Each camera gets a stable position tuple based on its index and total count
   const positions = useMemo(() => {
-    const total = cameras.length;
+    const total = cameraIds.length;
     if (total === 0) return [];
-    return cameras.map((_, index) => {
+    return cameraIds.map((_, index) => {
       if (total === 1) return [0, 1.5, -3] as [number, number, number];
       // Spread cameras horizontally in front of rover (planes are ~2.67m wide)
       const spacing = 3;
@@ -152,22 +163,26 @@ export function EquirectangularSky() {
       const x = index * spacing - offset;
       return [x, 1.5, -3] as [number, number, number];
     });
-  }, [cameras]);
+  }, [cameraIds]);
 
-  // Check for frame updates from mutable store (runs even when not rendering)
-  // This must run before the early return to ensure cameras state gets updated
+  // Check for new cameras from mutable store (runs even when not rendering)
+  // Only triggers re-render when the set of camera IDs changes, not on every frame
   useFrame(() => {
-    // Always check for frame updates, even if we're not rendering yet
     const currentVersion = getFrameVersion();
     if (currentVersion !== lastFrameVersionRef.current) {
       lastFrameVersionRef.current = currentVersion;
-      // Read frames from mutable store and update local state
+      // Get current camera IDs from store
       const frames = getAllCameraFrames();
-      const sorted = Array.from(frames.entries()).sort((a, b) => a[0] - b[0]);
-      if (sorted.length > 0 && cameras.length === 0) {
-        console.log(`[EquirectangularSky] First frames received: ${sorted.length} cameras, version=${currentVersion}`);
+      const ids = Array.from(frames.keys()).sort((a, b) => a - b);
+      const idsKey = ids.join(",");
+      // Only update state if camera set changed (not on every frame)
+      if (idsKey !== prevCameraIdsRef.current) {
+        if (ids.length > 0 && cameraIds.length === 0) {
+          console.log(`[EquirectangularSky] First frames received: ${ids.length} cameras`);
+        }
+        prevCameraIdsRef.current = idsKey;
+        setCameraIds(ids);
       }
-      setCameras(sorted);
     }
 
     // Update group position if we have a ref
@@ -182,28 +197,16 @@ export function EquirectangularSky() {
     groupRef.current.rotation.y = result.pose.theta;
   });
 
-  // Debug: log render state
-  if (videoConnected && cameras.length === 0) {
-    // Video is connected but we have no frames yet - check store directly
-    const storeVersion = getFrameVersion();
-    const storeFrames = getAllCameraFrames();
-    if (storeFrames.size > 0) {
-      console.warn(`[EquirectangularSky] Store has ${storeFrames.size} frames (v${storeVersion}) but cameras state is empty`);
-    }
-  }
-
-  if (!videoConnected || cameras.length === 0) {
+  if (!videoConnected || cameraIds.length === 0) {
     return null;
   }
 
-  console.log(`[EquirectangularSky] Rendering ${cameras.length} cameras`);
-
   return (
     <group ref={groupRef}>
-      {cameras.map(([cameraId, frame], index) => (
+      {cameraIds.map((cameraId, index) => (
         <CameraProjection
           key={cameraId}
-          frameUrl={frame.url}
+          cameraId={cameraId}
           position={positions[index]}
         />
       ))}
