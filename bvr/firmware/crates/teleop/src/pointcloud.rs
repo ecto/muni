@@ -63,6 +63,13 @@ pub fn downsample(cloud: &PointCloud) -> Vec<Point3D> {
     downsample_with_config(cloud, &PointCloudConfig::default())
 }
 
+/// Extract confidence level from Livox tag byte (bits 0-1).
+/// Returns 0-3 where 0 is noise/invalid, 3 is highest confidence.
+#[inline]
+fn get_confidence(tag: u8) -> u8 {
+    tag & 0b11
+}
+
 /// Downsample a point cloud with custom configuration.
 pub fn downsample_with_config(cloud: &PointCloud, config: &PointCloudConfig) -> Vec<Point3D> {
     if cloud.points.is_empty() {
@@ -72,9 +79,15 @@ pub fn downsample_with_config(cloud: &PointCloud, config: &PointCloudConfig) -> 
     let inv_voxel_size = 1.0 / config.voxel_size;
 
     // First pass: accumulate points per voxel, keeping highest reflectivity
+    // Filter out noise points (confidence=0) before downsampling
     let mut voxels: HashMap<VoxelKey, Point3D> = HashMap::new();
 
     for point in &cloud.points {
+        // Skip noise points (confidence level 0 in tag bits 0-1)
+        if get_confidence(point.tag) == 0 {
+            continue;
+        }
+
         let key = VoxelKey::from_point(point, inv_voxel_size);
 
         voxels
@@ -232,7 +245,7 @@ mod tests {
             y,
             z,
             reflectivity,
-            tag: 0,
+            tag: 3, // High confidence so points aren't filtered
         }
     }
 
@@ -338,7 +351,7 @@ mod tests {
 
         // Last two bytes of point data are reflectivity and tag
         assert_eq!(buf[buf.len() - 2], 128); // reflectivity
-        assert_eq!(buf[buf.len() - 1], 0); // tag
+        assert_eq!(buf[buf.len() - 1], 3); // tag (high confidence)
     }
 
     #[test]
