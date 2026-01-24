@@ -422,6 +422,8 @@ export interface DecodedPointCloud {
   points: Float32Array;
   /** Reflectivity values per point (0-255) */
   reflectivity: Uint8Array;
+  /** Tag values per point - contains confidence (bits 0-1) and return type (bits 2-3) */
+  tag: Uint8Array;
 }
 
 /**
@@ -471,6 +473,7 @@ export function decodePointCloud(data: ArrayBuffer): DecodedPointCloud | null {
   // Decode points
   const points = new Float32Array(pointCount * 3);
   const reflectivity = new Uint8Array(pointCount);
+  const tag = new Uint8Array(pointCount);
 
   for (let i = 0; i < pointCount; i++) {
     const offset = POINT_CLOUD_HEADER_SIZE + i * BYTES_PER_POINT;
@@ -480,15 +483,17 @@ export function decodePointCloud(data: ArrayBuffer): DecodedPointCloud | null {
     const qy = view.getInt16(offset + 2, true);
     const qz = view.getInt16(offset + 4, true);
     const refl = view.getUint8(offset + 6);
+    const pointTag = view.getUint8(offset + 7);
 
     // Dequantize: raw = quantized * scale + offset
     points[i * 3] = qx * scaleX + offsetX;
     points[i * 3 + 1] = qy * scaleY + offsetY;
     points[i * 3 + 2] = qz * scaleZ + offsetZ;
     reflectivity[i] = refl;
+    tag[i] = pointTag;
   }
 
-  return { frameId, points, reflectivity };
+  return { frameId, points, reflectivity, tag };
 }
 
 /**

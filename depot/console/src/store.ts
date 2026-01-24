@@ -98,8 +98,9 @@ interface ConsoleState {
   // Point cloud
   pointCloud: Float32Array | null;
   pointCloudReflectivity: Uint8Array | null;
+  pointCloudTag: Uint8Array | null;
   pointCloudEnabled: boolean;
-  setPointCloud: (points: Float32Array, reflectivity: Uint8Array) => void;
+  setPointCloud: (points: Float32Array, reflectivity: Uint8Array, tag: Uint8Array) => void;
   setPointCloudEnabled: (enabled: boolean) => void;
 
   // Sessions
@@ -264,9 +265,10 @@ export const useConsoleStore = create<ConsoleState>()(
   // Point cloud
   pointCloud: null,
   pointCloudReflectivity: null,
+  pointCloudTag: null,
   pointCloudEnabled: false,
-  setPointCloud: (points, reflectivity) =>
-    set({ pointCloud: points, pointCloudReflectivity: reflectivity }),
+  setPointCloud: (points, reflectivity, tag) =>
+    set({ pointCloud: points, pointCloudReflectivity: reflectivity, pointCloudTag: tag }),
   setPointCloudEnabled: (enabled) => set({ pointCloudEnabled: enabled }),
 
   // Sessions

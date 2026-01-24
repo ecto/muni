@@ -498,10 +498,7 @@ export function useRoverConnectionRtc() {
 
             const cloud = decodePointCloud(msgEvent.data);
             if (cloud) {
-              console.log(`[WebRTC] Pointcloud received: ${cloud.points.length / 3} points`);
-              setPointCloud(cloud.points, cloud.reflectivity);
-            } else {
-              console.warn("[WebRTC] Failed to decode pointcloud, size:", msgEvent.data.byteLength);
+              setPointCloud(cloud.points, cloud.reflectivity, cloud.tag);
             }
           };
 

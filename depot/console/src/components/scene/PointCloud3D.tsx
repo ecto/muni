@@ -15,6 +15,14 @@ const POINT_LIFETIME = 3.0;
 /** Point size in meters. */
 const POINT_SIZE = 0.06;
 
+/**
+ * Extract confidence level from Livox tag byte.
+ * Bits 0-1: confidence (0=noise, 1=low, 2=medium, 3=high)
+ */
+function getConfidence(tag: number): number {
+  return tag & 0b11;
+}
+
 /** Accumulated point with world position and age. */
 interface AccumulatedPoint {
   // World position (Three.js coordinates)
@@ -23,6 +31,8 @@ interface AccumulatedPoint {
   z: number;
   // Original reflectivity (0-255)
   reflectivity: number;
+  // Confidence level (0-3, from tag bits 0-1)
+  confidence: number;
   // Time when point was added (performance.now() / 1000)
   timestamp: number;
 }
@@ -34,7 +44,7 @@ interface AccumulatedPoint {
  * New points are transformed to world coordinates using the rover's pose.
  */
 export function PointCloud3D() {
-  const { pointCloud, pointCloudReflectivity, pointCloudEnabled, renderPose, videoConnected } =
+  const { pointCloud, pointCloudReflectivity, pointCloudTag, pointCloudEnabled, renderPose, videoConnected } =
     useConsoleStore();
 
   // Use reduced point count when video is active to reduce GPU work
@@ -125,11 +135,16 @@ export function PointCloud3D() {
 
     // Transform new points from sensor frame to world frame
     // Sensor: X forward, Y left, Z up (relative to rover)
-    // World: X east, Y up, Z south (Three.js)
+    // World: X right, Y up, -Z forward (Three.js convention, matching RoverModel)
     const cosTheta = Math.cos(renderPose.theta);
     const sinTheta = Math.sin(renderPose.theta);
 
     for (let i = 0; i < pointCount; i++) {
+      // Extract confidence from tag (bits 0-1)
+      // Note: Mid-360 tag format may differ - keeping all points for now
+      const tag = pointCloudTag ? pointCloudTag[i] : 3;
+      const confidence = getConfidence(tag);
+
       const sx = pointCloud[i * 3];     // sensor X (forward)
       const sy = pointCloud[i * 3 + 1]; // sensor Y (left)
       const sz = pointCloud[i * 3 + 2]; // sensor Z (up)
@@ -141,17 +156,17 @@ export function PointCloud3D() {
       const localZ = -sx;
 
       // Rotate by rover heading around Y axis, then translate to world position
-      // World X = localX * cos(theta) - localZ * sin(theta) + rover.x
-      // World Z = localX * sin(theta) + localZ * cos(theta) - rover.y
-      const worldX = localX * cosTheta - localZ * sinTheta + renderPose.x;
+      // Physics frame: X=forward, Y=left → Three.js: z=-X, x=-Y (matching RoverModel)
+      const worldX = localX * cosTheta - localZ * sinTheta - renderPose.y;
       const worldY = localY; // Y is up, no rotation needed
-      const worldZ = localX * sinTheta + localZ * cosTheta - renderPose.y;
+      const worldZ = localX * sinTheta + localZ * cosTheta - renderPose.x;
 
       accumulated.push({
         x: worldX,
         y: worldY,
         z: worldZ,
         reflectivity: pointCloudReflectivity[i],
+        confidence,
         timestamp: now,
       });
     }
@@ -160,7 +175,7 @@ export function PointCloud3D() {
     if (accumulated.length > maxPoints) {
       accumulated.splice(0, accumulated.length - maxPoints);
     }
-  }, [pointCloud, pointCloudReflectivity, pointCloudEnabled, renderPose, maxPoints]);
+  }, [pointCloud, pointCloudReflectivity, pointCloudTag, pointCloudEnabled, renderPose, maxPoints]);
 
   // Clear accumulated points when disabled
   useEffect(() => {
@@ -192,7 +207,7 @@ export function PointCloud3D() {
     const positionAttr = geometry.getAttribute("position") as THREE.BufferAttribute;
     const colorAttr = geometry.getAttribute("color") as THREE.BufferAttribute;
 
-    // Update positions and colors with age-based fading
+    // Update positions and colors with age-based fading and confidence
     for (let i = 0; i < pointCount; i++) {
       const point = accumulated[i];
 
@@ -205,9 +220,14 @@ export function PointCloud3D() {
       const age = now - point.timestamp;
       const fade = Math.max(0, 1 - age / POINT_LIFETIME);
 
-      // Color: blue-to-white gradient based on reflectivity, faded by age
+      // Confidence factor (0.5 for low, 0.75 for medium, 1.0 for high)
+      // Note: confidence=0 (noise) is filtered out during accumulation
+      const confidenceFactor = 0.25 + (point.confidence / 3) * 0.75;
+
+      // Color: blue-to-white gradient based on reflectivity
+      // Brightness affected by age fade and confidence
       const refl = point.reflectivity / 255;
-      const brightness = fade * fade; // Quadratic fade for smoother falloff
+      const brightness = fade * fade * confidenceFactor; // Quadratic age fade + confidence
 
       colorAttr.array[i * 3] = (0.3 + refl * 0.7) * brightness;     // R
       colorAttr.array[i * 3 + 1] = (0.5 + refl * 0.5) * brightness; // G
