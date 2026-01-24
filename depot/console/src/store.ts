@@ -103,6 +103,10 @@ interface ConsoleState {
   setPointCloud: (points: Float32Array, reflectivity: Uint8Array, tag: Uint8Array) => void;
   setPointCloudEnabled: (enabled: boolean) => void;
 
+  // Gaussian splat (3D map)
+  splatEnabled: boolean;
+  setSplatEnabled: (enabled: boolean) => void;
+
   // Sessions
   sessions: Session[];
   selectedSessionId: string | null;
@@ -270,6 +274,10 @@ export const useConsoleStore = create<ConsoleState>()(
   setPointCloud: (points, reflectivity, tag) =>
     set({ pointCloud: points, pointCloudReflectivity: reflectivity, pointCloudTag: tag }),
   setPointCloudEnabled: (enabled) => set({ pointCloudEnabled: enabled }),
+
+  // Gaussian splat
+  splatEnabled: true,
+  setSplatEnabled: (enabled) => set({ splatEnabled: enabled }),
 
   // Sessions
   sessions: [],

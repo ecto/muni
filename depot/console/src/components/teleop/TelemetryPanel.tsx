@@ -138,6 +138,8 @@ export function TelemetryPanel({ onToggleLidar }: TelemetryPanelProps) {
   const setCameraMode = useConsoleStore((s) => s.setCameraMode);
   const pointCloudEnabled = useConsoleStore((s) => s.pointCloudEnabled);
   const setPointCloudEnabled = useConsoleStore((s) => s.setPointCloudEnabled);
+  const splatEnabled = useConsoleStore((s) => s.splatEnabled);
+  const setSplatEnabled = useConsoleStore((s) => s.setSplatEnabled);
   // Select only the metrics values we need, not the whole Map
   // useShallow compares array elements by reference to avoid rerenders when Map updates
   const channelMetricsData = useConsoleStore(
@@ -165,6 +167,10 @@ export function TelemetryPanel({ onToggleLidar }: TelemetryPanelProps) {
     setPointCloudEnabled(newEnabled);
     onToggleLidar?.(newEnabled);
   }, [pointCloudEnabled, setPointCloudEnabled, onToggleLidar]);
+
+  const handleToggleSplat = useCallback(() => {
+    setSplatEnabled(!splatEnabled);
+  }, [splatEnabled, setSplatEnabled]);
 
   return (
     <div className="w-56 bg-card/90 backdrop-blur-sm border border-border rounded-lg overflow-hidden shadow-lg">
@@ -380,6 +386,24 @@ export function TelemetryPanel({ onToggleLidar }: TelemetryPanelProps) {
                 )}
                 <HealthIndicator label="SLAM" healthy={telemetry.health.slam_running} tooltip="Simultaneous Localization and Mapping running" />
                 <HealthIndicator label="Rec" healthy={telemetry.health.recording_active} tooltip="Session recording to .rrd file" />
+                {/* Splat toggle */}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div
+                      className="flex items-center justify-between text-xs cursor-pointer hover:bg-muted/50 rounded px-0.5 -mx-0.5"
+                      onClick={handleToggleSplat}
+                    >
+                      <span className="text-muted-foreground">Splat</span>
+                      <Badge
+                        variant={splatEnabled ? "default" : "secondary"}
+                        className="text-[10px] h-4 px-1.5 text-foreground"
+                      >
+                        {splatEnabled ? "ON" : "OFF"}
+                      </Badge>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent side="right">Click to toggle 3D Gaussian splat map</TooltipContent>
+                </Tooltip>
               </div>
             </div>
           )}

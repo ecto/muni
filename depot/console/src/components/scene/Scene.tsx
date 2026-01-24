@@ -28,7 +28,7 @@ interface SceneProps {
 }
 
 export function Scene({ mode = "teleop", zones: propZones, activeTasks, onZoneClick }: SceneProps) {
-  const { videoConnected, selectedRoverId } = useConsoleStore();
+  const { videoConnected, selectedRoverId, splatEnabled } = useConsoleStore();
   const { zones: fetchedZones } = useMapData();
 
   // Track WebGL context state for recovery
@@ -118,8 +118,8 @@ export function Scene({ mode = "teleop", zones: propZones, activeTasks, onZoneCl
 
       {/* Scene elements */}
       <Ground />
-      {/* Always render World3D - it provides context even with camera planes */}
-      <World3D />
+      {/* Gaussian splat 3D map - can be toggled off for performance */}
+      {splatEnabled && <World3D />}
       <MapOverlay zones={zones} activeTasks={activeTasks} onZoneClick={onZoneClick} />
 
       {/* Rover visualization depends on mode */}
