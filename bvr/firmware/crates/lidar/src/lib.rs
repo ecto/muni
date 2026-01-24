@@ -3,11 +3,14 @@
 //! Provides 3D point cloud data from a Livox Mid360 sensor over UDP.
 //! The driver parses the Livox SDK2 protocol and produces point clouds
 //! as `PointCloud` structs.
+//!
+//! The lidar can be controlled at runtime via SDK2 commands to start/stop
+//! sampling. This allows power savings when the rover is idle.
 
 use std::net::Ipv4Addr;
 use std::time::Instant;
 use thiserror::Error;
-use tokio::sync::watch;
+use tokio::sync::{mpsc, watch};
 
 mod driver;
 
@@ -21,6 +24,15 @@ pub enum LidarError {
     Timeout,
     #[error("Device not found")]
     NotFound,
+}
+
+/// Commands to control lidar sampling at runtime.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LidarCommand {
+    /// Start sampling (motor spins, data flows).
+    Start,
+    /// Stop sampling (motor stops, saves power).
+    Stop,
 }
 
 /// Livox Mid360 configuration.
@@ -141,6 +153,28 @@ impl LidarReader {
     ) -> tokio::task::JoinHandle<Result<(), LidarError>> {
         let config = self.config;
         tokio::spawn(async move { driver::run_reader_with_imu(config, point_tx, imu_tx).await })
+    }
+
+    /// Spawn with IMU and runtime control.
+    ///
+    /// The command receiver allows starting/stopping sampling at runtime.
+    /// When stopped, the lidar motor stops spinning (saving power and heat).
+    /// The task keeps running and will resume when a Start command is received.
+    ///
+    /// If `start_immediately` is false, the lidar will wait for a Start command
+    /// before beginning to sample.
+    pub fn spawn_with_control(
+        self,
+        point_tx: watch::Sender<Option<PointCloud>>,
+        imu_tx: watch::Sender<Option<ImuData>>,
+        cmd_rx: mpsc::Receiver<LidarCommand>,
+        start_immediately: bool,
+    ) -> tokio::task::JoinHandle<Result<(), LidarError>> {
+        let config = self.config;
+        tokio::spawn(async move {
+            driver::run_reader_with_control(config, point_tx, imu_tx, cmd_rx, start_immediately)
+                .await
+        })
     }
 }
 

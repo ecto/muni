@@ -9,7 +9,7 @@ use clap::Parser;
 use control::{ChassisParams, DiffDriveMixer, Limits, RateLimiter, Watchdog};
 use gps::{Config as GpsConfig, GpsReader, GpsState};
 use hal::EStopEvent;
-use lidar::{Config as LidarConfig, LidarReader};
+use lidar::{Config as LidarConfig, LidarCommand, LidarReader};
 use localization::{AttitudeFilter, PoseEstimator, WheelOdometry};
 use slam::{SlamConfig, SlamProcessor, SlamState};
 use planner::PlannerConfig;
@@ -29,7 +29,6 @@ use teleop::video::{VideoConfig, VideoFrame, VideoServer};
 use teleop::rtc::{RtcConfig, RtcMetrics, RtcServer};
 use teleop::{Config as TeleopConfig, Server as TeleopServer, Telemetry};
 use tokio::sync::{mpsc, watch, Semaphore};
-use tokio::task::JoinSet;
 use tools::{protocol, Registry as ToolRegistry, ToolOutput};
 use tracing::{debug, error, info, warn};
 use tracing_appender::rolling::{RollingFileAppender, Rotation};
@@ -144,6 +143,9 @@ struct LidarFileConfig {
     /// Mounting pitch angle in degrees (positive = sensor tilted forward/down).
     /// Applied to both point cloud transform and IMU readings.
     mounting_pitch_deg: f32,
+    /// Power save mode: only run lidar during Teleop/Autonomous, stop in Idle.
+    /// Reduces heat and power consumption when rover is not active.
+    power_save: bool,
 }
 
 impl Default for LidarFileConfig {
@@ -157,6 +159,7 @@ impl Default for LidarFileConfig {
             stream_voxel_size: 0.3,
             stream_max_points: 500,
             mounting_pitch_deg: 0.0,
+            power_save: true,
         }
     }
 }
@@ -1193,10 +1196,19 @@ async fn main() -> Result<()> {
     // IMU channel for orientation data (roll/pitch) from the Mid360's built-in IMU
     let (imu_tx, imu_rx) = watch::channel::<Option<lidar::ImuData>>(None);
     let mut lidar_rx_local = lidar_rx.clone();
-    if file_config.lidar.enabled {
-        let lidar_ip = file_config.lidar.lidar_ip.parse()
+
+    // Command channel for runtime lidar control (power save mode)
+    let lidar_cmd_tx: Option<tokio::sync::mpsc::Sender<LidarCommand>> = if file_config.lidar.enabled
+    {
+        let lidar_ip = file_config
+            .lidar
+            .lidar_ip
+            .parse()
             .unwrap_or(std::net::Ipv4Addr::new(192, 168, 1, 100));
-        let host_ip = file_config.lidar.host_ip.parse()
+        let host_ip = file_config
+            .lidar
+            .host_ip
+            .parse()
             .unwrap_or(std::net::Ipv4Addr::new(0, 0, 0, 0));
         let lidar_config = LidarConfig {
             lidar_ip,
@@ -1208,16 +1220,33 @@ async fn main() -> Result<()> {
         };
 
         let lidar_reader = LidarReader::new(lidar_config);
-        let _lidar_handle = lidar_reader.spawn_with_imu(lidar_tx, imu_tx);
-        info!(
-            ip = %file_config.lidar.lidar_ip,
-            port = file_config.lidar.point_cloud_port,
-            imu_port = file_config.lidar.imu_port,
-            "LiDAR reader started with IMU (Livox Mid360)"
-        );
+
+        if file_config.lidar.power_save {
+            // Power save mode: lidar starts stopped, control loop sends Start/Stop
+            let (cmd_tx, cmd_rx) = tokio::sync::mpsc::channel::<LidarCommand>(4);
+            let _lidar_handle =
+                lidar_reader.spawn_with_control(lidar_tx, imu_tx, cmd_rx, false);
+            info!(
+                ip = %file_config.lidar.lidar_ip,
+                port = file_config.lidar.point_cloud_port,
+                "LiDAR reader started (power save mode, waiting for active mode)"
+            );
+            Some(cmd_tx)
+        } else {
+            // Always-on mode (legacy behavior)
+            let _lidar_handle = lidar_reader.spawn_with_imu(lidar_tx, imu_tx);
+            info!(
+                ip = %file_config.lidar.lidar_ip,
+                port = file_config.lidar.point_cloud_port,
+                imu_port = file_config.lidar.imu_port,
+                "LiDAR reader started with IMU (always on)"
+            );
+            None
+        }
     } else {
         info!("LiDAR disabled in config");
-    }
+        None
+    };
 
     // Initialize SLAM processor as background task
     // This moves expensive scan matching (10-100ms) off the main control loop
@@ -1419,11 +1448,34 @@ async fn main() -> Result<()> {
     // Prevents unbounded task accumulation during long missions
     const MAX_DISPATCH_TASKS: usize = 100;
     let dispatch_semaphore = Arc::new(Semaphore::new(MAX_DISPATCH_TASKS));
-    let mut dispatch_tasks: JoinSet<()> = JoinSet::new();
-    let mut last_task_cleanup = Instant::now();
+
+    // Get tokio runtime handle for spawning async tasks from control loop thread
+    let tokio_handle = tokio::runtime::Handle::current();
 
     // IMU attitude filter (fuses gyro + accelerometer for smooth roll/pitch)
     let mut attitude_filter = AttitudeFilter::new();
+
+    // Heartbeat thread for deadlock detection - runs on std::thread, not tokio
+    // This helps diagnose if main loop is stuck vs tokio starvation
+    let heartbeat_counter = std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0));
+    let heartbeat_counter_clone = heartbeat_counter.clone();
+    std::thread::spawn(move || {
+        let mut last_count = 0u64;
+        loop {
+            std::thread::sleep(Duration::from_secs(5));
+            let current = heartbeat_counter_clone.load(std::sync::atomic::Ordering::Relaxed);
+            if current == last_count {
+                eprintln!("HEARTBEAT: Main loop STUCK at iteration {}", current);
+            } else {
+                eprintln!(
+                    "HEARTBEAT: Main loop running, iterations: {} (+{})",
+                    current,
+                    current - last_count
+                );
+            }
+            last_count = current;
+        }
+    });
 
     info!("Entering control loop");
     info!("Dashboard available at http://localhost:{}", args.ui_port);
@@ -1438,12 +1490,24 @@ async fn main() -> Result<()> {
         info!("GPS enabled");
     }
 
-    loop {
-        // Wait for next tick - use tokio::time::sleep to yield to runtime
-        // This allows other async tasks (dashboard, WebRTC, etc.) to make progress
+    // Spawn control loop on dedicated std::thread to isolate it from tokio scheduler
+    // This ensures the 100Hz control loop runs independently of WebRTC/async task load
+    let control_loop_handle = std::thread::Builder::new()
+        .name("control-loop".to_string())
+        .spawn(move || {
+            // Checkpoint logging at end of each 100-iteration block
+            let mut last_checkpoint = 0u64;
+
+            loop {
+        loop_count += 1;
+        heartbeat_counter.store(loop_count, std::sync::atomic::Ordering::Relaxed);
+
+        // Wait for next tick - use std::thread::sleep to avoid tokio scheduler dependency.
+        // This prevents WebRTC/async task starvation from affecting motor control timing.
+        // With the multi-threaded runtime (8 workers), other workers handle async tasks.
         let elapsed = last_tick.elapsed();
         if elapsed < control_period {
-            tokio::time::sleep(control_period - elapsed).await;
+            std::thread::sleep(control_period - elapsed);
         }
 
         let dt = last_tick.elapsed().as_secs_f64();
@@ -1523,8 +1587,6 @@ async fn main() -> Result<()> {
             }
         }
 
-        loop_count += 1;
-
         // Log battery voltage every 10 seconds for diagnostics
         if loop_count % 1000 == 0 {
             let state = shared.lock().unwrap();
@@ -1533,23 +1595,6 @@ async fn main() -> Result<()> {
                 info!(voltage = format!("{:.1}V", voltage), "Battery status");
             } else {
                 warn!("Battery voltage not received - check VESC CAN status settings");
-            }
-        }
-
-        // Periodic cleanup of completed dispatch report tasks (every second)
-        if last_task_cleanup.elapsed() >= Duration::from_secs(1) {
-            // Drain completed tasks without blocking
-            while let Some(result) = dispatch_tasks.try_join_next() {
-                if let Err(e) = result {
-                    warn!(?e, "Dispatch report task panicked");
-                }
-            }
-            last_task_cleanup = Instant::now();
-
-            // Log if task count is getting high (potential leak)
-            let task_count = dispatch_tasks.len();
-            if task_count > 50 {
-                warn!(task_count, "High number of pending dispatch report tasks");
             }
         }
 
@@ -1726,7 +1771,6 @@ async fn main() -> Result<()> {
             }
         }
 
-
         // Check watchdog - different handling for teleop vs autonomous
         {
             let is_timed_out;
@@ -1765,7 +1809,7 @@ async fn main() -> Result<()> {
                                 let task_id = task.task_id;
                                 let client_clone = client.clone();
                                 let sem = dispatch_semaphore.clone();
-                                dispatch_tasks.spawn(async move {
+                                tokio_handle.spawn(async move {
                                     // Acquire permit (bounded concurrency)
                                     let _permit = sem.acquire().await;
                                     let _ = client_clone
@@ -1838,7 +1882,7 @@ async fn main() -> Result<()> {
                                 if let Some(ref client) = dispatch_client {
                                     let client_clone = client.clone();
                                     let sem = dispatch_semaphore.clone();
-                                    dispatch_tasks.spawn(async move {
+                                    tokio_handle.spawn(async move {
                                         let _permit = sem.acquire().await;
                                         let _ = client_clone.report_progress(task_id, progress, waypoint, lap).await;
                                     });
@@ -1855,7 +1899,7 @@ async fn main() -> Result<()> {
                                     if let Some(ref client) = dispatch_client {
                                         let client_clone = client.clone();
                                         let sem = dispatch_semaphore.clone();
-                                        dispatch_tasks.spawn(async move {
+                                        tokio_handle.spawn(async move {
                                             let _permit = sem.acquire().await;
                                             let _ = client_clone.report_complete(task_id, laps).await;
                                         });
@@ -1876,7 +1920,7 @@ async fn main() -> Result<()> {
                                 if let Some(ref client) = dispatch_client {
                                     let client_clone = client.clone();
                                     let sem = dispatch_semaphore.clone();
-                                    dispatch_tasks.spawn(async move {
+                                    tokio_handle.spawn(async move {
                                         let _permit = sem.acquire().await;
                                         let _ = client_clone.report_failed(task_id, &error).await;
                                     });
@@ -1931,10 +1975,15 @@ async fn main() -> Result<()> {
                         let policy_clone = policy.clone();
                         let obs_clone = obs.clone();
 
-                        let inference_result = tokio::time::timeout(
-                            POLICY_TIMEOUT,
-                            tokio::task::spawn_blocking(move || policy_clone.infer(&obs_clone)),
-                        ).await;
+                        // Use block_on for policy inference from dedicated control thread
+                        // This blocks the thread but that's fine since we're on a dedicated thread
+                        let handle = tokio_handle.clone();
+                        let inference_result = handle.block_on(async move {
+                            tokio::time::timeout(
+                                POLICY_TIMEOUT,
+                                tokio::task::spawn_blocking(move || policy_clone.infer(&obs_clone)),
+                            ).await
+                        });
 
                         let inference_time = policy_start.elapsed();
 
@@ -1977,7 +2026,7 @@ async fn main() -> Result<()> {
                                         let lap = task.lap;
                                         let client_clone = client.clone();
                                         let sem = dispatch_semaphore.clone();
-                                        dispatch_tasks.spawn(async move {
+                                        tokio_handle.spawn(async move {
                                             let _permit = sem.acquire().await;
                                             let _ = client_clone.report_progress(task_id, progress, waypoint, lap).await;
                                         });
@@ -1992,7 +2041,7 @@ async fn main() -> Result<()> {
                                         if let Some(ref client) = dispatch_client {
                                             let client_clone = client.clone();
                                             let sem = dispatch_semaphore.clone();
-                                            dispatch_tasks.spawn(async move {
+                                            tokio_handle.spawn(async move {
                                                 let _permit = sem.acquire().await;
                                                 let _ = client_clone.report_complete(task_id, laps).await;
                                             });
@@ -2127,7 +2176,6 @@ async fn main() -> Result<()> {
             }
         }
 
-
         // Build telemetry
         let vesc_states = state.drivetrain.states();
         let motor_temps: [f32; 4] = [
@@ -2199,34 +2247,34 @@ async fn main() -> Result<()> {
         }
 
         // Check for LiDAR updates
-        if lidar_rx_local.has_changed().unwrap_or(false) {
-            if let Some(ref scan) = &*lidar_rx_local.borrow_and_update() {
-                let _ = recorder.log_lidar_scan(scan);
+        // Clone the scan OUTSIDE the shared lock to avoid blocking issues with rerun SDK
+        let lidar_scan_clone = if lidar_rx_local.has_changed().unwrap_or(false) {
+            lidar_rx_local.borrow_and_update().clone()
+        } else {
+            None
+        };
 
-                // Send scan to SLAM background task (non-blocking)
-                // Include current odometry pose so SLAM can stay synchronized
-                if let Some(ref tx) = slam_scan_tx {
-                    // try_send to avoid blocking the control loop if SLAM is backed up
-                    let _ = tx.try_send((scan.clone(), pose_estimator.pose()));
-                }
-
-                // Log stats periodically (every 50 scans = ~5-10 seconds)
-                static LIDAR_COUNT: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
-                let count = LIDAR_COUNT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-
-                // Update costmap for navigation controller
-                // Uses O(n) distance transform for inflation (fixed from O(n*m²))
-                if let Some(ref mut nav) = navigation_controller {
-                    let robot_tf = Transform2D::from_pose(&pose_estimator.pose());
-                    nav.update_costmap(&scan, &robot_tf);
-                }
-                if count % 50 == 0 {
-                    debug!(
-                        points = scan.points.len(),
-                        "LiDAR point cloud"
-                    );
-                }
+        // Process LiDAR scan (navigation costmap only - recorder moved to async task)
+        if let Some(ref scan) = lidar_scan_clone {
+            // Send scan to SLAM background task (non-blocking)
+            if let Some(ref tx) = slam_scan_tx {
+                let _ = tx.try_send((scan.clone(), pose_estimator.pose()));
             }
+
+            // Update costmap for navigation controller
+            let costmap_start = Instant::now();
+            if let Some(ref mut nav) = navigation_controller {
+                let robot_tf = Transform2D::from_pose(&pose_estimator.pose());
+                nav.update_costmap(&scan, &robot_tf);
+            }
+            let costmap_ms = costmap_start.elapsed().as_millis();
+
+            if costmap_ms > 50 {
+                warn!(costmap_ms = costmap_ms, points = scan.points.len(), "Costmap processing slow");
+            }
+
+            // NOTE: recorder.log_lidar_scan() removed - was causing deadlock with rerun/rayon
+            // TODO: Move to async recording task
         }
 
 
@@ -2409,6 +2457,7 @@ async fn main() -> Result<()> {
 
 
         // Record telemetry to Rerun session
+        let recorder_start = Instant::now();
         let time_secs = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
@@ -2433,6 +2482,12 @@ async fn main() -> Result<()> {
             );
         }
 
+        // Warn if recorder is slow
+        let recorder_elapsed = recorder_start.elapsed();
+        if recorder_elapsed > Duration::from_millis(50) {
+            warn!(ms = recorder_elapsed.as_millis(), "Recorder logging slow");
+        }
+
         // Log mode changes and update LEDs
         let current_mode = telemetry.mode;
         if current_mode != last_mode {
@@ -2447,9 +2502,27 @@ async fn main() -> Result<()> {
                 } else if let Some(path) = recorder.session_path() {
                     info!(path = %path.display(), mode = ?current_mode, "Recording session started");
                 }
+
+                // Start lidar if in power save mode
+                if let Some(ref tx) = lidar_cmd_tx {
+                    if let Err(e) = tx.try_send(LidarCommand::Start) {
+                        warn!(?e, "Failed to send lidar start command");
+                    } else {
+                        info!("Lidar started (entering active mode)");
+                    }
+                }
             } else if !should_record && was_recording {
                 // Leaving a recording mode - end session
                 recorder.end_session();
+
+                // Stop lidar if in power save mode
+                if let Some(ref tx) = lidar_cmd_tx {
+                    if let Err(e) = tx.try_send(LidarCommand::Stop) {
+                        warn!(?e, "Failed to send lidar stop command");
+                    } else {
+                        info!("Lidar stopped (entering idle mode)");
+                    }
+                }
             }
 
             let _ = recorder.log_mode(current_mode);
@@ -2471,7 +2544,14 @@ async fn main() -> Result<()> {
             let _ = recorder.log_tool(&status.name, status.position, status.current);
         }
 
-    }
+            } // end of loop
+        }).expect("Failed to spawn control loop thread");
+
+    // Keep async main alive so tokio continues running WebRTC/dashboard tasks
+    // The control loop runs on its own dedicated thread
+    control_loop_handle.join().expect("Control loop thread panicked");
+
+    Ok(())
 }
 
 /// Initialize logging with stdout and rolling file output.

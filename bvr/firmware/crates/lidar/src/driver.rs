@@ -2,12 +2,12 @@
 //!
 //! Protocol reference: https://livox-wiki-en.readthedocs.io/en/latest/tutorials/new_product/mid360/livox_eth_protocol_mid360.html
 
-use crate::{Config, ImuData, LidarError, Point3D, PointCloud};
+use crate::{Config, ImuData, LidarCommand, LidarError, Point3D, PointCloud};
 use std::net::SocketAddr;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::time::{Duration, Instant};
 use tokio::net::UdpSocket;
-use tokio::sync::watch;
+use tokio::sync::{mpsc, watch};
 use tracing::{debug, error, info, trace, warn};
 
 /// Transform for rotating points from LiDAR frame to rover body frame.
@@ -236,6 +236,54 @@ pub async fn connect_and_start(config: &Config) -> Result<(), LidarError> {
     Ok(())
 }
 
+/// Send a start or stop sampling command to the lidar.
+async fn send_sampling_command(
+    socket: &UdpSocket,
+    control_addr: SocketAddr,
+    command: LidarCommand,
+    seq: u32,
+) -> Result<(), LidarError> {
+    let cmd_byte = match command {
+        LidarCommand::Start => CMD_START_SAMPLING,
+        LidarCommand::Stop => CMD_STOP_SAMPLING,
+    };
+
+    let mut cmd = Vec::with_capacity(16);
+    cmd.push(0xAA); // SOF
+    cmd.push(0x01); // Version
+    cmd.extend_from_slice(&8u16.to_le_bytes()); // Length (header only)
+    cmd.extend_from_slice(&seq.to_le_bytes()); // Seq
+    cmd.push(cmd_byte);
+    cmd.push(0x00); // Request
+
+    let cmd_name = match command {
+        LidarCommand::Start => "start",
+        LidarCommand::Stop => "stop",
+    };
+    debug!(cmd_name, "Sending sampling command");
+
+    socket
+        .send_to(&cmd, control_addr)
+        .await
+        .map_err(|e| LidarError::Network(format!("Failed to send {cmd_name}: {e}")))?;
+
+    // Brief wait for response (non-blocking)
+    let mut response = [0u8; 64];
+    match tokio::time::timeout(Duration::from_millis(500), socket.recv(&mut response)).await {
+        Ok(Ok(len)) => {
+            debug!(len, cmd_name, "Received sampling command response");
+        }
+        Ok(Err(e)) => {
+            warn!(?e, cmd_name, "Error receiving sampling response");
+        }
+        Err(_) => {
+            debug!(cmd_name, "Sampling command response timeout");
+        }
+    }
+
+    Ok(())
+}
+
 /// Run the LiDAR reader (point cloud only).
 pub async fn run_reader(
     config: Config,
@@ -395,6 +443,211 @@ pub async fn run_reader_with_imu(
 
     info!("Livox Mid360 reader stopped");
     Ok(())
+}
+
+/// Run the LiDAR reader with runtime start/stop control.
+///
+/// This version keeps a control socket open and responds to Start/Stop commands
+/// to control the lidar hardware. When stopped, the motor stops spinning.
+pub async fn run_reader_with_control(
+    config: Config,
+    point_tx: watch::Sender<Option<PointCloud>>,
+    imu_tx: watch::Sender<Option<ImuData>>,
+    mut cmd_rx: mpsc::Receiver<LidarCommand>,
+    start_immediately: bool,
+) -> Result<(), LidarError> {
+    info!(
+        lidar_ip = %config.lidar_ip,
+        point_port = config.point_cloud_port,
+        start_immediately,
+        "Starting Livox Mid360 reader with control"
+    );
+
+    let control_addr: SocketAddr = (config.lidar_ip, LIVOX_CONTROL_PORT).into();
+
+    // Create mounting transform
+    let transform = MountingTransform::new(config.mounting_pitch_deg);
+    let has_transform = config.mounting_pitch_deg.abs() > 0.01;
+
+    // Bind command socket for sending start/stop
+    let cmd_socket = UdpSocket::bind((config.host_ip, 0))
+        .await
+        .map_err(|e| LidarError::Network(format!("Failed to bind command socket: {e}")))?;
+
+    // Run handshake (but don't start sampling yet if start_immediately is false)
+    let handshake_result = send_handshake(&config, &cmd_socket, control_addr).await;
+    if let Err(e) = handshake_result {
+        warn!(?e, "Handshake failed - will try to continue");
+    }
+
+    let mut seq: u32 = 10; // Start sequence after handshake
+    let mut sampling = false;
+
+    if start_immediately {
+        if let Err(e) = send_sampling_command(&cmd_socket, control_addr, LidarCommand::Start, seq)
+            .await
+        {
+            warn!(?e, "Failed to send initial start command");
+        }
+        seq += 1;
+        sampling = true;
+        info!("LiDAR sampling started");
+    } else {
+        info!("LiDAR initialized but waiting for start command");
+    }
+
+    // Bind UDP sockets for data
+    let point_addr: SocketAddr = (config.host_ip, config.point_cloud_port).into();
+    let point_socket = UdpSocket::bind(point_addr)
+        .await
+        .map_err(|e| LidarError::Network(format!("Failed to bind point cloud socket: {e}")))?;
+
+    let imu_socket = if config.imu_port > 0 {
+        let imu_addr: SocketAddr = (config.host_ip, config.imu_port).into();
+        UdpSocket::bind(imu_addr).await.ok()
+    } else {
+        None
+    };
+
+    let mut frame_acc = FrameAccumulator::new();
+    let mut point_buf = vec![0u8; 2048];
+    let mut imu_buf = vec![0u8; IMU_PACKET_SIZE + 32];
+
+    loop {
+        tokio::select! {
+            // Handle control commands
+            Some(cmd) = cmd_rx.recv() => {
+                match cmd {
+                    LidarCommand::Start if !sampling => {
+                        info!("Starting LiDAR sampling");
+                        if let Err(e) = send_sampling_command(&cmd_socket, control_addr, cmd, seq).await {
+                            warn!(?e, "Failed to send start command");
+                        }
+                        seq += 1;
+                        sampling = true;
+                        // Reset frame accumulator for clean start
+                        frame_acc = FrameAccumulator::new();
+                    }
+                    LidarCommand::Stop if sampling => {
+                        info!("Stopping LiDAR sampling");
+                        if let Err(e) = send_sampling_command(&cmd_socket, control_addr, cmd, seq).await {
+                            warn!(?e, "Failed to send stop command");
+                        }
+                        seq += 1;
+                        sampling = false;
+                    }
+                    _ => {
+                        // Redundant command (already in requested state)
+                        debug!(?cmd, sampling, "Ignoring redundant lidar command");
+                    }
+                }
+            }
+
+            // Handle point cloud packets
+            result = point_socket.recv_from(&mut point_buf) => {
+                if !sampling {
+                    // Discard data when stopped (shouldn't receive much after stop command)
+                    continue;
+                }
+
+                match result {
+                    Ok((len, _src)) => {
+                        match parse_point_packet(&point_buf[..len]) {
+                            Ok((frame_counter, timestamp_ns, points)) => {
+                                if let Some(mut cloud) = frame_acc.add_packet(frame_counter, timestamp_ns, points) {
+                                    if has_transform {
+                                        transform.apply_to_cloud(&mut cloud);
+                                    }
+                                    if point_tx.send(Some(cloud)).is_err() {
+                                        info!("Point cloud receiver dropped, stopping");
+                                        break;
+                                    }
+                                }
+                            }
+                            Err(e) => {
+                                debug!(?e, len, "Failed to parse point packet");
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        error!(?e, "Point cloud socket error");
+                        break;
+                    }
+                }
+            }
+
+            // Handle IMU packets
+            result = async {
+                if let Some(ref socket) = imu_socket {
+                    socket.recv_from(&mut imu_buf).await
+                } else {
+                    std::future::pending().await
+                }
+            } => {
+                if !sampling {
+                    continue;
+                }
+
+                if let Ok((len, _src)) = result {
+                    if let Ok(imu) = parse_imu_packet(&imu_buf[..len]) {
+                        let _ = imu_tx.send(Some(imu));
+                    }
+                }
+            }
+        }
+    }
+
+    // Send stop on exit
+    if sampling {
+        let _ = send_sampling_command(&cmd_socket, control_addr, LidarCommand::Stop, seq).await;
+    }
+
+    info!("Livox Mid360 reader with control stopped");
+    Ok(())
+}
+
+/// Send handshake without starting sampling.
+async fn send_handshake(
+    config: &Config,
+    socket: &UdpSocket,
+    control_addr: SocketAddr,
+) -> Result<(), LidarError> {
+    let local_addr = socket
+        .local_addr()
+        .map_err(|e| LidarError::Network(format!("Failed to get local addr: {e}")))?;
+
+    let mut handshake = Vec::with_capacity(64);
+    handshake.push(0xAA); // SOF
+    handshake.push(0x01); // Version
+
+    let data_len: u16 = 14 + 8;
+    handshake.extend_from_slice(&data_len.to_le_bytes());
+    handshake.extend_from_slice(&1u32.to_le_bytes()); // Seq
+
+    handshake.push(CMD_HANDSHAKE);
+    handshake.push(0x00); // Request
+
+    handshake.extend_from_slice(&config.host_ip.octets());
+    handshake.extend_from_slice(&local_addr.port().to_le_bytes());
+    handshake.extend_from_slice(&(local_addr.port() + 1).to_le_bytes());
+    handshake.extend_from_slice(&config.point_cloud_port.to_le_bytes());
+    handshake.extend_from_slice(&config.imu_port.to_le_bytes());
+    handshake.extend_from_slice(&0u16.to_le_bytes()); // log port
+
+    socket
+        .send_to(&handshake, control_addr)
+        .await
+        .map_err(|e| LidarError::Network(format!("Failed to send handshake: {e}")))?;
+
+    let mut response = [0u8; 256];
+    match tokio::time::timeout(Duration::from_secs(2), socket.recv(&mut response)).await {
+        Ok(Ok(_)) => Ok(()),
+        Ok(Err(e)) => Err(LidarError::Network(format!("Handshake recv error: {e}"))),
+        Err(_) => {
+            warn!("Handshake response timeout");
+            Ok(()) // Continue anyway
+        }
+    }
 }
 
 /// Parse a point cloud data packet.
