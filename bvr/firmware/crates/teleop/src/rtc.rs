@@ -931,9 +931,9 @@ fn filter_command(cmd: &Command, conn_id: u64, op_state: &OperatorState) -> Comm
 
         // Mode changes
         Command::SetMode(mode) => match mode {
-            // Safe to disable from anyone
-            Mode::Disabled | Mode::Idle => {
-                // If operator is disabling, release operator status
+            // Safe to disable/sleep from anyone
+            Mode::Disabled | Mode::Idle | Mode::Sleep => {
+                // If operator is disabling/sleeping, release operator status
                 if op_state.is_operator(conn_id) {
                     op_state.release(conn_id);
                 }
@@ -1036,6 +1036,7 @@ fn parse_command(data: &[u8]) -> Option<Command> {
                 1 => Mode::Idle,
                 2 => Mode::Teleop,
                 3 => Mode::Autonomous,
+                6 => Mode::Sleep,
                 _ => return None,
             };
             debug!(?mode, seq = header.sequence, "SetMode command");

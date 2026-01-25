@@ -1642,9 +1642,17 @@ async fn main() -> Result<()> {
                             current_mode = ?state.state_machine.mode(),
                             "SetMode command processing"
                         );
+                        let current = state.state_machine.mode();
                         let event = match mode {
                             Mode::Disabled => Event::Disable,
-                            Mode::Idle => Event::Enable,
+                            Mode::Idle => {
+                                // Wake from Sleep, or Enable from Disabled
+                                if current == Mode::Sleep {
+                                    Event::Wake
+                                } else {
+                                    Event::Enable
+                                }
+                            }
                             Mode::Teleop => {
                                 // Feed watchdog when entering Teleop to prevent immediate timeout
                                 watchdog.feed();
@@ -1656,6 +1664,7 @@ async fn main() -> Result<()> {
                                 Event::AutonomousRequest
                             }
                             Mode::EStop => Event::EStop,
+                            Mode::Sleep => Event::Sleep,
                             _ => continue,
                         };
                         state.state_machine.transition(event);
@@ -1664,8 +1673,8 @@ async fn main() -> Result<()> {
                         watchdog.feed();
                         heartbeat_count += 1;
                         // Log heartbeat rate every 10 seconds when in teleop
+                        // Note: we already hold `state` from line 1621, use it directly
                         if last_heartbeat_log.elapsed() > Duration::from_secs(10) {
-                            let state = shared.lock().unwrap();
                             if state.state_machine.mode() == Mode::Teleop {
                                 let rate = heartbeat_count as f64 / last_heartbeat_log.elapsed().as_secs_f64();
                                 info!(count = heartbeat_count, rate = format!("{:.1}/s", rate), "Heartbeats received (10s window)");
@@ -2455,8 +2464,21 @@ async fn main() -> Result<()> {
         drop(gps_state);
         let _ = metrics_tx.send(metrics_snapshot);
 
+        // Capture data needed for recording BEFORE releasing mutex
+        // (rerun uses rayon internally, which deadlocks if called while holding a mutex)
+        let commanded_twist = state.commanded_twist;
+        let current_mode = telemetry.mode;
+        let led_frame = if current_mode != last_mode {
+            Some(state.state_machine.led_command().to_frame())
+        } else {
+            None
+        };
 
-        // Record telemetry to Rerun session
+        // CRITICAL: Release mutex before any recorder calls to avoid rayon deadlock
+        // See docs/postmortem-2026-01-control-loop-deadlock.md
+        drop(state);
+
+        // Record telemetry to Rerun session (MUST be outside mutex)
         let recorder_start = Instant::now();
         let time_secs = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -2466,18 +2488,18 @@ async fn main() -> Result<()> {
 
         // Log all telemetry data
         let _ = recorder.log_pose(&pose);
-        let _ = recorder.log_velocity(&state.commanded_twist, &twist);
+        let _ = recorder.log_velocity(&commanded_twist, &twist);
         let _ = recorder.log_motors(&motor_currents, &motor_temps);
         let _ = recorder.log_power(telemetry.power.battery_voltage, telemetry.power.system_current);
         let _ = recorder.log_odometry(dx, dy, dtheta);
 
         // Log SLAM data if enabled
-        if let Some(ref state) = slam_state {
+        if let Some(ref slam) = slam_state {
             let _ = recorder.log_slam_trajectory(&pose);
-            let _ = recorder.log_slam_keyframes(&state.keyframe_poses);
+            let _ = recorder.log_slam_keyframes(&slam.keyframe_poses);
             let _ = recorder.log_slam_status(
-                state.keyframe_count as usize,
-                state.loop_closure_count as usize,
+                slam.keyframe_count as usize,
+                slam.loop_closure_count as usize,
                 0.0, // TODO: track match score
             );
         }
@@ -2489,7 +2511,6 @@ async fn main() -> Result<()> {
         }
 
         // Log mode changes and update LEDs
-        let current_mode = telemetry.mode;
         if current_mode != last_mode {
             // Start/stop recording based on mode (only record during Teleop/Autonomous)
             let should_record = matches!(current_mode, Mode::Teleop | Mode::Autonomous);
@@ -2525,15 +2546,39 @@ async fn main() -> Result<()> {
                 }
             }
 
+            // Handle Sleep mode transitions
+            if current_mode == Mode::Sleep && last_mode != Mode::Sleep {
+                // Entering Sleep - stop lidar and end recording
+                info!("Entering Sleep mode - shutting down sensors");
+                recorder.end_session();
+                if let Some(ref tx) = lidar_cmd_tx {
+                    if let Err(e) = tx.try_send(LidarCommand::Stop) {
+                        warn!(?e, "Failed to send lidar stop command for sleep");
+                    } else {
+                        info!("Lidar stopped (entering sleep mode)");
+                    }
+                }
+            } else if last_mode == Mode::Sleep && current_mode != Mode::Sleep {
+                // Waking from Sleep - start lidar (special case: normally only starts in Teleop)
+                info!("Waking from Sleep mode - starting lidar");
+                if let Some(ref tx) = lidar_cmd_tx {
+                    if let Err(e) = tx.try_send(LidarCommand::Start) {
+                        warn!(?e, "Failed to send lidar start command on wake");
+                    } else {
+                        info!("Lidar started (waking from sleep)");
+                    }
+                }
+            }
+
             let _ = recorder.log_mode(current_mode);
 
-            // Send LED command for new mode
-            let led_cmd = state.state_machine.led_command();
-            let led_frame = led_cmd.to_frame();
-            if let Err(e) = can_interface.send(&led_frame) {
-                debug!(?e, "Failed to send LED command");
-            } else {
-                debug!(?current_mode, "LED command sent for mode change");
+            // Send LED command for new mode (frame was captured before mutex release)
+            if let Some(frame) = led_frame {
+                if let Err(e) = can_interface.send(&frame) {
+                    debug!(?e, "Failed to send LED command");
+                } else {
+                    debug!(?current_mode, "LED command sent for mode change");
+                }
             }
 
             last_mode = current_mode;

@@ -463,6 +463,7 @@ impl Recorder {
             Mode::Autonomous => "Autonomous",
             Mode::EStop => "EStop",
             Mode::Fault => "Fault",
+            Mode::Sleep => "Sleep",
         };
 
         stream.log(

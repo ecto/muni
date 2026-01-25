@@ -735,5 +735,31 @@ export function useRoverConnectionRtc() {
         console.warn("[WebRTC] Cannot toggle LiDAR - command channel not open");
       }
     }, []),
+    sendSleep: useCallback(() => {
+      console.log("[WebRTC] sendSleep called");
+      // Release operator status (going to sleep)
+      isOperatorRef.current = false;
+
+      if (commandChannelRef.current?.readyState === "open") {
+        commandChannelRef.current.send(encodeSetMode(Mode.Sleep));
+        console.log("[WebRTC] Sleep command sent");
+      } else {
+        console.warn("[WebRTC] Cannot send Sleep - command channel not open");
+      }
+    }, []),
+    sendWake: useCallback(() => {
+      console.log("[WebRTC] sendWake called");
+      const channel = commandChannelRef.current;
+      if (channel?.readyState !== "open") {
+        console.warn("[WebRTC] Cannot send Wake - command channel not open");
+        return;
+      }
+      // Claim operator status - we're waking up
+      isOperatorRef.current = true;
+
+      // Send Idle to wake from Sleep (state machine: Sleep -> Wake -> Idle)
+      channel.send(encodeSetMode(Mode.Idle));
+      console.log("[WebRTC] Wake command sent (SetMode Idle)");
+    }, []),
   };
 }

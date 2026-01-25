@@ -6,6 +6,7 @@ export const Mode = {
   Autonomous: 3,
   EStop: 4,
   Fault: 5,
+  Sleep: 6,
 } as const;
 
 export type Mode = (typeof Mode)[keyof typeof Mode];
@@ -17,6 +18,7 @@ export const ModeLabels: Record<Mode, string> = {
   [Mode.Autonomous]: "Autonomous",
   [Mode.EStop]: "E-Stop",
   [Mode.Fault]: "Fault",
+  [Mode.Sleep]: "Sleep",
 };
 
 export interface Twist {

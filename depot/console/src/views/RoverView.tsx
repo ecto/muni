@@ -16,7 +16,7 @@ import { useGamepad } from "@/hooks/useGamepad";
 import { useRoverConnectionRtc } from "@/hooks/useRoverConnectionRtc";
 import { useConsoleStore } from "@/store";
 import { Mode } from "@/lib/types";
-import { Warning, Play, Stop, CircleNotch, Robot } from "@phosphor-icons/react";
+import { Warning, Play, Stop, CircleNotch, Robot, Moon, Sun } from "@phosphor-icons/react";
 
 export function RoverView() {
   const { roverId } = useParams();
@@ -26,13 +26,14 @@ export function RoverView() {
   useKeyboard();
   useGamepad();
   // WebRTC handles both commands and video streaming
-  const { disconnect, sendEStopRelease, sendEnable, sendDisable, toggleLidar } = useRoverConnectionRtc();
+  const { disconnect, sendEStopRelease, sendEnable, sendDisable, sendSleep, sendWake, toggleLidar } = useRoverConnectionRtc();
 
   // Get selected rover info
   const selectedRover = rovers.find((r) => r.id === roverId);
   const isEStop = telemetry.mode === Mode.EStop;
   const isDisabled = telemetry.mode === Mode.Disabled || telemetry.mode === Mode.Idle;
   const isTeleop = telemetry.mode === Mode.Teleop;
+  const isSleep = telemetry.mode === Mode.Sleep;
 
   // Loading states for enable/disable actions
   const [enabling, setEnabling] = useState(false);
@@ -124,6 +125,31 @@ export function RoverView() {
         </div>
       )}
 
+      {/* Sleep Mode Overlay */}
+      {isSleep && (
+        <div className="absolute inset-0 bg-indigo-950/90 flex flex-col items-center justify-center z-50">
+          <Moon className="h-24 w-24 text-indigo-400 mb-6" weight="fill" />
+          <h1 className="text-4xl font-bold text-white mb-2">Sleep Mode</h1>
+          <p className="text-lg text-indigo-200 mb-8">
+            Sensors are powered down. Wake to resume operation.
+          </p>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="outline"
+                size="lg"
+                onClick={sendWake}
+                className="border-indigo-400 text-indigo-400 hover:bg-indigo-500 hover:text-white text-lg px-8 py-6 gap-2"
+              >
+                <Sun className="h-6 w-6" weight="fill" />
+                Wake
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">Wake rover and start lidar</TooltipContent>
+          </Tooltip>
+        </div>
+      )}
+
       {/* Connecting Overlay */}
       {connecting && !connected && (
         <div className="absolute inset-0 flex items-center justify-center z-40 pointer-events-none">
@@ -140,8 +166,28 @@ export function RoverView() {
       <div className="absolute inset-0 pointer-events-none">
         {/* Right side panels - scrollable for shorter windows */}
         <div className="absolute top-4 right-4 bottom-16 flex flex-col gap-3 pointer-events-auto overflow-y-auto overflow-x-hidden pl-2 scrollbar-thin items-end">
-          {/* Enable/Disable button */}
+          {/* Enable/Disable/Sleep buttons */}
           <div className="flex items-center gap-2 shrink-0">
+            {isDisabled && !enabling && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={!connected}
+                    onClick={() => {
+                      console.log("[RoverView] Sleep button clicked");
+                      sendSleep();
+                    }}
+                    className="gap-2 border-indigo-500 text-indigo-400 hover:bg-indigo-600 hover:text-white"
+                  >
+                    <Moon className="h-4 w-4" weight="fill" />
+                    Sleep
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">Enter sleep mode (powers down sensors)</TooltipContent>
+              </Tooltip>
+            )}
             {isDisabled && !enabling && (
               <Tooltip>
                 <TooltipTrigger asChild>

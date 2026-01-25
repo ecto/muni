@@ -452,6 +452,7 @@ impl Server {
                     1 => Mode::Idle,
                     2 => Mode::Teleop,
                     3 => Mode::Autonomous,
+                    6 => Mode::Sleep,
                     _ => return None,
                 };
                 debug!(?mode, seq = header.sequence, "SetMode command");

@@ -27,6 +27,10 @@ pub enum Event {
     FaultClear,
     /// Command timeout (watchdog)
     CommandTimeout,
+    /// Enter sleep mode (sensors off but rover reachable)
+    Sleep,
+    /// Wake from sleep mode
+    Wake,
 }
 
 /// State machine for rover operating modes.
@@ -53,11 +57,13 @@ impl StateMachine {
         self.mode = match (self.mode, event) {
             // From Disabled
             (Mode::Disabled, Event::Enable) => Mode::Idle,
+            (Mode::Disabled, Event::Sleep) => Mode::Sleep,
 
             // From Idle
             (Mode::Idle, Event::Disable) => Mode::Disabled,
             (Mode::Idle, Event::TeleopCommand) => Mode::Teleop,
             (Mode::Idle, Event::AutonomousRequest) => Mode::Autonomous,
+            (Mode::Idle, Event::Sleep) => Mode::Sleep,
 
             // From Teleop
             (Mode::Teleop, Event::Disable) => Mode::Disabled,
@@ -76,8 +82,12 @@ impl StateMachine {
                 Mode::Idle
             }
 
-            // E-Stop from any active mode
-            (Mode::Idle | Mode::Teleop | Mode::Autonomous, Event::EStop) => Mode::EStop,
+            // From Sleep
+            (Mode::Sleep, Event::Wake) => Mode::Idle,
+            (Mode::Sleep, Event::Disable) => Mode::Disabled,
+
+            // E-Stop from any active mode (including Sleep)
+            (Mode::Idle | Mode::Teleop | Mode::Autonomous | Mode::Sleep, Event::EStop) => Mode::EStop,
 
             // E-Stop release
             (Mode::EStop, Event::EStopRelease) => Mode::Idle,
@@ -104,7 +114,7 @@ impl StateMachine {
 
     /// Check if the rover is in a safe state (motors disabled).
     pub fn is_safe(&self) -> bool {
-        matches!(self.mode, Mode::Disabled | Mode::Idle | Mode::EStop)
+        matches!(self.mode, Mode::Disabled | Mode::Idle | Mode::EStop | Mode::Sleep)
     }
 
     /// Force into e-stop (for critical safety).
@@ -124,6 +134,7 @@ impl StateMachine {
             Mode::Autonomous => LedCommand::state_autonomous(),
             Mode::EStop => LedCommand::state_estop(),
             Mode::Fault => LedCommand::state_fault(),
+            Mode::Sleep => LedCommand::state_sleep(),
         }
     }
 }
@@ -269,6 +280,7 @@ mod tests {
             Mode::Teleop,
             Mode::Autonomous,
             Mode::EStop,
+            Mode::Sleep,
         ];
 
         for start_mode in modes_to_test {
@@ -290,6 +302,10 @@ mod tests {
                 Mode::EStop => {
                     sm.transition(Event::Enable);
                     sm.transition(Event::EStop);
+                }
+                Mode::Sleep => {
+                    sm.transition(Event::Enable);
+                    sm.transition(Event::Sleep);
                 }
                 Mode::Fault => {}
             }
@@ -384,6 +400,66 @@ mod tests {
     fn test_default_impl() {
         let sm = StateMachine::default();
         assert_eq!(sm.mode(), Mode::Disabled);
+    }
+
+    #[test]
+    fn test_sleep_transitions() {
+        // Disabled -> Sleep
+        let mut sm = StateMachine::new();
+        assert_eq!(sm.mode(), Mode::Disabled);
+        sm.transition(Event::Sleep);
+        assert_eq!(sm.mode(), Mode::Sleep);
+
+        // Sleep -> Wake (returns to Idle)
+        sm.transition(Event::Wake);
+        assert_eq!(sm.mode(), Mode::Idle);
+
+        // Idle -> Sleep
+        sm.transition(Event::Sleep);
+        assert_eq!(sm.mode(), Mode::Sleep);
+    }
+
+    #[test]
+    fn test_sleep_is_safe() {
+        let mut sm = StateMachine::new();
+        sm.transition(Event::Enable);
+        sm.transition(Event::Sleep);
+        assert!(sm.is_safe());
+        assert!(!sm.is_driving());
+    }
+
+    #[test]
+    fn test_sleep_to_estop() {
+        let mut sm = StateMachine::new();
+        sm.transition(Event::Enable);
+        sm.transition(Event::Sleep);
+        assert_eq!(sm.mode(), Mode::Sleep);
+
+        sm.transition(Event::EStop);
+        assert_eq!(sm.mode(), Mode::EStop);
+    }
+
+    #[test]
+    fn test_sleep_to_disabled() {
+        let mut sm = StateMachine::new();
+        sm.transition(Event::Enable);
+        sm.transition(Event::Sleep);
+        assert_eq!(sm.mode(), Mode::Sleep);
+
+        sm.transition(Event::Disable);
+        assert_eq!(sm.mode(), Mode::Disabled);
+    }
+
+    #[test]
+    fn test_cannot_sleep_from_teleop() {
+        // Sleep should only be reachable from Idle
+        let mut sm = StateMachine::new();
+        sm.transition(Event::Enable);
+        sm.transition(Event::TeleopCommand);
+        assert_eq!(sm.mode(), Mode::Teleop);
+
+        sm.transition(Event::Sleep);
+        assert_eq!(sm.mode(), Mode::Teleop); // No transition
     }
 }
 

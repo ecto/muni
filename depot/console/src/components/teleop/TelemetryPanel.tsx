@@ -43,6 +43,7 @@ const modeTooltips: Record<Mode, string> = {
   [Mode.EStop]: "Emergency stop engaged",
   [Mode.Fault]: "System error detected",
   [Mode.Disabled]: "Teleop disabled",
+  [Mode.Sleep]: "Sensors powered down",
 };
 
 function getModeVariant(

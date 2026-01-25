@@ -68,6 +68,8 @@ pub enum Mode {
     EStop,
     /// Fault condition
     Fault,
+    /// Sleep mode: sensors powered down but rover stays reachable
+    Sleep,
 }
 
 /// Power system status.
@@ -378,6 +380,7 @@ mod tests {
             Mode::Autonomous,
             Mode::EStop,
             Mode::Fault,
+            Mode::Sleep,
         ] {
             let json = serde_json::to_string(&mode).unwrap();
             let decoded: Mode = serde_json::from_str(&json).unwrap();

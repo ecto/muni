@@ -140,6 +140,11 @@ impl LedCommand {
     pub fn state_fault() -> Self {
         Self::flash(255, 100, 0, 255, 500)
     }
+
+    /// Sleep state: slow purple pulse.
+    pub fn state_sleep() -> Self {
+        Self::pulse(100, 0, 200, 100, 4000)
+    }
 }
 
 /// Parse LED status from MCU.
@@ -255,6 +260,7 @@ mod tests {
         assert_eq!(LedCommand::state_autonomous().mode, LedMode::Pulse);
         assert_eq!(LedCommand::state_estop().mode, LedMode::Flash);
         assert_eq!(LedCommand::state_fault().mode, LedMode::Flash);
+        assert_eq!(LedCommand::state_sleep().mode, LedMode::Pulse);
     }
 
     #[test]
