@@ -30,7 +30,7 @@ const MSG_TOOL = 0x05;
 
 const COMMAND_INTERVAL_MS = 33; // ~30Hz
 const HEARTBEAT_INTERVAL_MS = 100;
-const SPEED_NORMAL = 2.0;
+const SPEED_NORMAL = 3.0;
 const SPEED_BOOST = 5.0;
 const MAX_ANGULAR_VEL = 1.5;
 const TOOL_DEADZONE = 0.01;
