@@ -29,6 +29,8 @@ heartbeat_timeout_ms = 100
 loop_rate_hz = 100
 # Command timeout — if no command received, safe stop (ms)
 command_timeout_ms = 250
+# Seconds of inactivity in Idle/Disabled before auto-transitioning to Sleep (0 = disabled)
+sleep_timeout_secs = 300
 # Velocity PID gains (per-wheel)
 [control.pid]
 kp = 1.0
@@ -182,6 +184,21 @@ stream_max_points = 1000  # Maximum points per frame for streaming
 # Mid360 is mounted at 30 degrees forward tilt for maximum coverage
 imu_mount_pitch = 0.5236  # ~30 degrees
 
+[localization]
+# EKF process noise for linear displacement (m per m traveled)
+odom_linear_noise = 0.05
+# EKF process noise for angular displacement (rad per m traveled)
+odom_angular_noise = 0.02
+# GPS measurement noise by fix quality (meters, 1σ)
+gps_noise_rtk_fixed = 0.02
+gps_noise_rtk_float = 0.5
+gps_noise_dgps = 1.0
+gps_noise_standalone = 3.0
+# Minimum speed to derive heading from GPS (m/s)
+gps_heading_min_speed = 0.3
+# IMU yaw rate weight (0.0 = wheel only, 1.0 = IMU only)
+imu_yaw_weight = 0.7
+
 [slam]
 # Enable SLAM (Simultaneous Localization and Mapping)
 enabled = true
@@ -193,6 +210,10 @@ keyframe_distance = 1.0
 keyframe_rotation = 0.5
 # Score threshold for accepting loop closure match (0.0-1.0)
 loop_closure_threshold = 0.7
+# Huber loss threshold for robust loop closure weighting (meters)
+huber_threshold = 1.0
+# Maximum disagreement between loop closure and odometry (in σ)
+loop_closure_max_disagreement_sigma = 3.0
 
 [camera]
 # Enable camera capture

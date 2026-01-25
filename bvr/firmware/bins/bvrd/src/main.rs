@@ -10,7 +10,7 @@ use control::{ChassisParams, DiffDriveMixer, Limits, RateLimiter, Watchdog};
 use gps::{Config as GpsConfig, GpsReader, GpsState};
 use hal::EStopEvent;
 use lidar::{Config as LidarConfig, LidarCommand, LidarReader};
-use localization::{AttitudeFilter, PoseEstimator, WheelOdometry};
+use localization::{AttitudeFilter, EkfConfig, EkfPoseEstimator, WheelOdometry};
 use slam::{SlamConfig, SlamProcessor, SlamState};
 use planner::PlannerConfig;
 use pursuit::PursuitConfig;
@@ -42,15 +42,33 @@ use ui::{Config as UiConfig, Dashboard};
 struct FileConfig {
     identity: IdentityConfig,
     chassis: ChassisFileConfig,
+    control: ControlFileConfig,
     metrics: MetricsFileConfig,
     discovery: DiscoveryFileConfig,
     autonomous: AutonomousFileConfig,
     dispatch: DispatchFileConfig,
     lidar: LidarFileConfig,
+    localization: LocalizationFileConfig,
     slam: SlamFileConfig,
     navigation: NavigationFileConfig,
     estop: EStopFileConfig,
     camera: CameraFileConfig,
+}
+
+/// Control loop configuration.
+#[derive(Debug, Deserialize)]
+#[serde(default)]
+struct ControlFileConfig {
+    /// Seconds of inactivity in Idle/Disabled before auto-transitioning to Sleep (0 = disabled)
+    sleep_timeout_secs: u64,
+}
+
+impl Default for ControlFileConfig {
+    fn default() -> Self {
+        Self {
+            sleep_timeout_secs: 0, // disabled by default
+        }
+    }
 }
 
 /// Camera configuration.
@@ -164,6 +182,35 @@ impl Default for LidarFileConfig {
     }
 }
 
+/// Localization (EKF) configuration.
+#[derive(Debug, Deserialize)]
+#[serde(default)]
+struct LocalizationFileConfig {
+    odom_linear_noise: f64,
+    odom_angular_noise: f64,
+    gps_noise_rtk_fixed: f64,
+    gps_noise_rtk_float: f64,
+    gps_noise_dgps: f64,
+    gps_noise_standalone: f64,
+    gps_heading_min_speed: f64,
+    imu_yaw_weight: f64,
+}
+
+impl Default for LocalizationFileConfig {
+    fn default() -> Self {
+        Self {
+            odom_linear_noise: 0.05,
+            odom_angular_noise: 0.02,
+            gps_noise_rtk_fixed: 0.02,
+            gps_noise_rtk_float: 0.5,
+            gps_noise_dgps: 1.0,
+            gps_noise_standalone: 3.0,
+            gps_heading_min_speed: 0.3,
+            imu_yaw_weight: 0.7,
+        }
+    }
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(default)]
 struct SlamFileConfig {
@@ -177,6 +224,10 @@ struct SlamFileConfig {
     keyframe_rotation: f64,
     /// Score threshold for accepting loop closure match
     loop_closure_threshold: f64,
+    /// Huber loss threshold for robust loop closure weighting (meters)
+    huber_threshold: f64,
+    /// Maximum disagreement between loop closure and odometry (in σ)
+    loop_closure_max_disagreement_sigma: f64,
 }
 
 impl Default for SlamFileConfig {
@@ -187,6 +238,8 @@ impl Default for SlamFileConfig {
             keyframe_distance: 1.0,
             keyframe_rotation: 0.5,
             loop_closure_threshold: 0.7,
+            huber_threshold: 1.0,
+            loop_closure_max_disagreement_sigma: 3.0,
         }
     }
 }
@@ -1170,7 +1223,18 @@ async fn main() -> Result<()> {
 
     // Initialize localization
     let mut odometry = WheelOdometry::new(chassis.clone(), args.pole_pairs);
-    let mut pose_estimator = PoseEstimator::new();
+    let ekf_config = EkfConfig {
+        odom_linear_noise: file_config.localization.odom_linear_noise,
+        odom_angular_noise: file_config.localization.odom_angular_noise,
+        gps_noise_rtk_fixed: file_config.localization.gps_noise_rtk_fixed,
+        gps_noise_rtk_float: file_config.localization.gps_noise_rtk_float,
+        gps_noise_dgps: file_config.localization.gps_noise_dgps,
+        gps_noise_standalone: file_config.localization.gps_noise_standalone,
+        gps_heading_min_speed: file_config.localization.gps_heading_min_speed,
+        imu_yaw_weight: file_config.localization.imu_yaw_weight,
+        ..Default::default()
+    };
+    let mut pose_estimator = EkfPoseEstimator::with_config(ekf_config);
 
     // GPS state channel (updated by GPS reader thread)
     let (gps_tx, mut gps_rx) = watch::channel(GpsState::default());
@@ -1222,14 +1286,14 @@ async fn main() -> Result<()> {
         let lidar_reader = LidarReader::new(lidar_config);
 
         if file_config.lidar.power_save {
-            // Power save mode: lidar starts stopped, control loop sends Start/Stop
+            // Power save mode: lidar starts immediately, only stops during Sleep
             let (cmd_tx, cmd_rx) = tokio::sync::mpsc::channel::<LidarCommand>(4);
             let _lidar_handle =
-                lidar_reader.spawn_with_control(lidar_tx, imu_tx, cmd_rx, false);
+                lidar_reader.spawn_with_control(lidar_tx, imu_tx, cmd_rx, true);
             info!(
                 ip = %file_config.lidar.lidar_ip,
                 port = file_config.lidar.point_cloud_port,
-                "LiDAR reader started (power save mode, waiting for active mode)"
+                "LiDAR reader started (power save: stops only in Sleep mode)"
             );
             Some(cmd_tx)
         } else {
@@ -1259,6 +1323,8 @@ async fn main() -> Result<()> {
             keyframe_distance: file_config.slam.keyframe_distance,
             keyframe_rotation: file_config.slam.keyframe_rotation,
             loop_closure_threshold: file_config.slam.loop_closure_threshold,
+            huber_threshold: file_config.slam.huber_threshold,
+            loop_closure_max_disagreement_sigma: file_config.slam.loop_closure_max_disagreement_sigma,
             ..Default::default()
         };
 
@@ -1314,6 +1380,7 @@ async fn main() -> Result<()> {
                         keyframe_count: slam.keyframe_count() as u32,
                         loop_closure_count: slam.loop_closure_count() as u32,
                         keyframe_poses: slam.keyframe_poses(),
+                        pose_covariance: slam.pose_covariance_array(),
                     };
                     let _ = state_tx.send(state);
                 }
@@ -1407,6 +1474,11 @@ async fn main() -> Result<()> {
     // Current tool command (from teleop)
     let mut tool_command = types::ToolCommand::default();
 
+    // Auto-sleep after idle/disabled timeout
+    let sleep_timeout_secs = file_config.control.sleep_timeout_secs;
+    let sleep_timeout = Duration::from_secs(sleep_timeout_secs);
+    let mut idle_since = Instant::now();
+
     // Track mode for change detection (for recording annotations)
     let mut last_mode = initial_mode;
 
@@ -1454,6 +1526,10 @@ async fn main() -> Result<()> {
 
     // IMU attitude filter (fuses gyro + accelerometer for smooth roll/pitch)
     let mut attitude_filter = AttitudeFilter::new();
+
+    // Pre-compute IMU mount transform (used for both attitude and yaw extraction)
+    let mount_pitch_rad = file_config.lidar.mounting_pitch_deg.to_radians();
+    let (sin_mount_pitch, cos_mount_pitch) = (mount_pitch_rad as f64).sin_cos();
 
     // Heartbeat thread for deadlock detection - runs on std::thread, not tokio
     // This helps diagnose if main loop is stuck vs tokio starvation
@@ -1845,6 +1921,22 @@ async fn main() -> Result<()> {
             }
         }
 
+        // Auto-sleep after idle/disabled timeout
+        if sleep_timeout_secs > 0 {
+            let mode = shared.lock().unwrap().state_machine.mode();
+            if matches!(mode, Mode::Idle | Mode::Disabled)
+                && idle_since.elapsed() > sleep_timeout
+            {
+                info!(
+                    elapsed_secs = idle_since.elapsed().as_secs(),
+                    mode = ?mode,
+                    "Auto-sleep timeout reached"
+                );
+                let mut state = shared.lock().unwrap();
+                state.state_machine.transition(Event::Sleep);
+            }
+        }
+
         // Get current mode and commanded twist for control decisions
         let (current_mode, commanded_twist) = {
             let state = shared.lock().unwrap();
@@ -2226,14 +2318,25 @@ async fn main() -> Result<()> {
         ];
         let (dx, dy, dtheta) = odometry.update(tach);
 
-        // Update pose estimator with odometry
-        pose_estimator.update_odometry(dx, dy, dtheta);
+        // Extract body-frame yaw rate from IMU (if available)
+        let gyro_z_body: Option<f32> = imu_rx.borrow().as_ref().map(|imu| {
+            (-imu.gyro_x as f64 * sin_mount_pitch + imu.gyro_z as f64 * cos_mount_pitch) as f32
+        });
+
+        // Update EKF prediction with odometry + IMU yaw
+        pose_estimator.predict(dx, dy, dtheta, gyro_z_body, dt);
 
         // Check for SLAM pose updates (non-blocking)
-        // SLAM runs in background task, we just check for new state
+        // SLAM runs in background task, we just check for new state.
+        // When new SLAM data arrives, feed it as a measurement update into the EKF.
         let slam_state: Option<SlamState> = if let Some(ref mut rx) = slam_state_rx_local {
             if rx.has_changed().unwrap_or(false) {
-                Some(rx.borrow_and_update().clone())
+                let state = rx.borrow_and_update().clone();
+                // Feed SLAM correction into EKF as measurement update
+                if let Some(ref cov_arr) = state.pose_covariance {
+                    pose_estimator.update_slam_from_array(&state.pose, cov_arr);
+                }
+                Some(state)
             } else {
                 Some(rx.borrow().clone())
             }
@@ -2243,13 +2346,14 @@ async fn main() -> Result<()> {
 
         // Check for GPS updates
         if gps_rx.has_changed().unwrap_or(false) {
-            let gps_state = gps_rx.borrow_and_update();
+            let gps_state = gps_rx.borrow_and_update().clone();
+            pose_estimator.update_gps(&gps_state);
             if let Some(ref coord) = gps_state.coord {
-                pose_estimator.update_gps(coord);
                 debug!(
                     lat = coord.lat,
                     lon = coord.lon,
                     sats = gps_state.satellites,
+                    fix = gps_state.fix_quality,
                     "GPS update"
                 );
             }
@@ -2302,18 +2406,13 @@ async fn main() -> Result<()> {
             (None, None)
         };
 
-        // Get pose from estimator (or sim ground truth in sim mode for comparison)
+        // Get pose from EKF (unified: fuses odom + GPS + IMU + SLAM)
+        // In sim mode, use simulation ground truth instead
         drop(state);
         let pose = if args.sim {
-            // In sim mode, use simulation ground truth for accurate feedback
             can_interface.pose()
         } else {
-            // In real mode, use SLAM-corrected pose if available, otherwise pose estimator
-            if let Some(ref state) = slam_state {
-                state.pose
-            } else {
-                pose_estimator.pose()
-            }
+            pose_estimator.pose()
         };
 
         // Build SLAM status if enabled
@@ -2512,6 +2611,11 @@ async fn main() -> Result<()> {
 
         // Log mode changes and update LEDs
         if current_mode != last_mode {
+            // Reset sleep timer when entering Idle or Disabled (restart countdown)
+            if matches!(current_mode, Mode::Idle | Mode::Disabled) {
+                idle_since = Instant::now();
+            }
+
             // Start/stop recording based on mode (only record during Teleop/Autonomous)
             let should_record = matches!(current_mode, Mode::Teleop | Mode::Autonomous);
             let was_recording = matches!(last_mode, Mode::Teleop | Mode::Autonomous);
@@ -2524,26 +2628,9 @@ async fn main() -> Result<()> {
                     info!(path = %path.display(), mode = ?current_mode, "Recording session started");
                 }
 
-                // Start lidar if in power save mode
-                if let Some(ref tx) = lidar_cmd_tx {
-                    if let Err(e) = tx.try_send(LidarCommand::Start) {
-                        warn!(?e, "Failed to send lidar start command");
-                    } else {
-                        info!("Lidar started (entering active mode)");
-                    }
-                }
             } else if !should_record && was_recording {
                 // Leaving a recording mode - end session
                 recorder.end_session();
-
-                // Stop lidar if in power save mode
-                if let Some(ref tx) = lidar_cmd_tx {
-                    if let Err(e) = tx.try_send(LidarCommand::Stop) {
-                        warn!(?e, "Failed to send lidar stop command");
-                    } else {
-                        info!("Lidar stopped (entering idle mode)");
-                    }
-                }
             }
 
             // Handle Sleep mode transitions
@@ -2559,7 +2646,7 @@ async fn main() -> Result<()> {
                     }
                 }
             } else if last_mode == Mode::Sleep && current_mode != Mode::Sleep {
-                // Waking from Sleep - start lidar (special case: normally only starts in Teleop)
+                // Waking from Sleep - restart lidar
                 info!("Waking from Sleep mode - starting lidar");
                 if let Some(ref tx) = lidar_cmd_tx {
                     if let Err(e) = tx.try_send(LidarCommand::Start) {
