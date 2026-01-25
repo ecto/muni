@@ -33,6 +33,9 @@ pub struct SlamState {
     pub loop_closure_count: u32,
     /// Keyframe poses for visualization (x, y, theta)
     pub keyframe_poses: Vec<(f64, f64, f64)>,
+    /// Pose covariance from scan match Hessian (row-major 3x3).
+    /// Uses plain array to avoid nalgebra in the watch channel type.
+    pub pose_covariance: Option<[[f64; 3]; 3]>,
 }
 
 #[derive(Error, Debug)]
@@ -64,6 +67,10 @@ pub struct SlamConfig {
     pub loop_closure_threshold: f64,
     /// Maximum distance to consider for loop closure (meters)
     pub loop_closure_search_radius: f64,
+    /// Huber loss threshold for robust loop closure weighting (meters)
+    pub huber_threshold: f64,
+    /// Maximum disagreement (in σ) between loop closure and accumulated odometry
+    pub loop_closure_max_disagreement_sigma: f64,
 }
 
 impl Default for SlamConfig {
@@ -77,6 +84,8 @@ impl Default for SlamConfig {
             loop_closure_min_nodes: 10,
             loop_closure_threshold: 0.7,
             loop_closure_search_radius: 5.0,
+            huber_threshold: 1.0,
+            loop_closure_max_disagreement_sigma: 3.0,
         }
     }
 }
@@ -146,6 +155,8 @@ pub struct SlamProcessor {
     reference_scan: Option<Arc<PointCloud>>,
     /// Total loop closures detected
     loop_closure_count: usize,
+    /// Last scan match covariance (from most recent process_scan)
+    last_scan_covariance: Option<Matrix3<f64>>,
 }
 
 impl SlamProcessor {
@@ -169,6 +180,7 @@ impl SlamProcessor {
             last_keyframe_pose: Transform2D::identity(),
             reference_scan: None,
             loop_closure_count: 0,
+            last_scan_covariance: None,
         }
     }
 
@@ -203,6 +215,7 @@ impl SlamProcessor {
                         // Apply scan match correction
                         let correction = result.transform;
                         self.current_pose = &self.current_pose * &correction;
+                        self.last_scan_covariance = Some(result.covariance);
                         true
                     } else {
                         debug!(score = result.score, "Scan match score too low, skipping correction");
@@ -333,6 +346,17 @@ impl SlamProcessor {
         self.keyframes.len()
     }
 
+    /// Get the last scan match covariance as a plain 3x3 array (for watch channels).
+    pub fn pose_covariance_array(&self) -> Option<[[f64; 3]; 3]> {
+        self.last_scan_covariance.map(|m| {
+            [
+                [m[(0, 0)], m[(0, 1)], m[(0, 2)]],
+                [m[(1, 0)], m[(1, 1)], m[(1, 2)]],
+                [m[(2, 0)], m[(2, 1)], m[(2, 2)]],
+            ]
+        })
+    }
+
     /// Check if we should add a new keyframe.
     fn should_add_keyframe(&self) -> bool {
         // Always add first keyframe
@@ -370,6 +394,28 @@ impl SlamProcessor {
             match self.scan_matcher.match_scans(&candidate.scan, &new_keyframe.scan, initial_guess) {
                 Ok(result) => {
                     if result.score >= self.config.loop_closure_threshold {
+                        // Consistency check: compare scan match translation with
+                        // accumulated odometry distance between keyframes
+                        let match_translation = result.transform.translation().norm();
+                        let odom_distance = self.accumulated_odom_distance(candidate.id, new_keyframe.id);
+
+                        // Compute σ from scan match covariance (position block trace)
+                        let pos_sigma = (result.covariance[(0, 0)] + result.covariance[(1, 1)]).sqrt();
+                        let disagreement = (match_translation - odom_distance).abs();
+                        let max_sigma = self.config.loop_closure_max_disagreement_sigma;
+
+                        if pos_sigma > 0.0 && disagreement > max_sigma * pos_sigma {
+                            warn!(
+                                from = candidate.id,
+                                to = new_keyframe.id,
+                                score = result.score,
+                                disagreement = disagreement,
+                                sigma = pos_sigma,
+                                "Loop closure rejected: inconsistent with odometry"
+                            );
+                            continue;
+                        }
+
                         info!(
                             from = candidate.id,
                             to = new_keyframe.id,
@@ -395,10 +441,11 @@ impl SlamProcessor {
 
     /// Compute information matrix from scan match result.
     fn compute_information(&self, result: &ScanMatchResult) -> Matrix3<f64> {
-        // Simple approach: scale identity by match score
-        // Better approach would use covariance estimation from scan matching
-        let weight = result.score * result.score * 1000.0;
-        Matrix3::identity() * weight
+        // Use actual scan match covariance when available, fall back to score heuristic
+        result
+            .covariance
+            .try_inverse()
+            .unwrap_or_else(|| Matrix3::identity() * (result.score * result.score * 1000.0))
     }
 
     /// Optimize the pose graph using Gauss-Newton.
@@ -473,13 +520,19 @@ impl SlamProcessor {
             // Compute Jacobians (simplified: identity for small angles)
             let (j_i, j_j) = self.compute_jacobians(pose_i, pose_j);
 
-            // Add to H and b
-            let omega = &edge.information;
+            // Apply Huber robust weighting to loop closure edges
+            let omega = if edge.is_loop_closure {
+                let residual_norm = error.norm();
+                let weight = huber_weight(residual_norm, self.config.huber_threshold);
+                edge.information * weight
+            } else {
+                edge.information
+            };
 
             // H += J^T * Omega * J
-            let h_ii = j_i.transpose() * omega * &j_i;
-            let h_ij = j_i.transpose() * omega * &j_j;
-            let h_jj = j_j.transpose() * omega * &j_j;
+            let h_ii = j_i.transpose() * &omega * &j_i;
+            let h_ij = j_i.transpose() * &omega * &j_j;
+            let h_jj = j_j.transpose() * &omega * &j_j;
 
             for (di, dj, val) in [(0, 0, &h_ii), (0, 1, &h_ij), (1, 1, &h_jj)] {
                 let row = if di == 0 { i } else { j };
@@ -495,8 +548,8 @@ impl SlamProcessor {
             }
 
             // b += J^T * Omega * e
-            let b_i = j_i.transpose() * omega * &error;
-            let b_j = j_j.transpose() * omega * &error;
+            let b_i = j_i.transpose() * &omega * &error;
+            let b_j = j_j.transpose() * &omega * &error;
             for r in 0..3 {
                 b[i + r] += b_i[r];
                 b[j + r] += b_j[r];
@@ -514,6 +567,24 @@ impl SlamProcessor {
             diff.translation().y,
             transforms::normalize_angle(diff.rotation()),
         )
+    }
+
+    /// Compute accumulated odometry distance between two keyframe IDs.
+    /// Walks sequential (non-loop-closure) edges between from_id and to_id.
+    fn accumulated_odom_distance(&self, from_id: usize, to_id: usize) -> f64 {
+        let (lo, hi) = if from_id < to_id {
+            (from_id, to_id)
+        } else {
+            (to_id, from_id)
+        };
+
+        let mut total = 0.0;
+        for edge in &self.edges {
+            if !edge.is_loop_closure && edge.from_id >= lo && edge.to_id <= hi {
+                total += edge.measurement.translation().norm();
+            }
+        }
+        total
     }
 
     /// Compute Jacobians for pose graph edge.
@@ -534,6 +605,18 @@ impl SlamProcessor {
             let delta = Transform2D::new(dx[idx], dx[idx + 1], dx[idx + 2]);
             keyframe.pose = &keyframe.pose * &delta;
         }
+    }
+}
+
+/// Huber robust loss weight function.
+///
+/// Returns 1.0 for residuals within threshold (quadratic region),
+/// decreasing weight for larger residuals (linear region).
+fn huber_weight(residual_norm: f64, threshold: f64) -> f64 {
+    if residual_norm <= threshold {
+        1.0
+    } else {
+        threshold / residual_norm
     }
 }
 
@@ -625,5 +708,44 @@ mod tests {
         assert!(result.unwrap().keyframe_added);
         assert_eq!(processor.keyframes.len(), 2);
         assert_eq!(processor.edges.len(), 1); // One odometry edge
+    }
+
+    #[test]
+    fn test_huber_weight_regions() {
+        let threshold = 1.0;
+
+        // Within threshold: weight = 1.0 (quadratic region)
+        assert!((huber_weight(0.0, threshold) - 1.0).abs() < 1e-10);
+        assert!((huber_weight(0.5, threshold) - 1.0).abs() < 1e-10);
+        assert!((huber_weight(1.0, threshold) - 1.0).abs() < 1e-10);
+
+        // Beyond threshold: weight = threshold / residual (linear region)
+        assert!((huber_weight(2.0, threshold) - 0.5).abs() < 1e-10);
+        assert!((huber_weight(4.0, threshold) - 0.25).abs() < 1e-10);
+        assert!((huber_weight(10.0, threshold) - 0.1).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_pose_covariance_array() {
+        let config = SlamConfig::default();
+        let processor = SlamProcessor::new(config);
+
+        // Initially no covariance
+        assert!(processor.pose_covariance_array().is_none());
+    }
+
+    #[test]
+    fn test_slam_state_has_covariance_field() {
+        let state = SlamState::default();
+        assert!(state.pose_covariance.is_none());
+
+        let state = SlamState {
+            pose: Pose::default(),
+            keyframe_count: 0,
+            loop_closure_count: 0,
+            keyframe_poses: vec![],
+            pose_covariance: Some([[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]),
+        };
+        assert!(state.pose_covariance.is_some());
     }
 }

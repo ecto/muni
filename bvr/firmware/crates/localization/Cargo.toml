@@ -10,6 +10,7 @@ nalgebra = { workspace = true }
 tracing = { workspace = true }
 types = { workspace = true }
 control = { workspace = true }
+gps = { workspace = true }
 
 
 
