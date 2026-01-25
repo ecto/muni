@@ -2,6 +2,8 @@
 //!
 //! Reference: https://github.com/vedderb/bldc/blob/master/comm/comm_can.c
 
+use std::time::Instant;
+
 use crate::{Bus, CanError, Frame};
 use tracing::debug;
 
@@ -49,6 +51,160 @@ impl LowPassFilter {
     /// Reset the filter to uninitialized state.
     pub fn reset(&mut self) {
         self.value = 0.0;
+        self.initialized = false;
+    }
+}
+
+/// 2D Kalman filter for scalar signals with rate estimation.
+///
+/// State vector: `[value, rate_of_change]`
+/// Uses a constant-velocity motion model to predict between measurements,
+/// providing smoother output than EMA while tracking real changes faster.
+#[derive(Debug, Clone)]
+pub struct KalmanFilter1D {
+    // State estimate
+    x0: f32, // value
+    x1: f32, // rate of change
+    // Error covariance (2x2)
+    p00: f32,
+    p01: f32,
+    p10: f32,
+    p11: f32,
+    // Tuning
+    q_value: f32, // process noise on value
+    q_rate: f32,  // process noise on rate
+    r: f32,       // measurement noise
+    // Internal time tracking
+    last_update: Option<Instant>,
+    initialized: bool,
+}
+
+impl KalmanFilter1D {
+    /// Create a new Kalman filter.
+    ///
+    /// - `q_value`: process noise for the value state (higher = trusts measurements more)
+    /// - `q_rate`: process noise for the rate state (higher = allows faster rate changes)
+    /// - `r`: measurement noise variance (higher = trusts model more, smoother output)
+    pub fn new(q_value: f32, q_rate: f32, r: f32) -> Self {
+        Self {
+            x0: 0.0,
+            x1: 0.0,
+            p00: 100.0,
+            p01: 0.0,
+            p10: 0.0,
+            p11: 100.0,
+            q_value,
+            q_rate,
+            r,
+            last_update: None,
+            initialized: false,
+        }
+    }
+
+    /// Predict step: propagate state and covariance forward by dt seconds.
+    ///
+    /// Motion model: `F = [[1, dt], [0, 1]]` (constant velocity)
+    pub fn predict(&mut self, dt: f32) {
+        self.x0 += dt * self.x1;
+
+        let p00 = self.p00;
+        let p01 = self.p01;
+        let p10 = self.p10;
+        let p11 = self.p11;
+
+        // P = F * P * F' + Q
+        self.p00 = p00 + dt * (p10 + p01) + dt * dt * p11 + self.q_value;
+        self.p01 = p01 + dt * p11;
+        self.p10 = p10 + dt * p11;
+        self.p11 = p11 + self.q_rate;
+    }
+
+    /// Correction step: incorporate a measurement.
+    fn correct(&mut self, measurement: f32) {
+        let innovation = measurement - self.x0;
+        let s = self.p00 + self.r;
+        if s.abs() < 1e-10 {
+            return;
+        }
+        let k0 = self.p00 / s;
+        let k1 = self.p10 / s;
+
+        self.x0 += k0 * innovation;
+        self.x1 += k1 * innovation;
+
+        // Covariance update (Joseph form for numerical stability)
+        let m = 1.0 - k0;
+        let p00 = self.p00;
+        let p01 = self.p01;
+        let p10 = self.p10;
+        let p11 = self.p11;
+
+        self.p00 = m * m * p00 + self.r * k0 * k0;
+        self.p01 = m * (p01 - k1 * p00) + self.r * k0 * k1;
+        self.p10 = m * (p10 - k1 * p00) + self.r * k1 * k0;
+        self.p11 = p11 - k1 * (p01 + p10) + k1 * k1 * (p00 + self.r);
+    }
+
+    /// Update the filter with a new measurement.
+    ///
+    /// Internally tracks time between calls for the predict step.
+    pub fn update(&mut self, measurement: f32) -> f32 {
+        if !self.initialized {
+            self.x0 = measurement;
+            self.x1 = 0.0;
+            self.initialized = true;
+            self.last_update = Some(Instant::now());
+            return self.x0;
+        }
+
+        let now = Instant::now();
+        if let Some(last) = self.last_update {
+            let dt = now.duration_since(last).as_secs_f32();
+            if dt > 0.0 {
+                self.predict(dt);
+            }
+        }
+        self.last_update = Some(now);
+
+        self.correct(measurement);
+        self.x0
+    }
+
+    /// Update with an explicit time delta (for testing or external time sources).
+    pub fn update_with_dt(&mut self, dt: f32, measurement: f32) -> f32 {
+        if !self.initialized {
+            self.x0 = measurement;
+            self.x1 = 0.0;
+            self.initialized = true;
+            return self.x0;
+        }
+
+        if dt > 0.0 {
+            self.predict(dt);
+        }
+        self.correct(measurement);
+        self.x0
+    }
+
+    /// Get the current filtered value without updating.
+    pub fn value(&self) -> f32 {
+        self.x0
+    }
+
+    /// Get the estimated rate of change.
+    pub fn rate(&self) -> f32 {
+        self.x1
+    }
+
+    /// Reset the filter to uninitialized state.
+    pub fn reset(&mut self) {
+        self.x0 = 0.0;
+        self.x1 = 0.0;
+        self.p00 = 100.0;
+        self.p01 = 0.0;
+        self.p10 = 0.0;
+        self.p11 = 100.0;
+        self.last_update = None;
         self.initialized = false;
     }
 }
@@ -466,6 +622,77 @@ mod tests {
         // After reset, next value is used directly
         assert_eq!(filter.update(50.0), 50.0);
     }
+
+    #[test]
+    fn test_kalman_initialization() {
+        let mut kf = KalmanFilter1D::new(0.1, 0.01, 1.0);
+        // First measurement is adopted directly
+        assert_eq!(kf.update_with_dt(0.0, 48.0), 48.0);
+        assert_eq!(kf.value(), 48.0);
+        assert_eq!(kf.rate(), 0.0);
+    }
+
+    #[test]
+    fn test_kalman_smoothing() {
+        let mut kf = KalmanFilter1D::new(0.001, 0.0001, 0.5);
+        kf.update_with_dt(0.0, 48.0); // init
+
+        // Feed noisy readings around 48V at 100Hz
+        let readings = [48.3, 47.8, 48.1, 47.9, 48.2, 48.0, 47.7, 48.4, 48.1, 47.9];
+        let mut last = 0.0_f32;
+        for &r in &readings {
+            last = kf.update_with_dt(0.01, r);
+        }
+        // Should converge near 48.0 with less variance than raw signal
+        assert!((last - 48.0).abs() < 0.5, "filtered value {last} too far from 48.0");
+    }
+
+    #[test]
+    fn test_kalman_tracks_step_change() {
+        // Current filter with high process noise to track fast changes
+        let mut kf = KalmanFilter1D::new(1.0, 0.1, 1.0);
+        kf.update_with_dt(0.0, 0.0); // init at 0A
+
+        // Step to 10A
+        for _ in 0..50 {
+            kf.update_with_dt(0.01, 10.0);
+        }
+        // Should have converged close to 10A within 50 steps at 100Hz
+        assert!(
+            (kf.value() - 10.0).abs() < 0.5,
+            "kalman value {} didn't track step to 10.0",
+            kf.value()
+        );
+    }
+
+    #[test]
+    fn test_kalman_rate_estimation() {
+        let mut kf = KalmanFilter1D::new(0.1, 0.01, 0.5);
+        kf.update_with_dt(0.0, 0.0); // init
+
+        // Feed a linear ramp: 1 unit/sec for 1 second at 100Hz
+        for i in 1..=100 {
+            let t = i as f32 * 0.01;
+            kf.update_with_dt(0.01, t); // value = t, so rate should approach 1.0
+        }
+        // Rate estimate should be roughly 1.0 V/s
+        assert!(
+            (kf.rate() - 1.0).abs() < 0.3,
+            "rate estimate {} not close to 1.0",
+            kf.rate()
+        );
+    }
+
+    #[test]
+    fn test_kalman_reset() {
+        let mut kf = KalmanFilter1D::new(0.1, 0.01, 1.0);
+        kf.update_with_dt(0.0, 48.0);
+        kf.update_with_dt(0.01, 48.5);
+        kf.reset();
+        // After reset, next value is adopted directly
+        assert_eq!(kf.update_with_dt(0.0, 24.0), 24.0);
+        assert_eq!(kf.rate(), 0.0);
+    }
 }
 
 /// Drivetrain: manages 4 VESCs for the wheels.
@@ -476,17 +703,21 @@ pub struct Drivetrain {
     pub rear_right: Vesc,
     /// Motor pole pairs (for ERPM to RPM conversion)
     pub pole_pairs: u8,
-    /// Filtered battery voltage
-    voltage_filter: LowPassFilter,
-    /// Filtered total system current (sum of all VESCs)
-    current_filter: LowPassFilter,
+    /// Kalman-filtered battery voltage
+    voltage_filter: KalmanFilter1D,
+    /// Kalman-filtered total system current (sum of all VESCs)
+    current_filter: KalmanFilter1D,
 }
 
-/// Default smoothing factor for voltage filter (heavier smoothing, slower response).
-const VOLTAGE_FILTER_ALPHA: f32 = 0.1;
+// Voltage Kalman filter tuning (battery changes slowly)
+const VOLTAGE_Q_VALUE: f32 = 0.001;  // low process noise on value
+const VOLTAGE_Q_RATE: f32 = 0.0001;  // very low — voltage rate barely changes
+const VOLTAGE_R: f32 = 0.5;          // moderate measurement noise
 
-/// Default smoothing factor for current filter (lighter smoothing, faster response).
-const CURRENT_FILTER_ALPHA: f32 = 0.3;
+// Current Kalman filter tuning (load current changes rapidly)
+const CURRENT_Q_VALUE: f32 = 1.0;    // high process noise — current swings fast
+const CURRENT_Q_RATE: f32 = 0.1;     // moderate — current rate varies
+const CURRENT_R: f32 = 1.0;          // moderate measurement noise
 
 impl Drivetrain {
     pub fn new(ids: [u8; 4], pole_pairs: u8) -> Self {
@@ -496,8 +727,8 @@ impl Drivetrain {
             rear_left: Vesc::new(ids[2]),
             rear_right: Vesc::new(ids[3]),
             pole_pairs,
-            voltage_filter: LowPassFilter::new(VOLTAGE_FILTER_ALPHA),
-            current_filter: LowPassFilter::new(CURRENT_FILTER_ALPHA),
+            voltage_filter: KalmanFilter1D::new(VOLTAGE_Q_VALUE, VOLTAGE_Q_RATE, VOLTAGE_R),
+            current_filter: KalmanFilter1D::new(CURRENT_Q_VALUE, CURRENT_Q_RATE, CURRENT_R),
         }
     }
 
@@ -514,21 +745,29 @@ impl Drivetrain {
     }
 
     /// Process a received CAN frame and update filters.
+    ///
+    /// Filters are only updated when the underlying measurement actually changes,
+    /// preventing covariance inflation from processing batched CAN frames with
+    /// near-zero dt between them.
     pub fn process_frame(&mut self, frame: &Frame) {
+        let old_voltage = self.raw_battery_voltage();
+        let old_current = self.raw_total_current();
+
         self.front_left.process_frame(frame);
         self.front_right.process_frame(frame);
         self.rear_left.process_frame(frame);
         self.rear_right.process_frame(frame);
 
-        // Update voltage filter with raw reading from any VESC
-        let raw_voltage = self.raw_battery_voltage();
-        if raw_voltage > 0.0 {
-            self.voltage_filter.update(raw_voltage);
+        // Only update filters when the raw reading actually changed
+        let new_voltage = self.raw_battery_voltage();
+        if new_voltage > 0.0 && new_voltage != old_voltage {
+            self.voltage_filter.update(new_voltage);
         }
 
-        // Update current filter with sum of all VESC input currents
-        let raw_current = self.raw_total_current();
-        self.current_filter.update(raw_current);
+        let new_current = self.raw_total_current();
+        if (new_current - old_current).abs() > f32::EPSILON {
+            self.current_filter.update(new_current);
+        }
     }
 
     /// Get raw battery voltage (unfiltered, from any VESC that has reported).
@@ -547,26 +786,15 @@ impl Drivetrain {
         self.voltage_filter.value()
     }
 
-    /// Get raw total system current (unfiltered sum of all VESCs).
+    /// Get raw total system current (unfiltered).
     ///
-    /// Uses input current (current_in from STATUS4) if available, otherwise
-    /// falls back to motor phase current sum (from STATUS1).
+    /// Sums battery-side input current (current_in from STATUS4) across all VESCs.
+    /// Returns 0.0 until STATUS4 messages have been received.
     pub fn raw_total_current(&self) -> f32 {
-        // Try input current first (more accurate for power monitoring)
-        let input_current = self.front_left.state.status4.current_in
+        self.front_left.state.status4.current_in
             + self.front_right.state.status4.current_in
             + self.rear_left.state.status4.current_in
-            + self.rear_right.state.status4.current_in;
-
-        if input_current.abs() > 0.01 {
-            return input_current;
-        }
-
-        // Fall back to motor phase current (less accurate but always available)
-        self.front_left.state.status.current
-            + self.front_right.state.status.current
-            + self.rear_left.state.status.current
-            + self.rear_right.state.status.current
+            + self.rear_right.state.status4.current_in
     }
 
     /// Get filtered total system current (smoothed to reduce noise).
