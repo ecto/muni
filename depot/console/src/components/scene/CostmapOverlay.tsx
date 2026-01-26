@@ -90,6 +90,10 @@ export function CostmapOverlay() {
       tex.minFilter = THREE.NearestFilter;
       tex.magFilter = THREE.NearestFilter;
       tex.flipY = false;
+      // Rotate texture 90° CW so gx (world X) maps to Three.js -Z (forward)
+      // and gy (world Y) maps to Three.js -X (left)
+      tex.center.set(0.5, 0.5);
+      tex.rotation = Math.PI / 2;
       textureRef.current = tex;
       materialRef.current.map = tex;
       materialRef.current.needsUpdate = true;
@@ -98,7 +102,9 @@ export function CostmapOverlay() {
       geometryRef.current?.dispose();
       const worldWidth = width * resolution;
       const worldHeight = height * resolution;
-      const geo = new THREE.PlaneGeometry(worldWidth, worldHeight);
+      // Swap args: plane local X → Three.js X (world Y extent),
+      // plane local Y → Three.js -Z (world X extent)
+      const geo = new THREE.PlaneGeometry(worldHeight, worldWidth);
       geometryRef.current = geo;
       meshRef.current.geometry = geo;
     }
