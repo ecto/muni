@@ -96,12 +96,17 @@ interface ConsoleState {
   setCameraCount: (count: number) => void;
 
   // Point cloud
-  pointCloud: Float32Array | null;
-  pointCloudReflectivity: Uint8Array | null;
-  pointCloudTag: Uint8Array | null;
+  // Note: Point cloud data (points, reflectivity, tag) is stored in a mutable store
+  // (pointCloudStore.ts) to avoid React re-renders at 5Hz. Use getPointCloudData()
+  // from pointCloudStore to read data in useFrame or polling loops.
   pointCloudEnabled: boolean;
-  setPointCloud: (points: Float32Array, reflectivity: Uint8Array, tag: Uint8Array) => void;
   setPointCloudEnabled: (enabled: boolean) => void;
+
+  // Costmap overlay
+  // Note: Costmap data is stored in a mutable store (costmapStore.ts) to avoid
+  // React re-renders. Use getCostmapData() from costmapStore in useFrame.
+  costmapEnabled: boolean;
+  setCostmapEnabled: (enabled: boolean) => void;
 
   // Gaussian splat (3D map)
   splatEnabled: boolean;
@@ -267,13 +272,12 @@ export const useConsoleStore = create<ConsoleState>()(
   setCameraCount: (count) => set({ cameraCount: count }),
 
   // Point cloud
-  pointCloud: null,
-  pointCloudReflectivity: null,
-  pointCloudTag: null,
   pointCloudEnabled: false,
-  setPointCloud: (points, reflectivity, tag) =>
-    set({ pointCloud: points, pointCloudReflectivity: reflectivity, pointCloudTag: tag }),
   setPointCloudEnabled: (enabled) => set({ pointCloudEnabled: enabled }),
+
+  // Costmap overlay
+  costmapEnabled: false,
+  setCostmapEnabled: (enabled) => set({ costmapEnabled: enabled }),
 
   // Gaussian splat
   splatEnabled: true,
@@ -306,6 +310,7 @@ export const useConsoleStore = create<ConsoleState>()(
     ["telemetry", { name: "telemetry", messagesPerSec: 0, lastMessageTime: 0, history: [] }],
     ["video", { name: "video", messagesPerSec: 0, lastMessageTime: 0, history: [] }],
     ["pointcloud", { name: "pointcloud", messagesPerSec: 0, lastMessageTime: 0, history: [] }],
+    ["costmap", { name: "costmap", messagesPerSec: 0, lastMessageTime: 0, history: [] }],
   ]),
   updateChannelMetrics: (name, metrics) =>
     set((state) => {
@@ -329,6 +334,7 @@ export const useConsoleStore = create<ConsoleState>()(
         ["telemetry", { name: "telemetry", messagesPerSec: 0, lastMessageTime: 0, history: [] }],
         ["video", { name: "video", messagesPerSec: 0, lastMessageTime: 0, history: [] }],
         ["pointcloud", { name: "pointcloud", messagesPerSec: 0, lastMessageTime: 0, history: [] }],
+        ["costmap", { name: "costmap", messagesPerSec: 0, lastMessageTime: 0, history: [] }],
       ]),
     }),
     }),

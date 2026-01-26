@@ -25,11 +25,13 @@ import {
   decodeVideoFrame,
   videoFrameToBlobUrl,
   decodePointCloud,
+  decodeCostmap,
 } from "@/lib/protocol";
 import { pushSnapshotDirect } from "@/lib/interpolation";
 import { Mode } from "@/lib/types";
 import { setCameraFrame as setMutableCameraFrame, getCameraCount } from "@/lib/videoFrameStore";
 import { setPointCloudData, clearPointCloudData } from "@/lib/pointCloudStore";
+import { setCostmapData, clearCostmapData } from "@/lib/costmapStore";
 
 const RECONNECT_DELAY_MS = 2000;
 const COMMAND_INTERVAL_MS = 10; // 100Hz - matches rover control loop
@@ -110,6 +112,7 @@ export function useRoverConnectionRtc() {
       ["telemetry", { count: 0, lastTime: 0 }],
       ["video", { count: 0, lastTime: 0 }],
       ["pointcloud", { count: 0, lastTime: 0 }],
+      ["costmap", { count: 0, lastTime: 0 }],
     ])
   );
   const metricsIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -532,6 +535,44 @@ export function useRoverConnectionRtc() {
           channel.onclose = () => {
             console.log("[WebRTC] Pointcloud channel closed");
           };
+        } else if (channel.label === "costmap") {
+          console.log("[WebRTC] Costmap channel received");
+          channel.binaryType = "arraybuffer";
+
+          channel.onopen = () => {
+            console.log("[WebRTC] Costmap channel opened");
+          };
+
+          channel.onmessage = (msgEvent) => {
+            if (!(msgEvent.data instanceof ArrayBuffer)) {
+              console.warn("[WebRTC] Costmap message not ArrayBuffer");
+              return;
+            }
+
+            // Track channel metrics
+            const stats = channelStatsRef.current.get("costmap");
+            if (stats) {
+              stats.count++;
+              stats.lastTime = performance.now();
+            }
+
+            const costmap = decodeCostmap(msgEvent.data);
+            if (costmap) {
+              setCostmapData(
+                costmap.cells,
+                costmap.width,
+                costmap.height,
+                costmap.resolution,
+                costmap.originX,
+                costmap.originY,
+              );
+            }
+          };
+
+          channel.onclose = () => {
+            console.log("[WebRTC] Costmap channel closed");
+            clearCostmapData();
+          };
         }
       };
 
@@ -678,6 +719,7 @@ export function useRoverConnectionRtc() {
     setVideoFrame(null, 0);
     setVideoFps(0);
     clearPointCloudData();
+    clearCostmapData();
   }, [clearIntervals, setConnected, setVideoConnected, setVideoFrame, setVideoFps, resetChannelMetrics]);
 
   // Stable disconnect ref for cleanup

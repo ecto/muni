@@ -15,6 +15,7 @@ use slam::{SlamConfig, SlamProcessor, SlamState};
 use planner::PlannerConfig;
 use pursuit::PursuitConfig;
 use control_loop::{NavigationConfig, NavigationController, NavigationState};
+use costmap::CostmapSnapshot;
 use transforms::Transform2D;
 use metrics::{Config as MetricsConfig, DiscoveryClient, DiscoveryConfig, MetricsPusher, MetricsSnapshot, SystemMetricsCollector};
 use policy::{NormalizationConfig, Policy, PolicyManager, PolicyObservation};
@@ -983,6 +984,8 @@ async fn main() -> Result<()> {
     let (video_tx_udp, video_rx_udp) = watch::channel::<Option<teleop::video::VideoFrame>>(None);
     // watch for LiDAR point cloud streaming (created early for RtcServer, populated later)
     let (lidar_tx, lidar_rx) = watch::channel::<Option<lidar::PointCloud>>(None);
+    // watch for costmap streaming (created early for RtcServer, populated from control loop)
+    let (costmap_tx, costmap_rx) = watch::channel::<Option<CostmapSnapshot>>(None);
 
     // Spawn teleop server (UDP)
     let teleop_config = TeleopConfig::default();
@@ -1006,13 +1009,17 @@ async fn main() -> Result<()> {
             ..Default::default()
         };
         // Use with_video_and_lidar to enable WebRTC video and point cloud streaming
-        let rtc_server = RtcServer::with_video_and_lidar(
+        let mut rtc_server = RtcServer::with_video_and_lidar(
             rtc_config,
             cmd_tx.clone(),
             telemetry_rx.clone(),
             video_rx_rtc,
             lidar_rx.clone(),
         );
+        // Enable costmap streaming if navigation is enabled
+        if navigation_enabled {
+            rtc_server.set_costmap_rx(costmap_rx.clone());
+        }
 
         // Get metrics handle before spawning (for InfluxDB push)
         rtc_metrics = Some(rtc_server.metrics());
@@ -2379,6 +2386,8 @@ async fn main() -> Result<()> {
             if let Some(ref mut nav) = navigation_controller {
                 let robot_tf = Transform2D::from_pose(&pose_estimator.pose());
                 nav.update_costmap(&scan, &robot_tf);
+                // Publish costmap snapshot for console streaming
+                let _ = costmap_tx.send(Some(nav.costmap_snapshot()));
             }
             let costmap_ms = costmap_start.elapsed().as_millis();
 

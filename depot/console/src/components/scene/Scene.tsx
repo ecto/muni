@@ -10,6 +10,7 @@ import { CameraController } from "./CameraController";
 import { EquirectangularSky } from "./EquirectangularSky";
 import { World3D } from "./World3D";
 import { PointCloud3D } from "./PointCloud3D";
+import { CostmapOverlay } from "./CostmapOverlay";
 import { useConsoleStore } from "@/store";
 import { useMapData } from "@/hooks/useMapData";
 import type { Zone, Task } from "@/lib/types";
@@ -28,7 +29,9 @@ interface SceneProps {
 }
 
 export function Scene({ mode = "teleop", zones: propZones, activeTasks, onZoneClick }: SceneProps) {
-  const { videoConnected, selectedRoverId, splatEnabled } = useConsoleStore();
+  const videoConnected = useConsoleStore((s) => s.videoConnected);
+  const selectedRoverId = useConsoleStore((s) => s.selectedRoverId);
+  const splatEnabled = useConsoleStore((s) => s.splatEnabled);
   const { zones: fetchedZones } = useMapData();
 
   // Track WebGL context state for recovery
@@ -128,6 +131,7 @@ export function Scene({ mode = "teleop", zones: propZones, activeTasks, onZoneCl
           <RoverTrail />
           <RoverModel />
           <PointCloud3D />
+          <CostmapOverlay />
         </>
       )}
       {showFleetMarkers && (

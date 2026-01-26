@@ -14,6 +14,7 @@
 //! ## Telemetry (Rover → Console)
 //! 128 bytes with pose, velocity, measured velocity, acceleration, motor data, ACK fields, IMU orientation.
 
+pub mod costmap_stream;
 pub mod pointcloud;
 pub mod rtc;
 pub mod video;
@@ -48,6 +49,9 @@ pub const MSG_TELEMETRY: u8 = 0x11;
 
 /// Point cloud message type
 pub const MSG_POINT_CLOUD: u8 = 0x21;
+
+/// Costmap message type
+pub const MSG_COSTMAP: u8 = 0x22;
 
 /// Command flags
 pub mod cmd_flags {

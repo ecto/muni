@@ -38,6 +38,7 @@ export const MSG_LIDAR_TOGGLE = 0x07;
 export const MSG_TELEMETRY = 0x11;
 export const MSG_VIDEO_FRAME = 0x20;
 export const MSG_POINT_CLOUD = 0x21;
+export const MSG_COSTMAP = 0x22;
 
 // Command flags
 export const CMD_FLAG_MUST_ACK = 0x01;
@@ -218,8 +219,14 @@ export function decodeTelemetry(data: ArrayBuffer): DecodedTelemetry | null {
   const poseY = view.getFloat64(16, true);
   const poseTheta = view.getFloat64(24, true);
 
-  // Battery voltage [32-39]
-  const batteryVoltage = view.getFloat64(32, true);
+  // Battery voltage + system current [32-39]
+  // New format: f32 voltage [32-35] + f32 current [36-39]
+  // Old format: f64 voltage [32-39] (no current)
+  // Detect by checking if f32 read produces a sane voltage (0-100V range)
+  const voltageF32 = view.getFloat32(32, true);
+  const isNewFormat = voltageF32 > 0 && voltageF32 < 100;
+  const batteryVoltage = isNewFormat ? voltageF32 : view.getFloat64(32, true);
+  const systemCurrent = isNewFormat ? view.getFloat32(36, true) : 0;
 
   // Timestamp [40-47]
   const timestampLow = view.getUint32(40, true);
@@ -298,7 +305,7 @@ export function decodeTelemetry(data: ArrayBuffer): DecodedTelemetry | null {
     sequence,
     mode,
     pose: { x: poseX, y: poseY, theta: poseTheta, roll, pitch },
-    power: { battery_voltage: batteryVoltage, system_current: 0 },
+    power: { battery_voltage: batteryVoltage, system_current: systemCurrent },
     cmd_velocity: { linear: cmdLinear, angular: cmdAngular },
     meas_velocity: { linear: measLinear, angular: measAngular },
     acceleration: { linear: accelLinear, angular: accelAngular },
@@ -321,15 +328,12 @@ export function decodeTelemetry(data: ArrayBuffer): DecodedTelemetry | null {
 // ============================================================================
 
 export function telemetryFromDecoded(decoded: DecodedTelemetry): Telemetry {
-  // Compute system current as sum of motor currents
-  const systemCurrent = decoded.motor_currents.reduce((a, b) => a + b, 0);
-
   return {
     mode: decoded.mode,
     pose: decoded.pose,
     power: {
       battery_voltage: decoded.power.battery_voltage,
-      system_current: systemCurrent,
+      system_current: decoded.power.system_current,
     },
     velocity: decoded.cmd_velocity,
     motor_temps: decoded.motor_temps,
@@ -339,6 +343,7 @@ export function telemetryFromDecoded(decoded: DecodedTelemetry): Telemetry {
     cpu_percent: decoded.cpu_percent,
     mem_percent: decoded.mem_percent,
     disk_percent: decoded.disk_percent,
+    modeChangedAt: Date.now(),
   };
 }
 
@@ -506,4 +511,97 @@ export function encodeLidarToggle(enabled: boolean): ArrayBuffer {
   buildHeader(view, MSG_LIDAR_TOGGLE);
   view.setUint8(CMD_HEADER_SIZE, enabled ? 1 : 0);
   return buf;
+}
+
+// ============================================================================
+// Costmap Decoding (Rover -> Operator)
+// ============================================================================
+
+/** Costmap header size in bytes. */
+const COSTMAP_HEADER_SIZE = 18;
+
+/** Encoding types. */
+const COSTMAP_ENCODING_RAW = 0;
+const COSTMAP_ENCODING_RLE = 1;
+
+export interface DecodedCostmap {
+  width: number;
+  height: number;
+  resolution: number;
+  originX: number;
+  originY: number;
+  /** Cost per cell: 0=free, 253=inscribed, 254=lethal */
+  cells: Uint8Array;
+}
+
+/**
+ * Decode a costmap message from binary format.
+ *
+ * Header (18 bytes):
+ *   [0]      u8    MSG_COSTMAP (0x22)
+ *   [1]      u8    encoding (0=raw, 1=RLE)
+ *   [2-3]    u16   width (cells, LE)
+ *   [4-5]    u16   height (cells, LE)
+ *   [6-9]    f32   resolution (m, LE)
+ *   [10-13]  f32   origin_x (m, LE)
+ *   [14-17]  f32   origin_y (m, LE)
+ *   [18...]  cell data (raw or RLE)
+ */
+export function decodeCostmap(data: ArrayBuffer): DecodedCostmap | null {
+  if (data.byteLength < COSTMAP_HEADER_SIZE) {
+    return null;
+  }
+
+  const view = new DataView(data);
+  const msgType = view.getUint8(0);
+  if (msgType !== MSG_COSTMAP) {
+    return null;
+  }
+
+  const encoding = view.getUint8(1);
+  const width = view.getUint16(2, true);
+  const height = view.getUint16(4, true);
+  const resolution = view.getFloat32(6, true);
+  const originX = view.getFloat32(10, true);
+  const originY = view.getFloat32(14, true);
+
+  const payload = new Uint8Array(data, COSTMAP_HEADER_SIZE);
+  const expectedLen = width * height;
+
+  let cells: Uint8Array;
+  if (encoding === COSTMAP_ENCODING_RAW) {
+    if (payload.length < expectedLen) {
+      return null;
+    }
+    cells = payload.slice(0, expectedLen);
+  } else if (encoding === COSTMAP_ENCODING_RLE) {
+    const decoded = rleDecodeU8(payload, expectedLen);
+    if (!decoded) {
+      return null;
+    }
+    cells = decoded;
+  } else {
+    return null;
+  }
+
+  return { width, height, resolution, originX, originY, cells };
+}
+
+/** RLE decode: [count:u8][value:u8] pairs → flat Uint8Array. */
+function rleDecodeU8(encoded: Uint8Array, expectedLen: number): Uint8Array | null {
+  const out = new Uint8Array(expectedLen);
+  let outIdx = 0;
+
+  for (let i = 0; i + 1 < encoded.length; i += 2) {
+    const count = encoded[i];
+    const value = encoded[i + 1];
+    for (let j = 0; j < count; j++) {
+      if (outIdx >= expectedLen) {
+        return null; // overflow
+      }
+      out[outIdx++] = value;
+    }
+  }
+
+  return outIdx === expectedLen ? out : null;
 }

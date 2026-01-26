@@ -308,6 +308,23 @@ impl OccupancyGrid {
     }
 }
 
+/// Owned snapshot of costmap state for streaming.
+#[derive(Debug, Clone)]
+pub struct CostmapSnapshot {
+    /// Combined cost data (0=free, 253=inscribed, 254=lethal)
+    pub cells: Vec<u8>,
+    /// Grid width in cells
+    pub width: u16,
+    /// Grid height in cells
+    pub height: u16,
+    /// Cell resolution in meters
+    pub resolution: f32,
+    /// Origin X in world frame (meters)
+    pub origin_x: f32,
+    /// Origin Y in world frame (meters)
+    pub origin_y: f32,
+}
+
 /// Multi-layer costmap combining static map, obstacles, and inflation.
 #[derive(Debug)]
 pub struct Costmap {
@@ -522,6 +539,18 @@ impl Costmap {
     /// Get the obstacle layer's occupancy grid.
     pub fn obstacle_grid(&self) -> &OccupancyGrid {
         &self.obstacle_layer
+    }
+
+    /// Create an owned snapshot of the current costmap state for streaming.
+    pub fn snapshot(&self) -> CostmapSnapshot {
+        CostmapSnapshot {
+            cells: self.combined.clone(),
+            width: self.width as u16,
+            height: self.height as u16,
+            resolution: self.resolution as f32,
+            origin_x: self.origin.x as f32,
+            origin_y: self.origin.y as f32,
+        }
     }
 }
 

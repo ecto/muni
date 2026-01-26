@@ -8,6 +8,7 @@ license.workspace = true
 [dependencies]
 types = { workspace = true }
 lidar = { workspace = true }
+costmap = { workspace = true }
 tokio = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
