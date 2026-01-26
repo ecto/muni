@@ -2806,11 +2806,21 @@ can_bus.send_blower_command(blower_power)?;
 - [ ] Investor conversations
 - [ ] Email capture
 
+**SF Outreach (During Festival):**
+
+- [ ] Send cold emails to SF BID contacts (JaLil Turner, Bri Maughan)
+- [ ] Send email to DiJaida Durden (SF DPW)
+- [ ] Have power washer visual ready (render/CAD on display table)
+- [ ] Prepare SF-specific one-pager (debris/sanitization, not snow)
+- [ ] Schedule at least 1 BID demo visit at Fort Mason
+
 **Exit Criteria:**
 
 - [ ] Demos run all day without major failures
 - [ ] 3+ investor meetings scheduled
 - [ ] Contact info captured from all interested parties
+- [ ] SF BID contacts emailed, at least 1 response received
+- [ ] At least 1 SF meeting scheduled (BID or DPW)
 
 ---
 
