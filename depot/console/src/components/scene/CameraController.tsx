@@ -150,8 +150,9 @@ export function CameraController() {
       }
 
       case CameraMode.ThirdPerson: {
-        // Camera orbits behind rover, following heading
-        const yaw = renderPose.theta + yawOffset.current;
+        // Follow heading only during teleop/autonomous; idle SLAM drift is distracting
+        const followHeading = isTeleopActive || telemetryMode === Mode.Autonomous;
+        const yaw = (followHeading ? renderPose.theta : 0) + yawOffset.current;
         const horizontalDist = distance.current * Math.cos(pitch.current);
         const height = distance.current * Math.sin(pitch.current);
 
