@@ -2502,9 +2502,7 @@ async fn main() -> Result<()> {
             if rx.has_changed().unwrap_or(false) {
                 let state = rx.borrow_and_update().clone();
                 // Feed SLAM correction into EKF as measurement update
-                if let Some(ref cov_arr) = state.pose_covariance {
-                    pose_estimator.update_slam_from_array(&state.pose, cov_arr);
-                }
+                pose_estimator.update_slam_from_array(&state.pose, &state.pose_covariance);
                 Some(state)
             } else {
                 Some(rx.borrow().clone())

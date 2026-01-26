@@ -1,7 +1,7 @@
-//! 2D LiDAR SLAM for BVR rover.
+//! 3D LiDAR SLAM for BVR rover.
 //!
 //! Provides:
-//! - Correlative scan matching for robust pose estimation
+//! - 3D GICP scan matching for robust pose estimation
 //! - Pose graph with sequential odometry edges
 //! - Loop closure detection and graph optimization
 //!
@@ -23,7 +23,7 @@ pub use scan_matcher::{CorrelativeScanMatcher, ScanMatchConfig, ScanMatchResult}
 
 /// State from SLAM task for use by the main control loop.
 /// This is updated whenever SLAM processes a scan and sent via a watch channel.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct SlamState {
     /// Current pose in world frame
     pub pose: Pose,
@@ -33,9 +33,21 @@ pub struct SlamState {
     pub loop_closure_count: u32,
     /// Keyframe poses for visualization (x, y, theta)
     pub keyframe_poses: Vec<(f64, f64, f64)>,
-    /// Pose covariance from scan match Hessian (row-major 3x3).
+    /// Pose covariance from EKF (row-major 3x3).
     /// Uses plain array to avoid nalgebra in the watch channel type.
-    pub pose_covariance: Option<[[f64; 3]; 3]>,
+    pub pose_covariance: [[f64; 3]; 3],
+}
+
+impl Default for SlamState {
+    fn default() -> Self {
+        Self {
+            pose: Pose::default(),
+            keyframe_count: 0,
+            loop_closure_count: 0,
+            keyframe_poses: vec![],
+            pose_covariance: [[1e-4, 0.0, 0.0], [0.0, 1e-4, 0.0], [0.0, 0.0, 1e-4]],
+        }
+    }
 }
 
 #[derive(Error, Debug)]
@@ -51,12 +63,16 @@ pub enum SlamError {
 /// SLAM configuration.
 #[derive(Debug, Clone)]
 pub struct SlamConfig {
-    /// Resolution for scan matching correlation grid (meters)
-    pub scan_match_resolution: f64,
-    /// Linear search range for scan matching (meters)
-    pub scan_match_range: f64,
-    /// Angular search range for scan matching (radians)
-    pub scan_match_angular_range: f64,
+    /// Voxel size for GICP downsampling (meters)
+    pub voxel_size: f64,
+    /// Maximum GICP iterations
+    pub max_iterations: usize,
+    /// GICP convergence threshold (pose delta norm)
+    pub convergence_threshold: f64,
+    /// Maximum correspondence distance for outlier rejection (meters)
+    pub max_correspondence_dist: f64,
+    /// Minimum fraction of points with valid correspondences
+    pub min_overlap: f64,
     /// Distance threshold for inserting new keyframe (meters)
     pub keyframe_distance: f64,
     /// Rotation threshold for inserting new keyframe (radians)
@@ -71,14 +87,29 @@ pub struct SlamConfig {
     pub huber_threshold: f64,
     /// Maximum disagreement (in σ) between loop closure and accumulated odometry
     pub loop_closure_max_disagreement_sigma: f64,
+    /// Minimum odometry motion (meters) before scan matching is applied.
+    /// Prevents yaw drift from GICP noise while stationary.
+    pub min_scan_match_distance: f64,
+    /// Minimum odometry rotation (radians) before scan matching is applied.
+    pub min_scan_match_rotation: f64,
+    /// EKF process noise: linear noise as fraction of distance traveled.
+    pub odom_linear_noise: f64,
+    /// EKF process noise: angular noise as fraction of rotation.
+    pub odom_angular_noise: f64,
+    /// EKF process noise: angular noise per meter of linear motion (rad/m).
+    pub odom_linear_to_angular_noise: f64,
+    /// EKF process noise: linear noise per radian of rotation (m/rad).
+    pub odom_angular_to_linear_noise: f64,
 }
 
 impl Default for SlamConfig {
     fn default() -> Self {
         Self {
-            scan_match_resolution: 0.05,
-            scan_match_range: 0.5,
-            scan_match_angular_range: 0.26, // ~15 degrees
+            voxel_size: 0.2,
+            max_iterations: 30,
+            convergence_threshold: 1e-4,
+            max_correspondence_dist: 1.0,
+            min_overlap: 0.3,
             keyframe_distance: 1.0,
             keyframe_rotation: 0.5,
             loop_closure_min_nodes: 10,
@@ -86,6 +117,12 @@ impl Default for SlamConfig {
             loop_closure_search_radius: 5.0,
             huber_threshold: 1.0,
             loop_closure_max_disagreement_sigma: 3.0,
+            min_scan_match_distance: 0.05,
+            min_scan_match_rotation: 0.02,
+            odom_linear_noise: 0.05,
+            odom_angular_noise: 0.05,
+            odom_linear_to_angular_noise: 0.02,
+            odom_angular_to_linear_noise: 0.01,
         }
     }
 }
@@ -135,6 +172,125 @@ pub struct SlamUpdate {
     pub loop_closure_count: usize,
 }
 
+/// Extended Kalman Filter for 2D pose estimation.
+///
+/// State vector: [x, y, θ] in world frame.
+/// Predicts with body-frame odometry deltas, updates with scan match measurements.
+pub struct PoseEkf {
+    /// State: [x, y, θ]
+    state: Vector3<f64>,
+    /// 3x3 covariance matrix
+    covariance: Matrix3<f64>,
+    /// Process noise scaling
+    linear_noise: f64,
+    angular_noise: f64,
+    linear_to_angular_noise: f64,
+    angular_to_linear_noise: f64,
+}
+
+impl PoseEkf {
+    /// Create a new EKF at the origin with small initial covariance.
+    fn new(config: &SlamConfig) -> Self {
+        Self {
+            state: Vector3::zeros(),
+            covariance: Matrix3::from_diagonal(&Vector3::new(1e-4, 1e-4, 1e-4)),
+            linear_noise: config.odom_linear_noise,
+            angular_noise: config.odom_angular_noise,
+            linear_to_angular_noise: config.odom_linear_to_angular_noise,
+            angular_to_linear_noise: config.odom_angular_to_linear_noise,
+        }
+    }
+
+    /// Predict step: propagate state with body-frame odometry delta (dx, dy, dθ).
+    fn predict(&mut self, body_dx: f64, body_dy: f64, dtheta: f64) {
+        let theta = self.state[2];
+        let cos_t = theta.cos();
+        let sin_t = theta.sin();
+
+        // Rotate body-frame delta into world frame
+        let world_dx = cos_t * body_dx - sin_t * body_dy;
+        let world_dy = sin_t * body_dx + cos_t * body_dy;
+
+        // State prediction
+        self.state[0] += world_dx;
+        self.state[1] += world_dy;
+        self.state[2] = transforms::normalize_angle(self.state[2] + dtheta);
+
+        // Jacobian of state transition w.r.t. state
+        // F = d(f)/d(state) where f projects body delta through current heading
+        let f = Matrix3::new(
+            1.0, 0.0, -sin_t * body_dx - cos_t * body_dy,
+            0.0, 1.0,  cos_t * body_dx - sin_t * body_dy,
+            0.0, 0.0, 1.0,
+        );
+
+        // Process noise Q scales with motion magnitude
+        let dist = (body_dx * body_dx + body_dy * body_dy).sqrt();
+        let rot = dtheta.abs();
+
+        let q_x = self.linear_noise * dist + self.angular_to_linear_noise * rot;
+        let q_y = self.linear_noise * dist + self.angular_to_linear_noise * rot;
+        let q_t = self.angular_noise * rot + self.linear_to_angular_noise * dist;
+
+        // Minimum floor to prevent covariance from collapsing
+        let q = Matrix3::from_diagonal(&Vector3::new(
+            (q_x * q_x).max(1e-8),
+            (q_y * q_y).max(1e-8),
+            (q_t * q_t).max(1e-8),
+        ));
+
+        // Covariance prediction: P = F * P * F^T + Q
+        self.covariance = f * self.covariance * f.transpose() + q;
+    }
+
+    /// Update step: incorporate an absolute pose measurement with covariance R.
+    /// H = I (direct observation of full state).
+    fn update(&mut self, measurement: &Vector3<f64>, r: &Matrix3<f64>) {
+        // Innovation: y = z - H*x (with angle wrapping)
+        let mut innovation = measurement - self.state;
+        innovation[2] = transforms::normalize_angle(innovation[2]);
+
+        // Innovation covariance: S = H*P*H^T + R = P + R
+        let s = self.covariance + r;
+
+        // Kalman gain: K = P * H^T * S^{-1} = P * S^{-1}
+        let s_inv = match s.try_inverse() {
+            Some(inv) => inv,
+            None => {
+                warn!("EKF update: innovation covariance singular, skipping");
+                return;
+            }
+        };
+        let k = self.covariance * s_inv;
+
+        // State update: x = x + K * y
+        self.state += k * innovation;
+        self.state[2] = transforms::normalize_angle(self.state[2]);
+
+        // Joseph-form covariance update: P = (I - K*H) * P * (I - K*H)^T + K*R*K^T
+        // More numerically stable than P = (I - K*H) * P
+        let i_kh = Matrix3::identity() - k;
+        self.covariance = i_kh * self.covariance * i_kh.transpose() + k * r * k.transpose();
+    }
+
+    /// Get current pose as Transform2D.
+    fn pose(&self) -> Transform2D {
+        Transform2D::new(self.state[0], self.state[1], self.state[2])
+    }
+
+    /// Get current covariance matrix.
+    fn covariance(&self) -> Matrix3<f64> {
+        self.covariance
+    }
+
+    /// Reset pose (e.g. after graph optimization) preserving covariance.
+    fn reset_pose(&mut self, tf: &Transform2D) {
+        self.state[0] = tf.translation().x;
+        self.state[1] = tf.translation().y;
+        self.state[2] = tf.rotation();
+    }
+}
+
 /// Main SLAM processor.
 pub struct SlamProcessor {
     config: SlamConfig,
@@ -143,44 +299,46 @@ pub struct SlamProcessor {
     keyframes: Vec<Keyframe>,
     /// Pose graph edges
     edges: Vec<PoseGraphEdge>,
-    /// Current pose in world frame
-    current_pose: Transform2D,
+    /// EKF for probabilistic pose estimation
+    ekf: PoseEkf,
     /// Odom -> world correction (updated by SLAM)
     odom_correction: Transform2D,
     /// Last odom pose received
     last_odom_pose: Transform2D,
     /// Pose at last keyframe insertion
     last_keyframe_pose: Transform2D,
-    /// Reference scan for scan-to-scan matching
-    reference_scan: Option<Arc<PointCloud>>,
+    /// Odom pose when the last scan was processed (for computing delta)
+    last_scan_odom_pose: Transform2D,
     /// Total loop closures detected
     loop_closure_count: usize,
-    /// Last scan match covariance (from most recent process_scan)
-    last_scan_covariance: Option<Matrix3<f64>>,
 }
 
 impl SlamProcessor {
     /// Create a new SLAM processor.
     pub fn new(config: SlamConfig) -> Self {
         let scan_config = ScanMatchConfig {
-            resolution: config.scan_match_resolution,
-            linear_range: config.scan_match_range,
-            angular_range: config.scan_match_angular_range,
-            angular_resolution: 0.02, // ~1 degree
+            resolution: config.voxel_size,
+            linear_range: 0.5,  // unused in GICP, kept for compat
+            angular_range: 0.26, // unused in GICP, kept for compat
+            max_iterations: config.max_iterations,
+            convergence_threshold: config.convergence_threshold,
+            max_correspondence_dist: config.max_correspondence_dist,
+            min_overlap: config.min_overlap,
         };
+
+        let ekf = PoseEkf::new(&config);
 
         Self {
             config,
             scan_matcher: CorrelativeScanMatcher::new(scan_config),
             keyframes: Vec::new(),
             edges: Vec::new(),
-            current_pose: Transform2D::identity(),
+            ekf,
             odom_correction: Transform2D::identity(),
             last_odom_pose: Transform2D::identity(),
             last_keyframe_pose: Transform2D::identity(),
-            reference_scan: None,
+            last_scan_odom_pose: Transform2D::identity(),
             loop_closure_count: 0,
-            last_scan_covariance: None,
         }
     }
 
@@ -189,11 +347,14 @@ impl SlamProcessor {
     pub fn update_odometry(&mut self, odom_pose: &Pose) {
         let odom_tf = Transform2D::from_pose(odom_pose);
 
-        // Compute odom delta since last update
+        // Compute body-frame delta since last update
         let delta = self.last_odom_pose.relative_to(&odom_tf);
+        let body_dx = delta.translation().x;
+        let body_dy = delta.translation().y;
+        let dtheta = delta.rotation();
 
-        // Apply delta to current world pose
-        self.current_pose = &self.current_pose * &delta;
+        // EKF prediction with body-frame odometry
+        self.ekf.predict(body_dx, body_dy, dtheta);
 
         self.last_odom_pose = odom_tf;
     }
@@ -206,29 +367,65 @@ impl SlamProcessor {
         // Check if we should add a keyframe
         let should_add_keyframe = self.should_add_keyframe();
 
-        // Perform scan matching
-        let matched = if let Some(ref reference) = self.reference_scan {
-            // Scan-to-scan matching
-            match self.scan_matcher.match_scans(reference, &scan, Transform2D::identity()) {
-                Ok(result) => {
-                    if result.score > 0.5 {
-                        // Apply scan match correction
-                        let correction = result.transform;
-                        self.current_pose = &self.current_pose * &correction;
-                        self.last_scan_covariance = Some(result.covariance);
-                        true
-                    } else {
-                        debug!(score = result.score, "Scan match score too low, skipping correction");
+        // Compute odometry delta since last processed scan
+        let odom_delta = self.last_scan_odom_pose.relative_to(&self.last_odom_pose);
+        self.last_scan_odom_pose = self.last_odom_pose;
+
+        let odom_distance = odom_delta.translation().norm();
+        let odom_rotation = odom_delta.rotation().abs();
+
+        // Motion gate: skip scan matching when stationary to prevent
+        // yaw drift from GICP noise on nearly-identical scans.
+        let has_moved = odom_distance >= self.config.min_scan_match_distance
+            || odom_rotation >= self.config.min_scan_match_rotation;
+
+        // Match against the latest keyframe scan (scan-to-map) instead of
+        // the previous scan (scan-to-scan). This prevents accumulation of
+        // small per-frame errors that cause drift.
+        let reference = self.keyframes.last().map(|kf| kf.scan.clone());
+
+        let matched = if has_moved {
+            if let Some(ref ref_scan) = reference {
+                // Use keyframe-relative pose as initial guess for GICP.
+                // This is the proper guess: where we think we are relative to
+                // the keyframe, not the raw odom delta which drifts.
+                let keyframe_pose = &self.keyframes.last().unwrap().pose;
+                let initial_guess = keyframe_pose.relative_to(&self.ekf.pose());
+
+                match self.scan_matcher.match_scans(ref_scan, &scan, initial_guess) {
+                    Ok(result) => {
+                        if result.score > 0.5 {
+                            // Compute absolute measurement: keyframe_pose * scan_match_result
+                            let measurement_tf = keyframe_pose * &result.transform;
+                            let measurement = Vector3::new(
+                                measurement_tf.translation().x,
+                                measurement_tf.translation().y,
+                                measurement_tf.rotation(),
+                            );
+
+                            // EKF update with scan match measurement and covariance
+                            self.ekf.update(&measurement, &result.covariance);
+                            true
+                        } else {
+                            debug!(score = result.score, "Scan match score too low, skipping correction");
+                            false
+                        }
+                    }
+                    Err(e) => {
+                        warn!(?e, "Scan matching failed");
                         false
                     }
                 }
-                Err(e) => {
-                    warn!(?e, "Scan matching failed");
-                    false
-                }
+            } else {
+                // No keyframes yet, no reference to match against
+                false
             }
         } else {
-            // First scan, no matching yet
+            debug!(
+                odom_dist = odom_distance,
+                odom_rot = odom_rotation,
+                "Skipping scan match (below motion threshold)"
+            );
             false
         };
 
@@ -240,16 +437,17 @@ impl SlamProcessor {
             let keyframe_id = self.keyframes.len();
 
             // Create keyframe
+            let current_pose = self.ekf.pose();
             let keyframe = Keyframe {
                 id: keyframe_id,
-                pose: self.current_pose,
+                pose: current_pose,
                 scan: scan.clone(),
                 timestamp: Instant::now(),
             };
 
             // Add odometry edge from previous keyframe
             if let Some(prev) = self.keyframes.last() {
-                let relative_pose = prev.pose.relative_to(&self.current_pose);
+                let relative_pose = prev.pose.relative_to(&current_pose);
                 let edge = PoseGraphEdge {
                     from_id: prev.id,
                     to_id: keyframe_id,
@@ -275,25 +473,23 @@ impl SlamProcessor {
             }
 
             self.keyframes.push(keyframe);
-            self.last_keyframe_pose = self.current_pose;
+            self.last_keyframe_pose = current_pose;
 
             info!(
                 id = keyframe_id,
-                x = self.current_pose.translation().x,
-                y = self.current_pose.translation().y,
+                x = current_pose.translation().x,
+                y = current_pose.translation().y,
                 "Added keyframe"
             );
         }
 
-        // Update reference scan
-        self.reference_scan = Some(scan);
-
         // Update odom correction based on current pose vs odom pose
-        self.odom_correction = self.last_odom_pose.relative_to(&self.current_pose);
+        let ekf_pose = self.ekf.pose();
+        self.odom_correction = self.last_odom_pose.relative_to(&ekf_pose);
 
         if keyframe_added || matched {
             Some(SlamUpdate {
-                world_pose: self.current_pose.to_pose(),
+                world_pose: ekf_pose.to_pose(),
                 odom_correction: self.odom_correction,
                 keyframe_added,
                 loop_closure_detected,
@@ -307,7 +503,7 @@ impl SlamProcessor {
 
     /// Get current pose in world frame.
     pub fn pose(&self) -> Pose {
-        self.current_pose.to_pose()
+        self.ekf.pose().to_pose()
     }
 
     /// Get the odom->world correction transform.
@@ -346,15 +542,14 @@ impl SlamProcessor {
         self.keyframes.len()
     }
 
-    /// Get the last scan match covariance as a plain 3x3 array (for watch channels).
-    pub fn pose_covariance_array(&self) -> Option<[[f64; 3]; 3]> {
-        self.last_scan_covariance.map(|m| {
-            [
-                [m[(0, 0)], m[(0, 1)], m[(0, 2)]],
-                [m[(1, 0)], m[(1, 1)], m[(1, 2)]],
-                [m[(2, 0)], m[(2, 1)], m[(2, 2)]],
-            ]
-        })
+    /// Get the EKF pose covariance as a plain 3x3 array (for watch channels).
+    pub fn pose_covariance_array(&self) -> [[f64; 3]; 3] {
+        let m = self.ekf.covariance();
+        [
+            [m[(0, 0)], m[(0, 1)], m[(0, 2)]],
+            [m[(1, 0)], m[(1, 1)], m[(1, 2)]],
+            [m[(2, 0)], m[(2, 1)], m[(2, 2)]],
+        ]
     }
 
     /// Check if we should add a new keyframe.
@@ -364,7 +559,7 @@ impl SlamProcessor {
             return true;
         }
 
-        let delta = self.last_keyframe_pose.relative_to(&self.current_pose);
+        let delta = self.last_keyframe_pose.relative_to(&self.ekf.pose());
         let distance = delta.translation().norm();
         let rotation = delta.rotation().abs();
 
@@ -491,9 +686,9 @@ impl SlamProcessor {
             self.apply_update(&dx);
         }
 
-        // Update current pose if it changed
+        // Update EKF pose if it changed (preserves covariance)
         if let Some(last) = self.keyframes.last() {
-            self.current_pose = last.pose;
+            self.ekf.reset_pose(&last.pose);
         }
 
         Ok(())
@@ -730,22 +925,50 @@ mod tests {
         let config = SlamConfig::default();
         let processor = SlamProcessor::new(config);
 
-        // Initially no covariance
-        assert!(processor.pose_covariance_array().is_none());
+        // EKF always has covariance (small initial values)
+        let cov = processor.pose_covariance_array();
+        assert!(cov[0][0] > 0.0);
+        assert!(cov[1][1] > 0.0);
+        assert!(cov[2][2] > 0.0);
     }
 
     #[test]
     fn test_slam_state_has_covariance_field() {
         let state = SlamState::default();
-        assert!(state.pose_covariance.is_none());
+        // Default has small positive diagonal
+        assert!(state.pose_covariance[0][0] > 0.0);
+        assert!(state.pose_covariance[1][1] > 0.0);
+        assert!(state.pose_covariance[2][2] > 0.0);
 
         let state = SlamState {
             pose: Pose::default(),
             keyframe_count: 0,
             loop_closure_count: 0,
             keyframe_poses: vec![],
-            pose_covariance: Some([[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]),
+            pose_covariance: [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]],
         };
-        assert!(state.pose_covariance.is_some());
+        assert!((state.pose_covariance[0][0] - 1.0).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_ekf_covariance_grows_with_motion() {
+        let config = SlamConfig::default();
+        let mut processor = SlamProcessor::new(config);
+
+        let initial_cov = processor.pose_covariance_array();
+
+        // Drive forward 1m
+        processor.update_odometry(&Pose {
+            x: 1.0,
+            y: 0.0,
+            theta: 0.0,
+        });
+
+        let after_motion_cov = processor.pose_covariance_array();
+
+        // Covariance should grow in all dimensions after motion
+        assert!(after_motion_cov[0][0] > initial_cov[0][0]);
+        assert!(after_motion_cov[1][1] > initial_cov[1][1]);
+        assert!(after_motion_cov[2][2] > initial_cov[2][2]);
     }
 }
