@@ -211,7 +211,7 @@ export function useRoverConnectionRtc() {
       input.actionA ||
       input.actionB
     ) {
-      channel.send(encodeTool(input.toolAxis, 0, input.actionA, input.actionB));
+      channel.send(encodeTool(input.toolAxis, input.toolAxis, input.actionA, input.actionB));
     }
   }, []);
 

@@ -100,8 +100,9 @@ function sendCommands() {
   ws.send(encodeTwist(linear, angular, input.boost));
 
   // Send tool command if active
+  // axis = toolAxis (auger raise/lower), motor = toolAxis clamped positive (blower power)
   if (Math.abs(input.toolAxis) > TOOL_DEADZONE || input.actionA || input.actionB) {
-    ws.send(encodeTool(input.toolAxis, 0, input.actionA, input.actionB));
+    ws.send(encodeTool(input.toolAxis, input.toolAxis, input.actionA, input.actionB));
   }
 }
 
