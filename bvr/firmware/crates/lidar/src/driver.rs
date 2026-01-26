@@ -48,15 +48,18 @@ impl MountingTransform {
     }
 }
 
-/// Livox SDK2 control port on the device
-const LIVOX_CONTROL_PORT: u16 = 56000;
+/// Livox Mid-360 command port (unicast control, NOT the broadcast discovery port)
+const LIVOX_CMD_PORT: u16 = 56100;
 
-/// SDK2 command types
-const CMD_HANDSHAKE: u8 = 0x01;
-const CMD_HEARTBEAT: u8 = 0x03;
-const CMD_START_SAMPLING: u8 = 0x04;
-const CMD_STOP_SAMPLING: u8 = 0x05;
-const CMD_PUSH_CONFIG: u8 = 0x07;
+/// SDK2 command IDs (u16)
+const CMD_ID_WORK_MODE: u16 = 0x0100; // Parameter configuration (set work mode)
+
+/// Work target mode values (key 0x001A)
+const WORK_MODE_SAMPLING: u8 = 0x01;
+const WORK_MODE_IDLE: u8 = 0x02;
+
+/// Parameter key for work target mode
+const KEY_WORK_TGT_MODE: u16 = 0x001A;
 
 /// Point cloud packet header size (bytes)
 /// SDK2 header: version(1) + length(2) + time_interval(2) + dot_num(2) + udp_cnt(2) +
@@ -83,7 +86,7 @@ const IMU_PACKET_SIZE: usize = 48;
 struct FrameAccumulator {
     points: Vec<Point3D>,
     frame_id: AtomicU32,
-    last_frame_counter: u8,
+    _last_frame_counter: u8,
     timestamp_ns: u64,
     frame_start: Instant,
 }
@@ -93,7 +96,7 @@ impl FrameAccumulator {
         Self {
             points: Vec::with_capacity(POINTS_PER_PACKET * 100), // ~10k points typical
             frame_id: AtomicU32::new(0),
-            last_frame_counter: 0,
+            _last_frame_counter: 0,
             timestamp_ns: 0,
             frame_start: Instant::now(),
         }
@@ -138,178 +141,169 @@ impl FrameAccumulator {
     }
 }
 
-/// Connect to the Livox and start data streaming.
-///
-/// This sends the SDK2 handshake and start sampling commands.
-pub async fn connect_and_start(config: &Config) -> Result<(), LidarError> {
-    let control_addr: SocketAddr = (config.lidar_ip, LIVOX_CONTROL_PORT).into();
+/// CRC-16/CCITT-FALSE: poly=0x1021, init=0xFFFF, refin=false, refout=false, xorout=0x0000
+fn crc16_ccitt_false(data: &[u8]) -> u16 {
+    let mut crc: u16 = 0xFFFF;
+    for &byte in data {
+        crc ^= (byte as u16) << 8;
+        for _ in 0..8 {
+            if crc & 0x8000 != 0 {
+                crc = (crc << 1) ^ 0x1021;
+            } else {
+                crc <<= 1;
+            }
+        }
+    }
+    crc
+}
 
-    // Bind a socket for sending commands and receiving responses
+/// CRC-32 (Ethernet/ADCCP): poly=0x04C11DB7, init=0xFFFFFFFF, reflected, xorout=0xFFFFFFFF
+fn crc32_ethernet(data: &[u8]) -> u32 {
+    let mut crc: u32 = 0xFFFF_FFFF;
+    for &byte in data {
+        crc ^= byte as u32;
+        for _ in 0..8 {
+            if crc & 1 != 0 {
+                crc = (crc >> 1) ^ 0xEDB8_8320;
+            } else {
+                crc >>= 1;
+            }
+        }
+    }
+    crc ^ 0xFFFF_FFFF
+}
+
+/// Build a properly formatted SDK2 command frame.
+///
+/// Frame layout (24-byte header + payload):
+///   [0]     SOF = 0xAA
+///   [1]     Version = 0x00
+///   [2..4]  Length (u16 LE) = total frame bytes
+///   [4..8]  Seq_Num (u32 LE)
+///   [8..10] Cmd_ID (u16 LE)
+///   [10]    Cmd_Type (0x00=REQ)
+///   [11]    Sender_Type (0x00=Host)
+///   [12..18] Reserved (6 zeros)
+///   [18..20] CRC-16 over bytes [0..18)
+///   [20..24] CRC-32 over payload (0 if empty)
+///   [24..]  Data payload
+fn build_sdk2_frame(seq: u32, cmd_id: u16, payload: &[u8]) -> Vec<u8> {
+    let total_len = 24 + payload.len();
+    let mut frame = Vec::with_capacity(total_len);
+
+    // Header fields [0..18)
+    frame.push(0xAA);                                        // [0] SOF
+    frame.push(0x00);                                        // [1] Version
+    frame.extend_from_slice(&(total_len as u16).to_le_bytes()); // [2..4] Length
+    frame.extend_from_slice(&seq.to_le_bytes());             // [4..8] Seq
+    frame.extend_from_slice(&cmd_id.to_le_bytes());          // [8..10] Cmd_ID
+    frame.push(0x00);                                        // [10] Cmd_Type = REQ
+    frame.push(0x00);                                        // [11] Sender_Type = Host
+    frame.extend_from_slice(&[0u8; 6]);                      // [12..18] Reserved
+
+    // CRC-16 over header [0..18)
+    let crc16 = crc16_ccitt_false(&frame[..18]);
+    frame.extend_from_slice(&crc16.to_le_bytes());           // [18..20]
+
+    // CRC-32 over payload (0 if empty)
+    let crc32 = if payload.is_empty() { 0 } else { crc32_ethernet(payload) };
+    frame.extend_from_slice(&crc32.to_le_bytes());           // [20..24]
+
+    // Payload
+    frame.extend_from_slice(payload);                        // [24..]
+
+    frame
+}
+
+/// Build payload for work mode parameter configuration.
+///
+/// Format: key_num(2) + rsvd(2) + [key(2) + length(2) + value(N)]...
+fn build_work_mode_payload(mode: u8) -> Vec<u8> {
+    let mut payload = Vec::with_capacity(9);
+    payload.extend_from_slice(&1u16.to_le_bytes());              // key_num = 1
+    payload.extend_from_slice(&0u16.to_le_bytes());              // reserved
+    payload.extend_from_slice(&KEY_WORK_TGT_MODE.to_le_bytes()); // key = 0x001A
+    payload.extend_from_slice(&1u16.to_le_bytes());              // value length = 1
+    payload.push(mode);                                           // value
+    payload
+}
+
+/// Send a work mode command (start/stop sampling) to the Livox Mid-360.
+///
+/// Uses the SDK2 parameter configuration command (0x0100) with work_tgt_mode key.
+pub async fn connect_and_start(config: &Config) -> Result<(), LidarError> {
+    let control_addr: SocketAddr = (config.lidar_ip, LIVOX_CMD_PORT).into();
+
     let cmd_socket = UdpSocket::bind((config.host_ip, 0))
         .await
         .map_err(|e| LidarError::Network(format!("Failed to bind command socket: {}", e)))?;
 
-    let local_addr = cmd_socket.local_addr()
-        .map_err(|e| LidarError::Network(format!("Failed to get local addr: {}", e)))?;
-    info!(?local_addr, ?control_addr, "Connecting to Livox Mid360");
+    info!(%control_addr, "Sending SDK2 work mode SAMPLING to Livox Mid360");
 
-    // Build and send handshake command
-    // SDK2 format: [SOF(0xAA), version, length(2), seq(4), cmd_id, cmd_type, data...]
-    let mut handshake = Vec::with_capacity(64);
-    handshake.push(0xAA); // SOF
-    handshake.push(0x01); // Version
+    let payload = build_work_mode_payload(WORK_MODE_SAMPLING);
+    let frame = build_sdk2_frame(1, CMD_ID_WORK_MODE, &payload);
 
-    // Handshake data: host_ip(4) + cmd_port(2) + push_msg_port(2) + point_port(2) + imu_port(2) + log_port(2)
-    let data_len: u16 = 14 + 8; // header (8) + ip(4) + ports(10)
-    handshake.extend_from_slice(&data_len.to_le_bytes());
-
-    // Sequence number
-    let seq: u32 = 1;
-    handshake.extend_from_slice(&seq.to_le_bytes());
-
-    // Command
-    handshake.push(CMD_HANDSHAKE);
-    handshake.push(0x00); // Request type
-
-    // Host IP
-    let host_octets = config.host_ip.octets();
-    handshake.extend_from_slice(&host_octets);
-
-    // Ports: cmd_reply, push_msg, point_cloud, imu, log
-    handshake.extend_from_slice(&local_addr.port().to_le_bytes()); // cmd reply
-    handshake.extend_from_slice(&(local_addr.port() + 1).to_le_bytes()); // push msg
-    handshake.extend_from_slice(&config.point_cloud_port.to_le_bytes());
-    handshake.extend_from_slice(&config.imu_port.to_le_bytes());
-    handshake.extend_from_slice(&0u16.to_le_bytes()); // log port (disabled)
-
-    debug!(len = handshake.len(), "Sending handshake");
-    cmd_socket.send_to(&handshake, control_addr)
+    cmd_socket
+        .send_to(&frame, control_addr)
         .await
-        .map_err(|e| LidarError::Network(format!("Failed to send handshake: {}", e)))?;
+        .map_err(|e| LidarError::Network(format!("Failed to send start command: {}", e)))?;
 
-    // Wait for response
+    // Wait for ACK
     let mut response = [0u8; 256];
     match tokio::time::timeout(Duration::from_secs(2), cmd_socket.recv(&mut response)).await {
         Ok(Ok(len)) => {
-            info!(len, "Received handshake response");
-            if len >= 2 && response[0] == 0xAA {
-                // Check for success (response[9] should be 0 for success in SDK2)
-                debug!(response = ?&response[..len.min(20)], "Handshake response data");
+            info!(len, "Received work mode ACK");
+            if len >= 24 {
+                debug!(response = ?&response[..len.min(32)], "ACK data");
             }
         }
         Ok(Err(e)) => {
-            warn!(?e, "Error receiving handshake response");
+            warn!(?e, "Error receiving work mode ACK");
         }
         Err(_) => {
-            warn!("Handshake response timeout - device may not support SDK2 handshake");
+            warn!("Work mode ACK timeout - device may already be sampling");
         }
     }
 
-    // Send start sampling command
-    let mut start_cmd = Vec::with_capacity(16);
-    start_cmd.push(0xAA); // SOF
-    start_cmd.push(0x01); // Version
-    start_cmd.extend_from_slice(&8u16.to_le_bytes()); // Length (header only)
-    start_cmd.extend_from_slice(&2u32.to_le_bytes()); // Seq
-    start_cmd.push(CMD_START_SAMPLING);
-    start_cmd.push(0x00); // Request
-
-    debug!("Sending start sampling");
-    cmd_socket.send_to(&start_cmd, control_addr)
-        .await
-        .map_err(|e| LidarError::Network(format!("Failed to send start: {}", e)))?;
-
-    // Wait briefly for response
-    match tokio::time::timeout(Duration::from_secs(1), cmd_socket.recv(&mut response)).await {
-        Ok(Ok(len)) => {
-            info!(len, "Received start sampling response");
-        }
-        Ok(Err(e)) => {
-            warn!(?e, "Error receiving start response");
-        }
-        Err(_) => {
-            info!("Start sampling response timeout - continuing anyway");
-        }
-    }
-
-    info!("Livox connection sequence complete");
+    info!("Livox SDK2 start sequence complete");
     Ok(())
 }
 
-/// Send a heartbeat to keep the Livox control session alive.
+/// Send a work mode command (SAMPLING or IDLE) to the Livox Mid-360.
 ///
-/// The Mid-360 SDK2 protocol requires periodic heartbeats (~1 Hz) to
-/// maintain the connection.  Without them the device resets its state
-/// machine after a few seconds, which can cause a stopped motor to
-/// restart.
-async fn send_heartbeat(
-    socket: &UdpSocket,
-    control_addr: SocketAddr,
-    seq: u32,
-) -> Result<(), LidarError> {
-    let mut pkt = Vec::with_capacity(10);
-    pkt.push(0xAA); // SOF
-    pkt.push(0x01); // Version
-    pkt.extend_from_slice(&8u16.to_le_bytes()); // Length
-    pkt.extend_from_slice(&seq.to_le_bytes()); // Seq
-    pkt.push(CMD_HEARTBEAT);
-    pkt.push(0x00); // Request
-
-    socket
-        .send_to(&pkt, control_addr)
-        .await
-        .map_err(|e| LidarError::Network(format!("Failed to send heartbeat: {e}")))?;
-
-    // Drain any response (non-blocking)
-    let mut buf = [0u8; 64];
-    let _ = tokio::time::timeout(Duration::from_millis(100), socket.recv(&mut buf)).await;
-
-    trace!("Heartbeat sent");
-    Ok(())
-}
-
-/// Send a start or stop sampling command to the lidar.
-async fn send_sampling_command(
+/// Uses SDK2 parameter configuration (cmd_id 0x0100) with work_tgt_mode key.
+async fn send_work_mode(
     socket: &UdpSocket,
     control_addr: SocketAddr,
     command: LidarCommand,
     seq: u32,
 ) -> Result<(), LidarError> {
-    let cmd_byte = match command {
-        LidarCommand::Start => CMD_START_SAMPLING,
-        LidarCommand::Stop => CMD_STOP_SAMPLING,
+    let (mode, label) = match command {
+        LidarCommand::Start => (WORK_MODE_SAMPLING, "SAMPLING"),
+        LidarCommand::Stop => (WORK_MODE_IDLE, "IDLE"),
     };
 
-    let mut cmd = Vec::with_capacity(16);
-    cmd.push(0xAA); // SOF
-    cmd.push(0x01); // Version
-    cmd.extend_from_slice(&8u16.to_le_bytes()); // Length (header only)
-    cmd.extend_from_slice(&seq.to_le_bytes()); // Seq
-    cmd.push(cmd_byte);
-    cmd.push(0x00); // Request
+    let payload = build_work_mode_payload(mode);
+    let frame = build_sdk2_frame(seq, CMD_ID_WORK_MODE, &payload);
 
-    let cmd_name = match command {
-        LidarCommand::Start => "start",
-        LidarCommand::Stop => "stop",
-    };
-    debug!(cmd_name, "Sending sampling command");
+    debug!(label, seq, frame_len = frame.len(), "Sending SDK2 work mode command");
 
     socket
-        .send_to(&cmd, control_addr)
+        .send_to(&frame, control_addr)
         .await
-        .map_err(|e| LidarError::Network(format!("Failed to send {cmd_name}: {e}")))?;
+        .map_err(|e| LidarError::Network(format!("Failed to send {label}: {e}")))?;
 
-    // Brief wait for response (non-blocking)
-    let mut response = [0u8; 64];
+    // Wait for ACK (non-blocking)
+    let mut response = [0u8; 256];
     match tokio::time::timeout(Duration::from_millis(500), socket.recv(&mut response)).await {
         Ok(Ok(len)) => {
-            debug!(len, cmd_name, "Received sampling command response");
+            debug!(len, label, "Received work mode ACK");
         }
         Ok(Err(e)) => {
-            warn!(?e, cmd_name, "Error receiving sampling response");
+            warn!(?e, label, "Error receiving work mode ACK");
         }
         Err(_) => {
-            debug!(cmd_name, "Sampling command response timeout");
+            debug!(label, "Work mode ACK timeout");
         }
     }
 
@@ -495,35 +489,29 @@ pub async fn run_reader_with_control(
         "Starting Livox Mid360 reader with control"
     );
 
-    let control_addr: SocketAddr = (config.lidar_ip, LIVOX_CONTROL_PORT).into();
+    let control_addr: SocketAddr = (config.lidar_ip, LIVOX_CMD_PORT).into();
 
     // Create mounting transform
     let transform = MountingTransform::new(config.mounting_pitch_deg);
     let has_transform = config.mounting_pitch_deg.abs() > 0.01;
 
-    // Bind command socket for sending start/stop
+    // Bind command socket for sending start/stop (SDK2 commands to port 56100)
     let cmd_socket = UdpSocket::bind((config.host_ip, 0))
         .await
         .map_err(|e| LidarError::Network(format!("Failed to bind command socket: {e}")))?;
 
-    // Run handshake (but don't start sampling yet if start_immediately is false)
-    let handshake_result = send_handshake(&config, &cmd_socket, control_addr).await;
-    if let Err(e) = handshake_result {
-        warn!(?e, "Handshake failed - will try to continue");
-    }
+    info!(%control_addr, "SDK2 command socket ready");
 
-    let mut seq: u32 = 10; // Start sequence after handshake
+    let mut seq: u32 = 1;
     let mut sampling = false;
 
     if start_immediately {
-        if let Err(e) = send_sampling_command(&cmd_socket, control_addr, LidarCommand::Start, seq)
-            .await
-        {
-            warn!(?e, "Failed to send initial start command");
+        if let Err(e) = send_work_mode(&cmd_socket, control_addr, LidarCommand::Start, seq).await {
+            warn!(?e, "Failed to send initial SAMPLING command");
         }
         seq += 1;
         sampling = true;
-        info!("LiDAR sampling started");
+        info!("LiDAR work mode set to SAMPLING");
     } else {
         info!("LiDAR initialized but waiting for start command");
     }
@@ -555,9 +543,9 @@ pub async fn run_reader_with_control(
             Some(cmd) = cmd_rx.recv() => {
                 match cmd {
                     LidarCommand::Start if !sampling => {
-                        info!("Starting LiDAR sampling");
-                        if let Err(e) = send_sampling_command(&cmd_socket, control_addr, cmd, seq).await {
-                            warn!(?e, "Failed to send start command");
+                        info!("Setting LiDAR work mode to SAMPLING");
+                        if let Err(e) = send_work_mode(&cmd_socket, control_addr, cmd, seq).await {
+                            warn!(?e, "Failed to send SAMPLING command");
                         }
                         seq += 1;
                         sampling = true;
@@ -565,9 +553,9 @@ pub async fn run_reader_with_control(
                         frame_acc = FrameAccumulator::new();
                     }
                     LidarCommand::Stop if sampling => {
-                        info!("Stopping LiDAR sampling");
-                        if let Err(e) = send_sampling_command(&cmd_socket, control_addr, cmd, seq).await {
-                            warn!(?e, "Failed to send stop command");
+                        info!("Setting LiDAR work mode to IDLE");
+                        if let Err(e) = send_work_mode(&cmd_socket, control_addr, cmd, seq).await {
+                            warn!(?e, "Failed to send IDLE command");
                         }
                         seq += 1;
                         sampling = false;
@@ -631,67 +619,34 @@ pub async fn run_reader_with_control(
                 }
             }
 
-            // Periodic heartbeat to keep Livox session alive
+            // Periodic keepalive: re-send current work mode to maintain session
             _ = heartbeat_interval.tick() => {
-                if let Err(e) = send_heartbeat(&cmd_socket, control_addr, seq).await {
-                    debug!(?e, "Heartbeat failed");
+                // Silently re-assert current state (don't log at info level)
+                let payload = build_work_mode_payload(
+                    if sampling { WORK_MODE_SAMPLING } else { WORK_MODE_IDLE }
+                );
+                let frame = build_sdk2_frame(seq, CMD_ID_WORK_MODE, &payload);
+                if let Err(e) = cmd_socket.send_to(&frame, control_addr).await {
+                    debug!(?e, "Keepalive send failed");
                 }
+                // Drain any response
+                let mut buf = [0u8; 256];
+                let _ = tokio::time::timeout(
+                    Duration::from_millis(100),
+                    cmd_socket.recv(&mut buf),
+                ).await;
                 seq += 1;
             }
         }
     }
 
-    // Send stop on exit
+    // Send IDLE on exit
     if sampling {
-        let _ = send_sampling_command(&cmd_socket, control_addr, LidarCommand::Stop, seq).await;
+        let _ = send_work_mode(&cmd_socket, control_addr, LidarCommand::Stop, seq).await;
     }
 
     info!("Livox Mid360 reader with control stopped");
     Ok(())
-}
-
-/// Send handshake without starting sampling.
-async fn send_handshake(
-    config: &Config,
-    socket: &UdpSocket,
-    control_addr: SocketAddr,
-) -> Result<(), LidarError> {
-    let local_addr = socket
-        .local_addr()
-        .map_err(|e| LidarError::Network(format!("Failed to get local addr: {e}")))?;
-
-    let mut handshake = Vec::with_capacity(64);
-    handshake.push(0xAA); // SOF
-    handshake.push(0x01); // Version
-
-    let data_len: u16 = 14 + 8;
-    handshake.extend_from_slice(&data_len.to_le_bytes());
-    handshake.extend_from_slice(&1u32.to_le_bytes()); // Seq
-
-    handshake.push(CMD_HANDSHAKE);
-    handshake.push(0x00); // Request
-
-    handshake.extend_from_slice(&config.host_ip.octets());
-    handshake.extend_from_slice(&local_addr.port().to_le_bytes());
-    handshake.extend_from_slice(&(local_addr.port() + 1).to_le_bytes());
-    handshake.extend_from_slice(&config.point_cloud_port.to_le_bytes());
-    handshake.extend_from_slice(&config.imu_port.to_le_bytes());
-    handshake.extend_from_slice(&0u16.to_le_bytes()); // log port
-
-    socket
-        .send_to(&handshake, control_addr)
-        .await
-        .map_err(|e| LidarError::Network(format!("Failed to send handshake: {e}")))?;
-
-    let mut response = [0u8; 256];
-    match tokio::time::timeout(Duration::from_secs(2), socket.recv(&mut response)).await {
-        Ok(Ok(_)) => Ok(()),
-        Ok(Err(e)) => Err(LidarError::Network(format!("Handshake recv error: {e}"))),
-        Err(_) => {
-            warn!("Handshake response timeout");
-            Ok(()) // Continue anyway
-        }
-    }
 }
 
 /// Parse a point cloud data packet.
@@ -962,5 +917,58 @@ mod tests {
         assert_eq!(imu.timestamp_ns, 1000000);
         assert!((imu.gyro_x - 0.1).abs() < 0.001);
         assert!((imu.accel_x - 9.8).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_crc16_ccitt_false() {
+        // Known test vector: "123456789" → 0x29B1
+        let data = b"123456789";
+        assert_eq!(crc16_ccitt_false(data), 0x29B1);
+    }
+
+    #[test]
+    fn test_crc32_ethernet() {
+        // Known test vector: "123456789" → 0xCBF43926
+        let data = b"123456789";
+        assert_eq!(crc32_ethernet(data), 0xCBF43926);
+    }
+
+    #[test]
+    fn test_sdk2_frame_structure() {
+        let frame = build_sdk2_frame(42, 0x0100, &[0x01, 0x02]);
+        // Total length: 24 header + 2 payload = 26
+        assert_eq!(frame.len(), 26);
+        assert_eq!(frame[0], 0xAA); // SOF
+        assert_eq!(frame[1], 0x00); // Version
+        assert_eq!(u16::from_le_bytes([frame[2], frame[3]]), 26); // Length
+        assert_eq!(u32::from_le_bytes([frame[4], frame[5], frame[6], frame[7]]), 42); // Seq
+        assert_eq!(u16::from_le_bytes([frame[8], frame[9]]), 0x0100); // Cmd_ID
+        assert_eq!(frame[10], 0x00); // Cmd_Type = REQ
+        assert_eq!(frame[11], 0x00); // Sender_Type = Host
+        // CRC-16 at [18..20] should match header checksum
+        let expected_crc16 = crc16_ccitt_false(&frame[..18]);
+        assert_eq!(u16::from_le_bytes([frame[18], frame[19]]), expected_crc16);
+        // CRC-32 at [20..24] should match payload checksum
+        let expected_crc32 = crc32_ethernet(&[0x01, 0x02]);
+        assert_eq!(u32::from_le_bytes([frame[20], frame[21], frame[22], frame[23]]), expected_crc32);
+        // Payload
+        assert_eq!(frame[24], 0x01);
+        assert_eq!(frame[25], 0x02);
+    }
+
+    #[test]
+    fn test_work_mode_payload() {
+        let payload = build_work_mode_payload(WORK_MODE_SAMPLING);
+        assert_eq!(payload.len(), 9);
+        // key_num = 1
+        assert_eq!(u16::from_le_bytes([payload[0], payload[1]]), 1);
+        // reserved = 0
+        assert_eq!(u16::from_le_bytes([payload[2], payload[3]]), 0);
+        // key = 0x001A
+        assert_eq!(u16::from_le_bytes([payload[4], payload[5]]), 0x001A);
+        // length = 1
+        assert_eq!(u16::from_le_bytes([payload[6], payload[7]]), 1);
+        // value = SAMPLING (0x01)
+        assert_eq!(payload[8], 0x01);
     }
 }
