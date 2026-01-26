@@ -14,6 +14,9 @@ export function CameraController() {
   const pitch = useRef(0.4);
   const distance = useRef(3.5);
 
+  // Skip lerp on first frame to avoid fly-in animation on mount
+  const firstFrame = useRef(true);
+
   // Mouse drag state for orbit controls when not in teleop
   const isDragging = useRef(false);
   const lastMouse = useRef({ x: 0, y: 0 });
@@ -159,7 +162,11 @@ export function CameraController() {
           roverPos.z + horizontalDist * Math.cos(yaw)
         );
 
-        camera.position.lerp(targetPos, 8 * delta);
+        if (firstFrame.current) {
+          camera.position.copy(targetPos);
+        } else {
+          camera.position.lerp(targetPos, 8 * delta);
+        }
         camera.lookAt(roverPos);
         break;
       }
@@ -175,11 +182,17 @@ export function CameraController() {
           roverPos.z + horizontalDist * Math.cos(yawOffset.current)
         );
 
-        camera.position.lerp(targetPos, 8 * delta);
+        if (firstFrame.current) {
+          camera.position.copy(targetPos);
+        } else {
+          camera.position.lerp(targetPos, 8 * delta);
+        }
         camera.lookAt(roverPos);
         break;
       }
     }
+
+    firstFrame.current = false;
   });
 
   return null;
