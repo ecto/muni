@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
   Sidebar,
@@ -82,8 +83,20 @@ const serviceTooltips: Record<string, string> = {
 
 export function AppSidebar() {
   const location = useLocation();
-  const { rovers, gpsStatus } = useConsoleStore();
+  const rovers = useConsoleStore((s) => s.rovers);
+  const gpsStatus = useConsoleStore((s) => s.gpsStatus);
+  const selectedRoverId = useConsoleStore((s) => s.selectedRoverId);
+  const connected = useConsoleStore((s) => s.connected);
   const { theme, cycleTheme } = useTheme();
+
+  // Poll latency at 2Hz instead of subscribing (avoids 10Hz re-renders)
+  const [latencyMs, setLatencyMs] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => {
+      setLatencyMs(useConsoleStore.getState().latencyMs);
+    }, 500);
+    return () => clearInterval(id);
+  }, []);
   const { services, healthyCount, totalCount } = useServiceHealth();
 
   const isActive = (path: string) => location.pathname === path;
@@ -177,13 +190,18 @@ export function AppSidebar() {
             {/* Individual rovers with status */}
             {rovers.length > 0 && (
               <div className="mt-2 space-y-1 px-2">
-                {rovers.map((rover) => (
-                  <RoverCard
-                    key={rover.id}
-                    rover={rover}
-                    isActive={isActivePrefix(`/fleet/${rover.id}`)}
-                  />
-                ))}
+                {rovers.map((rover) => {
+                  const isThisConnected = connected && selectedRoverId === rover.id;
+                  return (
+                    <RoverCard
+                      key={rover.id}
+                      rover={rover}
+                      isActive={isActivePrefix(`/fleet/${rover.id}`)}
+                      isConnected={isThisConnected}
+                      latencyMs={isThisConnected ? latencyMs : undefined}
+                    />
+                  );
+                })}
               </div>
             )}
           </SidebarGroupContent>
@@ -325,7 +343,7 @@ function serviceStatusToDot(status: "healthy" | "unhealthy" | "checking" | "unkn
   return "unknown"; // covers "checking" and "unknown"
 }
 
-function StatusDot({ status }: { status: "ok" | "offline" | "warning" | "unknown" }) {
+function StatusDot({ status, pulse }: { status: "ok" | "offline" | "warning" | "unknown"; pulse?: boolean }) {
   const colors = {
     ok: "bg-green-500",
     offline: "bg-red-500",
@@ -335,13 +353,32 @@ function StatusDot({ status }: { status: "ok" | "offline" | "warning" | "unknown
 
   return (
     <span
-      className={`h-1.5 w-1.5 rounded-full ${colors[status]} flex-shrink-0`}
+      className={`h-1.5 w-1.5 rounded-full ${colors[status]} flex-shrink-0${pulse ? " animate-pulse" : ""}`}
       aria-label={status}
     />
   );
 }
 
-function RoverCard({ rover, isActive }: { rover: RoverInfo; isActive: boolean }) {
+function timeAgo(ms: number): string {
+  const secs = Math.floor((Date.now() - ms) / 1000);
+  if (secs < 10) return "just now";
+  if (secs < 60) return `${secs}s ago`;
+  const mins = Math.floor(secs / 60);
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  return `${Math.floor(hrs / 24)}d ago`;
+}
+
+function RoverCard({ rover, isActive, isConnected, latencyMs }: {
+  rover: RoverInfo;
+  isActive: boolean;
+  isConnected?: boolean;
+  latencyMs?: number;
+}) {
+  const isOnline = rover.online || isConnected;
+  // Disabled and Idle are both "motors off, not driving" — merge for display
+  const displayMode = rover.mode === Mode.Disabled ? Mode.Idle : rover.mode;
   const batteryPercent = getBatteryPercent(rover.batteryVoltage);
 
   const BatteryIcon = rover.batteryVoltage < 42
@@ -378,24 +415,35 @@ function RoverCard({ rover, isActive }: { rover: RoverInfo; isActive: boolean })
         isActive
           ? "bg-sidebar-accent text-sidebar-accent-foreground"
           : "hover:bg-sidebar-accent/50"
-      } ${!rover.online ? "opacity-50" : ""}`}
+      } ${!isOnline ? "opacity-50" : ""}`}
     >
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
-          <StatusDot status={rover.online ? "ok" : "offline"} />
+          <StatusDot status={isOnline ? "ok" : "offline"} pulse={isConnected} />
           <span className="text-sm font-medium truncate">{rover.name || rover.id}</span>
         </div>
-        {rover.online && (
-          <Badge variant={getModeVariant(rover.mode)} className="text-[10px] h-4 px-1.5 shrink-0">
-            {ModeLabels[rover.mode]}
+        {isOnline && (
+          <Badge variant={getModeVariant(displayMode)} className="text-[10px] h-4 px-1.5 shrink-0">
+            {ModeLabels[displayMode]}
           </Badge>
         )}
       </div>
-      {rover.online && (
+      {isOnline && (
         <div className="flex items-center gap-1 mt-1 ml-3.5 text-xs text-muted-foreground">
           <BatteryIcon className={`h-3 w-3 ${batteryColor}`} weight="fill" />
           <span>{batteryPercent.toFixed(0)}%</span>
           <span className="text-muted-foreground/60">({rover.batteryVoltage.toFixed(1)}V)</span>
+          {isConnected && latencyMs != null && (
+            <>
+              <span className="text-muted-foreground/30 mx-0.5">&middot;</span>
+              <span className="text-muted-foreground/60">{latencyMs}ms</span>
+            </>
+          )}
+        </div>
+      )}
+      {!isOnline && rover.lastSeen > 0 && (
+        <div className="mt-1 ml-3.5 text-xs text-muted-foreground/50">
+          seen {timeAgo(rover.lastSeen)}
         </div>
       )}
     </Link>

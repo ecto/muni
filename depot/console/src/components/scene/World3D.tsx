@@ -33,6 +33,7 @@ function SplatScene({ splatUrl }: { splatUrl: string }) {
       // Position the splat at the map origin
       // The coordinate transform positions the rover relative to this
       position={[0, 0, 0]}
+      alphaHash
     />
   );
 }

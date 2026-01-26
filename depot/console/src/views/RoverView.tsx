@@ -20,7 +20,12 @@ import { Warning, Play, Stop, CircleNotch, Robot, Moon, Sun } from "@phosphor-ic
 
 export function RoverView() {
   const { roverId } = useParams();
-  const { rovers, telemetry, selectRover, rtcAddress, connecting, connected } = useConsoleStore();
+  const rovers = useConsoleStore((s) => s.rovers);
+  const telemetryMode = useConsoleStore((s) => s.telemetry.mode);
+  const selectRover = useConsoleStore((s) => s.selectRover);
+  const rtcAddress = useConsoleStore((s) => s.rtcAddress);
+  const connecting = useConsoleStore((s) => s.connecting);
+  const connected = useConsoleStore((s) => s.connected);
 
   // Initialize input and connection hooks
   useKeyboard();
@@ -30,10 +35,10 @@ export function RoverView() {
 
   // Get selected rover info
   const selectedRover = rovers.find((r) => r.id === roverId);
-  const isEStop = telemetry.mode === Mode.EStop;
-  const isDisabled = telemetry.mode === Mode.Disabled || telemetry.mode === Mode.Idle;
-  const isTeleop = telemetry.mode === Mode.Teleop;
-  const isSleep = telemetry.mode === Mode.Sleep;
+  const isEStop = telemetryMode === Mode.EStop;
+  const isDisabled = telemetryMode === Mode.Disabled || telemetryMode === Mode.Idle;
+  const isTeleop = telemetryMode === Mode.Teleop;
+  const isSleep = telemetryMode === Mode.Sleep;
 
   // Loading states for enable/disable actions
   const [enabling, setEnabling] = useState(false);

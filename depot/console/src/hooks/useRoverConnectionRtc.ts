@@ -29,6 +29,7 @@ import {
 import { pushSnapshotDirect } from "@/lib/interpolation";
 import { Mode } from "@/lib/types";
 import { setCameraFrame as setMutableCameraFrame, getCameraCount } from "@/lib/videoFrameStore";
+import { setPointCloudData, clearPointCloudData } from "@/lib/pointCloudStore";
 
 const RECONNECT_DELAY_MS = 2000;
 const COMMAND_INTERVAL_MS = 10; // 100Hz - matches rover control loop
@@ -56,19 +57,16 @@ interface IceCandidate {
 }
 
 export function useRoverConnectionRtc() {
-  const {
-    rtcAddress,
-    setConnecting,
-    setConnected,
-    setLatency,
-    updateTelemetry,
-    setVideoConnected,
-    setVideoFps,
-    setVideoFrame,
-    setPointCloud,
-    updateChannelMetrics,
-    resetChannelMetrics,
-  } = useConsoleStore();
+  const rtcAddress = useConsoleStore((s) => s.rtcAddress);
+  const setConnecting = useConsoleStore((s) => s.setConnecting);
+  const setConnected = useConsoleStore((s) => s.setConnected);
+  const setLatency = useConsoleStore((s) => s.setLatency);
+  const updateTelemetry = useConsoleStore((s) => s.updateTelemetry);
+  const setVideoConnected = useConsoleStore((s) => s.setVideoConnected);
+  const setVideoFps = useConsoleStore((s) => s.setVideoFps);
+  const setVideoFrame = useConsoleStore((s) => s.setVideoFrame);
+  const updateChannelMetrics = useConsoleStore((s) => s.updateChannelMetrics);
+  const resetChannelMetrics = useConsoleStore((s) => s.resetChannelMetrics);
 
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
   const commandChannelRef = useRef<RTCDataChannel | null>(null);
@@ -102,6 +100,10 @@ export function useRoverConnectionRtc() {
   const lastReactUpdateRef = useRef<number>(0);
   const REACT_UPDATE_INTERVAL_MS = 100; // 10Hz for UI updates
 
+  // Throttle rover roster updates separately (2Hz — battery/mode change slowly)
+  const lastRoverUpdateRef = useRef<number>(0);
+  const ROVER_UPDATE_INTERVAL_MS = 500; // 2Hz for fleet roster
+
   // Channel metrics tracking
   const channelStatsRef = useRef<Map<string, { count: number; lastTime: number }>>(
     new Map([
@@ -129,6 +131,9 @@ export function useRoverConnectionRtc() {
   // Track previous enable/disable state for edge detection
   const prevEnableRef = useRef(false);
   const prevDisableRef = useRef(false);
+
+  // Track previous mode for modeChangedAt detection
+  const prevModeRef = useRef<number>(Mode.Idle);
 
   // Track if this console is the active operator (has control)
   // Only operators can send commands - observers can watch but not control
@@ -237,6 +242,12 @@ export function useRoverConnectionRtc() {
         lastSendTimeRef.current = performance.now();
         lastTelemetryTimeRef.current = 0; // Reset throttle on reconnect
 
+        // Mark rover online in fleet roster — WebRTC proves reachability
+        const { selectedRoverId, updateRover } = useConsoleStore.getState();
+        if (selectedRoverId) {
+          updateRover(selectedRoverId, { online: true, lastSeen: Date.now() });
+        }
+
         // Start command loop
         commandIntervalRef.current = setInterval(
           sendCommands,
@@ -296,7 +307,6 @@ export function useRoverConnectionRtc() {
           if (enableRising && !isOperatorRef.current && commandChannelRef.current?.readyState === "open") {
             // Claim operator and enable teleop
             isOperatorRef.current = true;
-            commandChannelRef.current.send(encodeSetMode(Mode.Idle));
             commandChannelRef.current.send(encodeSetMode(Mode.Teleop));
           }
 
@@ -315,7 +325,6 @@ export function useRoverConnectionRtc() {
         const { input, pointCloudEnabled } = useConsoleStore.getState();
         if (input.enable && !isOperatorRef.current) {
           isOperatorRef.current = true;
-          commandChannelRef.current!.send(encodeSetMode(Mode.Idle));
           commandChannelRef.current!.send(encodeSetMode(Mode.Teleop));
           prevEnableRef.current = true;
         }
@@ -384,11 +393,29 @@ export function useRoverConnectionRtc() {
                   lastSendTimeRef.current = now;
                   setLatency(latency);
 
+                  const modeChanged = decoded.mode !== prevModeRef.current;
+                  if (modeChanged) prevModeRef.current = decoded.mode;
+
                   updateTelemetry({
                     ...telemetry,
                     connected: true,
                     latency_ms: latency,
+                    ...(modeChanged && { modeChangedAt: Date.now() }),
                   });
+
+                  // Sync to fleet roster at 2Hz — battery/mode change slowly
+                  if (now - lastRoverUpdateRef.current >= ROVER_UPDATE_INTERVAL_MS) {
+                    lastRoverUpdateRef.current = now;
+                    const { selectedRoverId, updateRover } = useConsoleStore.getState();
+                    if (selectedRoverId) {
+                      updateRover(selectedRoverId, {
+                        online: true,
+                        batteryVoltage: telemetry.power.battery_voltage,
+                        mode: telemetry.mode,
+                        lastSeen: Date.now(),
+                      });
+                    }
+                  }
                 }
               } else {
                 console.warn("[WebRTC] Failed to decode telemetry, size:", msgEvent.data.byteLength);
@@ -498,7 +525,7 @@ export function useRoverConnectionRtc() {
 
             const cloud = decodePointCloud(msgEvent.data);
             if (cloud) {
-              setPointCloud(cloud.points, cloud.reflectivity, cloud.tag);
+              setPointCloudData(cloud.points, cloud.reflectivity, cloud.tag);
             }
           };
 
@@ -608,7 +635,6 @@ export function useRoverConnectionRtc() {
     setVideoConnected,
     setVideoFps,
     setVideoFrame,
-    setPointCloud,
     updateChannelMetrics,
     clearIntervals,
     sendCommands,
@@ -651,6 +677,7 @@ export function useRoverConnectionRtc() {
     setVideoConnected(false);
     setVideoFrame(null, 0);
     setVideoFps(0);
+    clearPointCloudData();
   }, [clearIntervals, setConnected, setVideoConnected, setVideoFrame, setVideoFps, resetChannelMetrics]);
 
   // Stable disconnect ref for cleanup
@@ -707,16 +734,8 @@ export function useRoverConnectionRtc() {
       // Claim operator status - we're taking control
       isOperatorRef.current = true;
 
-      // State machine requires: Disabled -> Idle -> Teleop
-      // Send Enable (Idle) first, then TeleopCommand (Teleop)
-      channel.send(encodeSetMode(Mode.Idle));
-
-      // Small delay to ensure state machine processes first command
-      setTimeout(() => {
-        if (commandChannelRef.current?.readyState === "open") {
-          commandChannelRef.current.send(encodeSetMode(Mode.Teleop));
-        }
-      }, 50);
+      // Rover boots into Idle — go straight to Teleop
+      channel.send(encodeSetMode(Mode.Teleop));
     }, []),
     sendDisable: useCallback(() => {
       // Release operator status
