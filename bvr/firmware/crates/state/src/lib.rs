@@ -1,6 +1,7 @@
 //! State machine and mode management for bvr.
 
 use can::leds::LedCommand;
+use std::time::{Instant, SystemTime};
 use tracing::{info, warn};
 use types::Mode;
 
@@ -34,12 +35,25 @@ pub enum Event {
 /// State machine for rover operating modes.
 pub struct StateMachine {
     mode: Mode,
+    /// Monotonic instant when the current mode was entered (for uptime).
+    mode_entered: Instant,
+    /// Wall-clock epoch seconds when the current mode was entered.
+    mode_entered_epoch_secs: u32,
+}
+
+fn epoch_secs_now() -> u32 {
+    SystemTime::now()
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .map(|d| d.as_secs() as u32)
+        .unwrap_or(0)
 }
 
 impl StateMachine {
     pub fn new() -> Self {
         Self {
             mode: Mode::Idle,
+            mode_entered: Instant::now(),
+            mode_entered_epoch_secs: epoch_secs_now(),
         }
     }
 
@@ -96,6 +110,8 @@ impl StateMachine {
 
         if self.mode != old_mode {
             info!(?old_mode, new_mode = ?self.mode, ?event, "Mode transition");
+            self.mode_entered = Instant::now();
+            self.mode_entered_epoch_secs = epoch_secs_now();
         }
 
         self.mode
@@ -116,7 +132,14 @@ impl StateMachine {
         if self.mode != Mode::EStop {
             warn!(old_mode = ?self.mode, "Forcing e-stop");
             self.mode = Mode::EStop;
+            self.mode_entered = Instant::now();
+            self.mode_entered_epoch_secs = epoch_secs_now();
         }
+    }
+
+    /// Epoch seconds when the current mode was entered.
+    pub fn mode_changed_at_epoch_secs(&self) -> u32 {
+        self.mode_entered_epoch_secs
     }
 
     /// Get the LED command for the current mode.
@@ -422,6 +445,39 @@ mod tests {
         assert_eq!(sm.mode(), Mode::Idle);
         sm.transition(Event::Sleep);
         assert_eq!(sm.mode(), Mode::Sleep);
+    }
+
+    #[test]
+    fn test_mode_changed_at_epoch_secs() {
+        let sm = StateMachine::new();
+        let t0 = sm.mode_changed_at_epoch_secs();
+        assert!(t0 > 0, "epoch seconds should be non-zero");
+
+        // Transition should update the timestamp
+        let mut sm = StateMachine::new();
+        let before = sm.mode_changed_at_epoch_secs();
+        sm.transition(Event::TeleopCommand);
+        let after = sm.mode_changed_at_epoch_secs();
+        assert!(after >= before);
+
+        // No-op transition should not update the timestamp
+        let mut sm = StateMachine::new();
+        let before = sm.mode_changed_at_epoch_secs();
+        sm.transition(Event::Disable); // Idle -> Idle, no-op
+        assert_eq!(sm.mode(), Mode::Idle);
+        let after = sm.mode_changed_at_epoch_secs();
+        assert_eq!(before, after);
+    }
+
+    #[test]
+    fn test_force_estop_updates_mode_changed_at() {
+        let mut sm = StateMachine::new();
+        let before = sm.mode_changed_at_epoch_secs();
+        sm.transition(Event::TeleopCommand);
+        sm.force_estop();
+        let after = sm.mode_changed_at_epoch_secs();
+        assert!(after >= before);
+        assert_eq!(sm.mode(), Mode::EStop);
     }
 
     #[test]

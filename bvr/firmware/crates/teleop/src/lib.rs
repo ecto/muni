@@ -12,7 +12,7 @@
 //! - ts: u32 LE timestamp in milliseconds
 //!
 //! ## Telemetry (Rover → Console)
-//! 128 bytes with pose, velocity, measured velocity, acceleration, motor data, ACK fields, IMU orientation.
+//! 132 bytes with pose, velocity, measured velocity, acceleration, motor data, ACK fields, IMU orientation, mode timestamp.
 
 pub mod costmap_stream;
 pub mod obstacle_stream;
@@ -299,6 +299,8 @@ pub struct Telemetry {
     /// LiDAR core temperature (°C, not sent over binary, only JSON)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub lidar_core_temp_c: Option<f32>,
+    /// Epoch seconds when the current mode was entered (rover-sourced).
+    pub mode_changed_at: u32,
 }
 
 impl Default for Telemetry {
@@ -328,6 +330,7 @@ impl Default for Telemetry {
             tool_status: None,
             slam_status: None,
             lidar_core_temp_c: None,
+            mode_changed_at: 0,
         }
     }
 }
@@ -489,7 +492,7 @@ impl Server {
 
 }
 
-/// Serialize telemetry for transmission (128 bytes).
+/// Serialize telemetry for transmission (132 bytes).
 ///
 /// This is the single source of truth for telemetry serialization.
 /// Used by UDP, WebSocket, and WebRTC transports.
@@ -517,10 +520,11 @@ impl Server {
 /// [114-115] u16 LE  ack_bits
 /// [116-119] f32 LE  roll (radians, from IMU)
 /// [120-123] f32 LE  pitch (radians, from IMU)
-/// [124-127] u32     crc32
+/// [124-127] u32 LE  mode_changed_at (epoch seconds)
+/// [128-131] u32     crc32
 /// ```
 pub fn serialize_telemetry(telemetry: &Telemetry) -> Option<Vec<u8>> {
-    let mut buf = Vec::with_capacity(128);
+    let mut buf = Vec::with_capacity(132);
 
     // Header
     buf.push(MSG_TELEMETRY);        // [0]
@@ -583,11 +587,14 @@ pub fn serialize_telemetry(telemetry: &Telemetry) -> Option<Vec<u8>> {
     buf.extend_from_slice(&telemetry.roll.to_le_bytes());
     buf.extend_from_slice(&telemetry.pitch.to_le_bytes());
 
-    // CRC32 [124-127]
+    // Mode changed at [124-127] (epoch seconds)
+    buf.extend_from_slice(&telemetry.mode_changed_at.to_le_bytes());
+
+    // CRC32 [128-131]
     let crc = crc32fast::hash(&buf);
     buf.extend_from_slice(&crc.to_le_bytes());
 
-    debug_assert_eq!(buf.len(), 128);
+    debug_assert_eq!(buf.len(), 132);
     Some(buf)
 }
 
@@ -809,14 +816,15 @@ mod tests {
             tool_status: None,
             slam_status: None,
             lidar_core_temp_c: None,
+            mode_changed_at: 1706000000,
         };
 
         let data = serialize_telemetry(&telemetry);
         assert!(data.is_some());
         let data = data.unwrap();
 
-        // Verify size (128 bytes)
-        assert_eq!(data.len(), 128);
+        // Verify size (132 bytes)
+        assert_eq!(data.len(), 132);
 
         // Verify message type
         assert_eq!(data[0], MSG_TELEMETRY);

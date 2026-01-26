@@ -139,9 +139,6 @@ export function useRoverConnectionRtc() {
   const prevEnableRef = useRef(false);
   const prevDisableRef = useRef(false);
 
-  // Track previous mode for modeChangedAt detection
-  const prevModeRef = useRef<number>(Mode.Idle);
-
   // Track if this console is the active operator (has control)
   // Only operators can send commands - observers can watch but not control
   const isOperatorRef = useRef(false);
@@ -445,14 +442,10 @@ export function useRoverConnectionRtc() {
                   lastSendTimeRef.current = now;
                   setLatency(latency);
 
-                  const modeChanged = decoded.mode !== prevModeRef.current;
-                  if (modeChanged) prevModeRef.current = decoded.mode;
-
                   updateTelemetry({
                     ...telemetry,
                     connected: true,
                     latency_ms: latency,
-                    ...(modeChanged && { modeChangedAt: Date.now() }),
                   });
 
                   // Sync to fleet roster at 2Hz — battery/mode change slowly

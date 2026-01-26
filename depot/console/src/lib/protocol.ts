@@ -11,7 +11,7 @@
  * - 0x05 Tool:         [header] [axis:f32 LE] [motor:f32 LE] [action_a:u8] [action_b:u8]
  * - 0x06 E-Stop Release: [header]
  *
- * Telemetry (Rover -> Operator) - 128 bytes (120 bytes for legacy):
+ * Telemetry (Rover -> Operator) - 132 bytes (120/128 bytes for legacy):
  * - 0x11 Telemetry: [type:u8] [mode:u8] [seq:u16] [pad:4B] [pose:24B] [voltage:f64]
  *   [timestamp_us:u64] [cmd_vel:8B] [meas_vel:8B] [accel:8B] [temps:16B] [currents:16B]
  *   [health:2B] [odom_quality:2B] [dt_ms:f32] [ack_seq:u16] [ack_bits:u16]
@@ -189,6 +189,8 @@ export interface DecodedTelemetry {
   mem_percent: number;
   /** System disk usage (0-100%) */
   disk_percent: number;
+  /** Epoch seconds when the current mode was entered (0 = unknown/legacy) */
+  mode_changed_at: number;
 }
 
 /**
@@ -291,16 +293,21 @@ export function decodeTelemetry(data: ArrayBuffer): DecodedTelemetry | null {
   const last_cmd_seq = view.getUint16(112, true);
   const ack_bits = view.getUint16(114, true);
 
-  // Roll/pitch from IMU [116-123] (new 128-byte format)
+  // Roll/pitch from IMU [116-123] (128-byte+ format)
   // For backwards compatibility with 120-byte format, default to 0
   let roll = 0;
   let pitch = 0;
   if (data.byteLength >= 128) {
     roll = view.getFloat32(116, true);
     pitch = view.getFloat32(120, true);
-    // CRC32 is at [124-127] for new format
+    // CRC32 is at [124-127] for 128-byte format, [128-131] for 132-byte
   }
-  // CRC32 [116-119] for old format, [124-127] for new - not verified
+
+  // mode_changed_at [124-127] (132-byte format, epoch seconds)
+  let mode_changed_at = 0;
+  if (data.byteLength >= 132) {
+    mode_changed_at = view.getUint32(124, true);
+  }
 
   return {
     sequence,
@@ -321,6 +328,7 @@ export function decodeTelemetry(data: ArrayBuffer): DecodedTelemetry | null {
     cpu_percent,
     mem_percent,
     disk_percent,
+    mode_changed_at,
   };
 }
 
@@ -344,7 +352,7 @@ export function telemetryFromDecoded(decoded: DecodedTelemetry): Telemetry {
     cpu_percent: decoded.cpu_percent,
     mem_percent: decoded.mem_percent,
     disk_percent: decoded.disk_percent,
-    modeChangedAt: Date.now(),
+    modeChangedAt: decoded.mode_changed_at > 0 ? decoded.mode_changed_at * 1000 : Date.now(),
   };
 }
 
