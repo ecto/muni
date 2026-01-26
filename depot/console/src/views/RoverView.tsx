@@ -1,8 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { Scene } from "@/components/scene/Scene";
 import { CameraFeedCard } from "@/components/scene/EquirectangularSky";
-import { TelemetryPanel } from "@/components/teleop/TelemetryPanel";
+import { ModeBar } from "@/components/teleop/ModeBar";
+import { StatusPanel } from "@/components/teleop/StatusPanel";
+import { DiagnosticsPanel } from "@/components/teleop/DiagnosticsPanel";
 import { InputPanel } from "@/components/teleop/InputPanel";
 import { ConnectionBar } from "@/components/teleop/ConnectionBar";
 import { Button } from "@/components/ui/button";
@@ -16,7 +18,7 @@ import { useGamepad } from "@/hooks/useGamepad";
 import { useRoverConnectionRtc } from "@/hooks/useRoverConnectionRtc";
 import { useConsoleStore } from "@/store";
 import { Mode } from "@/lib/types";
-import { Warning, Play, Stop, CircleNotch, Robot, Moon, Sun } from "@phosphor-icons/react";
+import { Warning, CircleNotch, Robot } from "@phosphor-icons/react";
 
 export function RoverView() {
   const { roverId } = useParams();
@@ -31,39 +33,11 @@ export function RoverView() {
   useKeyboard();
   useGamepad();
   // WebRTC handles both commands and video streaming
-  const { disconnect, sendEStopRelease, sendEnable, sendDisable, sendSleep, sendWake, toggleLidar } = useRoverConnectionRtc();
+  const { disconnect, sendEStopRelease, sendEnable, sendDisable, sendSleep, sendWake, sendAutonomous, sendStopAutonomy, toggleLidar } = useRoverConnectionRtc();
 
   // Get selected rover info
   const selectedRover = rovers.find((r) => r.id === roverId);
   const isEStop = telemetryMode === Mode.EStop;
-  const isDisabled = telemetryMode === Mode.Disabled || telemetryMode === Mode.Idle;
-  const isTeleop = telemetryMode === Mode.Teleop;
-  const isSleep = telemetryMode === Mode.Sleep;
-
-  // Loading states for enable/disable actions
-  const [enabling, setEnabling] = useState(false);
-  const [disabling, setDisabling] = useState(false);
-
-  // Clear loading states when mode changes or after timeout
-  useEffect(() => {
-    if (isTeleop) setEnabling(false);
-    if (isDisabled) setDisabling(false);
-  }, [isTeleop, isDisabled]);
-
-  // Timeout to clear loading states if command fails
-  useEffect(() => {
-    if (enabling) {
-      const timeout = setTimeout(() => setEnabling(false), 3000);
-      return () => clearTimeout(timeout);
-    }
-  }, [enabling]);
-
-  useEffect(() => {
-    if (disabling) {
-      const timeout = setTimeout(() => setDisabling(false), 3000);
-      return () => clearTimeout(timeout);
-    }
-  }, [disabling]);
 
   // Select rover on mount and when rovers list updates
   // (rover might not be available immediately if discovery data hasn't arrived)
@@ -130,31 +104,6 @@ export function RoverView() {
         </div>
       )}
 
-      {/* Sleep Mode Overlay */}
-      {isSleep && (
-        <div className="absolute inset-0 bg-indigo-950/90 flex flex-col items-center justify-center z-50">
-          <Moon className="h-24 w-24 text-indigo-400 mb-6" weight="fill" />
-          <h1 className="text-4xl font-bold text-white mb-2">Sleep Mode</h1>
-          <p className="text-lg text-indigo-200 mb-8">
-            Sensors are powered down. Wake to resume operation.
-          </p>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="outline"
-                size="lg"
-                onClick={sendWake}
-                className="border-indigo-400 text-indigo-400 hover:bg-indigo-500 hover:text-white text-lg px-8 py-6 gap-2"
-              >
-                <Sun className="h-6 w-6" weight="fill" />
-                Wake
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom">Wake rover and start lidar</TooltipContent>
-          </Tooltip>
-        </div>
-      )}
-
       {/* Connecting Overlay */}
       {connecting && !connected && (
         <div className="absolute inset-0 flex items-center justify-center z-40 pointer-events-none">
@@ -169,84 +118,38 @@ export function RoverView() {
 
       {/* UI Overlay */}
       <div className="absolute inset-0 pointer-events-none">
-        {/* Right side panels - scrollable for shorter windows */}
-        <div className="absolute top-4 right-4 bottom-16 flex flex-col gap-3 pointer-events-auto overflow-y-auto overflow-x-hidden pl-2 scrollbar-thin items-end">
-          {/* Enable/Disable/Sleep buttons */}
-          <div className="flex items-center gap-2 shrink-0">
-            {isDisabled && !enabling && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={!connected}
-                    onClick={() => {
-                      console.log("[RoverView] Sleep button clicked");
-                      sendSleep();
-                    }}
-                    className="gap-2 border-indigo-500 text-indigo-400 hover:bg-indigo-600 hover:text-white"
-                  >
-                    <Moon className="h-4 w-4" weight="fill" />
-                    Sleep
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom">Enter sleep mode (powers down sensors)</TooltipContent>
-              </Tooltip>
-            )}
-            {isDisabled && !enabling && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="default"
-                    size="sm"
-                    disabled={!connected}
-                    onClick={() => {
-                      setEnabling(true);
-                      sendEnable();
-                    }}
-                    className="gap-2 bg-green-600 hover:bg-green-500 disabled:bg-gray-600"
-                  >
-                    <Play className="h-4 w-4" weight="fill" />
-                    Enable
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom">Enter teleop mode and start accepting drive commands</TooltipContent>
-              </Tooltip>
-            )}
-            {enabling && (
-              <Button variant="secondary" size="sm" disabled className="gap-2">
-                <CircleNotch className="h-4 w-4 animate-spin" />
-                Enabling...
-              </Button>
-            )}
-            {isTeleop && !disabling && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="default"
-                    size="sm"
-                    onClick={() => {
-                      setDisabling(true);
-                      sendDisable();
-                    }}
-                    className="gap-2 bg-amber-600 hover:bg-amber-500"
-                  >
-                    <Stop className="h-4 w-4" weight="fill" />
-                    Disable
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom">Exit teleop mode and stop motors</TooltipContent>
-              </Tooltip>
-            )}
-            {disabling && (
-              <Button variant="secondary" size="sm" disabled className="gap-2">
-                <CircleNotch className="h-4 w-4 animate-spin" />
-                Disabling...
-              </Button>
-            )}
-          </div>
-          <TelemetryPanel onToggleLidar={toggleLidar} />
+        {/* Breadcrumb — top left */}
+        <div className="absolute top-4 left-4 pointer-events-auto z-10">
+          <nav className="flex items-center gap-1.5 text-xs bg-card/80 backdrop-blur-sm border border-border rounded-md px-2.5 py-1.5 shadow-sm">
+            <Link to="/fleet" className="text-muted-foreground hover:text-foreground transition-colors">
+              Fleet
+            </Link>
+            <span className="text-muted-foreground/40">/</span>
+            <span className="font-medium">{selectedRover?.name ?? roverId}</span>
+          </nav>
+        </div>
+
+        {/* Top center — Mode bar */}
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 pointer-events-auto z-10">
+          <ModeBar
+            sendSleep={sendSleep}
+            sendWake={sendWake}
+            sendEnable={sendEnable}
+            sendDisable={sendDisable}
+            sendAutonomous={sendAutonomous}
+            sendStopAutonomy={sendStopAutonomy}
+          />
+        </div>
+
+        {/* Right side panels */}
+        <div className="absolute top-16 right-4 bottom-12 flex flex-col gap-3 pointer-events-auto overflow-y-auto overflow-x-hidden pl-2 scrollbar-thin items-end">
+          <StatusPanel />
+          <DiagnosticsPanel onToggleLidar={toggleLidar} />
           <InputPanel />
+        </div>
+
+        {/* Bottom left — Camera feeds */}
+        <div className="absolute bottom-12 left-4 pointer-events-auto">
           <CameraFeedCard />
         </div>
 

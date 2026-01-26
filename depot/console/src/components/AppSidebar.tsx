@@ -39,12 +39,13 @@ import {
   BatteryFull,
   BatteryLow,
   BatteryWarning,
+  Warning,
 } from "@phosphor-icons/react";
 import { Badge } from "@/components/ui/badge";
 import { useConsoleStore } from "@/store";
 import { useServiceHealth, type ServiceStatus } from "@/hooks/useServiceHealth";
 import { useTheme } from "@/hooks/useTheme";
-import { Mode, ModeLabels, type RoverInfo } from "@/lib/types";
+import { Mode, ModeLabels, AlertSeverity, type RoverInfo } from "@/lib/types";
 import { getBatteryPercent } from "@/lib/utils";
 
 // Map service IDs to icons
@@ -85,6 +86,7 @@ export function AppSidebar() {
   const location = useLocation();
   const rovers = useConsoleStore((s) => s.rovers);
   const gpsStatus = useConsoleStore((s) => s.gpsStatus);
+  const alerts = useConsoleStore((s) => s.alerts);
   const selectedRoverId = useConsoleStore((s) => s.selectedRoverId);
   const connected = useConsoleStore((s) => s.connected);
   const { theme, cycleTheme } = useTheme();
@@ -105,6 +107,15 @@ export function AppSidebar() {
 
   const onlineRovers = rovers.filter((r) => r.online);
   const gpsOk = gpsStatus?.connected && gpsStatus.fixQuality !== "no_fix";
+
+  // Alert badge count (active, uncleared, unacknowledged critical/warning)
+  const alertBadgeCount = alerts.filter(
+    (a) =>
+      !a.clearedAt &&
+      !a.acknowledged &&
+      (a.severity === AlertSeverity.Critical ||
+        a.severity === AlertSeverity.Warning)
+  ).length;
 
   // Theme toggle icon and label
   const themeIcon =
@@ -137,22 +148,59 @@ export function AppSidebar() {
       </SidebarHeader>
 
       <SidebarContent>
-        {/* Overview */}
+        {/* Operations */}
         <SidebarGroup>
-          <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton
-                asChild
-                isActive={isActive("/")}
-                tooltip="Dashboard"
-              >
-                <Link to="/">
-                  <SquaresFour />
-                  <span>Dashboard</span>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          </SidebarMenu>
+          <SidebarGroupLabel>Operations</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  isActive={isActive("/")}
+                  tooltip="Dashboard"
+                >
+                  <Link to="/">
+                    <SquaresFour />
+                    <span>Dashboard</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  isActive={isActive("/dispatch")}
+                  tooltip="Dispatch"
+                >
+                  <Link to="/dispatch">
+                    <NavigationArrow className="h-4 w-4" />
+                    <span>Dispatch</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  isActive={isActive("/alerts")}
+                  tooltip="Alerts"
+                >
+                  <Link to="/alerts" className="flex items-center justify-between w-full">
+                    <span className="flex items-center gap-2">
+                      <Warning className="h-4 w-4" />
+                      <span>Alerts</span>
+                    </span>
+                    {alertBadgeCount > 0 && (
+                      <Badge
+                        variant="destructive"
+                        className="text-[10px] h-4 px-1.5 ml-auto"
+                      >
+                        {alertBadgeCount}
+                      </Badge>
+                    )}
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
         </SidebarGroup>
 
         {/* Fleet */}
@@ -171,18 +219,6 @@ export function AppSidebar() {
                   <Link to="/fleet">
                     <Robot className="h-4 w-4" />
                     <span>All Rovers</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  asChild
-                  isActive={isActive("/dispatch")}
-                  tooltip="Dispatch"
-                >
-                  <Link to="/dispatch">
-                    <NavigationArrow className="h-4 w-4" />
-                    <span>Dispatch</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -207,9 +243,9 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {/* Data */}
+        {/* Infrastructure */}
         <SidebarGroup>
-          <SidebarGroupLabel>Data</SidebarGroupLabel>
+          <SidebarGroupLabel>Infrastructure</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>

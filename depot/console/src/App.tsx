@@ -1,9 +1,11 @@
 import { Routes, Route } from "react-router-dom";
 import { AppSidebar } from "@/components/AppSidebar";
+import { AlertBanner } from "@/components/AlertBanner";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { Toast } from "@/components/ui/Toast";
 import { useDiscovery } from "@/hooks/useDiscovery";
 import { useGpsStatus } from "@/hooks/useGpsStatus";
+import { useAlerts } from "@/hooks/useAlerts";
 import { useTheme } from "@/hooks/useTheme";
 
 // Views
@@ -15,11 +17,13 @@ import { SessionsView } from "@/views/SessionsView";
 import { SessionDetailView } from "@/views/SessionDetailView";
 import { MapsView } from "@/views/MapsView";
 import { DispatchView } from "@/views/DispatchView";
+import { AlertsView } from "@/views/AlertsView";
 
 function App() {
   // Connect to backend services
   useDiscovery();
   useGpsStatus();
+  useAlerts();
 
   const { resolvedTheme } = useTheme();
   const themeClass = resolvedTheme === "dark" ? "dark" : "";
@@ -29,6 +33,7 @@ function App() {
       <SidebarProvider>
         <AppSidebar />
         <SidebarInset>
+          <AlertBanner />
           <Routes>
             <Route path="/" element={<DashboardView />} />
             <Route path="/base-station" element={<BaseStationView />} />
@@ -39,6 +44,7 @@ function App() {
             <Route path="/maps" element={<MapsView />} />
             <Route path="/maps/:mapId" element={<MapsView />} />
             <Route path="/dispatch" element={<DispatchView />} />
+            <Route path="/alerts" element={<AlertsView />} />
           </Routes>
         </SidebarInset>
       </SidebarProvider>

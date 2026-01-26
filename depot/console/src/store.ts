@@ -9,6 +9,7 @@ import {
   type Session,
   type ServiceHealth,
   type GpsStatus,
+  type Alert,
   InputSource,
   CameraMode,
   defaultHealth,
@@ -135,6 +136,12 @@ interface ConsoleState {
   gpsStatus: GpsStatus | null;
   setServices: (services: ServiceHealth[]) => void;
   setGpsStatus: (status: GpsStatus | null) => void;
+
+  // Alerts
+  alerts: Alert[];
+  addAlert: (alert: Alert) => void;
+  acknowledgeAlert: (id: string) => void;
+  clearAlert: (id: string) => void;
 
   // Theme
   theme: Theme;
@@ -328,6 +335,35 @@ export const useConsoleStore = create<ConsoleState>()(
   gpsStatus: null,
   setServices: (services) => set({ services }),
   setGpsStatus: (status) => set({ gpsStatus: status }),
+
+  // Alerts
+  alerts: [],
+  addAlert: (alert) =>
+    set((state) => {
+      // Deduplicate: don't add if an active alert with same source+sourceId+message exists
+      const isDuplicate = state.alerts.some(
+        (a) =>
+          !a.clearedAt &&
+          a.source === alert.source &&
+          a.sourceId === alert.sourceId &&
+          a.message === alert.message
+      );
+      if (isDuplicate) return state;
+      // Keep max 200 alerts, newest first
+      return { alerts: [alert, ...state.alerts].slice(0, 200) };
+    }),
+  acknowledgeAlert: (id) =>
+    set((state) => ({
+      alerts: state.alerts.map((a) =>
+        a.id === id ? { ...a, acknowledged: true } : a
+      ),
+    })),
+  clearAlert: (id) =>
+    set((state) => ({
+      alerts: state.alerts.map((a) =>
+        a.id === id ? { ...a, clearedAt: Date.now() } : a
+      ),
+    })),
 
   // Theme
   theme: "system",

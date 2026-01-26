@@ -303,6 +303,28 @@ export interface ConnectedRover {
   taskId?: string;
 }
 
+// =============================================================================
+// Alert Types (client-side alerting)
+// =============================================================================
+
+export const AlertSeverity = {
+  Critical: "critical",
+  Warning: "warning",
+  Info: "info",
+} as const;
+export type AlertSeverity = (typeof AlertSeverity)[keyof typeof AlertSeverity];
+
+export interface Alert {
+  id: string;
+  severity: AlertSeverity;
+  source: "rover" | "service" | "dispatch" | "gps";
+  sourceId: string;
+  message: string;
+  timestamp: number;
+  acknowledged: boolean;
+  clearedAt?: number;
+}
+
 // GPS/Base station status
 export type Constellation = "gps" | "glonass" | "galileo" | "beidou" | "qzss" | "unknown";
 

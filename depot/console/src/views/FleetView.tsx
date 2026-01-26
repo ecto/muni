@@ -1,27 +1,24 @@
 import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { useConsoleStore } from "@/store";
+import { useDispatch } from "@/hooks/useDispatch";
 import {
   Robot,
   GameController,
   BatteryFull,
   BatteryLow,
   BatteryWarning,
+  ChartLineUp,
+  VideoCamera,
 } from "@phosphor-icons/react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Tooltip,
-  TooltipTrigger,
-  TooltipContent,
-  TooltipProvider,
-} from "@/components/ui/tooltip";
-import { Mode, ModeLabels, type RoverInfo } from "@/lib/types";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { Mode, ModeLabels, type RoverInfo, type Mode as ModeType } from "@/lib/types";
 import { getBatteryPercent } from "@/lib/utils";
 
-function formatLastSeen(timestamp: number): string {
-  const now = Date.now();
-  const diff = now - timestamp;
+function timeAgo(timestamp: number): string {
+  const diff = Date.now() - timestamp;
   if (diff < 5000) return "now";
   if (diff < 60000) return `${Math.floor(diff / 1000)}s ago`;
   if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
@@ -29,7 +26,9 @@ function formatLastSeen(timestamp: number): string {
   return `${Math.floor(diff / 86400000)}d ago`;
 }
 
-function getModeVariant(mode: Mode): "default" | "secondary" | "destructive" | "outline" {
+function getModeVariant(
+  mode: ModeType
+): "default" | "secondary" | "destructive" | "outline" {
   switch (mode) {
     case Mode.Teleop:
     case Mode.Autonomous:
@@ -44,115 +43,214 @@ function getModeVariant(mode: Mode): "default" | "secondary" | "destructive" | "
   }
 }
 
-function BatteryCell({ voltage }: { voltage: number }) {
+function BatteryDisplay({ voltage }: { voltage: number }) {
   const percent = getBatteryPercent(voltage);
-  const Icon = voltage < 42 ? BatteryWarning : voltage < 45 ? BatteryLow : BatteryFull;
-  const color = voltage < 42 ? "text-red-500" : voltage < 45 ? "text-orange-500" : "text-green-500";
+  const Icon =
+    voltage < 42
+      ? BatteryWarning
+      : voltage < 45
+        ? BatteryLow
+        : BatteryFull;
+  const color =
+    voltage < 42
+      ? "text-red-500"
+      : voltage < 45
+        ? "text-orange-500"
+        : "text-green-500";
+  const barColor =
+    voltage < 42
+      ? "bg-red-500"
+      : voltage < 45
+        ? "bg-orange-500"
+        : "bg-green-500";
 
   return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <div className="flex items-center gap-1 cursor-help">
-          <Icon className={`h-3.5 w-3.5 ${color}`} weight="fill" />
-          <span className="tabular-nums">{percent.toFixed(0)}%</span>
+    <div className="flex items-center gap-2">
+      <Icon className={`h-4 w-4 ${color}`} weight="fill" />
+      <div className="flex-1">
+        <div className="flex items-center justify-between text-xs mb-0.5">
+          <span className="font-medium">{percent.toFixed(0)}%</span>
+          <span className="text-muted-foreground">{voltage.toFixed(1)}V</span>
         </div>
-      </TooltipTrigger>
-      <TooltipContent side="top">{voltage.toFixed(1)}V</TooltipContent>
-    </Tooltip>
+        <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+          <div
+            className={`h-full rounded-full ${barColor}`}
+            style={{ width: `${percent}%` }}
+          />
+        </div>
+      </div>
+    </div>
   );
 }
 
-function StatusDot({ online }: { online: boolean }) {
+function RoverCard({
+  rover,
+  taskInfo,
+}: {
+  rover: RoverInfo;
+  taskInfo?: { missionName?: string; progress: number; waypoint: number; lap: number };
+}) {
+  const isOnline = rover.online;
+  const displayMode =
+    rover.mode === Mode.Disabled ? Mode.Idle : rover.mode;
+
+  // We can't access SubsystemHealth from RoverInfo directly,
+  // but we show what we have from discovery data
+  const grafanaUrl = `/grafana/d/rover-${rover.id}`;
+
   return (
-    <span
-      className={`h-2 w-2 rounded-full ${online ? "bg-green-500" : "bg-red-500"}`}
-      aria-label={online ? "online" : "offline"}
-    />
-  );
-}
+    <div
+      className={`border border-border rounded-lg overflow-hidden ${
+        !isOnline ? "opacity-50" : ""
+      }`}
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-2.5 bg-muted/30 border-b border-border">
+        <div className="flex items-center gap-2.5">
+          <span
+            className={`h-2.5 w-2.5 rounded-full flex-shrink-0 ${
+              isOnline ? "bg-green-500" : "bg-red-500"
+            }`}
+          />
+          <Link
+            to={`/fleet/${rover.id}`}
+            className="font-medium hover:text-primary transition-colors"
+          >
+            {rover.name || rover.id}
+          </Link>
+          {isOnline && (
+            <Badge
+              variant={getModeVariant(displayMode)}
+              className="text-[10px] h-5 px-1.5"
+            >
+              {ModeLabels[displayMode]}
+            </Badge>
+          )}
+        </div>
+        {!isOnline && rover.lastSeen > 0 && (
+          <span className="text-xs text-muted-foreground">
+            seen {timeAgo(rover.lastSeen)}
+          </span>
+        )}
+      </div>
 
-function RoverRow({ rover }: { rover: RoverInfo }) {
-  const theta = ((rover.lastPose.theta * 180) / Math.PI).toFixed(0);
+      {isOnline && (
+        <div className="p-4 space-y-3">
+          {/* Battery + Power */}
+          <BatteryDisplay voltage={rover.batteryVoltage} />
 
-  return (
-    <tr className={`border-b border-border hover:bg-muted/50 transition-colors ${!rover.online ? "opacity-50" : ""}`}>
-      {/* Status */}
-      <td className="py-2 px-3">
-        <StatusDot online={rover.online} />
-      </td>
-
-      {/* Name */}
-      <td className="py-2 px-3">
-        <Link
-          to={`/fleet/${rover.id}`}
-          className="font-medium hover:text-primary transition-colors"
-        >
-          {rover.name || rover.id}
-        </Link>
-      </td>
-
-      {/* Mode */}
-      <td className="py-2 px-3">
-        <Badge variant={getModeVariant(rover.mode)} className="text-[10px] h-5 px-1.5">
-          {ModeLabels[rover.mode]}
-        </Badge>
-      </td>
-
-      {/* Battery */}
-      <td className="py-2 px-3 text-sm">
-        {rover.online ? <BatteryCell voltage={rover.batteryVoltage} /> : "—"}
-      </td>
-
-      {/* Position */}
-      <td className="py-2 px-3 font-mono text-xs text-muted-foreground">
-        {rover.online ? (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <span className="cursor-help">
-                {rover.lastPose.x.toFixed(1)}, {rover.lastPose.y.toFixed(1)}
+          {/* Task progress (if any) */}
+          {taskInfo && (
+            <div className="p-2 bg-primary/5 border border-primary/10 rounded text-xs">
+              <div className="flex items-center justify-between mb-1">
+                <span className="font-medium">
+                  {taskInfo.missionName ?? "Active Task"}
+                </span>
+                <span className="text-muted-foreground">
+                  {(taskInfo.progress * 100).toFixed(0)}%
+                </span>
+              </div>
+              <div className="h-1 bg-muted rounded-full overflow-hidden mb-1">
+                <div
+                  className="h-full bg-primary rounded-full"
+                  style={{ width: `${taskInfo.progress * 100}%` }}
+                />
+              </div>
+              <span className="text-muted-foreground">
+                WP {taskInfo.waypoint} · Lap {taskInfo.lap}
               </span>
-            </TooltipTrigger>
-            <TooltipContent side="top">θ = {theta}°</TooltipContent>
-          </Tooltip>
-        ) : (
-          "—"
-        )}
-      </td>
+            </div>
+          )}
 
-      {/* Last Seen */}
-      <td className="py-2 px-3 text-xs text-muted-foreground">
-        {formatLastSeen(rover.lastSeen)}
-      </td>
-
-      {/* Actions */}
-      <td className="py-2 px-3 text-right">
-        {rover.online && (
-          <Button asChild size="sm" variant="default" className="h-7 px-2 gap-1">
-            <Link to={`/fleet/${rover.id}`}>
-              <GameController className="h-3.5 w-3.5" />
-              Teleop
-            </Link>
-          </Button>
-        )}
-      </td>
-    </tr>
+          {/* Quick Actions */}
+          <div className="flex gap-2">
+            <Button
+              asChild
+              size="sm"
+              variant="default"
+              className="h-7 px-2.5 gap-1 flex-1"
+            >
+              <Link to={`/fleet/${rover.id}`}>
+                <GameController className="h-3.5 w-3.5" />
+                Teleop
+              </Link>
+            </Button>
+            <Button
+              asChild
+              size="sm"
+              variant="outline"
+              className="h-7 px-2.5 gap-1"
+            >
+              <a href={grafanaUrl} target="_blank" rel="noopener noreferrer">
+                <ChartLineUp className="h-3.5 w-3.5" />
+                Grafana
+              </a>
+            </Button>
+            <Button
+              asChild
+              size="sm"
+              variant="outline"
+              className="h-7 px-2.5 gap-1"
+            >
+              <Link to={`/sessions?rover=${rover.id}`}>
+                <VideoCamera className="h-3.5 w-3.5" />
+                Sessions
+              </Link>
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
 export function FleetView() {
-  const { rovers } = useConsoleStore();
+  const rovers = useConsoleStore((s) => s.rovers);
+  const { tasks, missions } = useDispatch();
 
-  // Memoize derived arrays to avoid recomputation on every render
-  const { onlineRovers, offlineRovers, sortedRovers } = useMemo(() => {
-    const online = rovers.filter((r) => r.online);
-    const offline = rovers.filter((r) => !r.online);
-    // Sort: online first, then by name
-    const sorted = [...rovers].sort((a, b) => {
-      if (a.online !== b.online) return a.online ? -1 : 1;
-      return (a.name || a.id).localeCompare(b.name || b.id);
-    });
-    return { onlineRovers: online, offlineRovers: offline, sortedRovers: sorted };
-  }, [rovers]);
+  const { onlineRovers, sortedRovers, activeCount, faultCount } =
+    useMemo(() => {
+      const online = rovers.filter((r) => r.online);
+      const active = rovers.filter(
+        (r) =>
+          r.online &&
+          (r.mode === Mode.Teleop || r.mode === Mode.Autonomous)
+      );
+      const fault = rovers.filter(
+        (r) =>
+          r.online &&
+          (r.mode === Mode.EStop || r.mode === Mode.Fault)
+      );
+      const sorted = [...rovers].sort((a, b) => {
+        if (a.online !== b.online) return a.online ? -1 : 1;
+        return (a.name || a.id).localeCompare(b.name || b.id);
+      });
+      return {
+        onlineRovers: online,
+        sortedRovers: sorted,
+        activeCount: active.length,
+        faultCount: fault.length,
+      };
+    }, [rovers]);
+
+  // Build task info map
+  const taskInfoMap = useMemo(() => {
+    const map = new Map<
+      string,
+      { missionName?: string; progress: number; waypoint: number; lap: number }
+    >();
+    for (const task of tasks) {
+      if (task.status !== "active" && task.status !== "assigned") continue;
+      const mission = missions.find((m) => m.id === task.missionId);
+      map.set(task.roverId, {
+        missionName: mission?.name,
+        progress: task.progress,
+        waypoint: task.waypoint,
+        lap: task.lap,
+      });
+    }
+    return map;
+  }, [tasks, missions]);
 
   return (
     <TooltipProvider delayDuration={0}>
@@ -162,44 +260,92 @@ export function FleetView() {
           <div>
             <h1 className="text-2xl font-bold">Fleet</h1>
             <p className="text-sm text-muted-foreground">
-              {onlineRovers.length} online, {offlineRovers.length} offline
+              {rovers.length} total · {onlineRovers.length} online ·{" "}
+              {activeCount} active
+              {faultCount > 0 && (
+                <span className="text-red-500">
+                  {" · "}
+                  {faultCount} fault
+                </span>
+              )}
             </p>
           </div>
 
-          {/* Rover Table */}
+          {/* Summary Bar */}
+          <div className="flex gap-3 text-sm">
+            <SummaryPill
+              label="Total"
+              value={rovers.length}
+              variant="default"
+            />
+            <SummaryPill
+              label="Online"
+              value={onlineRovers.length}
+              variant="success"
+            />
+            <SummaryPill
+              label="Active"
+              value={activeCount}
+              variant="primary"
+            />
+            {faultCount > 0 && (
+              <SummaryPill
+                label="Fault"
+                value={faultCount}
+                variant="danger"
+              />
+            )}
+          </div>
+
+          {/* Rover Cards */}
           {rovers.length === 0 ? (
-            <div className="bg-muted/50 border border-border p-8 text-center">
+            <div className="bg-muted/50 border border-border p-8 text-center rounded-lg">
               <Robot className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
               <h3 className="font-medium mb-2">No Rovers Registered</h3>
               <p className="text-sm text-muted-foreground max-w-md mx-auto">
-                Rovers will appear here once they connect to the discovery service.
-                Make sure rovers are configured to register with this depot.
+                Rovers will appear here once they connect to the discovery
+                service. Make sure rovers are configured to register with
+                this depot.
               </p>
             </div>
           ) : (
-            <div className="border border-border rounded-lg overflow-hidden">
-              <table className="w-full text-sm">
-                <thead className="bg-muted/50 border-b border-border">
-                  <tr className="text-left text-xs text-muted-foreground uppercase tracking-wider">
-                    <th className="py-2 px-3 w-8"></th>
-                    <th className="py-2 px-3">Name</th>
-                    <th className="py-2 px-3">Mode</th>
-                    <th className="py-2 px-3">Battery</th>
-                    <th className="py-2 px-3">Position</th>
-                    <th className="py-2 px-3">Last Seen</th>
-                    <th className="py-2 px-3 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {sortedRovers.map((rover) => (
-                    <RoverRow key={rover.id} rover={rover} />
-                  ))}
-                </tbody>
-              </table>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {sortedRovers.map((rover) => (
+                <RoverCard
+                  key={rover.id}
+                  rover={rover}
+                  taskInfo={taskInfoMap.get(rover.id)}
+                />
+              ))}
             </div>
           )}
         </div>
       </div>
     </TooltipProvider>
+  );
+}
+
+function SummaryPill({
+  label,
+  value,
+  variant,
+}: {
+  label: string;
+  value: number;
+  variant: "default" | "success" | "primary" | "danger";
+}) {
+  const colors = {
+    default: "bg-muted text-foreground",
+    success: "bg-green-500/10 text-green-600 dark:text-green-400",
+    primary: "bg-primary/10 text-primary",
+    danger: "bg-red-500/10 text-red-600 dark:text-red-400",
+  };
+
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium ${colors[variant]}`}
+    >
+      {value} {label}
+    </span>
   );
 }
