@@ -98,6 +98,7 @@
         .mode.autonomous { color: #fff; background: #e77c40; border-color: #e77c40; }
         .mode.estop { color: #fff; background: #dc2626; border-color: #dc2626; }
         .mode.fault { color: #fff; background: #dc2626; border-color: #dc2626; }
+        .mode.sleep { color: #a8a29e; background: transparent; }
         .battery-pct {
             font-size: 28px;
             font-weight: 700;
@@ -232,6 +233,9 @@
         }
         .overlay.fault-overlay {
             background: rgba(69,26,3,0.92);
+        }
+        .overlay.sleep-overlay {
+            background: rgba(28,25,23,0.96);
         }
         .overlay-icon {
             width: 80px;
@@ -368,8 +372,8 @@
     </div>
 
     <script>
-        const modeNames = ['Disabled', 'Idle', 'Teleop', 'Autonomous', 'EStop', 'Fault'];
-        const modeClasses = ['disabled', 'idle', 'teleop', 'autonomous', 'estop', 'fault'];
+        const modeNames = ['Disabled', 'Idle', 'Teleop', 'Autonomous', 'EStop', 'Fault', 'Sleep'];
+        const modeClasses = ['disabled', 'idle', 'teleop', 'autonomous', 'estop', 'fault', 'sleep'];
 
         let connected = false;
         let lastUpdate = 0;
@@ -415,7 +419,7 @@
             const label = document.getElementById('overlay-label');
 
             // Reset variant classes
-            overlay.classList.remove('estop-overlay', 'fault-overlay');
+            overlay.classList.remove('estop-overlay', 'fault-overlay', 'sleep-overlay');
 
             // Only show blocking overlay for error states - telemetry is always useful
             if (!connected) {
@@ -436,6 +440,12 @@
                 subtitle.textContent = 'System fault. Check logs for details.';
                 dot.className = 'overlay-dot error';
                 label.textContent = 'Fault';
+            } else if (currentMode === 'Sleep') {
+                overlay.classList.add('visible', 'sleep-overlay');
+                title.textContent = 'Sleep';
+                subtitle.textContent = 'Rover is sleeping. Sensors powered down.';
+                dot.className = 'overlay-dot pulse';
+                label.textContent = 'Waiting for wake';
             } else {
                 overlay.classList.remove('visible');
             }
