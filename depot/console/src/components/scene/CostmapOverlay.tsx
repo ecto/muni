@@ -138,7 +138,9 @@ export function CostmapOverlay() {
       }
     }
 
-    textureRef.current!.needsUpdate = true;
+    if (textureRef.current) {
+      textureRef.current.needsUpdate = true;
+    }
 
     // Position plane at costmap world origin (center of the grid)
     // Costmap origin is bottom-left corner in world frame
