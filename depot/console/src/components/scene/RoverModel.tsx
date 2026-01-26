@@ -119,7 +119,7 @@ export function RoverModel() {
     groupRef.current.rotation.x = result.pose.pitch;  // pitch from IMU
     groupRef.current.rotation.z = result.pose.roll;   // roll from IMU
 
-    // Write render pose for UI consumers (TelemetryPanel, PositionPanel poll via getState)
+    // Write render pose for UI consumers (StatusPanel polls via getState)
     // Mutate directly instead of calling set() to avoid triggering Zustand subscriber notifications
     if (now - lastStoreUpdateRef.current > 100) {
       const state = useConsoleStore.getState();
@@ -140,6 +140,32 @@ export function RoverModel() {
           <PrimitiveRover />
         )}
       </Suspense>
+
+      {/* Forward direction indicator — always visible above the rover */}
+      <group position={[0, 0.45, 0]}>
+        {/* Arrow shaft */}
+        <mesh position={[0, 0, -0.12]} rotation={[-Math.PI / 2, 0, 0]}>
+          <cylinderGeometry args={[0.025, 0.025, 0.28, 8]} />
+          <meshStandardMaterial
+            color="#22d3ee"
+            emissive="#22d3ee"
+            emissiveIntensity={1.0}
+            transparent
+            opacity={0.9}
+          />
+        </mesh>
+        {/* Arrow head (cone) */}
+        <mesh position={[0, 0, -0.32]} rotation={[-Math.PI / 2, 0, 0]}>
+          <coneGeometry args={[0.06, 0.12, 8]} />
+          <meshStandardMaterial
+            color="#22d3ee"
+            emissive="#22d3ee"
+            emissiveIntensity={1.0}
+            transparent
+            opacity={0.95}
+          />
+        </mesh>
+      </group>
     </group>
   );
 }

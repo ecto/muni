@@ -245,9 +245,33 @@ export const useConsoleStore = create<ConsoleState>()(
   // Telemetry
   telemetry: defaultTelemetry,
   updateTelemetry: (partial) =>
-    set((state) => ({
-      telemetry: { ...state.telemetry, ...partial },
-    })),
+    set((state) => {
+      const next = { ...state.telemetry, ...partial };
+      const prevMode = state.telemetry.mode;
+      const nextMode = next.mode;
+
+      // Disable overlays when entering sleep (sensors are powered down)
+      if (nextMode === Mode.Sleep && prevMode !== Mode.Sleep) {
+        return {
+          telemetry: next,
+          pointCloudEnabled: false,
+          costmapEnabled: false,
+          obstaclesEnabled: false,
+        };
+      }
+
+      // Re-enable overlays when waking from sleep
+      if (prevMode === Mode.Sleep && nextMode !== Mode.Sleep) {
+        return {
+          telemetry: next,
+          pointCloudEnabled: true,
+          costmapEnabled: true,
+          obstaclesEnabled: true,
+        };
+      }
+
+      return { telemetry: next };
+    }),
 
   // Render pose and interpolation
   renderPose: { x: 0, y: 0, theta: 0, roll: 0, pitch: 0 },
@@ -308,15 +332,15 @@ export const useConsoleStore = create<ConsoleState>()(
   setPointCloudEnabled: (enabled) => set({ pointCloudEnabled: enabled }),
 
   // Costmap overlay
-  costmapEnabled: false,
+  costmapEnabled: true,
   setCostmapEnabled: (enabled) => set({ costmapEnabled: enabled }),
 
   // Obstacle overlay
-  obstaclesEnabled: false,
+  obstaclesEnabled: true,
   setObstaclesEnabled: (enabled) => set({ obstaclesEnabled: enabled }),
 
   // Gaussian splat
-  splatEnabled: true,
+  splatEnabled: false,
   setSplatEnabled: (enabled) => set({ splatEnabled: enabled }),
 
   // Sessions
@@ -392,6 +416,7 @@ export const useConsoleStore = create<ConsoleState>()(
         ["video", { name: "video", messagesPerSec: 0, lastMessageTime: 0, history: [] }],
         ["pointcloud", { name: "pointcloud", messagesPerSec: 0, lastMessageTime: 0, history: [] }],
         ["costmap", { name: "costmap", messagesPerSec: 0, lastMessageTime: 0, history: [] }],
+        ["obstacles", { name: "obstacles", messagesPerSec: 0, lastMessageTime: 0, history: [] }],
       ]),
     }),
     }),

@@ -71,6 +71,8 @@ const CHANNEL_CONFIG = [
   { key: "telemetry", label: "Telem", tooltip: "Telemetry data channel (~30-60 msg/s)" },
   { key: "video", label: "Video", tooltip: "Video frames channel (~10-15 FPS per camera)" },
   { key: "pointcloud", label: "Cloud", tooltip: "LiDAR point cloud channel (~5 msg/s when enabled)" },
+  { key: "costmap", label: "Costmap", tooltip: "Occupancy costmap channel (~5 msg/s when enabled)" },
+  { key: "obstacles", label: "Objects", tooltip: "Obstacle detections channel (~5 msg/s when enabled)" },
 ] as const;
 
 interface DiagnosticsPanelProps {
