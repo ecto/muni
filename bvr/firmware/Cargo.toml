@@ -84,8 +84,11 @@ planner = { path = "crates/planner" }
 pursuit = { path = "crates/pursuit" }
 control-loop = { path = "crates/control-loop" }
 
+# KD-tree for nearest-neighbor queries
+kiddo = "5"
+
 # RL training dependencies
-rand = "0.8"
+rand = { version = "0.8", features = ["small_rng"] }
 
 # System metrics
 sysinfo = "0.32"

@@ -4,12 +4,13 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "2D LiDAR SLAM: scan matching, pose graph, loop closure"
+description = "3D LiDAR SLAM: GICP scan matching, pose graph, loop closure"
 
 [dependencies]
 nalgebra.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
+kiddo.workspace = true
 types = { path = "../types" }
 transforms = { path = "../transforms" }
 lidar = { path = "../lidar" }
