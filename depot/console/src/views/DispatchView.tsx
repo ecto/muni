@@ -1,28 +1,25 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useDispatch } from "@/hooks/useDispatch";
 import { useConsoleStore } from "@/store";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
-import type { Zone, Mission, Waypoint } from "@/lib/types";
+import { ZoneEditor } from "@/components/dispatch/ZoneEditor";
+import { ZoneList } from "@/components/dispatch/ZoneList";
+import { MissionEditor } from "@/components/dispatch/MissionEditor";
+import { TaskTimeline } from "@/components/dispatch/TaskTimeline";
+import type { Zone, Waypoint, Schedule } from "@/lib/types";
 import { TaskStatus } from "@/lib/types";
-import { Scene } from "@/components/scene/Scene";
 
-// Simple zone editor modal
-function ZoneEditorModal({
+type DispatchTab = "zones" | "missions" | "timeline";
+
+// Simple zone editor modal for name + waypoints (text-based fallback)
+function ZoneCreateModal({
   zone,
   onSave,
   onClose,
 }: {
   zone?: Zone;
-  onSave: (name: string, waypoints: Waypoint[]) => void;
+  onSave: (name: string, waypoints: Waypoint[], polygonLatlng?: [number, number][]) => void;
   onClose: () => void;
 }) {
   const [name, setName] = useState(zone?.name || "");
@@ -40,175 +37,52 @@ function ZoneEditorModal({
         const [x, y] = line.split(",").map((n) => parseFloat(n.trim()));
         return { x: x || 0, y: y || 0 };
       });
-    onSave(name, waypoints);
+    onSave(name, waypoints, zone?.polygonLatlng);
   };
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <Card className="w-[500px]">
-        <CardHeader>
-          <CardTitle>{zone ? "Edit Zone" : "Create Zone"}</CardTitle>
-          <CardDescription>
-            Define a zone with waypoints for the rover to follow.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div>
-            <label className="text-sm font-medium">Name</label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="w-full mt-1 px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-md text-sm"
-              placeholder="Zone name"
-            />
-          </div>
-          <div>
-            <label className="text-sm font-medium">
-              Waypoints (x,y per line)
-            </label>
-            <textarea
-              value={waypointsText}
-              onChange={(e) => setWaypointsText(e.target.value)}
-              className="w-full mt-1 px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-md text-sm font-mono h-32"
-              placeholder="0,0&#10;1,0&#10;1,1&#10;0,1"
-            />
-          </div>
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={onClose}>
-              Cancel
-            </Button>
-            <Button onClick={handleSave} disabled={!name.trim()}>
-              Save
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="w-[500px] bg-zinc-950 border border-zinc-800 rounded-lg p-6 space-y-4">
+        <div>
+          <h2 className="text-lg font-semibold">
+            {zone ? "Edit Zone" : "Create Zone"}
+          </h2>
+          <p className="text-xs text-muted-foreground">
+            Define waypoints for the rover to follow. Draw the polygon on the map.
+          </p>
+        </div>
+        <div>
+          <label className="text-sm font-medium">Name</label>
+          <input
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className="w-full mt-1 px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-md text-sm"
+            placeholder="Zone name"
+            autoFocus
+          />
+        </div>
+        <div>
+          <label className="text-sm font-medium">
+            Waypoints (x,y per line)
+          </label>
+          <textarea
+            value={waypointsText}
+            onChange={(e) => setWaypointsText(e.target.value)}
+            className="w-full mt-1 px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-md text-sm font-mono h-32"
+            placeholder={"0,0\n1,0\n1,1\n0,1"}
+          />
+        </div>
+        <div className="flex justify-end gap-2">
+          <Button variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button onClick={handleSave} disabled={!name.trim()}>
+            Save
+          </Button>
+        </div>
+      </div>
     </div>
-  );
-}
-
-// Mission editor modal
-function MissionEditorModal({
-  mission,
-  zones,
-  rovers,
-  onSave,
-  onClose,
-}: {
-  mission?: Mission;
-  zones: Zone[];
-  rovers: { id: string; name: string }[];
-  onSave: (
-    name: string,
-    zoneId: string,
-    roverId: string | undefined,
-    loop: boolean
-  ) => void;
-  onClose: () => void;
-}) {
-  const [name, setName] = useState(mission?.name || "");
-  const [zoneId, setZoneId] = useState(mission?.zoneId || zones[0]?.id || "");
-  const [roverId, setRoverId] = useState(mission?.roverId || "");
-  const [loop, setLoop] = useState(mission?.schedule?.loop ?? false);
-
-  const handleSave = () => {
-    onSave(name, zoneId, roverId || undefined, loop);
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <Card className="w-[500px]">
-        <CardHeader>
-          <CardTitle>{mission ? "Edit Mission" : "Create Mission"}</CardTitle>
-          <CardDescription>
-            Configure a mission to dispatch to a rover.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div>
-            <label className="text-sm font-medium">Name</label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="w-full mt-1 px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-md text-sm"
-              placeholder="Mission name"
-            />
-          </div>
-          <div>
-            <label className="text-sm font-medium">Zone</label>
-            <select
-              value={zoneId}
-              onChange={(e) => setZoneId(e.target.value)}
-              className="w-full mt-1 px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-md text-sm"
-            >
-              {zones.map((z) => (
-                <option key={z.id} value={z.id}>
-                  {z.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="text-sm font-medium">Rover (optional)</label>
-            <select
-              value={roverId}
-              onChange={(e) => setRoverId(e.target.value)}
-              className="w-full mt-1 px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-md text-sm"
-            >
-              <option value="">Any available rover</option>
-              {rovers.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              id="loop"
-              checked={loop}
-              onChange={(e) => setLoop(e.target.checked)}
-              className="w-4 h-4"
-            />
-            <label htmlFor="loop" className="text-sm font-medium">
-              Loop continuously
-            </label>
-          </div>
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={onClose}>
-              Cancel
-            </Button>
-            <Button
-              onClick={handleSave}
-              disabled={!name.trim() || !zoneId}
-            >
-              Save
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-
-// Task status badge
-function TaskStatusBadge({ status }: { status: string }) {
-  const variants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
-    pending: "secondary",
-    assigned: "outline",
-    active: "default",
-    done: "secondary",
-    failed: "destructive",
-    cancelled: "secondary",
-  };
-
-  return (
-    <Badge variant={variants[status] || "secondary"}>
-      {status}
-    </Badge>
   );
 }
 
@@ -223,236 +97,259 @@ export function DispatchView() {
     updateZone,
     deleteZone,
     createMission,
+    updateMission,
     deleteMission,
     startMission,
     stopMission,
     cancelTask,
   } = useDispatch();
 
-  const { rovers } = useConsoleStore();
+  const rovers = useConsoleStore((s) => s.rovers);
+  const gpsStatus = useConsoleStore((s) => s.gpsStatus);
 
+  const [activeTab, setActiveTab] = useState<DispatchTab>("zones");
+  const [selectedZoneId, setSelectedZoneId] = useState<string | null>(null);
   const [showZoneEditor, setShowZoneEditor] = useState(false);
   const [editingZone, setEditingZone] = useState<Zone | undefined>();
-  const [showMissionEditor, setShowMissionEditor] = useState(false);
-  const [editingMission, setEditingMission] = useState<Mission | undefined>();
-  const [selectedZoneId, setSelectedZoneId] = useState<string | null>(null);
+  const [drawingMode, setDrawingMode] = useState(false);
+  const [timelineCollapsed, setTimelineCollapsed] = useState(false);
 
-  // Get active tasks
+  // Active tasks
   const activeTasks = useMemo(
-    () => tasks.filter(
-      (t) => t.status === TaskStatus.Active || t.status === TaskStatus.Assigned
-    ),
+    () =>
+      tasks.filter(
+        (t) => t.status === TaskStatus.Active || t.status === TaskStatus.Assigned
+      ),
     [tasks]
   );
 
-  // Handle zone save
-  const handleZoneSave = async (name: string, waypoints: Waypoint[]) => {
-    try {
-      if (editingZone) {
-        await updateZone(editingZone.id, { name, waypoints });
-      } else {
-        await createZone({ name, waypoints });
+  // Map center from GPS
+  const hasDepotPosition = gpsStatus?.latitude != null && gpsStatus?.longitude != null;
+  const mapCenter: [number, number] = hasDepotPosition
+    ? [gpsStatus.latitude!, gpsStatus.longitude!]
+    : [37.7749, -122.4194];
+  const mapZoom = hasDepotPosition ? 18 : 15;
+
+  // Zone handlers
+  const handleZoneSave = useCallback(
+    async (name: string, waypoints: Waypoint[], polygonLatlng?: [number, number][]) => {
+      try {
+        if (editingZone) {
+          await updateZone(editingZone.id, { name, waypoints, polygonLatlng });
+        } else {
+          await createZone({ name, waypoints, polygonLatlng });
+        }
+        setShowZoneEditor(false);
+        setEditingZone(undefined);
+      } catch (e) {
+        console.error("Failed to save zone:", e);
       }
-      setShowZoneEditor(false);
-      setEditingZone(undefined);
-    } catch (e) {
-      console.error("Failed to save zone:", e);
-    }
-  };
+    },
+    [editingZone, updateZone, createZone]
+  );
 
-  // Handle mission save
-  const handleMissionSave = async (
-    name: string,
-    zoneId: string,
-    roverId: string | undefined,
-    loop: boolean
-  ) => {
-    try {
-      await createMission({
-        name,
-        zoneId,
-        roverId,
-        schedule: { trigger: "manual", loop },
-      });
-      setShowMissionEditor(false);
-      setEditingMission(undefined);
-    } catch (e) {
-      console.error("Failed to save mission:", e);
-    }
-  };
+  const handleDrawComplete = useCallback(
+    async (polygon: [number, number][]) => {
+      setDrawingMode(false);
+      // Open zone editor modal with the drawn polygon
+      setEditingZone({
+        id: "",
+        name: "",
+        zoneType: "route",
+        waypoints: polygon.map(([lat, lng]) => ({ x: lat, y: lng })),
+        polygonLatlng: polygon,
+        createdAt: "",
+        updatedAt: "",
+      } as Zone);
+      setShowZoneEditor(true);
+    },
+    []
+  );
 
-  // Handle start mission
-  const handleStartMission = async (id: string) => {
-    try {
-      await startMission(id);
-    } catch (e) {
-      console.error("Failed to start mission:", e);
-    }
-  };
-
-  // Handle stop mission
-  const handleStopMission = async (id: string) => {
-    try {
-      await stopMission(id);
-    } catch (e) {
-      console.error("Failed to stop mission:", e);
-    }
-  };
-
-  // Quick patrol: find or create a looping mission for a zone and start it
-  const handleQuickPatrol = async (zoneId: string) => {
-    try {
-      const zone = zones.find((z) => z.id === zoneId);
-      if (!zone) return;
-
-      // Check if there's already a looping mission for this zone
-      let mission = missions.find((m) => m.zoneId === zoneId && m.schedule.loop);
-
-      if (!mission) {
-        // Create a new looping mission
-        mission = await createMission({
-          name: `${zone.name} Patrol`,
-          zoneId,
-          schedule: { trigger: "manual", loop: true },
-        });
+  // Quick patrol
+  const handleStartPatrol = useCallback(
+    async (zoneId: string) => {
+      try {
+        const zone = zones.find((z) => z.id === zoneId);
+        if (!zone) return;
+        let mission = missions.find((m) => m.zoneId === zoneId && m.schedule.loop);
+        if (!mission) {
+          mission = await createMission({
+            name: `${zone.name} Patrol`,
+            zoneId,
+            schedule: { trigger: "manual", loop: true },
+          });
+        }
+        await startMission(mission.id);
+      } catch (e) {
+        console.error("Failed to start patrol:", e);
       }
+    },
+    [zones, missions, createMission, startMission]
+  );
 
-      // Start the mission
-      await startMission(mission.id);
-    } catch (e) {
-      console.error("Failed to start patrol:", e);
-    }
-  };
+  const handleStopPatrol = useCallback(
+    async (zoneId: string) => {
+      try {
+        const mission = missions.find((m) => m.zoneId === zoneId);
+        if (mission) await stopMission(mission.id);
+      } catch (e) {
+        console.error("Failed to stop patrol:", e);
+      }
+    },
+    [missions, stopMission]
+  );
 
-  // Stop patrol for a zone
-  const handleStopPatrol = async (zoneId: string) => {
-    try {
-      // Find the active mission for this zone
+  const getActiveTask = useCallback(
+    (zoneId: string) => {
       const mission = missions.find((m) => m.zoneId === zoneId);
-      if (mission) {
-        await stopMission(mission.id);
-      }
-    } catch (e) {
-      console.error("Failed to stop patrol:", e);
-    }
-  };
+      if (!mission) return null;
+      return activeTasks.find((t) => t.missionId === mission.id) || null;
+    },
+    [missions, activeTasks]
+  );
 
-  // Check if a zone has an active patrol
-  const getZonePatrolStatus = (zoneId: string) => {
-    const mission = missions.find((m) => m.zoneId === zoneId);
-    if (!mission) return null;
-    const activeTask = activeTasks.find((t) => t.missionId === mission.id);
-    return activeTask || null;
-  };
+  // Mission handlers
+  const handleCreateMission = useCallback(
+    async (data: { name: string; zoneId: string; roverId?: string; schedule: Schedule }) => {
+      try {
+        await createMission(data);
+      } catch (e) {
+        console.error("Failed to create mission:", e);
+      }
+    },
+    [createMission]
+  );
+
+  const handleUpdateMission = useCallback(
+    async (id: string, updates: Record<string, unknown>) => {
+      try {
+        await updateMission(id, updates);
+      } catch (e) {
+        console.error("Failed to update mission:", e);
+      }
+    },
+    [updateMission]
+  );
 
   return (
-    <div className="flex h-full">
-      {/* 3D Scene - Left side (70%) */}
-      <div className="flex-1 relative">
-        <Scene
-          mode="dispatch"
-          zones={zones}
-          activeTasks={activeTasks}
-          onZoneClick={setSelectedZoneId}
-        />
+    <div className="flex flex-col h-full">
+      {/* Main content area */}
+      <div className="flex flex-1 min-h-0">
+        {/* Map / Zone Editor — Left side (60%) */}
+        <div className="flex-1 relative">
+          <ZoneEditor
+            zones={zones}
+            selectedZoneId={selectedZoneId}
+            onSelectZone={setSelectedZoneId}
+            center={mapCenter}
+            zoom={mapZoom}
+            drawingMode={drawingMode}
+            onDrawComplete={handleDrawComplete}
+          />
 
-        {/* Error overlay */}
-        {error && (
-          <div className="absolute top-4 left-4 right-4 bg-red-500/90 backdrop-blur rounded-lg p-3 text-white text-sm">
-            {error}
-          </div>
-        )}
+          {/* Error overlay */}
+          {error && (
+            <div className="absolute top-4 left-4 right-4 bg-red-500/90 backdrop-blur rounded-lg p-3 text-white text-sm z-[1000]">
+              {error}
+            </div>
+          )}
 
-        {/* Active task overlay */}
-        {activeTasks.length > 0 && (
-          <div className="absolute bottom-4 left-4 right-4 max-w-md">
-            {activeTasks.slice(0, 2).map((task) => {
-              const mission = missions.find((m) => m.id === task.missionId);
-              const zone = zones.find((z) => z.id === mission?.zoneId);
-              return (
-                <div
-                  key={task.id}
-                  className="bg-zinc-900/90 backdrop-blur rounded-lg p-3 mb-2"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                      <span className="font-medium text-sm">
-                        {mission?.name || "Patrol"}
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        {zone?.name}
+          {/* Active task overlay */}
+          {activeTasks.length > 0 && (
+            <div className="absolute bottom-4 left-4 max-w-sm z-[1000]">
+              {activeTasks.slice(0, 2).map((task) => {
+                const mission = missions.find((m) => m.id === task.missionId);
+                const zone = zones.find((z) => z.id === mission?.zoneId);
+                return (
+                  <div
+                    key={task.id}
+                    className="bg-zinc-900/90 backdrop-blur rounded-lg p-3 mb-2 border border-zinc-800"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                        <span className="font-medium text-sm">
+                          {mission?.name || "Patrol"}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          {zone?.name}
+                        </span>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 px-2 text-xs"
+                        onClick={() => cancelTask(task.id)}
+                      >
+                        Stop
+                      </Button>
+                    </div>
+                    <div className="mt-2 flex items-center gap-2">
+                      <div className="flex-1 h-1 bg-zinc-800 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-green-500 transition-all"
+                          style={{ width: `${task.progress}%` }}
+                        />
+                      </div>
+                      <span className="text-xs text-muted-foreground w-20 text-right">
+                        WP {task.waypoint + 1} · L{task.lap + 1}
                       </span>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-6 px-2 text-xs"
-                      onClick={() => cancelTask(task.id)}
-                    >
-                      Stop
-                    </Button>
                   </div>
-                  <div className="mt-2 flex items-center gap-2">
-                    <Progress value={task.progress} className="h-1 flex-1" />
-                    <span className="text-xs text-muted-foreground w-16">
-                      WP {task.waypoint + 1} • L{task.lap + 1}
-                    </span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-
-      {/* Control Panel - Right side (30%) */}
-      <div className="w-80 border-l border-zinc-800 bg-zinc-950 flex flex-col">
-        <div className="p-4 border-b border-zinc-800">
-          <h1 className="text-lg font-semibold">Dispatch</h1>
-          <p className="text-xs text-muted-foreground">
-            {connectedRovers.length} rover{connectedRovers.length !== 1 ? "s" : ""} connected
-          </p>
+                );
+              })}
+            </div>
+          )}
         </div>
 
-        <div className="flex-1 overflow-y-auto">
-          <div className="p-4 space-y-4">
-            {/* Connected Rovers */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <h2 className="text-sm font-medium">Fleet</h2>
-                {connectedRovers.length > 0 && (
-                  <Badge variant="secondary" className="text-xs">
-                    {connectedRovers.length} online
-                  </Badge>
-                )}
-              </div>
-              {connectedRovers.length === 0 ? (
-                <p className="text-xs text-muted-foreground">
-                  No rovers connected to dispatch
-                </p>
-              ) : (
-                <div className="flex flex-wrap gap-1">
-                  {connectedRovers.map((r) => (
-                    <Badge
-                      key={r.roverId}
-                      variant={r.taskId ? "default" : "outline"}
-                      className="text-xs"
-                    >
-                      {r.roverId}
-                      {r.taskId && " •"}
-                    </Badge>
-                  ))}
-                </div>
-              )}
-            </div>
+        {/* Side Panel — Right side (40%) */}
+        <div className="w-80 border-l border-zinc-800 bg-zinc-950 flex flex-col">
+          {/* Tab bar */}
+          <div className="flex border-b border-zinc-800">
+            {(
+              [
+                { id: "zones", label: "Zones", count: zones.length },
+                { id: "missions", label: "Missions", count: missions.length },
+                { id: "timeline", label: "History", count: tasks.length },
+              ] as const
+            ).map(({ id, label, count }) => (
+              <button
+                key={id}
+                className={`flex-1 px-3 py-2.5 text-xs font-medium transition-colors ${
+                  activeTab === id
+                    ? "text-foreground border-b-2 border-primary"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+                onClick={() => setActiveTab(id)}
+              >
+                {label}
+                <Badge variant="outline" className="ml-1.5 text-[9px] h-4 px-1">
+                  {count}
+                </Badge>
+              </button>
+            ))}
+          </div>
 
-            {/* Zones with Quick Patrol */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <h2 className="text-sm font-medium">Zones</h2>
+          {/* Panel header */}
+          <div className="px-3 py-2 border-b border-zinc-800 flex items-center justify-between">
+            <div>
+              <p className="text-xs text-muted-foreground">
+                {connectedRovers.length} rover{connectedRovers.length !== 1 ? "s" : ""} connected
+              </p>
+            </div>
+            {activeTab === "zones" && (
+              <div className="flex gap-1">
                 <Button
-                  variant="ghost"
+                  variant={drawingMode ? "default" : "outline"}
+                  size="sm"
+                  className="h-6 px-2 text-xs"
+                  onClick={() => setDrawingMode(!drawingMode)}
+                >
+                  {drawingMode ? "Cancel Draw" : "Draw Zone"}
+                </Button>
+                <Button
+                  variant="outline"
                   size="sm"
                   className="h-6 px-2 text-xs"
                   onClick={() => {
@@ -463,270 +360,127 @@ export function DispatchView() {
                   + Add
                 </Button>
               </div>
-              {zones.length === 0 ? (
-                <p className="text-xs text-muted-foreground">No zones defined</p>
-              ) : (
-                <div className="space-y-1">
-                  {zones.map((zone) => {
-                    const patrolTask = getZonePatrolStatus(zone.id);
-                    const isActive = !!patrolTask;
-                    return (
-                      <div
-                        key={zone.id}
-                        className={`p-2 rounded-lg border transition-colors cursor-pointer ${
-                          selectedZoneId === zone.id
-                            ? "border-blue-500 bg-blue-500/10"
-                            : isActive
-                            ? "border-green-500/50 bg-green-500/10"
-                            : "border-zinc-800 bg-zinc-900 hover:border-zinc-700"
-                        }`}
-                        onClick={() => setSelectedZoneId(zone.id)}
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            {isActive && (
-                              <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                            )}
-                            <span className="font-medium text-sm">{zone.name}</span>
-                          </div>
-                          {isActive ? (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-6 px-2 text-xs text-red-400 hover:text-red-300"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleStopPatrol(zone.id);
-                              }}
-                            >
-                              Stop
-                            </Button>
-                          ) : (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-6 px-2 text-xs text-green-400 hover:text-green-300"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleQuickPatrol(zone.id);
-                              }}
-                              disabled={connectedRovers.length === 0}
-                            >
-                              Patrol
-                            </Button>
-                          )}
-                        </div>
-                        <div className="text-xs text-muted-foreground mt-1">
-                          {zone.waypoints.length} waypoints
-                          {isActive && patrolTask && (
-                            <span className="ml-2">
-                              • WP {patrolTask.waypoint + 1} • Lap {patrolTask.lap + 1}
-                            </span>
-                          )}
-                        </div>
-                        {isActive && patrolTask && (
-                          <Progress value={patrolTask.progress} className="h-1 mt-2" />
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
+            )}
+          </div>
 
-            {/* Missions (collapsed by default) */}
-            <details className="group">
-              <summary className="flex items-center justify-between cursor-pointer list-none">
-                <h2 className="text-sm font-medium">Missions</h2>
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline" className="text-xs">
-                    {missions.length}
-                  </Badge>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-6 px-2 text-xs"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      setEditingMission(undefined);
-                      setShowMissionEditor(true);
-                    }}
-                    disabled={zones.length === 0}
-                  >
-                    + Add
-                  </Button>
-                </div>
-              </summary>
-              <div className="mt-2 space-y-1">
-                {missions.length === 0 ? (
-                  <p className="text-xs text-muted-foreground">
-                    No missions defined
-                  </p>
-                ) : (
-                  missions.map((mission) => {
-                    const zone = zones.find((z) => z.id === mission.zoneId);
-                    const activeTask = activeTasks.find(
-                      (t) => t.missionId === mission.id
-                    );
-                    return (
-                      <div
-                        key={mission.id}
-                        className="p-2 bg-zinc-900 rounded-lg border border-zinc-800"
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className="font-medium text-sm">{mission.name}</span>
-                          <div className="flex gap-1">
-                            {activeTask ? (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-6 px-2 text-xs text-red-400"
-                                onClick={() => handleStopMission(mission.id)}
-                              >
-                                Stop
-                              </Button>
-                            ) : (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-6 px-2 text-xs"
-                                onClick={() => handleStartMission(mission.id)}
-                                disabled={connectedRovers.length === 0}
-                              >
-                                Start
-                              </Button>
-                            )}
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-6 px-2 text-xs text-muted-foreground"
-                              onClick={() => deleteMission(mission.id)}
-                              disabled={!!activeTask}
-                            >
-                              ×
-                            </Button>
-                          </div>
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          {zone?.name || "Unknown zone"}
-                          {mission.schedule.loop && " • Loop"}
-                        </div>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-            </details>
+          {/* Tab content */}
+          <div className="flex-1 overflow-y-auto">
+            {activeTab === "zones" && (
+              <ZoneList
+                zones={zones}
+                selectedZoneId={selectedZoneId}
+                onSelectZone={setSelectedZoneId}
+                onEditZone={(zone) => {
+                  setEditingZone(zone);
+                  setShowZoneEditor(true);
+                }}
+                onDeleteZone={(id) => {
+                  deleteZone(id);
+                  setSelectedZoneId(null);
+                }}
+                onStartPatrol={handleStartPatrol}
+                onStopPatrol={handleStopPatrol}
+                getActiveTask={getActiveTask}
+                canStartPatrol={connectedRovers.length > 0}
+              />
+            )}
 
-            {/* Recent Tasks (collapsed by default) */}
-            <details className="group">
-              <summary className="flex items-center justify-between cursor-pointer list-none">
-                <h2 className="text-sm font-medium">History</h2>
-                <Badge variant="outline" className="text-xs">
-                  {tasks.length}
-                </Badge>
-              </summary>
-              <div className="mt-2 space-y-1">
+            {activeTab === "missions" && (
+              <MissionEditor
+                missions={missions}
+                zones={zones}
+                connectedRovers={connectedRovers}
+                roverNames={rovers.map((r) => ({ id: r.id, name: r.name }))}
+                activeTasks={activeTasks}
+                onCreateMission={handleCreateMission}
+                onUpdateMission={handleUpdateMission}
+                onDeleteMission={(id) => deleteMission(id)}
+                onStartMission={(id) => startMission(id)}
+                onStopMission={(id) => stopMission(id)}
+              />
+            )}
+
+            {activeTab === "timeline" && (
+              <div className="p-2 space-y-2">
+                {/* Recent tasks list */}
                 {tasks.length === 0 ? (
-                  <p className="text-xs text-muted-foreground">No tasks yet</p>
+                  <div className="p-4 text-center text-xs text-muted-foreground">
+                    No tasks yet
+                  </div>
                 ) : (
-                  tasks.slice(0, 10).map((task) => {
+                  tasks.slice(0, 20).map((task) => {
                     const mission = missions.find((m) => m.id === task.missionId);
+                    const statusColor = {
+                      pending: "secondary",
+                      assigned: "outline",
+                      active: "default",
+                      done: "secondary",
+                      failed: "destructive",
+                      cancelled: "secondary",
+                    }[task.status] as "default" | "secondary" | "destructive" | "outline";
+
                     return (
                       <div
                         key={task.id}
                         className="p-2 bg-zinc-900 rounded-lg border border-zinc-800"
                       >
                         <div className="flex items-center gap-2">
-                          <TaskStatusBadge status={task.status} />
+                          <Badge variant={statusColor}>
+                            {task.status}
+                          </Badge>
                           <span className="text-sm truncate">
                             {mission?.name || "Unknown"}
                           </span>
                         </div>
                         <div className="text-xs text-muted-foreground mt-1">
-                          {task.roverId} • {task.lap} laps •{" "}
+                          {task.roverId} · {task.lap} laps ·{" "}
                           {new Date(task.createdAt).toLocaleTimeString()}
+                          {task.error && (
+                            <span className="text-red-400 ml-1">· {task.error}</span>
+                          )}
                         </div>
                       </div>
                     );
                   })
                 )}
               </div>
-            </details>
+            )}
           </div>
         </div>
+      </div>
 
-        {/* Selected Zone Actions */}
-        {selectedZoneId && (
-          <div className="p-4 border-t border-zinc-800 space-y-2">
-            {(() => {
-              const zone = zones.find((z) => z.id === selectedZoneId);
-              if (!zone) return null;
-              return (
-                <>
-                  <div className="flex items-center justify-between">
-                    <span className="font-medium">{zone.name}</span>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-6 px-2 text-xs"
-                      onClick={() => setSelectedZoneId(null)}
-                    >
-                      ×
-                    </Button>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="flex-1"
-                      onClick={() => {
-                        setEditingZone(zone);
-                        setShowZoneEditor(true);
-                      }}
-                    >
-                      Edit
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="flex-1 text-red-400 border-red-400/50 hover:bg-red-400/10"
-                      onClick={() => {
-                        deleteZone(zone.id);
-                        setSelectedZoneId(null);
-                      }}
-                    >
-                      Delete
-                    </Button>
-                  </div>
-                </>
-              );
-            })()}
+      {/* Bottom Timeline Bar (always visible, collapsible) */}
+      <div className="border-t border-zinc-800 bg-zinc-950">
+        <button
+          className="w-full px-3 py-1.5 flex items-center justify-between hover:bg-zinc-900/50 transition-colors"
+          onClick={() => setTimelineCollapsed(!timelineCollapsed)}
+        >
+          <span className="text-xs font-medium text-muted-foreground">
+            Task Timeline
+          </span>
+          <span className="text-xs text-muted-foreground">
+            {timelineCollapsed ? "▲" : "▼"}
+          </span>
+        </button>
+        {!timelineCollapsed && (
+          <div className="px-3 pb-2">
+            <TaskTimeline
+              tasks={tasks}
+              missions={missions}
+              onCancelTask={cancelTask}
+            />
           </div>
         )}
       </div>
 
-      {/* Modals */}
+      {/* Zone Editor Modal */}
       {showZoneEditor && (
-        <ZoneEditorModal
+        <ZoneCreateModal
           zone={editingZone}
           onSave={handleZoneSave}
           onClose={() => {
             setShowZoneEditor(false);
             setEditingZone(undefined);
-          }}
-        />
-      )}
-
-      {showMissionEditor && (
-        <MissionEditorModal
-          mission={editingMission}
-          zones={zones}
-          rovers={rovers.map((r) => ({ id: r.id, name: r.name }))}
-          onSave={handleMissionSave}
-          onClose={() => {
-            setShowMissionEditor(false);
-            setEditingMission(undefined);
           }}
         />
       )}

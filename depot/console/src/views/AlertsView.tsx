@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { useConsoleStore } from "@/store";
+import { useAlerts } from "@/hooks/useAlerts";
 import { AlertSeverity, type Alert, type AlertSeverity as AlertSeverityType } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -12,8 +13,8 @@ import {
   Funnel,
 } from "@phosphor-icons/react";
 
-function timeAgo(ms: number): string {
-  const secs = Math.floor((Date.now() - ms) / 1000);
+function timeAgo(iso: string): string {
+  const secs = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
   if (secs < 10) return "just now";
   if (secs < 60) return `${secs}s ago`;
   const mins = Math.floor(secs / 60);
@@ -56,7 +57,7 @@ function AlertRow({
   onAcknowledge: (id: string) => void;
 }) {
   const isActive = !alert.clearedAt;
-  const isAcknowledged = alert.acknowledged;
+  const isAcknowledged = !!alert.acknowledgedAt;
 
   return (
     <div
@@ -70,7 +71,7 @@ function AlertRow({
           <SeverityBadge severity={alert.severity} />
           <span className="text-sm font-medium">{alert.sourceId}</span>
           <span className="text-xs text-muted-foreground">
-            {timeAgo(alert.timestamp)}
+            {timeAgo(alert.createdAt)}
           </span>
           {alert.clearedAt && (
             <Badge variant="secondary" className="text-[10px] h-4 px-1.5">
@@ -79,7 +80,7 @@ function AlertRow({
           )}
           {isAcknowledged && !alert.clearedAt && (
             <Badge variant="secondary" className="text-[10px] h-4 px-1.5">
-              ack
+              ack{alert.acknowledgedBy ? ` by ${alert.acknowledgedBy}` : ""}
             </Badge>
           )}
         </div>
@@ -104,7 +105,7 @@ type FilterSeverity = "all" | AlertSeverityType;
 
 export function AlertsView() {
   const alerts = useConsoleStore((s) => s.alerts);
-  const acknowledgeAlert = useConsoleStore((s) => s.acknowledgeAlert);
+  const { acknowledgeAlert } = useAlerts();
   const [filter, setFilter] = useState<FilterSeverity>("all");
   const [showCleared, setShowCleared] = useState(false);
 
@@ -185,9 +186,9 @@ export function AlertsView() {
                       {alert.message}
                     </span>
                     <span className="text-xs text-muted-foreground/50 ml-auto">
-                      {timeAgo(alert.timestamp)}
+                      {timeAgo(alert.createdAt)}
                     </span>
-                    {!alert.acknowledged && (
+                    {!alert.acknowledgedAt && (
                       <Button
                         size="sm"
                         variant="outline"

@@ -112,7 +112,7 @@ export function AppSidebar() {
   const alertBadgeCount = alerts.filter(
     (a) =>
       !a.clearedAt &&
-      !a.acknowledged &&
+      !a.acknowledgedAt &&
       (a.severity === AlertSeverity.Critical ||
         a.severity === AlertSeverity.Warning)
   ).length;

@@ -250,6 +250,8 @@ export interface Zone {
   zoneType: string;
   waypoints: Waypoint[];
   polygon?: GpsCoord[];
+  /** Lat/lng polygon for map display */
+  polygonLatlng?: [number, number][];
   mapId?: string;
   createdAt: string;
   updatedAt: string;
@@ -259,6 +261,10 @@ export interface Schedule {
   trigger: "manual" | "once" | "cron";
   cron?: string;
   loop: boolean;
+  /** Active window start (HH:MM format) */
+  windowStart?: string;
+  /** Active window end (HH:MM format) */
+  windowEnd?: string;
 }
 
 export interface Mission {
@@ -317,12 +323,46 @@ export type AlertSeverity = (typeof AlertSeverity)[keyof typeof AlertSeverity];
 export interface Alert {
   id: string;
   severity: AlertSeverity;
-  source: "rover" | "service" | "dispatch" | "gps";
+  source: "rover" | "service" | "dispatch" | "gps" | "weather";
   sourceId: string;
   message: string;
-  timestamp: number;
-  acknowledged: boolean;
-  clearedAt?: number;
+  /** ISO timestamp (server-backed) */
+  createdAt: string;
+  acknowledgedAt?: string;
+  acknowledgedBy?: string;
+  clearedAt?: string;
+  metadata?: Record<string, unknown>;
+}
+
+// =============================================================================
+// Weather Types
+// =============================================================================
+
+export interface WeatherResponse {
+  current: CurrentConditions | null;
+  forecast: ForecastPeriod[];
+  updatedAt: string | null;
+}
+
+export interface CurrentConditions {
+  temperatureF: number;
+  windSpeedMph: number;
+  windDirection: string;
+  shortForecast: string;
+  humidityPct: number | null;
+  isSnowing: boolean;
+  iconUrl: string | null;
+}
+
+export interface ForecastPeriod {
+  startTime: string;
+  endTime: string;
+  temperatureF: number;
+  windSpeed: string;
+  windDirection: string;
+  shortForecast: string;
+  precipitationProbability: number | null;
+  isSnow: boolean;
 }
 
 // GPS/Base station status

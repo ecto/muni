@@ -137,11 +137,12 @@ interface ConsoleState {
   setServices: (services: ServiceHealth[]) => void;
   setGpsStatus: (status: GpsStatus | null) => void;
 
-  // Alerts
+  // Alerts (server-backed)
   alerts: Alert[];
+  setAlerts: (alerts: Alert[]) => void;
   addAlert: (alert: Alert) => void;
-  acknowledgeAlert: (id: string) => void;
-  clearAlert: (id: string) => void;
+  updateAlert: (id: string, updates: Partial<Alert>) => void;
+  removeAlert: (id: string) => void;
 
   // Theme
   theme: Theme;
@@ -336,33 +337,24 @@ export const useConsoleStore = create<ConsoleState>()(
   setServices: (services) => set({ services }),
   setGpsStatus: (status) => set({ gpsStatus: status }),
 
-  // Alerts
+  // Alerts (server-backed)
   alerts: [],
+  setAlerts: (alerts) => set({ alerts }),
   addAlert: (alert) =>
     set((state) => {
-      // Deduplicate: don't add if an active alert with same source+sourceId+message exists
-      const isDuplicate = state.alerts.some(
-        (a) =>
-          !a.clearedAt &&
-          a.source === alert.source &&
-          a.sourceId === alert.sourceId &&
-          a.message === alert.message
-      );
-      if (isDuplicate) return state;
-      // Keep max 200 alerts, newest first
+      // Deduplicate by id
+      if (state.alerts.some((a) => a.id === alert.id)) return state;
       return { alerts: [alert, ...state.alerts].slice(0, 200) };
     }),
-  acknowledgeAlert: (id) =>
+  updateAlert: (id, updates) =>
     set((state) => ({
       alerts: state.alerts.map((a) =>
-        a.id === id ? { ...a, acknowledged: true } : a
+        a.id === id ? { ...a, ...updates } : a
       ),
     })),
-  clearAlert: (id) =>
+  removeAlert: (id) =>
     set((state) => ({
-      alerts: state.alerts.map((a) =>
-        a.id === id ? { ...a, clearedAt: Date.now() } : a
-      ),
+      alerts: state.alerts.filter((a) => a.id !== id),
     })),
 
   // Theme

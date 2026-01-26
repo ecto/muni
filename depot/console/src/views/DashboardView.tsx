@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useConsoleStore } from "@/store";
 import { useServiceHealth } from "@/hooks/useServiceHealth";
 import { useDispatch } from "@/hooks/useDispatch";
+import { useWeather } from "@/hooks/useWeather";
 import {
   CellTower,
   Robot,
@@ -18,6 +19,7 @@ import {
   CloudSnow,
 } from "@phosphor-icons/react";
 import { Mode, ModeLabels, AlertSeverity, type RoverInfo, type Mode as ModeType } from "@/lib/types";
+import { WeatherCard } from "@/components/dashboard/WeatherCard";
 import { getBatteryPercent } from "@/lib/utils";
 import {
   Map,
@@ -194,7 +196,7 @@ function ActivityFeed() {
               <span className="text-muted-foreground"> {alert.message}</span>
             </div>
             <span className="text-muted-foreground/50 flex-shrink-0">
-              {timeAgo(alert.timestamp)}
+              {timeAgo(new Date(alert.createdAt).getTime())}
             </span>
           </div>
         );
@@ -225,6 +227,7 @@ export function DashboardView() {
   const alerts = useConsoleStore((s) => s.alerts);
   const { healthyCount, totalCount } = useServiceHealth();
   const { tasks } = useDispatch();
+  const { weather } = useWeather();
 
   const onlineRovers = useMemo(
     () => rovers.filter((r) => r.online),
@@ -232,7 +235,7 @@ export function DashboardView() {
   );
 
   const activeAlerts = useMemo(
-    () => alerts.filter((a) => !a.clearedAt && !a.acknowledged),
+    () => alerts.filter((a) => !a.clearedAt && !a.acknowledgedAt),
     [alerts]
   );
   const criticalAlerts = activeAlerts.filter(
@@ -548,7 +551,7 @@ export function DashboardView() {
           </div>
         </div>
 
-        {/* Weather (placeholder for Phase 2) */}
+        {/* Weather */}
         <div className="border border-border rounded-lg overflow-hidden">
           <div className="px-4 py-2 border-b border-border bg-muted/30">
             <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
@@ -556,12 +559,7 @@ export function DashboardView() {
               Weather
             </span>
           </div>
-          <div className="p-3">
-            <div className="text-xs text-muted-foreground text-center py-4">
-              <CloudSnow className="h-8 w-8 mx-auto mb-2 opacity-30" />
-              Weather integration coming in Phase 2
-            </div>
-          </div>
+          <WeatherCard weather={weather} />
         </div>
       </div>
     </div>

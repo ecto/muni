@@ -6,7 +6,7 @@ import { Warning, WarningCircle } from "@phosphor-icons/react";
 export function AlertBanner() {
   const alerts = useConsoleStore((s) => s.alerts);
 
-  const activeAlerts = alerts.filter((a) => !a.clearedAt && !a.acknowledged);
+  const activeAlerts = alerts.filter((a) => !a.clearedAt && !a.acknowledgedAt);
   const criticalCount = activeAlerts.filter(
     (a) => a.severity === AlertSeverity.Critical
   ).length;

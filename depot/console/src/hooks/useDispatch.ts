@@ -1,4 +1,5 @@
 import { useEffect, useRef, useCallback, useState } from "react";
+import { useConsoleStore } from "@/store";
 import type {
   Zone,
   Mission,
@@ -17,6 +18,7 @@ interface CreateZoneRequest {
   zoneType?: string;
   waypoints: Waypoint[];
   polygon?: GpsCoord[];
+  polygonLatlng?: [number, number][];
   mapId?: string;
 }
 
@@ -25,6 +27,7 @@ interface UpdateZoneRequest {
   zoneType?: string;
   waypoints?: Waypoint[];
   polygon?: GpsCoord[];
+  polygonLatlng?: [number, number][];
   mapId?: string;
 }
 
@@ -66,11 +69,30 @@ interface MissionUpdateMessage {
   mission: Mission;
 }
 
+interface AlertCreatedMessage {
+  type: "alert_created";
+  alert: import("@/lib/types").Alert;
+}
+
+interface AlertAcknowledgedMessage {
+  type: "alert_acknowledged";
+  id: string;
+  by: string;
+}
+
+interface AlertClearedMessage {
+  type: "alert_cleared";
+  id: string;
+}
+
 type DispatchMessage =
   | TaskUpdateMessage
   | RoverUpdateMessage
   | ZoneUpdateMessage
-  | MissionUpdateMessage;
+  | MissionUpdateMessage
+  | AlertCreatedMessage
+  | AlertAcknowledgedMessage
+  | AlertClearedMessage;
 
 /**
  * Hook to interact with the dispatch service for mission planning.
@@ -192,6 +214,23 @@ export function useDispatch() {
                   return updated;
                 }
                 return [message.mission, ...prev];
+              });
+              break;
+
+            case "alert_created":
+              useConsoleStore.getState().addAlert(message.alert);
+              break;
+
+            case "alert_acknowledged":
+              useConsoleStore.getState().updateAlert(message.id, {
+                acknowledgedAt: new Date().toISOString(),
+                acknowledgedBy: message.by,
+              });
+              break;
+
+            case "alert_cleared":
+              useConsoleStore.getState().updateAlert(message.id, {
+                clearedAt: new Date().toISOString(),
               });
               break;
           }
@@ -392,6 +431,8 @@ export function useDispatch() {
       status?: string;
       roverId?: string;
       missionId?: string;
+      /** Unix milliseconds — only return tasks created after this time */
+      since?: number;
     }) => {
       setLoading(true);
       try {
@@ -399,6 +440,7 @@ export function useDispatch() {
         if (options?.status) params.set("status", options.status);
         if (options?.roverId) params.set("rover_id", options.roverId);
         if (options?.missionId) params.set("mission_id", options.missionId);
+        if (options?.since) params.set("since", String(options.since));
 
         const query = params.toString();
         const path = query ? `/tasks?${query}` : "/tasks";
