@@ -145,10 +145,12 @@ export function ObstacleOverlay() {
   useFrame(() => {
     if (!obstaclesEnabled || !groupRef.current) {
       if (groupRef.current) {
+        /* eslint-disable react-hooks/immutability -- imperative Three.js pool updates in frame loop */
         for (const entry of poolRef.current) {
           entry.wireframe.visible = false;
           entry.label.visible = false;
         }
+        /* eslint-enable react-hooks/immutability */
       }
       return;
     }

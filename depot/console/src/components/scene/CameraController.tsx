@@ -79,7 +79,7 @@ export function CameraController() {
 
     // Set initial cursor when not in teleop
     if (!isTeleopActive) {
-      canvas.style.cursor = "grab";
+      canvas.style.cursor = "grab"; // eslint-disable-line react-hooks/immutability -- DOM element, not hook return value
     }
 
     canvas.addEventListener("mousedown", onMouseDown);

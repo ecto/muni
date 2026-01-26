@@ -1,4 +1,4 @@
-import { useMemo, useRef, useEffect } from "react";
+import { useMemo, useRef } from "react";
 import { Line, Text, Billboard } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
@@ -208,39 +208,14 @@ const RING_POSITION: [number, number, number] = [0, 0.01, 0];
 function PulsingRing({ color }: { color: string }) {
   const ringRef = useRef<THREE.Mesh>(null);
 
-  // Create material once and memoize, with proper cleanup
-  const materialRef = useRef<THREE.MeshBasicMaterial | null>(null);
-  const material = useMemo(() => {
-    if (materialRef.current) {
-      materialRef.current.dispose();
-    }
-    const mat = new THREE.MeshBasicMaterial({
-      color,
-      transparent: true,
-      opacity: 0.5,
-      side: THREE.DoubleSide,
-    });
-    materialRef.current = mat;
-    return mat;
-  }, [color]);
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (materialRef.current) {
-        materialRef.current.dispose();
-        materialRef.current = null;
-      }
-    };
-  }, []);
-
   useFrame(({ clock }) => {
     if (!ringRef.current) return;
     // Pulse scale between 1.0 and 1.5
     const scale = 1.0 + 0.5 * Math.sin(clock.elapsedTime * 3);
     ringRef.current.scale.setScalar(scale);
     // Pulse opacity between 0.3 and 0.8
-    material.opacity = 0.3 + 0.5 * (1 - Math.sin(clock.elapsedTime * 3));
+    const mat = ringRef.current.material as THREE.MeshBasicMaterial;
+    mat.opacity = 0.3 + 0.5 * (1 - Math.sin(clock.elapsedTime * 3));
   });
 
   return (
@@ -249,8 +224,9 @@ function PulsingRing({ color }: { color: string }) {
       rotation={RING_ROTATION}
       position={RING_POSITION}
       geometry={RING_GEOMETRY}
-      material={material}
-    />
+    >
+      <meshBasicMaterial color={color} transparent opacity={0.5} side={THREE.DoubleSide} />
+    </mesh>
   );
 }
 

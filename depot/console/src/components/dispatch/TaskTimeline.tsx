@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import type { Task, Mission } from "@/lib/types";
 
@@ -22,16 +22,18 @@ function TaskBlock({
   mission,
   rangeStart,
   rangeEnd,
+  now,
   onCancel,
 }: {
   task: Task;
   mission: Mission | undefined;
   rangeStart: number;
   rangeEnd: number;
+  now: number;
   onCancel: () => void;
 }) {
   const start = new Date(task.createdAt).getTime();
-  const end = task.endedAt ? new Date(task.endedAt).getTime() : Date.now();
+  const end = task.endedAt ? new Date(task.endedAt).getTime() : now;
   const rangeDuration = rangeEnd - rangeStart;
 
   // Clamp to visible range
@@ -93,7 +95,11 @@ export function TaskTimeline({
 }: TaskTimelineProps) {
   const [timeRange, setTimeRange] = useState<TimeRange>("24h");
 
-  const now = Date.now();
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
   const rangeStart = now - TIME_RANGE_MS[timeRange];
   const rangeEnd = now;
 
@@ -111,7 +117,7 @@ export function TaskTimeline({
       map.set(task.roverId, existing);
     }
     return map;
-  }, [tasks, rangeStart, rangeEnd]);
+  }, [tasks, now, rangeStart, rangeEnd]);
 
   // Time axis labels
   const timeLabels = useMemo(() => {
@@ -190,6 +196,7 @@ export function TaskTimeline({
                       mission={missions.find((m) => m.id === task.missionId)}
                       rangeStart={rangeStart}
                       rangeEnd={rangeEnd}
+                      now={now}
                       onCancel={() => onCancelTask(task.id)}
                     />
                   ))}

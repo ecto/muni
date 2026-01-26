@@ -1,4 +1,4 @@
-import { useRef, useMemo, useEffect } from "react";
+import { useRef, useState, useEffect } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { useConsoleStore } from "@/store";
@@ -67,40 +67,30 @@ export function PointCloud3D() {
     count: 0,
   });
 
-  const geometryRef = useRef<THREE.BufferGeometry | null>(null);
-  const geometry = useMemo(() => {
-    if (geometryRef.current) geometryRef.current.dispose();
+  // Create geometry and material once (stable references)
+  const [geometry] = useState(() => {
     const geo = new THREE.BufferGeometry();
     geo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(MAX_POINTS * 3), 3));
     geo.setAttribute("color", new THREE.BufferAttribute(new Float32Array(MAX_POINTS * 3), 3));
     geo.setDrawRange(0, 0);
-    geometryRef.current = geo;
     return geo;
-  }, []);
+  });
 
-  const materialRef = useRef<THREE.PointsMaterial | null>(null);
-  const material = useMemo(() => {
-    if (materialRef.current) materialRef.current.dispose();
-    const mat = new THREE.PointsMaterial({
-      size: POINT_SIZE,
-      vertexColors: true,
-      sizeAttenuation: true,
-      transparent: true,
-      opacity: 0.9,
-      depthWrite: false,
-    });
-    materialRef.current = mat;
-    return mat;
-  }, []);
+  const [material] = useState(() => new THREE.PointsMaterial({
+    size: POINT_SIZE,
+    vertexColors: true,
+    sizeAttenuation: true,
+    transparent: true,
+    opacity: 0.9,
+    depthWrite: false,
+  }));
 
   useEffect(() => {
     return () => {
-      geometryRef.current?.dispose();
-      geometryRef.current = null;
-      materialRef.current?.dispose();
-      materialRef.current = null;
+      geometry.dispose();
+      material.dispose();
     };
-  }, []);
+  }, [geometry, material]);
 
   useEffect(() => {
     if (!pointCloudEnabled) {

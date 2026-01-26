@@ -1,4 +1,4 @@
-import { useRef, useEffect, useMemo } from "react";
+import { useRef, useEffect, useState } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { useConsoleStore } from "@/store";
@@ -19,45 +19,28 @@ export function RoverTrail() {
   const lastPosRef = useRef<THREE.Vector3 | null>(null);
   // Reusable Vector3 to avoid allocations in useFrame
   const tempVec = useRef(new THREE.Vector3());
-  // Track current point count for conditional rendering
-  const countRef = useRef(0);
 
   // Use reduced trail length when video is active to reduce GPU work
   const maxPoints = videoConnected ? MAX_POINTS_VIDEO_ACTIVE : MAX_POINTS;
 
-  // Pre-allocate geometry with max capacity
-  const geometryRef = useRef<THREE.BufferGeometry | null>(null);
-  const geometry = useMemo(() => {
-    if (geometryRef.current) {
-      geometryRef.current.dispose();
-    }
+  // Pre-allocate geometry with max capacity (stable reference)
+  const [geometry] = useState(() => {
     const geo = new THREE.BufferGeometry();
-    // Pre-allocate position buffer (use full MAX_POINTS to avoid reallocation)
     const positions = new Float32Array(MAX_POINTS * 3);
     geo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-    // Pre-allocate color buffer
     const colors = new Float32Array(MAX_POINTS * 3);
     geo.setAttribute("color", new THREE.BufferAttribute(colors, 3));
     geo.setDrawRange(0, 0);
-    geometryRef.current = geo;
     return geo;
-  }, []);
+  });
 
-  // Material with vertex colors
-  const materialRef = useRef<THREE.LineBasicMaterial | null>(null);
-  const material = useMemo(() => {
-    if (materialRef.current) {
-      materialRef.current.dispose();
-    }
-    const mat = new THREE.LineBasicMaterial({
-      vertexColors: true,
-      transparent: true,
-      opacity: 0.8,
-      linewidth: 2,
-    });
-    materialRef.current = mat;
-    return mat;
-  }, []);
+  // Material with vertex colors (stable reference)
+  const [material] = useState(() => new THREE.LineBasicMaterial({
+    vertexColors: true,
+    transparent: true,
+    opacity: 0.8,
+    linewidth: 2,
+  }));
 
   // Reusable Color object to avoid allocations
   const tempColor = useRef(new THREE.Color());
@@ -65,24 +48,17 @@ export function RoverTrail() {
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      if (geometryRef.current) {
-        geometryRef.current.dispose();
-        geometryRef.current = null;
-      }
-      if (materialRef.current) {
-        materialRef.current.dispose();
-        materialRef.current = null;
-      }
+      geometry.dispose();
+      material.dispose();
       pointsRef.current = [];
     };
-  }, []);
+  }, [geometry, material]);
 
   // Clear trail on disconnect
   useEffect(() => {
     if (!connected) {
       pointsRef.current = [];
       lastPosRef.current = null;
-      countRef.current = 0;
       geometry.setDrawRange(0, 0);
     }
   }, [connected, geometry]);
@@ -134,19 +110,11 @@ export function RoverTrail() {
       colorAttr.needsUpdate = true;
       geometry.setDrawRange(0, count);
       geometry.computeBoundingSphere();
-      countRef.current = count;
     }
   });
 
   // Create a persistent Line object that we update
-  const lineObj = useMemo(() => {
-    return new THREE.Line(geometry, material);
-  }, [geometry, material]);
-
-  // Don't render if not enough points
-  if (countRef.current < 2) {
-    return null;
-  }
+  const [lineObj] = useState(() => new THREE.Line(geometry, material));
 
   return <primitive object={lineObj} />;
 }

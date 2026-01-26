@@ -120,7 +120,7 @@ export function useRoverConnectionRtc() {
     ])
   );
   const metricsIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const lastMetricsUpdateRef = useRef<number>(performance.now());
+  const lastMetricsUpdateRef = useRef<number>(0);
 
   // Current input state (updated from main thread)
   const currentInputRef = useRef({
@@ -755,7 +755,6 @@ export function useRoverConnectionRtc() {
     updateTelemetry,
     setVideoConnected,
     setVideoFps,
-    setVideoFrame,
     updateChannelMetrics,
     clearIntervals,
     sendCommands,
@@ -832,7 +831,6 @@ export function useRoverConnectionRtc() {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       disconnectRef.current();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rtcAddress]);
 
   return {
