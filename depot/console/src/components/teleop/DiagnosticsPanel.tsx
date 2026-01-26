@@ -75,6 +75,23 @@ const CHANNEL_CONFIG = [
   { key: "obstacles", label: "Objects", tooltip: "Obstacle detections channel (~5 msg/s when enabled)" },
 ] as const;
 
+const LIDAR_WORK_STATE_LABELS: Record<number, string> = {
+  1: "Sampling",
+  2: "Idle",
+  3: "Ready",
+  4: "Error",
+};
+
+function lidarWorkStateLabel(state: number): string {
+  return LIDAR_WORK_STATE_LABELS[state] ?? "–";
+}
+
+function lidarTempColor(temp: number): string {
+  if (temp > 70) return "text-red-500";
+  if (temp >= 50) return "text-yellow-500";
+  return "text-green-500";
+}
+
 interface DiagnosticsPanelProps {
   onToggleLidar?: (enabled: boolean) => void;
 }
@@ -173,6 +190,17 @@ export function DiagnosticsPanel({ onToggleLidar }: DiagnosticsPanelProps) {
                 </Tooltip>
               ) : (
                 <HealthIndicator label="LiDAR" healthy={false} tooltip="LiDAR sensor not active" />
+              )}
+              {/* LiDAR detail row (temp + work state) */}
+              {telemetry.health.lidar_active && telemetry.lidar && (
+                <div className="col-span-2 flex items-center justify-between text-[11px] pl-2">
+                  <span className="text-muted-foreground">
+                    {lidarWorkStateLabel(telemetry.lidar.work_state)}
+                  </span>
+                  <span className={`font-mono ${lidarTempColor(telemetry.lidar.temp_c)}`}>
+                    {telemetry.lidar.temp_c.toFixed(0)}°C
+                  </span>
+                </div>
               )}
               <HealthIndicator label="SLAM" healthy={telemetry.health.slam_running} tooltip="Simultaneous Localization and Mapping running" />
               <HealthIndicator label="Rec" healthy={telemetry.health.recording_active} tooltip="Session recording to .rrd file" />

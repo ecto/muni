@@ -1148,6 +1148,7 @@ async fn main() -> Result<()> {
         tool_status: None,
         slam_status: None,
         lidar_core_temp_c: None,
+        lidar_work_state: 0,
         mode_changed_at: 0,
     };
     let (telemetry_tx, telemetry_rx) = watch::channel(initial_telemetry);
@@ -2715,6 +2716,7 @@ async fn main() -> Result<()> {
             tool_status,
             slam_status,
             lidar_core_temp_c,
+            lidar_work_state: lidar_status.work_state,
             mode_changed_at: state.state_machine.mode_changed_at_epoch_secs(),
         };
 

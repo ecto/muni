@@ -84,6 +84,13 @@ export const defaultHealth: SubsystemHealth = {
   wheel_status: [0, 0, 0, 0],
 };
 
+export interface LidarTelemetry {
+  /** Core temperature in °C */
+  temp_c: number;
+  /** Work state: 0=unknown, 1=sampling, 2=idle, 3=ready, 4=error */
+  work_state: number;
+}
+
 export interface Telemetry {
   mode: Mode;
   pose: Pose;
@@ -102,6 +109,8 @@ export interface Telemetry {
   disk_percent: number;
   /** Epoch ms when mode last changed (client-side tracking) */
   modeChangedAt: number;
+  /** LiDAR sensor status (undefined when no data available) */
+  lidar?: LidarTelemetry;
 }
 
 export interface GamepadInput {

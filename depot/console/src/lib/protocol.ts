@@ -11,11 +11,12 @@
  * - 0x05 Tool:         [header] [axis:f32 LE] [motor:f32 LE] [action_a:u8] [action_b:u8]
  * - 0x06 E-Stop Release: [header]
  *
- * Telemetry (Rover -> Operator) - 132 bytes (120/128 bytes for legacy):
+ * Telemetry (Rover -> Operator) - 140 bytes (120/128/132 bytes for legacy):
  * - 0x11 Telemetry: [type:u8] [mode:u8] [seq:u16] [pad:4B] [pose:24B] [voltage:f64]
  *   [timestamp_us:u64] [cmd_vel:8B] [meas_vel:8B] [accel:8B] [temps:16B] [currents:16B]
  *   [health:2B] [odom_quality:2B] [dt_ms:f32] [ack_seq:u16] [ack_bits:u16]
- *   [roll:f32] [pitch:f32] [crc32:u32]
+ *   [roll:f32] [pitch:f32] [mode_changed_at:u32] [lidar_temp:f32] [lidar_state:u8]
+ *   [reserved:3B] [crc32:u32]
  */
 
 import {
@@ -188,6 +189,10 @@ export interface DecodedTelemetry {
   disk_percent: number;
   /** Epoch seconds when the current mode was entered (0 = unknown/legacy) */
   mode_changed_at: number;
+  /** LiDAR core temperature (°C, 0 = unavailable) */
+  lidar_core_temp_c: number;
+  /** LiDAR work state (0=unknown, 1=sampling, 2=idle, 3=ready, 4=error) */
+  lidar_work_state: number;
 }
 
 /**
@@ -306,6 +311,14 @@ export function decodeTelemetry(data: ArrayBuffer): DecodedTelemetry | null {
     mode_changed_at = view.getUint32(124, true);
   }
 
+  // LiDAR status [128-132] (140-byte format)
+  let lidar_core_temp_c = 0;
+  let lidar_work_state = 0;
+  if (data.byteLength >= 140) {
+    lidar_core_temp_c = view.getFloat32(128, true);
+    lidar_work_state = view.getUint8(132);
+  }
+
   return {
     sequence,
     mode,
@@ -326,6 +339,8 @@ export function decodeTelemetry(data: ArrayBuffer): DecodedTelemetry | null {
     mem_percent,
     disk_percent,
     mode_changed_at,
+    lidar_core_temp_c,
+    lidar_work_state,
   };
 }
 
@@ -350,6 +365,10 @@ export function telemetryFromDecoded(decoded: DecodedTelemetry): Telemetry {
     mem_percent: decoded.mem_percent,
     disk_percent: decoded.disk_percent,
     modeChangedAt: decoded.mode_changed_at > 0 ? decoded.mode_changed_at * 1000 : Date.now(),
+    lidar:
+      decoded.lidar_core_temp_c > 0 || decoded.lidar_work_state > 0
+        ? { temp_c: decoded.lidar_core_temp_c, work_state: decoded.lidar_work_state }
+        : undefined,
   };
 }
 
@@ -619,8 +638,10 @@ function rleDecodeU8(encoded: Uint8Array, expectedLen: number): Uint8Array | nul
 /** Header size for obstacle messages. */
 const OBSTACLES_HEADER_SIZE = 4;
 
-/** Per-obstacle record size in bytes. */
-const OBSTACLE_RECORD_SIZE = 36;
+/** Per-obstacle record size in bytes (v1). */
+const OBSTACLE_RECORD_SIZE_V1 = 44;
+/** Per-obstacle record size in bytes (v0, legacy). */
+const OBSTACLE_RECORD_SIZE_V0 = 36;
 
 /** A detected obstacle with bounding box and centroid in world coordinates. */
 export interface DecodedObstacle {
@@ -636,6 +657,10 @@ export interface DecodedObstacle {
   cellCount: number;
   /** Area in square meters. */
   area: number;
+  /** Minimum observed Z (height) in meters. 0 when unavailable. */
+  minZ: number;
+  /** Maximum observed Z (height) in meters. 0 when unavailable. */
+  maxZ: number;
 }
 
 /**
@@ -644,9 +669,9 @@ export interface DecodedObstacle {
  * Header (4 bytes):
  *   [0]      u8    MSG_OBSTACLES (0x23)
  *   [1]      u8    obstacle_count
- *   [2-3]    u16   reserved
+ *   [2-3]    u16   version (0=legacy, 1=with height)
  *
- * Per obstacle (36 bytes):
+ * Per obstacle (v0: 36 bytes, v1: 44 bytes):
  *   [0-1]    u16   id
  *   [2]      u8    class
  *   [3]      u8    reserved
@@ -658,6 +683,9 @@ export interface DecodedObstacle {
  *   [24-27]  f32   bbox_max_y
  *   [28-31]  u32   cell_count
  *   [32-35]  f32   area
+ *   v1 only:
+ *   [36-39]  f32   min_z
+ *   [40-43]  f32   max_z
  */
 export function decodeObstacles(data: ArrayBuffer): DecodedObstacle[] | null {
   if (data.byteLength < OBSTACLES_HEADER_SIZE) {
@@ -671,14 +699,16 @@ export function decodeObstacles(data: ArrayBuffer): DecodedObstacle[] | null {
   }
 
   const count = view.getUint8(1);
-  const expectedLen = OBSTACLES_HEADER_SIZE + count * OBSTACLE_RECORD_SIZE;
+  const version = view.getUint16(2, true);
+  const recordSize = version >= 1 ? OBSTACLE_RECORD_SIZE_V1 : OBSTACLE_RECORD_SIZE_V0;
+  const expectedLen = OBSTACLES_HEADER_SIZE + count * recordSize;
   if (data.byteLength < expectedLen) {
     return null;
   }
 
   const obstacles: DecodedObstacle[] = [];
   for (let i = 0; i < count; i++) {
-    const offset = OBSTACLES_HEADER_SIZE + i * OBSTACLE_RECORD_SIZE;
+    const offset = OBSTACLES_HEADER_SIZE + i * recordSize;
     obstacles.push({
       id: view.getUint16(offset, true),
       obstacleClass: view.getUint8(offset + 2),
@@ -690,6 +720,8 @@ export function decodeObstacles(data: ArrayBuffer): DecodedObstacle[] | null {
       bboxMaxY: view.getFloat32(offset + 24, true),
       cellCount: view.getUint32(offset + 28, true),
       area: view.getFloat32(offset + 32, true),
+      minZ: version >= 1 ? view.getFloat32(offset + 36, true) : 0,
+      maxZ: version >= 1 ? view.getFloat32(offset + 40, true) : 0,
     });
   }
 
