@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import {
@@ -42,7 +42,7 @@ const modeTooltips: Record<Mode, string> = {
   [Mode.Autonomous]: "Self-driving mode",
   [Mode.EStop]: "Emergency stop engaged",
   [Mode.Fault]: "System error detected",
-  [Mode.Disabled]: "Teleop disabled",
+  [Mode.Disabled]: "Idle",
   [Mode.Sleep]: "Sensors powered down",
 };
 
@@ -130,12 +130,24 @@ const CHANNEL_CONFIG = [
 ] as const;
 
 export function TelemetryPanel({ onToggleLidar }: TelemetryPanelProps) {
-  // Split selectors for granular updates
-  const telemetry = useConsoleStore((s) => s.telemetry);
+  // Subscribe only to rarely-changing values via selectors
   const connected = useConsoleStore((s) => s.connected);
-  const latencyMs = useConsoleStore((s) => s.latencyMs);
-  const renderPose = useConsoleStore((s) => s.renderPose);
   const cameraMode = useConsoleStore((s) => s.cameraMode);
+
+  // Poll high-frequency data at 4Hz instead of subscribing
+  // (telemetry updates at 10Hz, latency at 10Hz, renderPose at 60fps — too much for DOM)
+  const [telemetry, setTelemetry] = useState(useConsoleStore.getState().telemetry);
+  const [latencyMs, setLatencyMs] = useState(0);
+  const [displayPose, setDisplayPose] = useState({ x: 0, y: 0, theta: 0, roll: 0, pitch: 0 });
+  useEffect(() => {
+    const id = setInterval(() => {
+      const state = useConsoleStore.getState();
+      setTelemetry(state.telemetry);
+      setLatencyMs(state.latencyMs);
+      setDisplayPose(state.renderPose);
+    }, 250);
+    return () => clearInterval(id);
+  }, []);
   const setCameraMode = useConsoleStore((s) => s.setCameraMode);
   const pointCloudEnabled = useConsoleStore((s) => s.pointCloudEnabled);
   const setPointCloudEnabled = useConsoleStore((s) => s.setPointCloudEnabled);
@@ -150,6 +162,27 @@ export function TelemetryPanel({ onToggleLidar }: TelemetryPanelProps) {
   );
 
   const [collapsed, setCollapsed] = useState(false);
+
+  // Ticking elapsed time since last mode change
+  const [modeElapsed, setModeElapsed] = useState("");
+  useEffect(() => {
+    const tick = () => {
+      const secs = Math.floor((Date.now() - telemetry.modeChangedAt) / 1000);
+      if (secs >= 3600) {
+        const h = Math.floor(secs / 3600);
+        const m = Math.floor((secs % 3600) / 60);
+        const s = secs % 60;
+        setModeElapsed(`${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`);
+      } else {
+        const m = Math.floor(secs / 60);
+        const s = secs % 60;
+        setModeElapsed(`${m}:${String(s).padStart(2, "0")}`);
+      }
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [telemetry.modeChangedAt]);
 
   const batteryPercent = useMemo(
     () => getBatteryPercent(telemetry.power.battery_voltage),
@@ -197,9 +230,12 @@ export function TelemetryPanel({ onToggleLidar }: TelemetryPanelProps) {
             <TooltipTrigger asChild>
               <div className="flex items-center justify-between text-xs cursor-help">
                 <span className="text-muted-foreground">Mode</span>
-                <Badge variant={getModeVariant(telemetry.mode)} className="text-xs h-5 text-foreground">
-                  {ModeLabels[telemetry.mode]}
-                </Badge>
+                <span className="flex items-center gap-1.5">
+                  <Badge variant={getModeVariant(telemetry.mode)} className="text-xs h-5 text-foreground">
+                    {ModeLabels[telemetry.mode]}
+                  </Badge>
+                  <span className="font-mono text-muted-foreground tabular-nums">{modeElapsed}</span>
+                </span>
               </div>
             </TooltipTrigger>
             <TooltipContent side="right">{modeTooltips[telemetry.mode]}</TooltipContent>
@@ -282,7 +318,7 @@ export function TelemetryPanel({ onToggleLidar }: TelemetryPanelProps) {
                 <TooltipTrigger asChild>
                   <div className="flex justify-between cursor-help">
                     <span className="text-muted-foreground">X</span>
-                    <span className="font-mono">{renderPose.x.toFixed(1)}</span>
+                    <span className="font-mono">{displayPose.x.toFixed(1)}</span>
                   </div>
                 </TooltipTrigger>
                 <TooltipContent side="right">East-West position in meters from origin</TooltipContent>
@@ -291,7 +327,7 @@ export function TelemetryPanel({ onToggleLidar }: TelemetryPanelProps) {
                 <TooltipTrigger asChild>
                   <div className="flex justify-between cursor-help">
                     <span className="text-muted-foreground">Y</span>
-                    <span className="font-mono">{renderPose.y.toFixed(1)}</span>
+                    <span className="font-mono">{displayPose.y.toFixed(1)}</span>
                   </div>
                 </TooltipTrigger>
                 <TooltipContent side="right">North-South position in meters from origin</TooltipContent>
@@ -300,7 +336,7 @@ export function TelemetryPanel({ onToggleLidar }: TelemetryPanelProps) {
                 <TooltipTrigger asChild>
                   <div className="flex justify-between cursor-help">
                     <span className="text-muted-foreground">θ</span>
-                    <span className="font-mono">{((renderPose.theta * 180) / Math.PI).toFixed(0)}°</span>
+                    <span className="font-mono">{((displayPose.theta * 180) / Math.PI).toFixed(0)}°</span>
                   </div>
                 </TooltipTrigger>
                 <TooltipContent side="right">Heading angle. 0° = East, 90° = North</TooltipContent>
@@ -312,7 +348,7 @@ export function TelemetryPanel({ onToggleLidar }: TelemetryPanelProps) {
                 <TooltipTrigger asChild>
                   <div className="flex justify-between cursor-help">
                     <span className="text-muted-foreground">Roll</span>
-                    <span className="font-mono">{((renderPose.roll * 180) / Math.PI).toFixed(1)}°</span>
+                    <span className="font-mono">{((displayPose.roll * 180) / Math.PI).toFixed(1)}°</span>
                   </div>
                 </TooltipTrigger>
                 <TooltipContent side="right">Side-to-side tilt from IMU. 0° = level</TooltipContent>
@@ -321,7 +357,7 @@ export function TelemetryPanel({ onToggleLidar }: TelemetryPanelProps) {
                 <TooltipTrigger asChild>
                   <div className="flex justify-between cursor-help">
                     <span className="text-muted-foreground">Pitch</span>
-                    <span className="font-mono">{((renderPose.pitch * 180) / Math.PI).toFixed(1)}°</span>
+                    <span className="font-mono">{((displayPose.pitch * 180) / Math.PI).toFixed(1)}°</span>
                   </div>
                 </TooltipTrigger>
                 <TooltipContent side="right">Front-to-back tilt from IMU. 0° = level</TooltipContent>
