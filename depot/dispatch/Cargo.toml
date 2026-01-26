@@ -17,6 +17,8 @@ uuid = { version = "1", features = ["v4", "serde"] }
 chrono = { version = "0.4", features = ["serde"] }
 thiserror = "2"
 sqlx = { version = "0.8", features = ["runtime-tokio", "postgres", "uuid", "chrono", "json"] }
+reqwest = { version = "0.12", features = ["json"] }
+croner = "2"
 
 [profile.release]
 lto = true

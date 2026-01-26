@@ -7,8 +7,13 @@
 //! - Mission CRUD: POST/GET/PUT/DELETE /missions
 //! - Mission control: POST /missions/:id/start, POST /missions/:id/stop
 //! - Task management: GET /tasks, POST /tasks/:id/cancel
+//! - Alerts: GET/POST /api/alerts
+//! - Weather: GET /api/weather
 //! - WebSocket: /ws - rovers connect here for task assignment
 //! - Health: GET /health
+
+pub mod alerts;
+pub mod weather;
 
 use axum::{
     extract::{
@@ -54,6 +59,8 @@ pub struct Zone {
     pub waypoints: serde_json::Value,
     // Note: no #[sqlx(json)] here - Option<Value> handles nullable JSONB natively
     pub polygon: Option<serde_json::Value>,
+    /// Lat/lng polygon for map display (separate from local-frame waypoints)
+    pub polygon_latlng: Option<serde_json::Value>,
     pub map_id: Option<Uuid>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
@@ -169,6 +176,8 @@ pub struct CreateZone {
     pub zone_type: String,
     pub waypoints: Vec<Waypoint>,
     pub polygon: Option<Vec<GpsCoord>>,
+    /// Lat/lng polygon for map display
+    pub polygon_latlng: Option<Vec<[f64; 2]>>,
     pub map_id: Option<Uuid>,
 }
 
@@ -183,6 +192,8 @@ pub struct UpdateZone {
     pub zone_type: Option<String>,
     pub waypoints: Option<Vec<Waypoint>>,
     pub polygon: Option<Vec<GpsCoord>>,
+    /// Lat/lng polygon for map display
+    pub polygon_latlng: Option<Vec<[f64; 2]>>,
     pub map_id: Option<Uuid>,
 }
 
@@ -211,6 +222,8 @@ pub struct TasksQuery {
     pub status: Option<String>,
     pub rover_id: Option<String>,
     pub mission_id: Option<Uuid>,
+    /// Unix milliseconds — only return tasks created after this time
+    pub since: Option<i64>,
 }
 
 // =============================================================================
@@ -269,6 +282,9 @@ pub enum BroadcastMessage {
     },
     ZoneUpdate { zone: Zone },
     MissionUpdate { mission: Mission },
+    /// Raw JSON alert event (serialized AlertBroadcast)
+    #[serde(skip)]
+    AlertEvent { json: String },
 }
 
 // =============================================================================
@@ -290,6 +306,8 @@ pub struct AppState {
     pub rovers: RwLock<HashMap<String, ConnectedRover>>,
     /// Broadcast channel for console updates
     pub broadcast_tx: broadcast::Sender<BroadcastMessage>,
+    /// Cached weather data
+    pub weather_cache: Arc<weather::WeatherCache>,
 }
 
 impl AppState {
@@ -299,6 +317,7 @@ impl AppState {
             db,
             rovers: RwLock::new(HashMap::new()),
             broadcast_tx,
+            weather_cache: weather::WeatherCache::new(),
         }
     }
 
@@ -348,10 +367,25 @@ async fn main() {
 
     let state = Arc::new(AppState::new(pool));
 
-    // Spawn background task to detect and recover orphaned tasks
+    // Spawn background tasks
     let cleanup_state = state.clone();
     tokio::spawn(async move {
         task_cleanup_loop(cleanup_state).await;
+    });
+
+    let alert_state = state.clone();
+    tokio::spawn(async move {
+        alerts::alert_evaluator(alert_state).await;
+    });
+
+    let weather_state = state.clone();
+    tokio::spawn(async move {
+        weather::weather_fetcher(weather_state).await;
+    });
+
+    let schedule_state = state.clone();
+    tokio::spawn(async move {
+        schedule_evaluator(schedule_state).await;
     });
 
     let app = Router::new()
@@ -373,6 +407,13 @@ async fn main() {
         .route("/tasks", get(list_tasks))
         .route("/tasks/{id}", get(get_task))
         .route("/tasks/{id}/cancel", post(cancel_task))
+        // Alert endpoints
+        .route("/api/alerts", get(alerts::list_alerts))
+        .route("/api/alerts/{id}/ack", post(alerts::acknowledge_alert))
+        .route("/api/alerts/{id}/clear", post(alerts::clear_alert))
+        .route("/api/alerts/{id}", delete(alerts::delete_alert))
+        // Weather endpoint
+        .route("/api/weather", get(weather::get_weather))
         // WebSocket
         .route("/ws", get(ws_handler))
         .route("/ws/console", get(ws_console_handler))
@@ -395,9 +436,10 @@ async fn main() {
 
 /// Run database migrations manually
 async fn run_migrations(pool: &PgPool) {
-    let migration = include_str!("../migrations/001_initial.sql");
+    let migration_001 = include_str!("../migrations/001_initial.sql");
+    let migration_002 = include_str!("../migrations/002_phase2.sql");
 
-    // Check if migrations have been run by checking for zones table
+    // Check if initial migration has been run
     let table_exists: bool = sqlx::query_scalar(
         "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'zones')",
     )
@@ -407,13 +449,30 @@ async fn run_migrations(pool: &PgPool) {
 
     if !table_exists {
         info!("Running initial migration...");
-        sqlx::raw_sql(migration)
+        sqlx::raw_sql(migration_001)
             .execute(pool)
             .await
-            .expect("Failed to run migration");
-        info!("Migration complete");
+            .expect("Failed to run migration 001");
+        info!("Migration 001 complete");
+    }
+
+    // Check if phase 2 migration has been run (check for alerts table)
+    let alerts_exists: bool = sqlx::query_scalar(
+        "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'alerts')",
+    )
+    .fetch_one(pool)
+    .await
+    .unwrap_or(false);
+
+    if !alerts_exists {
+        info!("Running phase 2 migration...");
+        sqlx::raw_sql(migration_002)
+            .execute(pool)
+            .await
+            .expect("Failed to run migration 002");
+        info!("Migration 002 complete");
     } else {
-        info!("Database already initialized");
+        info!("Database already up to date");
     }
 }
 
@@ -510,18 +569,25 @@ async fn create_zone(
         .map(|p| serde_json::to_value(p))
         .transpose()
         .map_err(|e| (StatusCode::BAD_REQUEST, e.to_string()))?;
+    let polygon_latlng_json = payload
+        .polygon_latlng
+        .as_ref()
+        .map(|p| serde_json::to_value(p))
+        .transpose()
+        .map_err(|e| (StatusCode::BAD_REQUEST, e.to_string()))?;
 
     let zone: Zone = sqlx::query_as(
         r#"
-        INSERT INTO zones (name, zone_type, waypoints, polygon, map_id)
-        VALUES ($1, $2, $3, $4, $5)
-        RETURNING id, name, zone_type, waypoints, polygon, map_id, created_at, updated_at
+        INSERT INTO zones (name, zone_type, waypoints, polygon, polygon_latlng, map_id)
+        VALUES ($1, $2, $3, $4, $5, $6)
+        RETURNING id, name, zone_type, waypoints, polygon, polygon_latlng, map_id, created_at, updated_at
         "#,
     )
     .bind(&payload.name)
     .bind(&payload.zone_type)
     .bind(&waypoints_json)
     .bind(&polygon_json)
+    .bind(&polygon_latlng_json)
     .bind(&payload.map_id)
     .fetch_one(&state.db)
     .await
@@ -535,7 +601,7 @@ async fn create_zone(
 
 async fn list_zones(State(state): State<SharedState>) -> Result<impl IntoResponse, (StatusCode, String)> {
     let zones: Vec<Zone> = sqlx::query_as(
-        "SELECT id, name, zone_type, waypoints, polygon, map_id, created_at, updated_at FROM zones ORDER BY created_at DESC",
+        "SELECT id, name, zone_type, waypoints, polygon, polygon_latlng, map_id, created_at, updated_at FROM zones ORDER BY created_at DESC",
     )
     .fetch_all(&state.db)
     .await
@@ -549,7 +615,7 @@ async fn get_zone(
     Path(id): Path<Uuid>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
     let zone: Zone = sqlx::query_as(
-        "SELECT id, name, zone_type, waypoints, polygon, map_id, created_at, updated_at FROM zones WHERE id = $1",
+        "SELECT id, name, zone_type, waypoints, polygon, polygon_latlng, map_id, created_at, updated_at FROM zones WHERE id = $1",
     )
     .bind(id)
     .fetch_optional(&state.db)
@@ -567,7 +633,7 @@ async fn update_zone(
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
     // First fetch existing zone
     let existing: Zone = sqlx::query_as(
-        "SELECT id, name, zone_type, waypoints, polygon, map_id, created_at, updated_at FROM zones WHERE id = $1",
+        "SELECT id, name, zone_type, waypoints, polygon, polygon_latlng, map_id, created_at, updated_at FROM zones WHERE id = $1",
     )
     .bind(id)
     .fetch_optional(&state.db)
@@ -592,14 +658,24 @@ async fn update_zone(
     } else {
         existing.polygon
     };
+    let polygon_latlng_json = if payload.polygon_latlng.is_some() {
+        payload
+            .polygon_latlng
+            .as_ref()
+            .map(|p| serde_json::to_value(p))
+            .transpose()
+            .map_err(|e| (StatusCode::BAD_REQUEST, e.to_string()))?
+    } else {
+        existing.polygon_latlng
+    };
     let map_id = payload.map_id.or(existing.map_id);
 
     let zone: Zone = sqlx::query_as(
         r#"
-        UPDATE zones 
-        SET name = $2, zone_type = $3, waypoints = $4, polygon = $5, map_id = $6, updated_at = now()
+        UPDATE zones
+        SET name = $2, zone_type = $3, waypoints = $4, polygon = $5, polygon_latlng = $6, map_id = $7, updated_at = now()
         WHERE id = $1
-        RETURNING id, name, zone_type, waypoints, polygon, map_id, created_at, updated_at
+        RETURNING id, name, zone_type, waypoints, polygon, polygon_latlng, map_id, created_at, updated_at
         "#,
     )
     .bind(id)
@@ -607,6 +683,7 @@ async fn update_zone(
     .bind(&zone_type)
     .bind(&waypoints_json)
     .bind(&polygon_json)
+    .bind(&polygon_latlng_json)
     .bind(&map_id)
     .fetch_one(&state.db)
     .await
@@ -798,7 +875,7 @@ async fn start_mission(
     .ok_or((StatusCode::NOT_FOUND, "Mission not found".to_string()))?;
 
     let zone: Zone = sqlx::query_as(
-        "SELECT id, name, zone_type, waypoints, polygon, map_id, created_at, updated_at FROM zones WHERE id = $1",
+        "SELECT id, name, zone_type, waypoints, polygon, polygon_latlng, map_id, created_at, updated_at FROM zones WHERE id = $1",
     )
     .bind(mission.zone_id)
     .fetch_one(&state.db)
@@ -940,26 +1017,55 @@ async fn list_tasks(
     State(state): State<SharedState>,
     Query(query): Query<TasksQuery>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
+    // Build time filter from `since` parameter
+    let since = query.since.and_then(DateTime::from_timestamp_millis);
+
     let tasks: Vec<Task> = if let Some(status) = query.status {
-        sqlx::query_as(
-            r#"
-            SELECT id, mission_id, rover_id, status, progress, waypoint, lap, error, created_at, started_at, ended_at
-            FROM tasks WHERE status = $1 ORDER BY created_at DESC
-            "#,
-        )
-        .bind(status)
-        .fetch_all(&state.db)
-        .await
+        if let Some(since) = since {
+            sqlx::query_as(
+                r#"
+                SELECT id, mission_id, rover_id, status, progress, waypoint, lap, error, created_at, started_at, ended_at
+                FROM tasks WHERE status = $1 AND created_at >= $2 ORDER BY created_at DESC
+                "#,
+            )
+            .bind(status)
+            .bind(since)
+            .fetch_all(&state.db)
+            .await
+        } else {
+            sqlx::query_as(
+                r#"
+                SELECT id, mission_id, rover_id, status, progress, waypoint, lap, error, created_at, started_at, ended_at
+                FROM tasks WHERE status = $1 ORDER BY created_at DESC
+                "#,
+            )
+            .bind(status)
+            .fetch_all(&state.db)
+            .await
+        }
     } else if let Some(rover_id) = query.rover_id {
-        sqlx::query_as(
-            r#"
-            SELECT id, mission_id, rover_id, status, progress, waypoint, lap, error, created_at, started_at, ended_at
-            FROM tasks WHERE rover_id = $1 ORDER BY created_at DESC
-            "#,
-        )
-        .bind(rover_id)
-        .fetch_all(&state.db)
-        .await
+        if let Some(since) = since {
+            sqlx::query_as(
+                r#"
+                SELECT id, mission_id, rover_id, status, progress, waypoint, lap, error, created_at, started_at, ended_at
+                FROM tasks WHERE rover_id = $1 AND created_at >= $2 ORDER BY created_at DESC
+                "#,
+            )
+            .bind(rover_id)
+            .bind(since)
+            .fetch_all(&state.db)
+            .await
+        } else {
+            sqlx::query_as(
+                r#"
+                SELECT id, mission_id, rover_id, status, progress, waypoint, lap, error, created_at, started_at, ended_at
+                FROM tasks WHERE rover_id = $1 ORDER BY created_at DESC
+                "#,
+            )
+            .bind(rover_id)
+            .fetch_all(&state.db)
+            .await
+        }
     } else if let Some(mission_id) = query.mission_id {
         sqlx::query_as(
             r#"
@@ -968,6 +1074,16 @@ async fn list_tasks(
             "#,
         )
         .bind(mission_id)
+        .fetch_all(&state.db)
+        .await
+    } else if let Some(since) = since {
+        sqlx::query_as(
+            r#"
+            SELECT id, mission_id, rover_id, status, progress, waypoint, lap, error, created_at, started_at, ended_at
+            FROM tasks WHERE created_at >= $1 ORDER BY created_at DESC
+            "#,
+        )
+        .bind(since)
         .fetch_all(&state.db)
         .await
     } else {
@@ -1293,7 +1409,12 @@ async fn handle_console_ws(socket: WebSocket, state: SharedState) {
     loop {
         tokio::select! {
             Ok(msg) = rx.recv() => {
-                if let Ok(json) = serde_json::to_string(&msg) {
+                // AlertEvent carries pre-serialized JSON
+                let json_str = match &msg {
+                    BroadcastMessage::AlertEvent { json } => Some(json.clone()),
+                    _ => serde_json::to_string(&msg).ok(),
+                };
+                if let Some(json) = json_str {
                     if sender.send(Message::Text(json.into())).await.is_err() {
                         break;
                     }
@@ -1312,4 +1433,208 @@ async fn handle_console_ws(socket: WebSocket, state: SharedState) {
     }
 
     info!("Console client disconnected");
+}
+
+// =============================================================================
+// Schedule Evaluator
+// =============================================================================
+
+/// Background loop that evaluates cron-scheduled missions and auto-starts them.
+async fn schedule_evaluator(state: SharedState) {
+    use std::time::Duration;
+    use tokio::time::interval;
+
+    let mut ticker = interval(Duration::from_secs(60));
+    info!("Starting schedule evaluator loop");
+
+    loop {
+        ticker.tick().await;
+
+        // Find enabled missions with cron schedules
+        let missions: Vec<Mission> = sqlx::query_as(
+            r#"
+            SELECT id, name, zone_id, rover_id, schedule, enabled, created_at, updated_at
+            FROM missions
+            WHERE enabled = true
+            "#,
+        )
+        .fetch_all(&state.db)
+        .await
+        .unwrap_or_default();
+
+        for mission in missions {
+            let schedule: Schedule =
+                serde_json::from_value(mission.schedule.clone()).unwrap_or_default();
+
+            if schedule.trigger != "cron" {
+                continue;
+            }
+
+            let cron_expr = match schedule.cron {
+                Some(ref expr) => expr.clone(),
+                None => continue,
+            };
+
+            // Check if cron matches current time
+            let should_run = match croner::Cron::new(&cron_expr).parse() {
+                Ok(cron) => {
+                    let now = chrono::Utc::now();
+                    // Check if there's a match within the last 60 seconds
+                    cron.is_time_matching(&now).unwrap_or(false)
+                }
+                Err(e) => {
+                    warn!(mission_id = %mission.id, error = %e, "Invalid cron expression");
+                    false
+                }
+            };
+
+            if !should_run {
+                continue;
+            }
+
+            // Check if there's already an active task for this mission
+            let has_active: bool = sqlx::query_scalar(
+                "SELECT EXISTS(SELECT 1 FROM tasks WHERE mission_id = $1 AND status IN ('pending', 'assigned', 'active'))",
+            )
+            .bind(mission.id)
+            .fetch_one(&state.db)
+            .await
+            .unwrap_or(true);
+
+            if has_active {
+                continue;
+            }
+
+            // Check schedule window (if set)
+            let schedule_type: Option<String> = sqlx::query_scalar(
+                "SELECT schedule_type FROM missions WHERE id = $1",
+            )
+            .bind(mission.id)
+            .fetch_optional(&state.db)
+            .await
+            .unwrap_or(None);
+
+            if schedule_type.as_deref() == Some("cron") {
+                // Check window constraints
+                let window: Option<(Option<chrono::NaiveTime>, Option<chrono::NaiveTime>)> =
+                    sqlx::query_as(
+                        "SELECT schedule_window_start, schedule_window_end FROM missions WHERE id = $1",
+                    )
+                    .bind(mission.id)
+                    .fetch_optional(&state.db)
+                    .await
+                    .unwrap_or(None);
+
+                if let Some((Some(start), Some(end))) = window {
+                    let now_time = chrono::Utc::now().time();
+                    if now_time < start || now_time > end {
+                        continue;
+                    }
+                }
+            }
+
+            // Find an available rover
+            let rover_id = if let Some(ref preferred) = mission.rover_id {
+                let rovers = state.rovers.read().await;
+                if rovers.contains_key(preferred) {
+                    Some(preferred.clone())
+                } else {
+                    None
+                }
+            } else {
+                let rovers = state.rovers.read().await;
+                rovers
+                    .iter()
+                    .find(|(_, r)| r.current_task.is_none())
+                    .map(|(id, _)| id.clone())
+            };
+
+            let rover_id = match rover_id {
+                Some(id) => id,
+                None => {
+                    warn!(mission_id = %mission.id, "Scheduled mission skipped: no available rover");
+                    continue;
+                }
+            };
+
+            // Get zone
+            let zone: Option<Zone> = sqlx::query_as(
+                "SELECT id, name, zone_type, waypoints, polygon, polygon_latlng, map_id, created_at, updated_at FROM zones WHERE id = $1",
+            )
+            .bind(mission.zone_id)
+            .fetch_optional(&state.db)
+            .await
+            .unwrap_or(None);
+
+            let zone = match zone {
+                Some(z) => z,
+                None => continue,
+            };
+
+            // Create task
+            let task: Result<Task, _> = sqlx::query_as(
+                r#"
+                INSERT INTO tasks (mission_id, rover_id, status)
+                VALUES ($1, $2, 'assigned')
+                RETURNING id, mission_id, rover_id, status, progress, waypoint, lap, error, created_at, started_at, ended_at
+                "#,
+            )
+            .bind(mission.id)
+            .bind(&rover_id)
+            .fetch_one(&state.db)
+            .await;
+
+            let task = match task {
+                Ok(t) => t,
+                Err(e) => {
+                    warn!(error = %e, "Failed to create scheduled task");
+                    continue;
+                }
+            };
+
+            info!(
+                task_id = %task.id,
+                mission = %mission.name,
+                rover = %rover_id,
+                "Auto-started scheduled mission"
+            );
+
+            // Update rover's current task
+            {
+                let mut rovers = state.rovers.write().await;
+                if let Some(rover) = rovers.get_mut(&rover_id) {
+                    rover.current_task = Some(task.id);
+                }
+            }
+
+            // Send task to rover
+            let waypoints: Vec<Waypoint> =
+                serde_json::from_value(zone.waypoints.clone()).unwrap_or_default();
+
+            let msg = DispatchToRover::Task {
+                task_id: task.id,
+                mission_id: mission.id,
+                zone: ZoneData {
+                    waypoints,
+                    r#loop: schedule.r#loop,
+                },
+            };
+
+            if !state.send_to_rover(&rover_id, msg).await {
+                warn!(rover_id = %rover_id, "Failed to send scheduled task to rover");
+                let _ = sqlx::query("UPDATE tasks SET status = 'failed', error = 'Failed to send to rover', ended_at = now() WHERE id = $1")
+                    .bind(task.id)
+                    .execute(&state.db)
+                    .await;
+                continue;
+            }
+
+            state.broadcast(BroadcastMessage::TaskUpdate { task: task.clone() });
+            state.broadcast(BroadcastMessage::RoverUpdate {
+                rover_id: rover_id.clone(),
+                connected: true,
+                task_id: Some(task.id),
+            });
+        }
+    }
 }
