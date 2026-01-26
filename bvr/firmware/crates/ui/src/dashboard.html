@@ -14,24 +14,34 @@
             font-family: "SF Mono", "Cascadia Mono", "Courier New", monospace;
             background: #1c1917;
             color: #fafaf9;
-            padding: 16px;
-            min-height: 100vh;
+            padding: 12px;
+            height: 100vh;
+            overflow: hidden;
             font-size: 13px;
+            display: flex;
+            flex-direction: column;
         }
         .header {
+            flex-shrink: 0;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 12px;
-            padding: 8px 12px;
+            margin-bottom: 8px;
+            padding: 6px 12px;
             background: #44403c;
             border: 1px solid rgba(255,255,255,0.1);
         }
         .header h1 {
-            font-size: 14px;
+            font-size: 12px;
             font-weight: 600;
             text-transform: uppercase;
             letter-spacing: 0.05em;
+            color: #a8a29e;
+        }
+        #connection {
+            display: flex;
+            align-items: center;
+            font-size: 12px;
             color: #a8a29e;
         }
         .status-dot {
@@ -49,8 +59,10 @@
         }
         .grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-            gap: 12px;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 10px;
+            flex: 1;
+            min-height: 0;
         }
         .card {
             background: rgba(41,37,36,0.9);
@@ -58,19 +70,23 @@
             -webkit-backdrop-filter: blur(8px);
             border: 1px solid rgba(255,255,255,0.1);
             padding: 12px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
         }
         .card h2 {
             font-size: 10px;
             color: #a8a29e;
             text-transform: uppercase;
             letter-spacing: 0.1em;
-            margin-bottom: 10px;
+            margin-bottom: 8px;
+            flex-shrink: 0;
         }
         .mode {
             display: inline-block;
-            padding: 2px 8px;
-            font-size: 12px;
-            font-weight: 600;
+            padding: 6px 14px;
+            font-size: 22px;
+            font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 0.05em;
             border: 1px solid rgba(255,255,255,0.1);
@@ -82,11 +98,18 @@
         .mode.autonomous { color: #fff; background: #e77c40; border-color: #e77c40; }
         .mode.estop { color: #fff; background: #dc2626; border-color: #dc2626; }
         .mode.fault { color: #fff; background: #dc2626; border-color: #dc2626; }
+        .battery-pct {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+        .battery-pct.low { color: #f97316; }
+        .battery-pct.critical { color: #dc2626; }
         .battery-bar {
             height: 6px;
             background: rgba(255,255,255,0.1);
             overflow: hidden;
-            margin: 8px 0;
+            margin-bottom: 8px;
         }
         .battery-fill {
             height: 100%;
@@ -98,23 +121,28 @@
         .stat {
             display: flex;
             justify-content: space-between;
+            align-items: baseline;
             padding: 4px 0;
             border-bottom: 1px solid rgba(255,255,255,0.1);
-            font-size: 12px;
         }
         .stat:last-child { border-bottom: none; }
-        .stat-label { color: #a8a29e; }
-        .stat-value { font-weight: 600; }
+        .stat-label { color: #a8a29e; font-size: 12px; }
+        .stat-value { font-weight: 600; font-size: 18px; }
         .motor-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 6px;
+            flex: 1;
         }
         .motor {
             background: #1c1917;
             border: 1px solid rgba(255,255,255,0.1);
-            padding: 8px;
+            padding: 10px;
             text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
         }
         .motor-label {
             font-size: 10px;
@@ -123,7 +151,7 @@
             margin-bottom: 4px;
         }
         .motor-temp {
-            font-size: 16px;
+            font-size: 24px;
             font-weight: 600;
         }
         .motor-temp.hot { color: #f97316; }
@@ -132,16 +160,17 @@
             padding: 10px;
             background: #1c1917;
             border: 1px solid rgba(255,255,255,0.1);
+            flex: 1;
         }
         .tool-name {
-            font-size: 13px;
+            font-size: 16px;
             font-weight: 600;
             margin-bottom: 8px;
         }
         .tool-active {
             display: inline-block;
             padding: 2px 8px;
-            font-size: 11px;
+            font-size: 12px;
             font-weight: 600;
             text-transform: uppercase;
         }
@@ -158,15 +187,22 @@
             transition: width 0.3s;
         }
         .error-banner {
+            flex-shrink: 0;
             background: #7f1d1d;
             color: #fecaca;
-            padding: 10px 12px;
-            margin-bottom: 12px;
+            padding: 8px 12px;
+            margin-bottom: 8px;
             display: none;
             font-size: 12px;
             border: 1px solid rgba(255,255,255,0.1);
         }
         .error-banner.visible { display: block; }
+
+        /* Fallback for narrow/portrait screens */
+        @media (max-width: 1000px) {
+            body { height: auto; overflow: auto; min-height: 100vh; }
+            .grid { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+        }
 
         /* Blocking overlay for error states */
         .overlay {
@@ -275,6 +311,7 @@
 
         <div class="card">
             <h2>Battery</h2>
+            <div class="battery-pct" id="battery-pct">--%</div>
             <div class="battery-bar">
                 <div class="battery-fill" id="battery-fill" style="width: 0%"></div>
             </div>
@@ -418,9 +455,13 @@
             // Battery
             const voltage = data.power?.battery_voltage || 0;
             const percent = Math.max(0, Math.min(100, ((voltage - 39) / (54.6 - 39)) * 100));
+            const pctClass = percent < 20 ? ' critical' : percent < 40 ? ' low' : '';
+            const pctEl = document.getElementById('battery-pct');
+            pctEl.textContent = Math.round(percent) + '%';
+            pctEl.className = 'battery-pct' + pctClass;
             const fill = document.getElementById('battery-fill');
             fill.style.width = percent + '%';
-            fill.className = 'battery-fill' + (percent < 20 ? ' critical' : percent < 40 ? ' low' : '');
+            fill.className = 'battery-fill' + pctClass;
 
             document.getElementById('voltage').textContent = voltage.toFixed(1) + ' V';
             document.getElementById('current').textContent = (data.power?.system_current || 0).toFixed(1) + ' A';
