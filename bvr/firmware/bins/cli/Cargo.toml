@@ -29,5 +29,11 @@ tokio-serial = "5.4"
 # Hash comparison for deploy
 sha2 = "0.10"
 
+# Sim command dependencies
+toml = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+reqwest = { workspace = true }
+
 
 

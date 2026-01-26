@@ -217,8 +217,16 @@ impl Default for LocalizationFileConfig {
 struct SlamFileConfig {
     /// Enable SLAM processing
     enabled: bool,
-    /// Resolution for scan matching correlation grid (meters)
-    scan_match_resolution: f64,
+    /// Voxel downsampling resolution for GICP (meters)
+    voxel_size: f64,
+    /// Maximum GICP iterations
+    max_iterations: usize,
+    /// GICP convergence threshold (pose delta norm)
+    convergence_threshold: f64,
+    /// Maximum correspondence distance for outlier rejection (meters)
+    max_correspondence_dist: f64,
+    /// Minimum fraction of points with valid correspondences
+    min_overlap: f64,
     /// Distance threshold for inserting new keyframe (meters)
     keyframe_distance: f64,
     /// Rotation threshold for inserting new keyframe (radians)
@@ -235,7 +243,11 @@ impl Default for SlamFileConfig {
     fn default() -> Self {
         Self {
             enabled: true,
-            scan_match_resolution: 0.05,
+            voxel_size: 0.2,
+            max_iterations: 30,
+            convergence_threshold: 1e-4,
+            max_correspondence_dist: 1.0,
+            min_overlap: 0.3,
             keyframe_distance: 1.0,
             keyframe_rotation: 0.5,
             loop_closure_threshold: 0.7,
@@ -530,6 +542,10 @@ struct Args {
     #[arg(long)]
     dispatch_endpoint: Option<String>,
 
+    /// Connect to sim-bridge remote CAN (e.g., "tcp://127.0.0.1:4910")
+    #[arg(long)]
+    remote_can: Option<String>,
+
     /// Enable tokio-console for runtime introspection (requires --features console)
     #[arg(long)]
     console: bool,
@@ -546,10 +562,137 @@ fn parse_goal(s: &str) -> Result<[f64; 2], String> {
     Ok([x, y])
 }
 
+/// Remote CAN connection to sim-bridge over TCP.
+struct RemoteCan {
+    /// Outgoing frame writer (shared with background reader)
+    writer: Arc<tokio::sync::Mutex<tokio::io::WriteHalf<tokio::net::TcpStream>>>,
+    /// Incoming frames from sim-bridge
+    rx_queue: Arc<Mutex<std::collections::VecDeque<can::Frame>>>,
+    /// Latest pose from sim-bridge
+    pose: Arc<Mutex<Pose>>,
+}
+
+impl RemoteCan {
+    async fn connect(url: &str) -> Result<Self> {
+        // Parse tcp://host:port
+        let addr = url
+            .strip_prefix("tcp://")
+            .ok_or_else(|| anyhow::anyhow!("remote-can URL must start with tcp://"))?;
+
+        info!(addr, "Connecting to remote CAN");
+        let stream = tokio::net::TcpStream::connect(addr).await?;
+        stream.set_nodelay(true)?;
+        info!(addr, "Connected to remote CAN");
+
+        let (reader, writer) = tokio::io::split(stream);
+        let writer = Arc::new(tokio::sync::Mutex::new(writer));
+        let rx_queue = Arc::new(Mutex::new(std::collections::VecDeque::<can::Frame>::new()));
+        let pose = Arc::new(Mutex::new(Pose::default()));
+
+        // Spawn background reader
+        let rx_q = rx_queue.clone();
+        let pose_r = pose.clone();
+        tokio::spawn(async move {
+            Self::reader_task(reader, rx_q, pose_r).await;
+        });
+
+        Ok(Self {
+            writer,
+            rx_queue,
+            pose,
+        })
+    }
+
+    async fn reader_task(
+        mut reader: tokio::io::ReadHalf<tokio::net::TcpStream>,
+        rx_queue: Arc<Mutex<std::collections::VecDeque<can::Frame>>>,
+        pose: Arc<Mutex<Pose>>,
+    ) {
+        use tokio::io::AsyncReadExt;
+        let mut buf = vec![0u8; 4096];
+        let mut pending = Vec::new();
+
+        loop {
+            match reader.read(&mut buf).await {
+                Ok(0) => {
+                    warn!("Remote CAN connection closed");
+                    break;
+                }
+                Ok(n) => {
+                    pending.extend_from_slice(&buf[..n]);
+                    // Parse messages from pending buffer
+                    loop {
+                        if pending.is_empty() {
+                            break;
+                        }
+                        match pending[0] {
+                            // CAN frame
+                            0x01 => {
+                                // Need at least: type(1) + flags(1) + id(4) + len(1) = 7
+                                if pending.len() < 2 {
+                                    break;
+                                }
+                                if let Some((frame, consumed)) =
+                                    can::Frame::from_bytes(&pending[1..])
+                                {
+                                    rx_queue.lock().unwrap().push_back(frame);
+                                    pending.drain(..1 + consumed);
+                                } else {
+                                    break; // Need more data
+                                }
+                            }
+                            // Pose update
+                            0x02 => {
+                                if pending.len() < 25 {
+                                    break;
+                                }
+                                let x = f64::from_le_bytes(
+                                    pending[1..9].try_into().unwrap(),
+                                );
+                                let y = f64::from_le_bytes(
+                                    pending[9..17].try_into().unwrap(),
+                                );
+                                let theta = f64::from_le_bytes(
+                                    pending[17..25].try_into().unwrap(),
+                                );
+                                *pose.lock().unwrap() = Pose { x, y, theta };
+                                pending.drain(..25);
+                            }
+                            _ => {
+                                warn!(byte = pending[0], "Unknown remote CAN message type");
+                                pending.remove(0);
+                            }
+                        }
+                    }
+                }
+                Err(e) => {
+                    error!(?e, "Remote CAN read error");
+                    break;
+                }
+            }
+        }
+    }
+
+    fn send_frame(&self, frame: &can::Frame) {
+        let writer = self.writer.clone();
+        let bytes = frame.to_bytes();
+        tokio::spawn(async move {
+            use tokio::io::AsyncWriteExt;
+            let mut w = writer.lock().await;
+            let mut msg = vec![0x01u8];
+            msg.extend_from_slice(&bytes);
+            if let Err(e) = w.write_all(&msg).await {
+                warn!(?e, "Remote CAN write error");
+            }
+        });
+    }
+}
+
 /// CAN interface abstraction for real or simulated hardware.
 enum CanInterface {
     Real(Bus),
     Sim(Arc<Mutex<SimBus>>),
+    Remote(RemoteCan),
 }
 
 impl CanInterface {
@@ -560,6 +703,10 @@ impl CanInterface {
                 sim.lock().unwrap().process_tx(frame);
                 Ok(())
             }
+            Self::Remote(remote) => {
+                remote.send_frame(frame);
+                Ok(())
+            }
         }
     }
 
@@ -567,6 +714,7 @@ impl CanInterface {
         match self {
             Self::Real(bus) => bus.recv(),
             Self::Sim(sim) => Ok(sim.lock().unwrap().recv()),
+            Self::Remote(remote) => Ok(remote.rx_queue.lock().unwrap().pop_front()),
         }
     }
 
@@ -574,16 +722,18 @@ impl CanInterface {
         if let Self::Sim(sim) = self {
             sim.lock().unwrap().tick(dt);
         }
+        // Remote: physics runs on sim-bridge, no-op here
     }
 
     /// Get current pose from simulation (returns default for real hardware).
     fn pose(&self) -> Pose {
         match self {
-            Self::Real(_) => Pose::default(), // TODO: get from odometry/GPS
+            Self::Real(_) => Pose::default(),
             Self::Sim(sim) => {
                 let (x, y, theta) = sim.lock().unwrap().position();
                 Pose { x, y, theta }
             }
+            Self::Remote(remote) => *remote.pose.lock().unwrap(),
         }
     }
 }
@@ -666,7 +816,11 @@ async fn main() -> Result<()> {
     // CAN interface: CLI arg > default "can0"
     let can_iface = args.can_interface.as_deref().unwrap_or("can0");
 
-    if args.sim {
+    let is_sim = args.sim || args.remote_can.is_some();
+
+    if args.remote_can.is_some() {
+        info!("Starting bvrd in REMOTE CAN mode (sim-bridge)");
+    } else if args.sim {
         info!("Starting bvrd in SIMULATION mode");
     } else {
         info!(config = ?args.config, can = %can_iface, rover = %rover_id, "Starting bvrd");
@@ -893,7 +1047,11 @@ async fn main() -> Result<()> {
 
     // Initialize CAN interface
     let vesc_ids: [u8; 4] = args.vesc_ids.try_into().expect("Need exactly 4 VESC IDs");
-    let can_interface = if args.sim {
+    let can_interface = if let Some(ref url) = args.remote_can {
+        info!(url, "Using remote CAN (sim-bridge)");
+        let remote = RemoteCan::connect(url).await?;
+        CanInterface::Remote(remote)
+    } else if args.sim {
         info!("Using simulated CAN bus");
         let sim_bus = SimBus::new(vesc_ids);
         CanInterface::Sim(Arc::new(Mutex::new(sim_bus)))
@@ -922,7 +1080,7 @@ async fn main() -> Result<()> {
     let mut state_machine = StateMachine::new();
 
     // In sim mode, auto-start autonomous if we have a goal (already boots into Idle)
-    if args.sim {
+    if is_sim {
         info!("Sim mode: booted into Idle");
 
         if auto_start_autonomous {
@@ -1327,7 +1485,11 @@ async fn main() -> Result<()> {
         Option<watch::Receiver<SlamState>>,
     ) = if file_config.slam.enabled && file_config.lidar.enabled {
         let slam_config = SlamConfig {
-            scan_match_resolution: file_config.slam.scan_match_resolution,
+            voxel_size: file_config.slam.voxel_size,
+            max_iterations: file_config.slam.max_iterations,
+            convergence_threshold: file_config.slam.convergence_threshold,
+            max_correspondence_dist: file_config.slam.max_correspondence_dist,
+            min_overlap: file_config.slam.min_overlap,
             keyframe_distance: file_config.slam.keyframe_distance,
             keyframe_rotation: file_config.slam.keyframe_rotation,
             loop_closure_threshold: file_config.slam.loop_closure_threshold,
@@ -1954,7 +2116,7 @@ async fn main() -> Result<()> {
         let (target_twist, boost_active) = match current_mode {
             Mode::Autonomous => {
                 // Autonomous mode: use classical navigation (A* + pursuit) or policy
-                let current_pose = if args.sim {
+                let current_pose = if is_sim {
                     can_interface.pose()
                 } else {
                     pose_estimator.pose()
@@ -2419,7 +2581,7 @@ async fn main() -> Result<()> {
         // Get pose from EKF (unified: fuses odom + GPS + IMU + SLAM)
         // In sim mode, use simulation ground truth instead
         drop(state);
-        let pose = if args.sim {
+        let pose = if is_sim {
             can_interface.pose()
         } else {
             pose_estimator.pose()

@@ -1,0 +1,51 @@
+# bvrd config for simulated frog-1
+
+[identity]
+rover_id = "frog-1"
+
+[chassis]
+wheel_diameter_m = 0.165
+track_width_m = 0.55
+wheelbase_m = 0.55
+max_speed_mps = 3.0
+max_accel_mps2 = 50.0
+max_angular_vel_rps = 2.0
+
+[control]
+sleep_timeout_secs = 0
+
+[discovery]
+enabled = true
+endpoint = "127.0.0.1:4860"
+rover_id = "frog-1"
+rover_name = "Frog-1"
+heartbeat_secs = 2
+
+[teleop]
+port = 4841
+
+[lidar]
+enabled = true
+lidar_ip = "127.0.0.1"
+host_ip = "0.0.0.0"
+point_cloud_port = 56311
+imu_port = 56411
+power_save = false
+
+[slam]
+enabled = true
+
+[gps]
+enabled = false
+
+[camera]
+enabled = false
+
+[metrics]
+enabled = false
+
+[autonomous]
+enabled = false
+
+[estop]
+enabled = false

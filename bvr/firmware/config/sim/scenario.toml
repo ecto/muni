@@ -1,0 +1,40 @@
+# sim-bridge scenario configuration
+# Defines the world and simulated rovers
+
+[world]
+type = "empty_room"
+size = 20.0
+wall_height = 2.0
+
+[[rover]]
+id = "frog-0"
+can_port = 4910
+point_cloud_port = 56301
+imu_port = 56401
+
+[rover.spawn]
+x = 0.0
+y = 0.0
+theta = 0.0
+
+[[rover]]
+id = "frog-1"
+can_port = 4911
+point_cloud_port = 56311
+imu_port = 56411
+
+[rover.spawn]
+x = 3.0
+y = 0.0
+theta = 1.5708
+
+[[rover]]
+id = "frog-2"
+can_port = 4912
+point_cloud_port = 56321
+imu_port = 56421
+
+[rover.spawn]
+x = -3.0
+y = 3.0
+theta = 3.1416

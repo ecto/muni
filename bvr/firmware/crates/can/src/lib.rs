@@ -48,6 +48,36 @@ impl Frame {
             data: data.to_vec(),
         }
     }
+
+    /// Serialize to wire format for TCP CAN bridge.
+    ///
+    /// Format: flags(1) + id(4 LE) + len(1) + data(0-8) = 6-14 bytes
+    /// flags bit 0: extended ID
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let mut buf = Vec::with_capacity(6 + self.data.len());
+        let flags: u8 = if self.extended { 0x01 } else { 0x00 };
+        buf.push(flags);
+        buf.extend_from_slice(&self.id.to_le_bytes());
+        buf.push(self.data.len() as u8);
+        buf.extend_from_slice(&self.data);
+        buf
+    }
+
+    /// Deserialize from wire format. Returns (frame, bytes_consumed) or None.
+    pub fn from_bytes(buf: &[u8]) -> Option<(Self, usize)> {
+        if buf.len() < 6 {
+            return None;
+        }
+        let flags = buf[0];
+        let id = u32::from_le_bytes([buf[1], buf[2], buf[3], buf[4]]);
+        let len = buf[5] as usize;
+        if len > 8 || buf.len() < 6 + len {
+            return None;
+        }
+        let data = buf[6..6 + len].to_vec();
+        let extended = (flags & 0x01) != 0;
+        Some((Self { id, extended, data }, 6 + len))
+    }
 }
 
 // ============================================================================

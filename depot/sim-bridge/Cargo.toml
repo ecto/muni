@@ -1,0 +1,19 @@
+[package]
+name = "sim-bridge"
+version = "0.1.0"
+edition = "2021"
+description = "Multi-rover simulation service for depot"
+
+[dependencies]
+tokio = { version = "1", features = ["full"] }
+nalgebra = "0.33"
+parry3d = "0.17"
+rand = "0.8"
+serde = { version = "1", features = ["derive"] }
+toml = "0.8"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+clap = { version = "4", features = ["derive"] }
+axum = "0.8"
+serde_json = "1"
+anyhow = "1"

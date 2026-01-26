@@ -11,6 +11,7 @@
 mod deploy;
 mod gps;
 mod rover;
+mod sim;
 
 use anyhow::Result;
 use clap::{Parser, Subcommand};
@@ -37,6 +38,10 @@ enum Commands {
     /// Deploy to depot or rovers
     #[command(subcommand)]
     Deploy(deploy::DeployCommands),
+
+    /// Multi-rover simulation
+    #[command(subcommand)]
+    Sim(sim::SimCommands),
 }
 
 #[tokio::main]
@@ -47,5 +52,6 @@ async fn main() -> Result<()> {
         Commands::Rover(cmd) => rover::run(cmd).await,
         Commands::Gps(cmd) => gps::run(cmd).await,
         Commands::Deploy(cmd) => deploy::run(cmd).await,
+        Commands::Sim(cmd) => sim::run(cmd).await,
     }
 }
