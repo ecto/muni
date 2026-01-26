@@ -9,6 +9,8 @@ description = "Occupancy grid and costmap for navigation"
 [dependencies]
 nalgebra.workspace = true
 thiserror.workspace = true
+tracing.workspace = true
+rand.workspace = true
 lidar = { path = "../lidar" }
 transforms = { path = "../transforms" }
 
