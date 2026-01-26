@@ -172,7 +172,7 @@ require_confirmation = true
 # Enable LiDAR sensor (Livox Mid360)
 enabled = true
 # LiDAR IP address (default assigned by Livox)
-lidar_ip = "192.168.1.100"
+lidar_ip = "192.168.1.177"
 # Point cloud UDP port (Livox default: 56301)
 point_cloud_port = 56301
 # IMU data UDP port (Livox default: 56401, 0 to disable)
@@ -202,8 +202,16 @@ imu_yaw_weight = 0.7
 [slam]
 # Enable SLAM (Simultaneous Localization and Mapping)
 enabled = true
-# Resolution for scan matching correlation grid (meters)
-scan_match_resolution = 0.05
+# Voxel downsampling resolution for GICP (meters)
+voxel_size = 0.2
+# Maximum GICP iterations per match
+max_iterations = 30
+# GICP convergence threshold (pose delta norm)
+convergence_threshold = 1e-4
+# Maximum correspondence distance for outlier rejection (meters)
+max_correspondence_dist = 1.0
+# Minimum fraction of points with valid correspondences
+min_overlap = 0.3
 # Distance threshold for inserting new keyframe (meters)
 keyframe_distance = 1.0
 # Rotation threshold for inserting new keyframe (radians)
@@ -215,6 +223,14 @@ huber_threshold = 1.0
 # Maximum disagreement between loop closure and odometry (in σ)
 loop_closure_max_disagreement_sigma = 3.0
 
+[costmap]
+# RANSAC ground plane distance threshold (meters)
+ground_distance_threshold = 0.15
+# Minimum ground plane inlier fraction for RANSAC
+ground_min_inlier_ratio = 0.3
+# RANSAC iterations for ground plane fitting
+ground_ransac_iterations = 50
+
 [camera]
 # Enable camera capture
 enabled = true
@@ -222,6 +238,20 @@ enabled = true
 # Set to 1 on Jetson to reduce CPU usage (~35% per camera)
 # Set to 0 to use all detected cameras
 max_cameras = 1
+
+[blower]
+# Enable blower subsystem (90mm EDF)
+enabled = true
+# VESC CAN node ID (0x0C = 12, doesn't conflict with drive VESCs 0-3)
+can_id = 12
+# Maximum power in autonomous mode (percent)
+max_power_autonomous = 50
+# Power ramp rate (percent per second)
+power_ramp_rate = 10
+# Minimum velocity to engage blower in autonomous mode (m/s)
+min_velocity_threshold = 0.1
+# Velocity at which autonomous blower reaches max power (m/s)
+max_velocity_for_scaling = 3.0
 
 [kiosk]
 # Dashboard kiosk mode on the rover's local display
