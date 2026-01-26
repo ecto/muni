@@ -77,8 +77,8 @@ interface UseMap3DResult {
   refresh: () => void;
 }
 
-/** Map API base URL (from docker-compose) */
-const MAP_API_URL = "/api/maps";
+/** Map API base URL — proxy strips /api/maps prefix, so include /maps for the service route */
+const MAP_API_URL = "/api/maps/maps";
 
 /**
  * Demo splat URL - set this to load a splat in development without map-api.

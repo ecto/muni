@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from "react";
+import { useEffect, useCallback, useRef } from "react";
 import { useConsoleStore } from "@/store";
 import type { Alert } from "@/lib/types";
 
@@ -7,35 +7,32 @@ import type { Alert } from "@/lib/types";
  * WebSocket updates are handled by useDispatch (alert_created/alert_acknowledged/alert_cleared).
  * Call once at the app root level.
  */
+/** Dispatch API base — proxied by Vite (dev) and nginx (prod) */
+const DISPATCH_API = "/api/dispatch";
+
 export function useAlerts() {
   const setAlerts = useConsoleStore((s) => s.setAlerts);
-
-  const getDispatchUrl = useCallback((path: string) => {
-    if (window.location.hostname === "localhost") {
-      return `http://depot:4890${path}`;
-    }
-    const protocol = window.location.protocol;
-    return `${protocol}//${window.location.hostname}:4890${path}`;
-  }, []);
+  const failedRef = useRef(false);
 
   const fetchAlerts = useCallback(async () => {
     try {
-      const url = getDispatchUrl("/api/alerts?limit=200");
-      const response = await fetch(url);
+      const response = await fetch(`${DISPATCH_API}/api/alerts?limit=200`);
       if (response.ok) {
+        failedRef.current = false;
         const alerts: Alert[] = await response.json();
         setAlerts(alerts);
+      } else {
+        failedRef.current = true;
       }
     } catch {
-      // Silently fail — alerts will populate from WebSocket
+      failedRef.current = true;
     }
-  }, [getDispatchUrl, setAlerts]);
+  }, [setAlerts]);
 
   const acknowledgeAlert = useCallback(
     async (id: string) => {
       try {
-        const url = getDispatchUrl(`/api/alerts/${id}/ack`);
-        const response = await fetch(url, {
+        const response = await fetch(`${DISPATCH_API}/api/alerts/${id}/ack`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ by: "operator" }),
@@ -51,14 +48,13 @@ export function useAlerts() {
         console.error("[alerts] Failed to acknowledge:", e);
       }
     },
-    [getDispatchUrl]
+    []
   );
 
   const clearAlert = useCallback(
     async (id: string) => {
       try {
-        const url = getDispatchUrl(`/api/alerts/${id}/clear`);
-        const response = await fetch(url, {
+        const response = await fetch(`${DISPATCH_API}/api/alerts/${id}/clear`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
         });
@@ -72,14 +68,15 @@ export function useAlerts() {
         console.error("[alerts] Failed to clear:", e);
       }
     },
-    [getDispatchUrl]
+    []
   );
 
-  // Fetch initial alerts
+  // Fetch initial alerts, poll every 30s only while dispatch is reachable
   useEffect(() => {
     fetchAlerts();
-    // Refresh every 30 seconds as a fallback
-    const interval = setInterval(fetchAlerts, 30_000);
+    const interval = setInterval(() => {
+      if (!failedRef.current) fetchAlerts();
+    }, 30_000);
     return () => clearInterval(interval);
   }, [fetchAlerts]);
 
