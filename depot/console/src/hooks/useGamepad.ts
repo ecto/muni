@@ -11,7 +11,9 @@ function applyDeadzone(value: number, deadzone: number): number {
 }
 
 export function useGamepad() {
-  const { setInput, setInputSource, inputSource } = useConsoleStore();
+  const setInput = useConsoleStore((s) => s.setInput);
+  const setInputSource = useConsoleStore((s) => s.setInputSource);
+  const inputSource = useConsoleStore((s) => s.inputSource);
   const frameRef = useRef<number | null>(null);
 
   useEffect(() => {

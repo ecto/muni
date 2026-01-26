@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import {
@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/tooltip";
 import { GameController, Keyboard, CaretDown, CaretRight } from "@phosphor-icons/react";
 import { useConsoleStore } from "@/store";
-import { InputSource } from "@/lib/types";
+import { InputSource, type GamepadInput } from "@/lib/types";
 
 function AxisBar({ value, label, tooltip }: { value: number; label: string; tooltip: string }) {
   // Map -1..1 to 0..100
@@ -33,9 +33,25 @@ function AxisBar({ value, label, tooltip }: { value: number; label: string; tool
   );
 }
 
+const defaultInput: GamepadInput = {
+  linear: 0, angular: 0, toolAxis: 0,
+  actionA: false, actionB: false, estop: false,
+  enable: false, disable: false, boost: false,
+  cameraYaw: 0, cameraPitch: 0,
+};
+
 export function InputPanel() {
-  const { input, inputSource } = useConsoleStore();
+  const inputSource = useConsoleStore((s) => s.inputSource);
   const [collapsed, setCollapsed] = useState(false);
+
+  // Poll input at 10Hz instead of subscribing (input updates at 60Hz from keyboard/gamepad)
+  const [input, setInput] = useState<GamepadInput>(defaultInput);
+  useEffect(() => {
+    const id = setInterval(() => {
+      setInput(useConsoleStore.getState().input);
+    }, 100);
+    return () => clearInterval(id);
+  }, []);
 
   const sourceIcon = inputSource === InputSource.Gamepad
     ? <GameController className="h-3.5 w-3.5" weight="fill" />

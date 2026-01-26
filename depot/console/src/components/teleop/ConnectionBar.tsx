@@ -12,7 +12,7 @@ import { useConsoleStore } from "@/store";
 import { InputSource } from "@/lib/types";
 
 export function ConnectionBar() {
-  const { inputSource } = useConsoleStore();
+  const inputSource = useConsoleStore((s) => s.inputSource);
 
   return (
     <div className="px-3 py-1.5 flex items-center justify-end gap-4 text-xs text-muted-foreground">

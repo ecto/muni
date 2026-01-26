@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from "react";
+import { useEffect, useCallback, useRef } from "react";
 import { useConsoleStore } from "@/store";
 import { InputSource, CameraMode } from "@/lib/types";
 
@@ -44,8 +44,11 @@ if (typeof window !== "undefined") {
 }
 
 export function useKeyboard() {
-  const { setInput, setInputSource, inputSource, cameraMode, setCameraMode } =
-    useConsoleStore();
+  const setInput = useConsoleStore((s) => s.setInput);
+  const setInputSource = useConsoleStore((s) => s.setInputSource);
+  const inputSource = useConsoleStore((s) => s.inputSource);
+  const cameraMode = useConsoleStore((s) => s.cameraMode);
+  const setCameraMode = useConsoleStore((s) => s.setCameraMode);
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
@@ -100,6 +103,13 @@ export function useKeyboard() {
     [inputSource, cameraMode, setInputSource, setCameraMode]
   );
 
+  // Track previous input to skip redundant Zustand set() calls
+  const prevInputRef = useRef({
+    linear: 0, angular: 0, toolAxis: 0,
+    actionA: false, actionB: false, estop: false,
+    enable: false, disable: false, boost: false,
+  });
+
   const updateInput = useCallback(() => {
     // Only update if keyboard is the active source
     const store = useConsoleStore.getState();
@@ -129,6 +139,17 @@ export function useKeyboard() {
     const enable = KEYS.enable.some((k) => pressed.has(k));
     const disable = KEYS.disable.some((k) => pressed.has(k));
     const boost = KEYS.boost.some((k) => pressed.has(k));
+
+    // Skip Zustand set() if nothing changed (avoids 60Hz state churn when idle)
+    const prev = prevInputRef.current;
+    if (
+      prev.linear === linear && prev.angular === angular && prev.toolAxis === toolAxis &&
+      prev.actionA === actionA && prev.actionB === actionB && prev.estop === estop &&
+      prev.enable === enable && prev.disable === disable && prev.boost === boost
+    ) {
+      return;
+    }
+    prevInputRef.current = { linear, angular, toolAxis, actionA, actionB, estop, enable, disable, boost };
 
     setInput({
       linear,

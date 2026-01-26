@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Compass, Camera } from "@phosphor-icons/react";
 import { useConsoleStore } from "@/store";
@@ -10,7 +11,17 @@ const cameraModeLabels: Record<CameraMode, string> = {
 };
 
 export function PositionPanel() {
-  const { renderPose, cameraMode, setCameraMode } = useConsoleStore();
+  const cameraMode = useConsoleStore((s) => s.cameraMode);
+  const setCameraMode = useConsoleStore((s) => s.setCameraMode);
+
+  // Poll renderPose at 4Hz instead of subscribing (avoids 10Hz+ re-renders)
+  const [renderPose, setRenderPose] = useState({ x: 0, y: 0, theta: 0, roll: 0, pitch: 0 });
+  useEffect(() => {
+    const id = setInterval(() => {
+      setRenderPose(useConsoleStore.getState().renderPose);
+    }, 250);
+    return () => clearInterval(id);
+  }, []);
 
   const cycleCameraMode = () => {
     const modes = [

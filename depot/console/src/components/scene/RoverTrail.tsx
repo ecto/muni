@@ -12,7 +12,9 @@ const MIN_DISTANCE = 0.05; // Minimum distance between points (meters)
  * Renders as a fading line behind the rover using a reusable BufferGeometry.
  */
 export function RoverTrail() {
-  const { renderPose, connected, videoConnected } = useConsoleStore();
+  // Only subscribe to booleans (rarely change) — read renderPose imperatively in useFrame
+  const connected = useConsoleStore((s) => s.connected);
+  const videoConnected = useConsoleStore((s) => s.videoConnected);
   const pointsRef = useRef<THREE.Vector3[]>([]);
   const lastPosRef = useRef<THREE.Vector3 | null>(null);
   // Reusable Vector3 to avoid allocations in useFrame
@@ -87,6 +89,7 @@ export function RoverTrail() {
 
   // Add points and update geometry each frame
   useFrame(() => {
+    const renderPose = useConsoleStore.getState().renderPose;
     tempVec.current.set(renderPose.x, 0.02, -renderPose.y);
     const lastPos = lastPosRef.current;
     let needsUpdate = false;

@@ -8,7 +8,7 @@ const RECONNECT_DELAY_MS = 3000;
  * Hook to connect to the discovery service and receive live rover updates.
  */
 export function useDiscovery() {
-  const { setRovers } = useConsoleStore();
+  const setRovers = useConsoleStore((s) => s.setRovers);
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
     null

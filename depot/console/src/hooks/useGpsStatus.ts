@@ -10,7 +10,7 @@ export function useGpsStatus() {
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const connectRef = useRef<() => void>(() => {});
   const intentionalCloseRef = useRef(false);
-  const { setGpsStatus } = useConsoleStore();
+  const setGpsStatus = useConsoleStore((s) => s.setGpsStatus);
 
   const connect = useCallback(() => {
     // Clean up existing connection

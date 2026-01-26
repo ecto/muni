@@ -6,7 +6,8 @@ import { useConsoleStore, type Theme } from "@/store";
  * Resolves 'system' to actual 'light' or 'dark' based on OS preference.
  */
 export function useTheme() {
-  const { theme, setTheme } = useConsoleStore();
+  const theme = useConsoleStore((s) => s.theme);
+  const setTheme = useConsoleStore((s) => s.setTheme);
   const [systemPrefersDark, setSystemPrefersDark] = useState(() =>
     window.matchMedia("(prefers-color-scheme: dark)").matches
   );

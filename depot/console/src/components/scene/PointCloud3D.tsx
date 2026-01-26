@@ -2,242 +2,198 @@ import { useRef, useMemo, useEffect } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { useConsoleStore } from "@/store";
+import { getPointCloudData, getPointCloudVersion } from "@/lib/pointCloudStore";
 
-/** Maximum accumulated points to render. */
-const MAX_POINTS = 5000;
+/** Maximum points in the ring buffer. */
+const MAX_POINTS = 6000;
 
-/** Reduced point count when video is active for performance. */
-const MAX_POINTS_VIDEO_ACTIVE = 2000;
+/** How long points stay visible (seconds). */
+const POINT_LIFETIME = 1.5;
 
-/** Point lifetime in seconds before fully faded. */
-const POINT_LIFETIME = 3.0;
-
-/** Point size in meters. */
-const POINT_SIZE = 0.06;
+/** Point size in meters — large enough to read at teleop camera distance. */
+const POINT_SIZE = 0.09;
 
 /**
- * Extract confidence level from Livox tag byte.
- * Bits 0-1: confidence (0=noise, 1=low, 2=medium, 3=high)
+ * Map a height (Y in Three.js, meters) to an RGB color.
+ * Blue (ground) → cyan → green → yellow → red (high).
+ * Standard approach for LiDAR visualization.
  */
-function getConfidence(tag: number): number {
-  return tag & 0b11;
-}
+function heightColor(y: number, out: Float32Array, offset: number) {
+  // Clamp to reasonable range and normalize to 0–1
+  const t = Math.max(0, Math.min(1, (y + 0.2) / 2.0));
 
-/** Accumulated point with world position and age. */
-interface AccumulatedPoint {
-  // World position (Three.js coordinates)
-  x: number;
-  y: number;
-  z: number;
-  // Original reflectivity (0-255)
-  reflectivity: number;
-  // Confidence level (0-3, from tag bits 0-1)
-  confidence: number;
-  // Time when point was added (performance.now() / 1000)
-  timestamp: number;
+  // 5-stop gradient: blue → cyan → green → yellow → red
+  if (t < 0.25) {
+    const s = t / 0.25;
+    out[offset] = 0.0;
+    out[offset + 1] = s;
+    out[offset + 2] = 1.0;
+  } else if (t < 0.5) {
+    const s = (t - 0.25) / 0.25;
+    out[offset] = 0.0;
+    out[offset + 1] = 1.0;
+    out[offset + 2] = 1.0 - s;
+  } else if (t < 0.75) {
+    const s = (t - 0.5) / 0.25;
+    out[offset] = s;
+    out[offset + 1] = 1.0;
+    out[offset + 2] = 0.0;
+  } else {
+    const s = (t - 0.75) / 0.25;
+    out[offset] = 1.0;
+    out[offset + 1] = 1.0 - s;
+    out[offset + 2] = 0.0;
+  }
 }
 
 /**
- * Renders point cloud data from LiDAR sensor with temporal accumulation.
- *
- * Points persist over time, fading out gradually to reveal structure.
- * New points are transformed to world coordinates using the rover's pose.
+ * Renders LiDAR point cloud in rover-local coordinates with short
+ * temporal accumulation so the sparse Livox non-repetitive scan
+ * builds enough density to be readable. Height-based coloring gives
+ * instant depth perception. The <points> object tracks the rover's
+ * pose each frame.
  */
 export function PointCloud3D() {
-  const { pointCloud, pointCloudReflectivity, pointCloudTag, pointCloudEnabled, renderPose, videoConnected } =
-    useConsoleStore();
-
-  // Use reduced point count when video is active to reduce GPU work
-  const maxPoints = videoConnected ? MAX_POINTS_VIDEO_ACTIVE : MAX_POINTS;
+  const pointCloudEnabled = useConsoleStore((s) => s.pointCloudEnabled);
 
   const pointsRef = useRef<THREE.Points>(null);
+  const lastVersionRef = useRef<number>(0);
 
-  // Accumulated points buffer (persists across renders)
-  const accumulatedRef = useRef<AccumulatedPoint[]>([]);
+  // Ring buffer — fixed-size, no allocations after init
+  const ringRef = useRef({
+    pos: new Float32Array(MAX_POINTS * 3),
+    time: new Float32Array(MAX_POINTS),
+    head: 0,
+    count: 0,
+  });
 
-  // Track last processed frame to avoid duplicate processing
-  const lastFrameRef = useRef<Float32Array | null>(null);
-
-  // Pre-allocate buffer geometry with cleanup
   const geometryRef = useRef<THREE.BufferGeometry | null>(null);
   const geometry = useMemo(() => {
-    // Dispose previous geometry if it exists (shouldn't happen with stable useMemo, but safety)
-    if (geometryRef.current) {
-      geometryRef.current.dispose();
-    }
-
+    if (geometryRef.current) geometryRef.current.dispose();
     const geo = new THREE.BufferGeometry();
-
-    // Position buffer (x, y, z per point)
-    const positions = new Float32Array(MAX_POINTS * 3);
-    geo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-
-    // Color buffer (r, g, b per point) - alpha encoded in brightness
-    const colors = new Float32Array(MAX_POINTS * 3);
-    geo.setAttribute("color", new THREE.BufferAttribute(colors, 3));
-
+    geo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(MAX_POINTS * 3), 3));
+    geo.setAttribute("color", new THREE.BufferAttribute(new Float32Array(MAX_POINTS * 3), 3));
     geo.setDrawRange(0, 0);
     geometryRef.current = geo;
     return geo;
   }, []);
 
-  // Point material with cleanup
   const materialRef = useRef<THREE.PointsMaterial | null>(null);
   const material = useMemo(() => {
-    // Dispose previous material if it exists
-    if (materialRef.current) {
-      materialRef.current.dispose();
-    }
-
+    if (materialRef.current) materialRef.current.dispose();
     const mat = new THREE.PointsMaterial({
       size: POINT_SIZE,
       vertexColors: true,
       sizeAttenuation: true,
       transparent: true,
-      opacity: 0.85,
-      depthWrite: false, // Better blending for overlapping points
+      opacity: 0.9,
+      depthWrite: false,
     });
     materialRef.current = mat;
     return mat;
   }, []);
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
-      if (geometryRef.current) {
-        geometryRef.current.dispose();
-        geometryRef.current = null;
-      }
-      if (materialRef.current) {
-        materialRef.current.dispose();
-        materialRef.current = null;
-      }
-      // Clear accumulated points
-      accumulatedRef.current = [];
+      geometryRef.current?.dispose();
+      geometryRef.current = null;
+      materialRef.current?.dispose();
+      materialRef.current = null;
     };
   }, []);
 
-  // Add new points when data arrives
-  useEffect(() => {
-    if (!pointCloud || !pointCloudReflectivity || !pointCloudEnabled) {
-      return;
-    }
-
-    // Skip if same frame data
-    if (lastFrameRef.current === pointCloud) {
-      return;
-    }
-    lastFrameRef.current = pointCloud;
-
-    const now = performance.now() / 1000;
-    const pointCount = pointCloud.length / 3;
-    const accumulated = accumulatedRef.current;
-
-    // Transform new points from sensor frame to world frame
-    // Sensor: X forward, Y left, Z up (relative to rover)
-    // World: X right, Y up, -Z forward (Three.js convention, matching RoverModel)
-    const cosTheta = Math.cos(renderPose.theta);
-    const sinTheta = Math.sin(renderPose.theta);
-
-    for (let i = 0; i < pointCount; i++) {
-      // Extract confidence from tag (bits 0-1)
-      // Note: Mid-360 tag format may differ - keeping all points for now
-      const tag = pointCloudTag ? pointCloudTag[i] : 3;
-      const confidence = getConfidence(tag);
-
-      const sx = pointCloud[i * 3];     // sensor X (forward)
-      const sy = pointCloud[i * 3 + 1]; // sensor Y (left)
-      const sz = pointCloud[i * 3 + 2]; // sensor Z (up)
-
-      // Transform sensor coords to rover-local Three.js coords
-      // Rover-local: -sy = right, sz = up, -sx = back
-      const localX = -sy;
-      const localY = sz;
-      const localZ = -sx;
-
-      // Rotate by rover heading around Y axis, then translate to world position
-      // Physics frame: X=forward, Y=left → Three.js: z=-X, x=-Y (matching RoverModel)
-      const worldX = localX * cosTheta - localZ * sinTheta - renderPose.y;
-      const worldY = localY; // Y is up, no rotation needed
-      const worldZ = localX * sinTheta + localZ * cosTheta - renderPose.x;
-
-      accumulated.push({
-        x: worldX,
-        y: worldY,
-        z: worldZ,
-        reflectivity: pointCloudReflectivity[i],
-        confidence,
-        timestamp: now,
-      });
-    }
-
-    // Trim to max points (reduced when video is active for performance)
-    if (accumulated.length > maxPoints) {
-      accumulated.splice(0, accumulated.length - maxPoints);
-    }
-  }, [pointCloud, pointCloudReflectivity, pointCloudTag, pointCloudEnabled, renderPose, maxPoints]);
-
-  // Clear accumulated points when disabled
   useEffect(() => {
     if (!pointCloudEnabled) {
-      accumulatedRef.current = [];
+      const ring = ringRef.current;
+      ring.head = 0;
+      ring.count = 0;
+      lastVersionRef.current = 0;
       geometry.setDrawRange(0, 0);
     }
   }, [pointCloudEnabled, geometry]);
 
-  // Update geometry each frame (fade and cull old points)
   useFrame(() => {
     if (!pointCloudEnabled) return;
 
     const now = performance.now() / 1000;
-    const accumulated = accumulatedRef.current;
+    const ring = ringRef.current;
+    let dirty = false;
 
-    // Remove expired points
-    const cutoff = now - POINT_LIFETIME;
-    while (accumulated.length > 0 && accumulated[0].timestamp < cutoff) {
-      accumulated.shift();
+    // Ingest new data into ring buffer
+    const version = getPointCloudVersion();
+    if (version !== lastVersionRef.current) {
+      lastVersionRef.current = version;
+      dirty = true;
+
+      const { points } = getPointCloudData();
+      if (points) {
+        const incoming = points.length / 3;
+        for (let i = 0; i < incoming; i++) {
+          const idx = ring.head;
+          // Sensor → rover-local Three.js: -sy right, sz up, -sx back
+          ring.pos[idx * 3] = -points[i * 3 + 1];
+          ring.pos[idx * 3 + 1] = points[i * 3 + 2];
+          ring.pos[idx * 3 + 2] = -points[i * 3];
+          ring.time[idx] = now;
+          ring.head = (idx + 1) % MAX_POINTS;
+          if (ring.count < MAX_POINTS) ring.count++;
+        }
+      }
     }
 
-    const pointCount = accumulated.length;
-    if (pointCount === 0) {
-      geometry.setDrawRange(0, 0);
+    // Rebuild GPU buffers — on new data or periodically for fade
+    if (!dirty) {
+      // Sync pose even when no new data
+      if (pointsRef.current) {
+        const rp = useConsoleStore.getState().renderPose;
+        pointsRef.current.position.x = -rp.y;
+        pointsRef.current.position.z = -rp.x;
+        pointsRef.current.rotation.y = rp.theta;
+      }
       return;
     }
 
-    const positionAttr = geometry.getAttribute("position") as THREE.BufferAttribute;
-    const colorAttr = geometry.getAttribute("color") as THREE.BufferAttribute;
+    const posArr = (geometry.getAttribute("position") as THREE.BufferAttribute).array as Float32Array;
+    const colArr = (geometry.getAttribute("color") as THREE.BufferAttribute).array as Float32Array;
+    const cutoff = now - POINT_LIFETIME;
+    let out = 0;
 
-    // Update positions and colors with age-based fading and confidence
-    for (let i = 0; i < pointCount; i++) {
-      const point = accumulated[i];
+    for (let i = 0; i < ring.count; i++) {
+      const idx = (ring.head - ring.count + i + MAX_POINTS) % MAX_POINTS;
+      if (ring.time[idx] < cutoff) continue;
 
-      // Position (already in world coordinates)
-      positionAttr.array[i * 3] = point.x;
-      positionAttr.array[i * 3 + 1] = point.y;
-      positionAttr.array[i * 3 + 2] = point.z;
+      const px = ring.pos[idx * 3];
+      const py = ring.pos[idx * 3 + 1];
+      const pz = ring.pos[idx * 3 + 2];
 
-      // Age-based fade (1.0 = new, 0.0 = expired)
-      const age = now - point.timestamp;
-      const fade = Math.max(0, 1 - age / POINT_LIFETIME);
+      posArr[out * 3] = px;
+      posArr[out * 3 + 1] = py;
+      posArr[out * 3 + 2] = pz;
 
-      // Confidence factor (0.5 for low, 0.75 for medium, 1.0 for high)
-      // Note: confidence=0 (noise) is filtered out during accumulation
-      const confidenceFactor = 0.25 + (point.confidence / 3) * 0.75;
+      // Age fade: dim older points
+      const fade = (ring.time[idx] - cutoff) / POINT_LIFETIME;
 
-      // Color: blue-to-white gradient based on reflectivity
-      // Brightness affected by age fade and confidence
-      const refl = point.reflectivity / 255;
-      const brightness = fade * fade * confidenceFactor; // Quadratic age fade + confidence
+      // Height-based color, scaled by age
+      heightColor(py, colArr, out * 3);
+      colArr[out * 3] *= fade;
+      colArr[out * 3 + 1] *= fade;
+      colArr[out * 3 + 2] *= fade;
 
-      colorAttr.array[i * 3] = (0.3 + refl * 0.7) * brightness;     // R
-      colorAttr.array[i * 3 + 1] = (0.5 + refl * 0.5) * brightness; // G
-      colorAttr.array[i * 3 + 2] = 1.0 * brightness;                 // B
+      out++;
     }
 
-    positionAttr.needsUpdate = true;
-    colorAttr.needsUpdate = true;
-    geometry.setDrawRange(0, pointCount);
-    geometry.computeBoundingSphere();
+    (geometry.getAttribute("position") as THREE.BufferAttribute).needsUpdate = true;
+    (geometry.getAttribute("color") as THREE.BufferAttribute).needsUpdate = true;
+    geometry.setDrawRange(0, out);
+    if (out > 0) geometry.computeBoundingSphere();
+
+    // Sync pose with rover
+    if (pointsRef.current) {
+      const rp = useConsoleStore.getState().renderPose;
+      pointsRef.current.position.x = -rp.y;
+      pointsRef.current.position.z = -rp.x;
+      pointsRef.current.rotation.y = rp.theta;
+    }
   });
 
   return (

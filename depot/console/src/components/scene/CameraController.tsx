@@ -7,7 +7,8 @@ import { computeRenderPose, getInterpolationBuffer } from "@/lib/interpolation";
 
 export function CameraController() {
   const { camera, gl } = useThree();
-  const { cameraMode, telemetry } = useConsoleStore();
+  const cameraMode = useConsoleStore((s) => s.cameraMode);
+  const telemetryMode = useConsoleStore((s) => s.telemetry.mode);
 
   const yawOffset = useRef(0);
   const pitch = useRef(0.4);
@@ -18,7 +19,7 @@ export function CameraController() {
   const lastMouse = useRef({ x: 0, y: 0 });
 
   // Check if teleop is active (only allow mouse orbit when NOT in teleop)
-  const isTeleopActive = telemetry.mode === Mode.Teleop;
+  const isTeleopActive = telemetryMode === Mode.Teleop;
 
   // Reset camera to behind rover when entering teleop mode
   const wasTeleopActive = useRef(false);

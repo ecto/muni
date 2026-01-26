@@ -219,7 +219,8 @@ export function EquirectangularSky() {
  * Shows connection status and FPS in the corner of the screen.
  */
 export function VideoStatusBadge() {
-  const { videoConnected, videoFps } = useConsoleStore();
+  const videoConnected = useConsoleStore((s) => s.videoConnected);
+  const videoFps = useConsoleStore((s) => s.videoFps);
 
   if (!videoConnected) {
     return (
@@ -270,7 +271,9 @@ function CameraFeed({ cameraId, url }: { cameraId: number; url: string | null })
  * update the display without excessive React re-renders.
  */
 export function CameraFeedCard() {
-  const { videoConnected, videoFps, cameraCount } = useConsoleStore();
+  const videoConnected = useConsoleStore((s) => s.videoConnected);
+  const videoFps = useConsoleStore((s) => s.videoFps);
+  const cameraCount = useConsoleStore((s) => s.cameraCount);
   const [collapsed, setCollapsed] = useState(false);
   const [cameras, setCameras] = useState<Array<[number, CameraFrame]>>([]);
   const lastFrameVersionRef = useRef(0);

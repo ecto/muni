@@ -89,7 +89,6 @@ function GLTFRover() {
 export function RoverModel() {
   const groupRef = useRef<Group>(null);
   const [useGltf, setUseGltf] = useState(true);
-  const setRenderPose = useConsoleStore((s) => s.setRenderPose);
   const lastStoreUpdateRef = useRef(0);
 
   // Preload the model
@@ -120,9 +119,12 @@ export function RoverModel() {
     groupRef.current.rotation.x = result.pose.pitch;  // pitch from IMU
     groupRef.current.rotation.z = result.pose.roll;   // roll from IMU
 
-    // Throttle store updates to 10Hz for telemetry panel display
+    // Write render pose for UI consumers (TelemetryPanel, PositionPanel poll via getState)
+    // Mutate directly instead of calling set() to avoid triggering Zustand subscriber notifications
     if (now - lastStoreUpdateRef.current > 100) {
-      setRenderPose(result.pose, result.isExtrapolating);
+      const state = useConsoleStore.getState();
+      state.renderPose = result.pose;
+      state.isExtrapolating = result.isExtrapolating;
       lastStoreUpdateRef.current = now;
     }
   });
