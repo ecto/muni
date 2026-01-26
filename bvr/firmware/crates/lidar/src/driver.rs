@@ -236,6 +236,38 @@ pub async fn connect_and_start(config: &Config) -> Result<(), LidarError> {
     Ok(())
 }
 
+/// Send a heartbeat to keep the Livox control session alive.
+///
+/// The Mid-360 SDK2 protocol requires periodic heartbeats (~1 Hz) to
+/// maintain the connection.  Without them the device resets its state
+/// machine after a few seconds, which can cause a stopped motor to
+/// restart.
+async fn send_heartbeat(
+    socket: &UdpSocket,
+    control_addr: SocketAddr,
+    seq: u32,
+) -> Result<(), LidarError> {
+    let mut pkt = Vec::with_capacity(10);
+    pkt.push(0xAA); // SOF
+    pkt.push(0x01); // Version
+    pkt.extend_from_slice(&8u16.to_le_bytes()); // Length
+    pkt.extend_from_slice(&seq.to_le_bytes()); // Seq
+    pkt.push(CMD_HEARTBEAT);
+    pkt.push(0x00); // Request
+
+    socket
+        .send_to(&pkt, control_addr)
+        .await
+        .map_err(|e| LidarError::Network(format!("Failed to send heartbeat: {e}")))?;
+
+    // Drain any response (non-blocking)
+    let mut buf = [0u8; 64];
+    let _ = tokio::time::timeout(Duration::from_millis(100), socket.recv(&mut buf)).await;
+
+    trace!("Heartbeat sent");
+    Ok(())
+}
+
 /// Send a start or stop sampling command to the lidar.
 async fn send_sampling_command(
     socket: &UdpSocket,
@@ -513,6 +545,10 @@ pub async fn run_reader_with_control(
     let mut point_buf = vec![0u8; 2048];
     let mut imu_buf = vec![0u8; IMU_PACKET_SIZE + 32];
 
+    // Heartbeat keeps the Livox control session alive (especially while stopped).
+    let mut heartbeat_interval = tokio::time::interval(Duration::from_secs(1));
+    heartbeat_interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+
     loop {
         tokio::select! {
             // Handle control commands
@@ -593,6 +629,14 @@ pub async fn run_reader_with_control(
                         let _ = imu_tx.send(Some(imu));
                     }
                 }
+            }
+
+            // Periodic heartbeat to keep Livox session alive
+            _ = heartbeat_interval.tick() => {
+                if let Err(e) = send_heartbeat(&cmd_socket, control_addr, seq).await {
+                    debug!(?e, "Heartbeat failed");
+                }
+                seq += 1;
             }
         }
     }
