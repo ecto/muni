@@ -211,11 +211,6 @@ impl RewardCalculator {
         components
     }
 
-    /// Get config reference.
-    pub fn config(&self) -> &RewardConfig {
-        &self.config
-    }
-
     /// Check if distance is within goal threshold.
     pub fn is_goal_reached(&self, distance: f32) -> bool {
         distance <= self.config.goal_threshold

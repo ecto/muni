@@ -1688,7 +1688,6 @@ async fn main() -> Result<()> {
     const POLICY_WARN_THRESHOLD: Duration = Duration::from_millis(20); // Warn if >20ms (2x control period)
     const POLICY_ERROR_THRESHOLD: Duration = Duration::from_millis(50); // Error if >50ms (5x control period)
     const POLICY_TIMEOUT: Duration = Duration::from_millis(30); // Hard timeout for spawn_blocking inference
-    let mut policy_slow_count: u32 = 0;
     let mut last_policy_action: Option<policy::PolicyAction> = None;
 
     // Bounded task spawning for dispatch reports
@@ -1747,7 +1746,7 @@ async fn main() -> Result<()> {
         .name("control-loop".to_string())
         .spawn(move || {
             // Checkpoint logging at end of each 100-iteration block
-            let mut last_checkpoint = 0u64;
+            let _last_checkpoint = 0u64;
 
             loop {
         loop_count += 1;
@@ -2265,20 +2264,16 @@ async fn main() -> Result<()> {
                         let action = match inference_result {
                             Ok(Ok(Ok(action))) => {
                                 if inference_time > POLICY_ERROR_THRESHOLD {
-                                    policy_slow_count += 1;
                                     error!(duration_ms = inference_time.as_millis(), "Policy critically slow");
                                 } else if inference_time > POLICY_WARN_THRESHOLD {
-                                    policy_slow_count += 1;
                                     warn!(duration_ms = inference_time.as_millis(), "Policy slow");
-                                } else {
-                                    policy_slow_count = 0;
                                 }
                                 last_policy_action = Some(action);
                                 Some(action)
                             }
                             Ok(Ok(Err(e))) => { warn!(?e, "Policy error"); last_policy_action }
                             Ok(Err(e)) => { error!("Policy panic: {}", e); last_policy_action }
-                            Err(_) => { warn!("Policy timeout"); policy_slow_count += 1; last_policy_action }
+                            Err(_) => { warn!("Policy timeout"); last_policy_action }
                         };
 
                         if let Some(action) = action {

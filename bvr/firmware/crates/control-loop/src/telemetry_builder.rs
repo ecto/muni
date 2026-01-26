@@ -100,51 +100,6 @@ impl Default for TelemetryBuilder {
     }
 }
 
-/// Helper to extract motor data from VESC states
-pub struct MotorData {
-    pub temps: [f32; 4],
-    pub currents: [f32; 4],
-    pub tachometers: [i32; 4],
-}
-
-impl MotorData {
-    /// Extract motor data from an array of VESC states
-    pub fn from_vesc_states<S: VescState>(states: &[S; 4]) -> Self {
-        Self {
-            temps: [
-                states[0].motor_temp(),
-                states[1].motor_temp(),
-                states[2].motor_temp(),
-                states[3].motor_temp(),
-            ],
-            currents: [
-                states[0].current(),
-                states[1].current(),
-                states[2].current(),
-                states[3].current(),
-            ],
-            tachometers: [
-                states[0].tachometer(),
-                states[1].tachometer(),
-                states[2].tachometer(),
-                states[3].tachometer(),
-            ],
-        }
-    }
-
-    /// Total system current
-    pub fn total_current(&self) -> f64 {
-        self.currents.iter().sum::<f32>() as f64
-    }
-}
-
-/// Trait for extracting data from VESC state structs
-pub trait VescState {
-    fn motor_temp(&self) -> f32;
-    fn current(&self) -> f32;
-    fn tachometer(&self) -> i32;
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

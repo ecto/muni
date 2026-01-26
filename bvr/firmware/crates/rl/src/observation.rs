@@ -175,69 +175,6 @@ fn downsample_lidar(scan: &LidarScan, num_bins: usize, max_range: f32) -> Vec<f3
     bins
 }
 
-/// Simplified observation without LiDAR (for initial training).
-#[derive(Debug, Clone, Default)]
-pub struct SimpleObservation {
-    /// Robot pose [x, y, theta]
-    pub pose: [f32; 3],
-    /// Robot velocity [linear, angular]
-    pub velocity: [f32; 2],
-    /// Goal position relative to robot [distance, bearing]
-    pub goal_polar: [f32; 2],
-}
-
-impl SimpleObservation {
-    /// Create from state without LiDAR.
-    pub fn from_state(
-        x: f64,
-        y: f64,
-        theta: f64,
-        linear_vel: f64,
-        angular_vel: f64,
-        goal_x: f64,
-        goal_y: f64,
-        config: &ObservationConfig,
-    ) -> Self {
-        // Compute goal in polar coordinates relative to robot
-        let dx = goal_x - x;
-        let dy = goal_y - y;
-        let distance = (dx * dx + dy * dy).sqrt();
-        let world_angle = dy.atan2(dx);
-        let bearing = world_angle - theta; // Relative bearing
-
-        let mut obs = Self {
-            pose: [x as f32, y as f32, theta as f32],
-            velocity: [linear_vel as f32, angular_vel as f32],
-            goal_polar: [distance as f32, bearing as f32],
-        };
-
-        if config.normalize {
-            obs.pose[0] /= config.max_position;
-            obs.pose[1] /= config.max_position;
-            obs.pose[2] /= std::f32::consts::PI;
-            obs.velocity[0] /= config.max_linear_vel;
-            obs.velocity[1] /= config.max_angular_vel;
-            obs.goal_polar[0] /= config.max_position;
-            obs.goal_polar[1] /= std::f32::consts::PI;
-        }
-
-        obs
-    }
-
-    /// Flatten to vector.
-    pub fn to_vec(&self) -> Vec<f32> {
-        vec![
-            self.pose[0],
-            self.pose[1],
-            self.pose[2],
-            self.velocity[0],
-            self.velocity[1],
-            self.goal_polar[0],
-            self.goal_polar[1],
-        ]
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
