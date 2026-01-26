@@ -1732,6 +1732,8 @@ async fn main() -> Result<()> {
                             Mode::Idle => {
                                 // Wake from Sleep, otherwise no-op (already Idle or Disable returns to Idle)
                                 if current == Mode::Sleep {
+                                    // Reset auto-sleep timer so we don't immediately re-sleep
+                                    idle_since = Instant::now();
                                     Event::Wake
                                 } else {
                                     Event::Disable // Disable is a no-op when already Idle
