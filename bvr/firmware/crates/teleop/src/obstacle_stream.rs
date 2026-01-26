@@ -2,15 +2,15 @@
 //!
 //! Serializes extracted obstacles into a compact binary format.
 //!
-//! # Binary format
+//! # Binary format (version 1)
 //!
 //! ```text
 //! Header (4 bytes):
 //!   [0]      u8    MSG_OBSTACLES (0x23)
 //!   [1]      u8    obstacle_count
-//!   [2-3]    u16   reserved (0)
+//!   [2-3]    u16   version (1)
 //!
-//! Per obstacle (36 bytes):
+//! Per obstacle (44 bytes):
 //!   [0-1]    u16   id
 //!   [2]      u8    class (0=Unknown, see ObstacleClass)
 //!   [3]      u8    reserved
@@ -22,6 +22,8 @@
 //!   [24-27]  f32   bbox_max_y
 //!   [28-31]  u32   cell_count
 //!   [32-35]  f32   area (m²)
+//!   [36-39]  f32   min_z (meters)
+//!   [40-43]  f32   max_z (meters)
 //! ```
 
 use crate::MSG_OBSTACLES;
@@ -32,8 +34,11 @@ use costmap::clustering::ObstacleClass;
 /// Header size in bytes.
 const HEADER_SIZE: usize = 4;
 
-/// Per-obstacle record size in bytes.
-const OBSTACLE_RECORD_SIZE: usize = 36;
+/// Per-obstacle record size in bytes (v1: 44, v0: 36).
+const OBSTACLE_RECORD_SIZE: usize = 44;
+
+/// Wire format version.
+const WIRE_VERSION: u16 = 1;
 
 /// Serialize an obstacle list to binary.
 pub fn serialize(obstacles: &[Obstacle]) -> Vec<u8> {
@@ -43,7 +48,7 @@ pub fn serialize(obstacles: &[Obstacle]) -> Vec<u8> {
     // Header
     buf.push(MSG_OBSTACLES);
     buf.push(count);
-    buf.extend_from_slice(&0u16.to_le_bytes()); // reserved
+    buf.extend_from_slice(&WIRE_VERSION.to_le_bytes()); // version
 
     for obs in obstacles.iter().take(count as usize) {
         buf.extend_from_slice(&obs.id.to_le_bytes());
@@ -57,6 +62,8 @@ pub fn serialize(obstacles: &[Obstacle]) -> Vec<u8> {
         buf.extend_from_slice(&obs.bbox_max_y.to_le_bytes());
         buf.extend_from_slice(&obs.cell_count.to_le_bytes());
         buf.extend_from_slice(&obs.area.to_le_bytes());
+        buf.extend_from_slice(&obs.min_z.to_le_bytes());
+        buf.extend_from_slice(&obs.max_z.to_le_bytes());
     }
 
     debug_assert_eq!(buf.len(), HEADER_SIZE + count as usize * OBSTACLE_RECORD_SIZE);
@@ -73,14 +80,16 @@ fn deserialize(data: &[u8]) -> Option<Vec<Obstacle>> {
         return None;
     }
     let count = data[1] as usize;
-    let expected_len = HEADER_SIZE + count * OBSTACLE_RECORD_SIZE;
+    let version = u16::from_le_bytes([data[2], data[3]]);
+    let record_size = if version >= 1 { 44 } else { 36 };
+    let expected_len = HEADER_SIZE + count * record_size;
     if data.len() < expected_len {
         return None;
     }
 
     let mut obstacles = Vec::with_capacity(count);
     for i in 0..count {
-        let offset = HEADER_SIZE + i * OBSTACLE_RECORD_SIZE;
+        let offset = HEADER_SIZE + i * record_size;
         let id = u16::from_le_bytes([data[offset], data[offset + 1]]);
         let class = ObstacleClass::from_u8(data[offset + 2]);
         let centroid_x = f32::from_le_bytes(data[offset + 4..offset + 8].try_into().ok()?);
@@ -91,6 +100,15 @@ fn deserialize(data: &[u8]) -> Option<Vec<Obstacle>> {
         let bbox_max_y = f32::from_le_bytes(data[offset + 24..offset + 28].try_into().ok()?);
         let cell_count = u32::from_le_bytes(data[offset + 28..offset + 32].try_into().ok()?);
         let area = f32::from_le_bytes(data[offset + 32..offset + 36].try_into().ok()?);
+
+        let (min_z, max_z) = if version >= 1 {
+            (
+                f32::from_le_bytes(data[offset + 36..offset + 40].try_into().ok()?),
+                f32::from_le_bytes(data[offset + 40..offset + 44].try_into().ok()?),
+            )
+        } else {
+            (0.0, 0.0)
+        };
 
         obstacles.push(Obstacle {
             id,
@@ -103,6 +121,8 @@ fn deserialize(data: &[u8]) -> Option<Vec<Obstacle>> {
             bbox_max_y,
             cell_count,
             area,
+            min_z,
+            max_z,
         });
     }
 
@@ -125,6 +145,8 @@ mod tests {
             bbox_max_y: cy + 0.5,
             cell_count: 25,
             area: 0.25,
+            min_z: 0.1,
+            max_z: 1.7,
         }
     }
 
@@ -178,12 +200,28 @@ mod tests {
         let data = serialize(&obstacles);
         assert_eq!(data[0], MSG_OBSTACLES);
         assert_eq!(data[1], 1); // count
-        assert_eq!(u16::from_le_bytes([data[2], data[3]]), 0); // reserved
+        assert_eq!(u16::from_le_bytes([data[2], data[3]]), 1); // version
     }
 
     #[test]
     fn test_deserialize_truncated() {
-        let data = vec![MSG_OBSTACLES, 1, 0, 0]; // Header says 1 obstacle but no data
+        let data = vec![MSG_OBSTACLES, 1, 1, 0]; // Header says 1 obstacle v1 but no data
         assert!(deserialize(&data).is_none());
+    }
+
+    #[test]
+    fn test_roundtrip_preserves_height() {
+        let obstacles = vec![make_obstacle(0, 1.0, 2.0)];
+        let data = serialize(&obstacles);
+        let decoded = deserialize(&data).unwrap();
+        assert_eq!(decoded.len(), 1);
+        assert!((decoded[0].min_z - 0.1).abs() < 0.001);
+        assert!((decoded[0].max_z - 1.7).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_version_field() {
+        let data = serialize(&[]);
+        assert_eq!(u16::from_le_bytes([data[2], data[3]]), 1);
     }
 }
