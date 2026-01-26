@@ -39,6 +39,7 @@ export const MSG_TELEMETRY = 0x11;
 export const MSG_VIDEO_FRAME = 0x20;
 export const MSG_POINT_CLOUD = 0x21;
 export const MSG_COSTMAP = 0x22;
+export const MSG_OBSTACLES = 0x23;
 
 // Command flags
 export const CMD_FLAG_MUST_ACK = 0x01;
@@ -604,4 +605,88 @@ function rleDecodeU8(encoded: Uint8Array, expectedLen: number): Uint8Array | nul
   }
 
   return outIdx === expectedLen ? out : null;
+}
+
+// ============================================================================
+// Obstacle Decoding (MSG_OBSTACLES = 0x23)
+// ============================================================================
+
+/** Header size for obstacle messages. */
+const OBSTACLES_HEADER_SIZE = 4;
+
+/** Per-obstacle record size in bytes. */
+const OBSTACLE_RECORD_SIZE = 36;
+
+/** A detected obstacle with bounding box and centroid in world coordinates. */
+export interface DecodedObstacle {
+  id: number;
+  /** Obstacle class: 0=Unknown (reserved for Phase 3 classification). */
+  obstacleClass: number;
+  centroidX: number;
+  centroidY: number;
+  bboxMinX: number;
+  bboxMinY: number;
+  bboxMaxX: number;
+  bboxMaxY: number;
+  cellCount: number;
+  /** Area in square meters. */
+  area: number;
+}
+
+/**
+ * Decode an obstacles message from binary format.
+ *
+ * Header (4 bytes):
+ *   [0]      u8    MSG_OBSTACLES (0x23)
+ *   [1]      u8    obstacle_count
+ *   [2-3]    u16   reserved
+ *
+ * Per obstacle (36 bytes):
+ *   [0-1]    u16   id
+ *   [2]      u8    class
+ *   [3]      u8    reserved
+ *   [4-7]    f32   centroid_x
+ *   [8-11]   f32   centroid_y
+ *   [12-15]  f32   bbox_min_x
+ *   [16-19]  f32   bbox_min_y
+ *   [20-23]  f32   bbox_max_x
+ *   [24-27]  f32   bbox_max_y
+ *   [28-31]  u32   cell_count
+ *   [32-35]  f32   area
+ */
+export function decodeObstacles(data: ArrayBuffer): DecodedObstacle[] | null {
+  if (data.byteLength < OBSTACLES_HEADER_SIZE) {
+    return null;
+  }
+
+  const view = new DataView(data);
+  const msgType = view.getUint8(0);
+  if (msgType !== MSG_OBSTACLES) {
+    return null;
+  }
+
+  const count = view.getUint8(1);
+  const expectedLen = OBSTACLES_HEADER_SIZE + count * OBSTACLE_RECORD_SIZE;
+  if (data.byteLength < expectedLen) {
+    return null;
+  }
+
+  const obstacles: DecodedObstacle[] = [];
+  for (let i = 0; i < count; i++) {
+    const offset = OBSTACLES_HEADER_SIZE + i * OBSTACLE_RECORD_SIZE;
+    obstacles.push({
+      id: view.getUint16(offset, true),
+      obstacleClass: view.getUint8(offset + 2),
+      centroidX: view.getFloat32(offset + 4, true),
+      centroidY: view.getFloat32(offset + 8, true),
+      bboxMinX: view.getFloat32(offset + 12, true),
+      bboxMinY: view.getFloat32(offset + 16, true),
+      bboxMaxX: view.getFloat32(offset + 20, true),
+      bboxMaxY: view.getFloat32(offset + 24, true),
+      cellCount: view.getUint32(offset + 28, true),
+      area: view.getFloat32(offset + 32, true),
+    });
+  }
+
+  return obstacles;
 }

@@ -18,12 +18,14 @@
 
 use crate::pointcloud;
 use crate::costmap_stream;
+use crate::obstacle_stream;
 use crate::video::VideoFrame;
 use crate::{
     serialize_telemetry, CommandHeader, Telemetry, TeleopError, CMD_HEADER_SIZE, MSG_ESTOP,
     MSG_ESTOP_RELEASE, MSG_HEARTBEAT, MSG_LIDAR_TOGGLE, MSG_SET_MODE, MSG_TOOL, MSG_TWIST,
 };
 use costmap::CostmapSnapshot;
+use costmap::clustering::Obstacle;
 use lidar::PointCloud;
 use futures_util::{SinkExt, StreamExt};
 use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering};
@@ -97,6 +99,7 @@ pub struct RtcMetrics {
     pub video: ChannelStats,
     pub pointcloud: ChannelStats,
     pub costmap: ChannelStats,
+    pub obstacles: ChannelStats,
 }
 
 impl RtcMetrics {
@@ -237,6 +240,7 @@ pub struct RtcServer {
     video_rx: Option<Arc<Mutex<tokio_mpsc::Receiver<VideoFrame>>>>,
     lidar_rx: Option<watch::Receiver<Option<PointCloud>>>,
     costmap_rx: Option<watch::Receiver<Option<CostmapSnapshot>>>,
+    obstacles_rx: Option<watch::Receiver<Option<Vec<Obstacle>>>>,
     operator_state: Arc<OperatorState>,
     metrics: Arc<RtcMetrics>,
 }
@@ -254,6 +258,7 @@ impl RtcServer {
             video_rx: None,
             lidar_rx: None,
             costmap_rx: None,
+            obstacles_rx: None,
             operator_state: Arc::new(OperatorState::new()),
             metrics: RtcMetrics::new(),
         }
@@ -273,6 +278,7 @@ impl RtcServer {
             video_rx: Some(Arc::new(Mutex::new(video_rx))),
             lidar_rx: None,
             costmap_rx: None,
+            obstacles_rx: None,
             operator_state: Arc::new(OperatorState::new()),
             metrics: RtcMetrics::new(),
         }
@@ -293,6 +299,7 @@ impl RtcServer {
             video_rx: Some(Arc::new(Mutex::new(video_rx))),
             lidar_rx: Some(lidar_rx),
             costmap_rx: None,
+            obstacles_rx: None,
             operator_state: Arc::new(OperatorState::new()),
             metrics: RtcMetrics::new(),
         }
@@ -301,6 +308,11 @@ impl RtcServer {
     /// Set the costmap receiver for streaming costmap data to the console.
     pub fn set_costmap_rx(&mut self, rx: watch::Receiver<Option<CostmapSnapshot>>) {
         self.costmap_rx = Some(rx);
+    }
+
+    /// Set the obstacles receiver for streaming obstacle data to the console.
+    pub fn set_obstacles_rx(&mut self, rx: watch::Receiver<Option<Vec<Obstacle>>>) {
+        self.obstacles_rx = Some(rx);
     }
 
     /// Get a reference to the operator state (for external monitoring).
@@ -324,6 +336,7 @@ impl RtcServer {
         let video_rx = self.video_rx;
         let lidar_rx = self.lidar_rx;
         let costmap_rx = self.costmap_rx;
+        let obstacles_rx = self.obstacles_rx;
         let config = Arc::new(self.config);
         let operator_state = self.operator_state;
         let metrics = self.metrics;
@@ -340,13 +353,14 @@ impl RtcServer {
                     let vid_rx = video_rx.clone();
                     let lid_rx = lidar_rx.clone();
                     let cm_rx = costmap_rx.clone();
+                    let obs_rx = obstacles_rx.clone();
                     let cfg = config.clone();
                     let op_state = operator_state.clone();
                     let rtc_metrics = metrics.clone();
 
                     tokio::spawn(async move {
                         if let Err(e) =
-                            handle_signaling(stream, cmd_tx, telem_rx, vid_rx, lid_rx, cm_rx, cfg, conn_id, op_state.clone(), rtc_metrics)
+                            handle_signaling(stream, cmd_tx, telem_rx, vid_rx, lid_rx, cm_rx, obs_rx, cfg, conn_id, op_state.clone(), rtc_metrics)
                                 .await
                         {
                             error!(?e, conn_id, "WebRTC connection error");
@@ -392,6 +406,7 @@ async fn handle_signaling(
     video_rx: Option<Arc<Mutex<tokio_mpsc::Receiver<VideoFrame>>>>,
     lidar_rx: Option<watch::Receiver<Option<PointCloud>>>,
     costmap_rx: Option<watch::Receiver<Option<CostmapSnapshot>>>,
+    obstacles_rx: Option<watch::Receiver<Option<Vec<Obstacle>>>>,
     config: Arc<RtcConfig>,
     conn_id: u64,
     operator_state: Arc<OperatorState>,
@@ -839,6 +854,77 @@ async fn handle_signaling(
                     }
                 }
                 info!(frames_sent = frame_count, "WebRTC costmap channel closed");
+            })
+        }));
+    }
+
+    // Create obstacles DataChannel if obstacle streaming is available
+    if let Some(obs_rx) = obstacles_rx {
+        let obstacles_dc_config = RTCDataChannelInit {
+            ordered: Some(false),
+            max_retransmits: Some(0),
+            ..Default::default()
+        };
+
+        let obstacles_channel = peer_connection
+            .create_data_channel("obstacles", Some(obstacles_dc_config))
+            .await
+            .map_err(|e| {
+                TeleopError::Network(std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    e.to_string(),
+                ))
+            })?;
+
+        let obstacles_channel = Arc::new(obstacles_channel);
+        let obstacles_channel_clone = obstacles_channel.clone();
+        let obs_metrics = metrics.clone();
+
+        obstacles_channel.on_open(Box::new(move || {
+            let channel = obstacles_channel_clone.clone();
+            let mut rx = obs_rx.clone();
+            let stats = obs_metrics.clone();
+            Box::pin(async move {
+                info!("WebRTC obstacles channel opened");
+                // Stream at 2Hz (same cadence as costmap)
+                let mut interval = tokio::time::interval(Duration::from_millis(500));
+                let mut frame_count: u64 = 0;
+
+                loop {
+                    interval.tick().await;
+
+                    if channel.ready_state()
+                        != webrtc::data_channel::data_channel_state::RTCDataChannelState::Open
+                    {
+                        info!("WebRTC obstacles channel no longer open, stopping");
+                        break;
+                    }
+
+                    // Get latest obstacles
+                    let obstacles = rx.borrow_and_update().clone();
+                    if let Some(obstacles) = obstacles {
+                        let data = obstacle_stream::serialize(&obstacles);
+                        let start = std::time::Instant::now();
+                        if let Err(e) = channel.send(&bytes::Bytes::from(data)).await {
+                            debug!(?e, "Failed to send obstacles (channel closing?)");
+                            break;
+                        }
+                        let latency_us = start.elapsed().as_micros() as u32;
+                        stats.obstacles.record_send(latency_us);
+
+                        frame_count += 1;
+                        if frame_count == 1 {
+                            info!(
+                                count = obstacles.len(),
+                                "First obstacles sent via WebRTC"
+                            );
+                        }
+                        if frame_count % 20 == 0 {
+                            trace!(frame_count, "obstacles.streaming");
+                        }
+                    }
+                }
+                info!(frames_sent = frame_count, "WebRTC obstacles channel closed");
             })
         }));
     }

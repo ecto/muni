@@ -26,12 +26,14 @@ import {
   videoFrameToBlobUrl,
   decodePointCloud,
   decodeCostmap,
+  decodeObstacles,
 } from "@/lib/protocol";
 import { pushSnapshotDirect } from "@/lib/interpolation";
 import { Mode } from "@/lib/types";
 import { setCameraFrame as setMutableCameraFrame, getCameraCount } from "@/lib/videoFrameStore";
 import { setPointCloudData, clearPointCloudData } from "@/lib/pointCloudStore";
 import { setCostmapData, clearCostmapData } from "@/lib/costmapStore";
+import { setObstacleData, clearObstacleData } from "@/lib/obstacleStore";
 
 const RECONNECT_DELAY_MS = 2000;
 const COMMAND_INTERVAL_MS = 10; // 100Hz - matches rover control loop
@@ -113,6 +115,7 @@ export function useRoverConnectionRtc() {
       ["video", { count: 0, lastTime: 0 }],
       ["pointcloud", { count: 0, lastTime: 0 }],
       ["costmap", { count: 0, lastTime: 0 }],
+      ["obstacles", { count: 0, lastTime: 0 }],
     ])
   );
   const metricsIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -573,6 +576,37 @@ export function useRoverConnectionRtc() {
             console.log("[WebRTC] Costmap channel closed");
             clearCostmapData();
           };
+        } else if (channel.label === "obstacles") {
+          console.log("[WebRTC] Obstacles channel received");
+          channel.binaryType = "arraybuffer";
+
+          channel.onopen = () => {
+            console.log("[WebRTC] Obstacles channel opened");
+          };
+
+          channel.onmessage = (msgEvent) => {
+            if (!(msgEvent.data instanceof ArrayBuffer)) {
+              console.warn("[WebRTC] Obstacles message not ArrayBuffer");
+              return;
+            }
+
+            // Track channel metrics
+            const stats = channelStatsRef.current.get("obstacles");
+            if (stats) {
+              stats.count++;
+              stats.lastTime = performance.now();
+            }
+
+            const obstacles = decodeObstacles(msgEvent.data);
+            if (obstacles) {
+              setObstacleData(obstacles);
+            }
+          };
+
+          channel.onclose = () => {
+            console.log("[WebRTC] Obstacles channel closed");
+            clearObstacleData();
+          };
         }
       };
 
@@ -720,6 +754,7 @@ export function useRoverConnectionRtc() {
     setVideoFps(0);
     clearPointCloudData();
     clearCostmapData();
+    clearObstacleData();
   }, [clearIntervals, setConnected, setVideoConnected, setVideoFrame, setVideoFps, resetChannelMetrics]);
 
   // Stable disconnect ref for cleanup

@@ -921,12 +921,10 @@ async fn main() -> Result<()> {
     // Shared state
     let mut state_machine = StateMachine::new();
 
-    // In sim mode, auto-enable to Idle (no safety concern)
+    // In sim mode, auto-start autonomous if we have a goal (already boots into Idle)
     if args.sim {
-        state_machine.transition(state::Event::Enable);
-        info!("Sim mode: auto-enabled to Idle");
+        info!("Sim mode: booted into Idle");
 
-        // Auto-start autonomous mode if we have a goal
         if auto_start_autonomous {
             state_machine.transition(state::Event::AutonomousRequest);
             info!("Auto-starting Autonomous mode (goal provided)");
@@ -986,6 +984,8 @@ async fn main() -> Result<()> {
     let (lidar_tx, lidar_rx) = watch::channel::<Option<lidar::PointCloud>>(None);
     // watch for costmap streaming (created early for RtcServer, populated from control loop)
     let (costmap_tx, costmap_rx) = watch::channel::<Option<CostmapSnapshot>>(None);
+    // watch for obstacle streaming (extracted from costmap, populated from control loop)
+    let (obstacles_tx, obstacles_rx) = watch::channel::<Option<Vec<costmap::Obstacle>>>(None);
 
     // Spawn teleop server (UDP)
     let teleop_config = TeleopConfig::default();
@@ -1016,9 +1016,10 @@ async fn main() -> Result<()> {
             video_rx_rtc,
             lidar_rx.clone(),
         );
-        // Enable costmap streaming if navigation is enabled
+        // Enable costmap and obstacle streaming if navigation is enabled
         if navigation_enabled {
             rtc_server.set_costmap_rx(costmap_rx.clone());
+            rtc_server.set_obstacles_rx(obstacles_rx.clone());
         }
 
         // Get metrics handle before spawning (for InfluxDB push)
@@ -1727,13 +1728,13 @@ async fn main() -> Result<()> {
                         );
                         let current = state.state_machine.mode();
                         let event = match mode {
-                            Mode::Disabled => Event::Disable,
+                            Mode::Disabled => Event::Disable, // old consoles send byte 0 → maps to Idle now
                             Mode::Idle => {
-                                // Wake from Sleep, or Enable from Disabled
+                                // Wake from Sleep, otherwise no-op (already Idle or Disable returns to Idle)
                                 if current == Mode::Sleep {
                                     Event::Wake
                                 } else {
-                                    Event::Enable
+                                    Event::Disable // Disable is a no-op when already Idle
                                 }
                             }
                             Mode::Teleop => {
@@ -1811,10 +1812,7 @@ async fn main() -> Result<()> {
                         // Transition to autonomous mode to execute the task
                         let mut state = shared.lock().unwrap();
                         match state.state_machine.mode() {
-                            Mode::Idle | Mode::Disabled => {
-                                if state.state_machine.mode() == Mode::Disabled {
-                                    state.state_machine.transition(Event::Enable);
-                                }
+                            Mode::Idle => {
                                 state.state_machine.transition(Event::AutonomousRequest);
                                 info!("Transitioned to Autonomous mode for dispatch task");
                             }
@@ -1931,7 +1929,7 @@ async fn main() -> Result<()> {
         // Auto-sleep after idle/disabled timeout
         if sleep_timeout_secs > 0 {
             let mode = shared.lock().unwrap().state_machine.mode();
-            if matches!(mode, Mode::Idle | Mode::Disabled)
+            if matches!(mode, Mode::Idle)
                 && idle_since.elapsed() > sleep_timeout
             {
                 info!(
@@ -2386,8 +2384,9 @@ async fn main() -> Result<()> {
             if let Some(ref mut nav) = navigation_controller {
                 let robot_tf = Transform2D::from_pose(&pose_estimator.pose());
                 nav.update_costmap(&scan, &robot_tf);
-                // Publish costmap snapshot for console streaming
+                // Publish costmap snapshot and obstacles for console streaming
                 let _ = costmap_tx.send(Some(nav.costmap_snapshot()));
+                let _ = obstacles_tx.send(Some(nav.extract_obstacles()));
             }
             let costmap_ms = costmap_start.elapsed().as_millis();
 
@@ -2620,8 +2619,8 @@ async fn main() -> Result<()> {
 
         // Log mode changes and update LEDs
         if current_mode != last_mode {
-            // Reset sleep timer when entering Idle or Disabled (restart countdown)
-            if matches!(current_mode, Mode::Idle | Mode::Disabled) {
+            // Reset sleep timer when entering Idle (restart countdown)
+            if matches!(current_mode, Mode::Idle) {
                 idle_since = Instant::now();
             }
 

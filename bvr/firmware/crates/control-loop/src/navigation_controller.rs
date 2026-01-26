@@ -10,7 +10,7 @@
 //! - Reactive obstacle detection and stopping
 //! - Automatic replanning when path is blocked
 
-use costmap::{Costmap, CostmapSnapshot};
+use costmap::{Costmap, CostmapSnapshot, Obstacle};
 use dispatch::TaskAssignment;
 use lidar::PointCloud;
 use planner::{PlannerConfig, ReactivePlanner, Waypoint};
@@ -252,6 +252,11 @@ impl NavigationController {
     /// Create an owned snapshot of the current costmap for streaming.
     pub fn costmap_snapshot(&self) -> CostmapSnapshot {
         self.costmap.snapshot()
+    }
+
+    /// Extract discrete obstacles from the current costmap.
+    pub fn extract_obstacles(&self) -> Vec<Obstacle> {
+        self.costmap.extract_obstacles()
     }
 
     /// Set a new dispatch task.

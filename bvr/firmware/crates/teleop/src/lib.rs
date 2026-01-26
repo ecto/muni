@@ -15,6 +15,7 @@
 //! 128 bytes with pose, velocity, measured velocity, acceleration, motor data, ACK fields, IMU orientation.
 
 pub mod costmap_stream;
+pub mod obstacle_stream;
 pub mod pointcloud;
 pub mod rtc;
 pub mod video;
@@ -52,6 +53,9 @@ pub const MSG_POINT_CLOUD: u8 = 0x21;
 
 /// Costmap message type
 pub const MSG_COSTMAP: u8 = 0x22;
+
+/// Obstacles message type
+pub const MSG_OBSTACLES: u8 = 0x23;
 
 /// Command flags
 pub mod cmd_flags {
@@ -299,7 +303,7 @@ impl Default for Telemetry {
         Self {
             sequence: 0,
             timestamp_us: 0,
-            mode: Mode::Disabled,
+            mode: Mode::Idle,
             pose: Pose::default(),
             power: PowerStatus::default(),
             cmd_velocity: Twist::default(),
@@ -494,7 +498,8 @@ impl Server {
 /// [4-6]     u8×3    system metrics (cpu%, mem%, disk%)
 /// [7]       u8      reserved
 /// [8-31]    f64×3   pose (x, y, theta)
-/// [32-39]   f64     battery_voltage
+/// [32-35]   f32     battery_voltage
+/// [36-39]   f32     system_current
 /// [40-47]   u64 LE  timestamp_us (monotonic)
 /// [48-55]   f32×2   cmd_velocity (linear, angular)
 /// [56-63]   f32×2   meas_velocity (linear, angular)
@@ -528,8 +533,9 @@ pub fn serialize_telemetry(telemetry: &Telemetry) -> Option<Vec<u8>> {
     buf.extend_from_slice(&telemetry.pose.y.to_le_bytes());
     buf.extend_from_slice(&telemetry.pose.theta.to_le_bytes());
 
-    // Battery voltage [32-39]
-    buf.extend_from_slice(&telemetry.power.battery_voltage.to_le_bytes());
+    // Battery voltage [32-35] and system current [36-39]
+    buf.extend_from_slice(&(telemetry.power.battery_voltage as f32).to_le_bytes());
+    buf.extend_from_slice(&(telemetry.power.system_current as f32).to_le_bytes());
 
     // Timestamp [40-47]
     buf.extend_from_slice(&telemetry.timestamp_us.to_le_bytes());
@@ -822,9 +828,11 @@ mod tests {
         assert!((y - 2.0).abs() < 0.001);
         assert!((theta - 0.5).abs() < 0.001);
 
-        // Verify battery voltage at offset 32
-        let voltage = f64::from_le_bytes(data[32..40].try_into().unwrap());
+        // Verify battery voltage at offset 32 and system current at offset 36
+        let voltage = f32::from_le_bytes(data[32..36].try_into().unwrap());
+        let current = f32::from_le_bytes(data[36..40].try_into().unwrap());
         assert!((voltage - 48.0).abs() < 0.001);
+        assert!((current - 10.0).abs() < 0.001);
 
         // Verify ACK fields at offset 112
         let last_cmd_seq = u16::from_le_bytes([data[112], data[113]]);

@@ -108,6 +108,12 @@ interface ConsoleState {
   costmapEnabled: boolean;
   setCostmapEnabled: (enabled: boolean) => void;
 
+  // Obstacle overlay
+  // Note: Obstacle data is stored in a mutable store (obstacleStore.ts) to avoid
+  // React re-renders. Use getObstacleData() from obstacleStore in useFrame.
+  obstaclesEnabled: boolean;
+  setObstaclesEnabled: (enabled: boolean) => void;
+
   // Gaussian splat (3D map)
   splatEnabled: boolean;
   setSplatEnabled: (enabled: boolean) => void;
@@ -142,7 +148,7 @@ interface ConsoleState {
 }
 
 const defaultTelemetry: Telemetry = {
-  mode: Mode.Disabled,
+  mode: Mode.Idle,
   pose: { x: 0, y: 0, theta: 0, roll: 0, pitch: 0 },
   power: { battery_voltage: 0, system_current: 0 },
   velocity: { linear: 0, angular: 0 },
@@ -153,6 +159,7 @@ const defaultTelemetry: Telemetry = {
   cpu_percent: 0,
   mem_percent: 0,
   disk_percent: 0,
+  modeChangedAt: Date.now(),
 };
 
 const defaultInput: GamepadInput = {
@@ -175,7 +182,24 @@ export const useConsoleStore = create<ConsoleState>()(
   // Fleet management
   rovers: [],
   selectedRoverId: null,
-  setRovers: (rovers) => set({ rovers }),
+  setRovers: (newRovers) =>
+    set((state) => {
+      // If WebRTC is connected, the connected rover's telemetry is fresher
+      // than discovery heartbeats — preserve all WebRTC-synced fields.
+      if (state.connected && state.selectedRoverId) {
+        const existing = state.rovers.find((r) => r.id === state.selectedRoverId);
+        if (existing) {
+          return {
+            rovers: newRovers.map((r) =>
+              r.id === state.selectedRoverId
+                ? { ...r, online: true, mode: existing.mode, batteryVoltage: existing.batteryVoltage, lastSeen: existing.lastSeen }
+                : r
+            ),
+          };
+        }
+      }
+      return { rovers: newRovers };
+    }),
   updateRover: (id, updates) =>
     set((state) => ({
       rovers: state.rovers.map((r) => (r.id === id ? { ...r, ...updates } : r)),
@@ -279,6 +303,10 @@ export const useConsoleStore = create<ConsoleState>()(
   costmapEnabled: false,
   setCostmapEnabled: (enabled) => set({ costmapEnabled: enabled }),
 
+  // Obstacle overlay
+  obstaclesEnabled: false,
+  setObstaclesEnabled: (enabled) => set({ obstaclesEnabled: enabled }),
+
   // Gaussian splat
   splatEnabled: true,
   setSplatEnabled: (enabled) => set({ splatEnabled: enabled }),
@@ -311,6 +339,7 @@ export const useConsoleStore = create<ConsoleState>()(
     ["video", { name: "video", messagesPerSec: 0, lastMessageTime: 0, history: [] }],
     ["pointcloud", { name: "pointcloud", messagesPerSec: 0, lastMessageTime: 0, history: [] }],
     ["costmap", { name: "costmap", messagesPerSec: 0, lastMessageTime: 0, history: [] }],
+    ["obstacles", { name: "obstacles", messagesPerSec: 0, lastMessageTime: 0, history: [] }],
   ]),
   updateChannelMetrics: (name, metrics) =>
     set((state) => {

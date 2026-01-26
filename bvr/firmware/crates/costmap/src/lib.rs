@@ -7,10 +7,14 @@
 //!
 //! The costmap is used for path planning and obstacle avoidance.
 
+pub mod clustering;
+
 use lidar::PointCloud;
 use nalgebra::Vector2;
 use thiserror::Error;
 use transforms::Transform2D;
+
+pub use clustering::{Obstacle, ObstacleClass};
 
 #[derive(Error, Debug)]
 pub enum CostmapError {
@@ -539,6 +543,22 @@ impl Costmap {
     /// Get the obstacle layer's occupancy grid.
     pub fn obstacle_grid(&self) -> &OccupancyGrid {
         &self.obstacle_layer
+    }
+
+    /// Extract discrete obstacles from the costmap.
+    ///
+    /// Uses connected-component labeling on LETHAL cells to identify
+    /// obstacle clusters with bounding boxes and centroids.
+    pub fn extract_obstacles(&self) -> Vec<Obstacle> {
+        clustering::extract_obstacles(
+            &self.combined,
+            self.width,
+            self.height,
+            self.resolution,
+            self.origin.x,
+            self.origin.y,
+            costs::LETHAL,
+        )
     }
 
     /// Create an owned snapshot of the current costmap state for streaming.
