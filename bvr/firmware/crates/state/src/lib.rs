@@ -7,9 +7,7 @@ use types::Mode;
 /// Events that trigger state transitions.
 #[derive(Debug, Clone, Copy)]
 pub enum Event {
-    /// Enable command received
-    Enable,
-    /// Disable command received
+    /// Disable command received (returns to Idle from active modes)
     Disable,
     /// Teleop command received
     TeleopCommand,
@@ -41,7 +39,7 @@ pub struct StateMachine {
 impl StateMachine {
     pub fn new() -> Self {
         Self {
-            mode: Mode::Disabled,
+            mode: Mode::Idle,
         }
     }
 
@@ -55,18 +53,14 @@ impl StateMachine {
         let old_mode = self.mode;
 
         self.mode = match (self.mode, event) {
-            // From Disabled
-            (Mode::Disabled, Event::Enable) => Mode::Idle,
-            (Mode::Disabled, Event::Sleep) => Mode::Sleep,
-
             // From Idle
-            (Mode::Idle, Event::Disable) => Mode::Disabled,
+            (Mode::Idle, Event::Disable) => Mode::Idle, // no-op, already idle
             (Mode::Idle, Event::TeleopCommand) => Mode::Teleop,
             (Mode::Idle, Event::AutonomousRequest) => Mode::Autonomous,
             (Mode::Idle, Event::Sleep) => Mode::Sleep,
 
             // From Teleop
-            (Mode::Teleop, Event::Disable) => Mode::Disabled,
+            (Mode::Teleop, Event::Disable) => Mode::Idle,
             (Mode::Teleop, Event::CommandTimeout) => {
                 warn!("Command timeout in teleop, returning to idle");
                 Mode::Idle
@@ -74,7 +68,7 @@ impl StateMachine {
             (Mode::Teleop, Event::AutonomousRequest) => Mode::Autonomous,
 
             // From Autonomous
-            (Mode::Autonomous, Event::Disable) => Mode::Disabled,
+            (Mode::Autonomous, Event::Disable) => Mode::Idle,
             (Mode::Autonomous, Event::TeleopCommand) => Mode::Teleop,
             (Mode::Autonomous, Event::AutonomousEnd) => Mode::Idle,
             (Mode::Autonomous, Event::CommandTimeout) => {
@@ -84,7 +78,7 @@ impl StateMachine {
 
             // From Sleep
             (Mode::Sleep, Event::Wake) => Mode::Idle,
-            (Mode::Sleep, Event::Disable) => Mode::Disabled,
+            (Mode::Sleep, Event::Disable) => Mode::Idle,
 
             // E-Stop from any active mode (including Sleep)
             (Mode::Idle | Mode::Teleop | Mode::Autonomous | Mode::Sleep, Event::EStop) => Mode::EStop,
@@ -94,7 +88,7 @@ impl StateMachine {
 
             // Faults
             (_, Event::Fault) => Mode::Fault,
-            (Mode::Fault, Event::FaultClear) => Mode::Disabled,
+            (Mode::Fault, Event::FaultClear) => Mode::Idle,
 
             // No transition
             (mode, _) => mode,
@@ -128,7 +122,7 @@ impl StateMachine {
     /// Get the LED command for the current mode.
     pub fn led_command(&self) -> LedCommand {
         match self.mode {
-            Mode::Disabled => LedCommand::state_disabled(),
+            Mode::Disabled => LedCommand::state_idle(), // legacy variant, treat as idle
             Mode::Idle => LedCommand::state_idle(),
             Mode::Teleop => LedCommand::state_teleop(),
             Mode::Autonomous => LedCommand::state_autonomous(),
@@ -150,11 +144,14 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_boots_into_idle() {
+        let sm = StateMachine::new();
+        assert_eq!(sm.mode(), Mode::Idle);
+    }
+
+    #[test]
     fn test_basic_transitions() {
         let mut sm = StateMachine::new();
-        assert_eq!(sm.mode(), Mode::Disabled);
-
-        sm.transition(Event::Enable);
         assert_eq!(sm.mode(), Mode::Idle);
 
         sm.transition(Event::TeleopCommand);
@@ -167,11 +164,7 @@ mod tests {
     #[test]
     fn test_estop_requires_release() {
         let mut sm = StateMachine::new();
-        sm.transition(Event::Enable);
         sm.transition(Event::EStop);
-
-        // Can't enable from e-stop
-        sm.transition(Event::Enable);
         assert_eq!(sm.mode(), Mode::EStop);
 
         // Must release first
@@ -182,7 +175,6 @@ mod tests {
     #[test]
     fn test_teleop_to_autonomous() {
         let mut sm = StateMachine::new();
-        sm.transition(Event::Enable);
         sm.transition(Event::TeleopCommand);
         assert_eq!(sm.mode(), Mode::Teleop);
 
@@ -196,7 +188,6 @@ mod tests {
     #[test]
     fn test_command_timeout_in_teleop() {
         let mut sm = StateMachine::new();
-        sm.transition(Event::Enable);
         sm.transition(Event::TeleopCommand);
         assert_eq!(sm.mode(), Mode::Teleop);
 
@@ -207,7 +198,6 @@ mod tests {
     #[test]
     fn test_command_timeout_in_autonomous() {
         let mut sm = StateMachine::new();
-        sm.transition(Event::Enable);
         sm.transition(Event::AutonomousRequest);
         assert_eq!(sm.mode(), Mode::Autonomous);
 
@@ -218,7 +208,6 @@ mod tests {
     #[test]
     fn test_autonomous_end() {
         let mut sm = StateMachine::new();
-        sm.transition(Event::Enable);
         sm.transition(Event::AutonomousRequest);
         assert_eq!(sm.mode(), Mode::Autonomous);
 
@@ -227,46 +216,40 @@ mod tests {
     }
 
     #[test]
-    fn test_disable_from_any_active_mode() {
-        // From Idle
+    fn test_disable_returns_to_idle() {
+        // From Idle (no-op)
         let mut sm = StateMachine::new();
-        sm.transition(Event::Enable);
         sm.transition(Event::Disable);
-        assert_eq!(sm.mode(), Mode::Disabled);
+        assert_eq!(sm.mode(), Mode::Idle);
 
         // From Teleop
         let mut sm = StateMachine::new();
-        sm.transition(Event::Enable);
         sm.transition(Event::TeleopCommand);
         sm.transition(Event::Disable);
-        assert_eq!(sm.mode(), Mode::Disabled);
+        assert_eq!(sm.mode(), Mode::Idle);
 
         // From Autonomous
         let mut sm = StateMachine::new();
-        sm.transition(Event::Enable);
         sm.transition(Event::AutonomousRequest);
         sm.transition(Event::Disable);
-        assert_eq!(sm.mode(), Mode::Disabled);
+        assert_eq!(sm.mode(), Mode::Idle);
     }
 
     #[test]
     fn test_estop_from_all_active_modes() {
         // From Idle
         let mut sm = StateMachine::new();
-        sm.transition(Event::Enable);
         sm.transition(Event::EStop);
         assert_eq!(sm.mode(), Mode::EStop);
 
         // From Teleop
         let mut sm = StateMachine::new();
-        sm.transition(Event::Enable);
         sm.transition(Event::TeleopCommand);
         sm.transition(Event::EStop);
         assert_eq!(sm.mode(), Mode::EStop);
 
         // From Autonomous
         let mut sm = StateMachine::new();
-        sm.transition(Event::Enable);
         sm.transition(Event::AutonomousRequest);
         sm.transition(Event::EStop);
         assert_eq!(sm.mode(), Mode::EStop);
@@ -275,7 +258,6 @@ mod tests {
     #[test]
     fn test_fault_from_any_mode() {
         let modes_to_test = [
-            Mode::Disabled,
             Mode::Idle,
             Mode::Teleop,
             Mode::Autonomous,
@@ -285,29 +267,21 @@ mod tests {
 
         for start_mode in modes_to_test {
             let mut sm = StateMachine::new();
-            // Manually reach the target mode
             match start_mode {
-                Mode::Disabled => {}
-                Mode::Idle => {
-                    sm.transition(Event::Enable);
-                }
+                Mode::Idle => {}
                 Mode::Teleop => {
-                    sm.transition(Event::Enable);
                     sm.transition(Event::TeleopCommand);
                 }
                 Mode::Autonomous => {
-                    sm.transition(Event::Enable);
                     sm.transition(Event::AutonomousRequest);
                 }
                 Mode::EStop => {
-                    sm.transition(Event::Enable);
                     sm.transition(Event::EStop);
                 }
                 Mode::Sleep => {
-                    sm.transition(Event::Enable);
                     sm.transition(Event::Sleep);
                 }
-                Mode::Fault => {}
+                _ => {}
             }
 
             sm.transition(Event::Fault);
@@ -316,20 +290,18 @@ mod tests {
     }
 
     #[test]
-    fn test_fault_clear_goes_to_disabled() {
+    fn test_fault_clear_goes_to_idle() {
         let mut sm = StateMachine::new();
-        sm.transition(Event::Enable);
         sm.transition(Event::Fault);
         assert_eq!(sm.mode(), Mode::Fault);
 
         sm.transition(Event::FaultClear);
-        assert_eq!(sm.mode(), Mode::Disabled);
+        assert_eq!(sm.mode(), Mode::Idle);
     }
 
     #[test]
     fn test_force_estop() {
         let mut sm = StateMachine::new();
-        sm.transition(Event::Enable);
         sm.transition(Event::TeleopCommand);
         assert_eq!(sm.mode(), Mode::Teleop);
 
@@ -340,11 +312,9 @@ mod tests {
     #[test]
     fn test_force_estop_idempotent() {
         let mut sm = StateMachine::new();
-        sm.transition(Event::Enable);
         sm.transition(Event::EStop);
         assert_eq!(sm.mode(), Mode::EStop);
 
-        // Calling force_estop when already in EStop should be fine
         sm.force_estop();
         assert_eq!(sm.mode(), Mode::EStop);
     }
@@ -352,9 +322,6 @@ mod tests {
     #[test]
     fn test_is_driving() {
         let mut sm = StateMachine::new();
-        assert!(!sm.is_driving());
-
-        sm.transition(Event::Enable);
         assert!(!sm.is_driving()); // Idle
 
         sm.transition(Event::TeleopCommand);
@@ -370,9 +337,6 @@ mod tests {
     #[test]
     fn test_is_safe() {
         let mut sm = StateMachine::new();
-        assert!(sm.is_safe()); // Disabled
-
-        sm.transition(Event::Enable);
         assert!(sm.is_safe()); // Idle
 
         sm.transition(Event::TeleopCommand);
@@ -384,14 +348,8 @@ mod tests {
 
     #[test]
     fn test_no_transition_invalid_events() {
-        // Can't teleop from disabled
-        let mut sm = StateMachine::new();
-        sm.transition(Event::TeleopCommand);
-        assert_eq!(sm.mode(), Mode::Disabled);
-
         // Can't release estop from idle
         let mut sm = StateMachine::new();
-        sm.transition(Event::Enable);
         sm.transition(Event::EStopRelease);
         assert_eq!(sm.mode(), Mode::Idle);
     }
@@ -399,14 +357,14 @@ mod tests {
     #[test]
     fn test_default_impl() {
         let sm = StateMachine::default();
-        assert_eq!(sm.mode(), Mode::Disabled);
+        assert_eq!(sm.mode(), Mode::Idle);
     }
 
     #[test]
     fn test_sleep_transitions() {
-        // Disabled -> Sleep
+        // Idle -> Sleep
         let mut sm = StateMachine::new();
-        assert_eq!(sm.mode(), Mode::Disabled);
+        assert_eq!(sm.mode(), Mode::Idle);
         sm.transition(Event::Sleep);
         assert_eq!(sm.mode(), Mode::Sleep);
 
@@ -414,7 +372,7 @@ mod tests {
         sm.transition(Event::Wake);
         assert_eq!(sm.mode(), Mode::Idle);
 
-        // Idle -> Sleep
+        // Idle -> Sleep again
         sm.transition(Event::Sleep);
         assert_eq!(sm.mode(), Mode::Sleep);
     }
@@ -422,7 +380,6 @@ mod tests {
     #[test]
     fn test_sleep_is_safe() {
         let mut sm = StateMachine::new();
-        sm.transition(Event::Enable);
         sm.transition(Event::Sleep);
         assert!(sm.is_safe());
         assert!(!sm.is_driving());
@@ -431,7 +388,6 @@ mod tests {
     #[test]
     fn test_sleep_to_estop() {
         let mut sm = StateMachine::new();
-        sm.transition(Event::Enable);
         sm.transition(Event::Sleep);
         assert_eq!(sm.mode(), Mode::Sleep);
 
@@ -440,21 +396,37 @@ mod tests {
     }
 
     #[test]
-    fn test_sleep_to_disabled() {
+    fn test_sleep_disable_goes_to_idle() {
         let mut sm = StateMachine::new();
-        sm.transition(Event::Enable);
         sm.transition(Event::Sleep);
         assert_eq!(sm.mode(), Mode::Sleep);
 
         sm.transition(Event::Disable);
-        assert_eq!(sm.mode(), Mode::Disabled);
+        assert_eq!(sm.mode(), Mode::Idle);
+    }
+
+    #[test]
+    fn test_sleep_wake_cycle() {
+        // Idle -> Sleep -> Wake -> Idle
+        let mut sm = StateMachine::new();
+        assert_eq!(sm.mode(), Mode::Idle);
+        sm.transition(Event::Sleep);
+        assert_eq!(sm.mode(), Mode::Sleep);
+        sm.transition(Event::Wake);
+        assert_eq!(sm.mode(), Mode::Idle);
+
+        // After wake, full functionality: Idle -> Teleop -> Idle -> Sleep
+        sm.transition(Event::TeleopCommand);
+        assert_eq!(sm.mode(), Mode::Teleop);
+        sm.transition(Event::CommandTimeout);
+        assert_eq!(sm.mode(), Mode::Idle);
+        sm.transition(Event::Sleep);
+        assert_eq!(sm.mode(), Mode::Sleep);
     }
 
     #[test]
     fn test_cannot_sleep_from_teleop() {
-        // Sleep should only be reachable from Idle
         let mut sm = StateMachine::new();
-        sm.transition(Event::Enable);
         sm.transition(Event::TeleopCommand);
         assert_eq!(sm.mode(), Mode::Teleop);
 

@@ -55,10 +55,11 @@ impl WheelVelocities {
 #[cfg_attr(feature = "ts", derive(TS))]
 #[cfg_attr(feature = "ts", ts(export, export_to = "generated/"))]
 pub enum Mode {
-    /// Powered off / safe state
-    #[default]
+    /// Legacy wire-compat value (byte 0). New firmware never enters this state;
+    /// kept so old consoles that send `SetMode(0)` still deserialise correctly.
     Disabled,
-    /// Ready to receive commands but not moving
+    /// Ready to receive commands but not moving (boot state)
+    #[default]
     Idle,
     /// Actively executing velocity commands from teleop
     Teleop,
@@ -390,7 +391,7 @@ mod tests {
 
     #[test]
     fn test_mode_default() {
-        assert_eq!(Mode::default(), Mode::Disabled);
+        assert_eq!(Mode::default(), Mode::Idle);
     }
 
     #[test]

@@ -63,7 +63,7 @@ impl DispatchHandler {
 
                     // Request autonomous mode if currently idle
                     match current_mode {
-                        Mode::Idle | Mode::Disabled => {
+                        Mode::Idle => {
                             result.request_autonomous = true;
                             info!("Requesting transition to Autonomous mode for dispatch task");
                         }

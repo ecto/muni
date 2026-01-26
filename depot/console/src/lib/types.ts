@@ -12,7 +12,7 @@ export const Mode = {
 export type Mode = (typeof Mode)[keyof typeof Mode];
 
 export const ModeLabels: Record<Mode, string> = {
-  [Mode.Disabled]: "Disabled",
+  [Mode.Disabled]: "Idle",
   [Mode.Idle]: "Idle",
   [Mode.Teleop]: "Teleop",
   [Mode.Autonomous]: "Autonomous",
@@ -100,6 +100,8 @@ export interface Telemetry {
   mem_percent: number;
   /** System disk usage (0-100%) */
   disk_percent: number;
+  /** Epoch ms when mode last changed (client-side tracking) */
+  modeChangedAt: number;
 }
 
 export interface GamepadInput {
