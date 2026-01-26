@@ -1,7 +1,8 @@
 //! Tool auto-discovery via CAN bus.
 
 use crate::protocol::{can_id, DiscoveryPayload};
-use crate::{SnowAuger, Tool, ToolType};
+use crate::{Blower, SnowAuger, Tool, ToolType};
+use crate::blower::BlowerConfig;
 use can::Frame;
 use std::collections::HashMap;
 use tracing::{info, warn};
@@ -125,6 +126,33 @@ impl Registry {
         if let Some(tool) = self.active() {
             info!(name = tool.info().name, "Switched to tool");
         }
+    }
+
+    /// Register a pre-built tool (for config-based tools like VESC blowers).
+    pub fn register(&mut self, tool: Box<dyn Tool>) {
+        let slot = tool.info().slot;
+        if self.tools.contains_key(&slot) {
+            warn!(slot, "Tool slot already occupied, skipping registration");
+            return;
+        }
+        info!(
+            slot,
+            name = tool.info().name,
+            "Tool registered from config"
+        );
+        if self.active_slot.is_none() {
+            self.active_slot = Some(slot);
+        }
+        self.tools.insert(slot, tool);
+    }
+
+    /// Register a blower tool from config.
+    pub fn register_blower(&mut self, config: &BlowerConfig) {
+        if !config.enabled {
+            return;
+        }
+        info!(can_id = config.can_id, "Registering blower tool");
+        self.register(Box::new(Blower::new(config.clone())));
     }
 
     /// Get number of registered tools.

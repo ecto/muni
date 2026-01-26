@@ -4,6 +4,7 @@
 //! to the rover via CAN bus and are auto-discovered.
 
 pub mod auger;
+pub mod blower;
 pub mod discovery;
 pub mod protocol;
 
@@ -11,6 +12,7 @@ use bitflags::bitflags;
 use types::ToolCommand;
 
 pub use auger::SnowAuger;
+pub use blower::Blower;
 pub use discovery::Registry;
 
 bitflags! {
@@ -39,6 +41,7 @@ pub enum ToolType {
     Spreader = 2,
     Mower = 3,
     Plow = 4,
+    Blower = 5,
 }
 
 impl From<u8> for ToolType {
@@ -48,6 +51,7 @@ impl From<u8> for ToolType {
             2 => Self::Spreader,
             3 => Self::Mower,
             4 => Self::Plow,
+            5 => Self::Blower,
             _ => Self::Unknown,
         }
     }
@@ -73,13 +77,15 @@ pub struct ToolStatus {
     pub fault: bool,
 }
 
-/// Output command to send to tool MCU.
+/// Output command to send to tool hardware.
 #[derive(Debug, Clone)]
 pub enum ToolOutput {
     None,
     SetAxis(f32),
     SetMotor(f32),
     SetBoth { axis: f32, motor: f32 },
+    /// Raw CAN frame (for VESC-based tools that bypass tool protocol).
+    Raw(can::Frame),
 }
 
 /// Trait for tool implementations.
@@ -108,7 +114,8 @@ mod tests {
         assert_eq!(ToolType::from(2), ToolType::Spreader);
         assert_eq!(ToolType::from(3), ToolType::Mower);
         assert_eq!(ToolType::from(4), ToolType::Plow);
-        assert_eq!(ToolType::from(5), ToolType::Unknown);
+        assert_eq!(ToolType::from(5), ToolType::Blower);
+        assert_eq!(ToolType::from(6), ToolType::Unknown);
         assert_eq!(ToolType::from(255), ToolType::Unknown);
     }
 
@@ -119,6 +126,7 @@ mod tests {
         assert_eq!(ToolType::Spreader as u8, 2);
         assert_eq!(ToolType::Mower as u8, 3);
         assert_eq!(ToolType::Plow as u8, 4);
+        assert_eq!(ToolType::Blower as u8, 5);
     }
 
     #[test]

@@ -35,6 +35,7 @@ use tracing::{debug, error, info, warn};
 use tracing_appender::rolling::{RollingFileAppender, Rotation};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 use types::{Command, Mode, Pose, PowerStatus, SlamStatus, SubsystemHealth, Twist};
+use tools::blower::BlowerConfig;
 use ui::{Config as UiConfig, Dashboard};
 
 /// Configuration file structure (bvr.toml).
@@ -54,6 +55,7 @@ struct FileConfig {
     navigation: NavigationFileConfig,
     estop: EStopFileConfig,
     camera: CameraFileConfig,
+    blower: BlowerConfig,
 }
 
 /// Control loop configuration.
@@ -1092,11 +1094,14 @@ async fn main() -> Result<()> {
     // Get initial mode before moving state_machine
     let initial_mode = state_machine.mode();
 
+    let mut tool_registry = ToolRegistry::new();
+    tool_registry.register_blower(&file_config.blower);
+
     let shared = Arc::new(Mutex::new(SharedState {
         state_machine,
         commanded_twist: Twist::default(),
         drivetrain,
-        tool_registry: ToolRegistry::new(),
+        tool_registry,
         health: SubsystemHealth::default(),
     }));
 
@@ -2431,7 +2436,7 @@ async fn main() -> Result<()> {
         if let Some(tool) = state.tool_registry.active_mut() {
             let output = tool.update(&tool_command);
 
-            // Send tool command
+            // Send tool command via CAN
             let slot = tool.info().slot;
             let frame = match output {
                 ToolOutput::SetAxis(axis) => Some(protocol::build_command(slot, axis, 0.0)),
@@ -2439,10 +2444,13 @@ async fn main() -> Result<()> {
                 ToolOutput::SetBoth { axis, motor } => {
                     Some(protocol::build_command(slot, axis, motor))
                 }
+                ToolOutput::Raw(f) => Some(f),
                 ToolOutput::None => None,
             };
             if let Some(f) = frame {
-                let _ = can_interface.send(&f);
+                if should_send_vesc {
+                    let _ = can_interface.send(&f);
+                }
             }
         }
 

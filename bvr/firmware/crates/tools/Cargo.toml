@@ -8,6 +8,7 @@ license.workspace = true
 [dependencies]
 types = { workspace = true }
 can = { workspace = true }
+serde = { workspace = true }
 bitflags = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
