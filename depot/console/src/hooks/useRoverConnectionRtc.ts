@@ -39,6 +39,7 @@ const RECONNECT_DELAY_MS = 2000;
 const COMMAND_INTERVAL_MS = 10; // 100Hz - matches rover control loop
 const HEARTBEAT_INTERVAL_MS = 100;
 const INPUT_UPDATE_INTERVAL_MS = 8; // 120Hz input polling - faster than command rate
+const TELEMETRY_TIMEOUT_MS = 5000; // Force reconnect if no telemetry for 5s
 
 const SPEED_NORMAL = 2.0;
 const SPEED_BOOST = 5.0;
@@ -145,6 +146,16 @@ export function useRoverConnectionRtc() {
   // Only operators can send commands - observers can watch but not control
   const isOperatorRef = useRef(false);
 
+  // Telemetry watchdog: timestamp of last received telemetry message.
+  // If no telemetry arrives for TELEMETRY_TIMEOUT_MS, the DataChannel is stale
+  // and we force a reconnection (browser readyState can lie about dead SCTP).
+  const lastTelemetryReceivedRef = useRef<number>(0);
+
+  // Pending mode: tracks a SetMode we're trying to deliver over the unreliable
+  // DataChannel. The heartbeat loop resends until telemetry confirms the rover
+  // actually changed mode (or we disconnect).
+  const pendingModeRef = useRef<Mode | null>(null);
+
   const clearIntervals = useCallback(() => {
     if (commandIntervalRef.current) {
       clearInterval(commandIntervalRef.current);
@@ -247,6 +258,8 @@ export function useRoverConnectionRtc() {
         setConnected(true);
         lastSendTimeRef.current = performance.now();
         lastTelemetryTimeRef.current = 0; // Reset throttle on reconnect
+        lastTelemetryReceivedRef.current = 0; // Reset watchdog — prevent stale timestamp from previous connection
+        pendingModeRef.current = null; // Clear any pending mode from previous connection
 
         // Mark rover online in fleet roster — WebRTC proves reachability
         const { selectedRoverId, updateRover } = useConsoleStore.getState();
@@ -260,10 +273,33 @@ export function useRoverConnectionRtc() {
           COMMAND_INTERVAL_MS
         );
 
-        // Start heartbeat loop
+        // Start heartbeat loop (also checks for stale DataChannel and retries SetMode)
         heartbeatIntervalRef.current = setInterval(() => {
           if (commandChannelRef.current?.readyState === "open") {
             commandChannelRef.current.send(encodeHeartbeat());
+
+            // Retry pending SetMode: if we sent a SetMode but telemetry hasn't
+            // confirmed the mode change yet, resend. The unreliable DataChannel
+            // (maxRetransmits: 0) can silently drop SCTP packets.
+            if (pendingModeRef.current !== null) {
+              commandChannelRef.current.send(encodeSetMode(pendingModeRef.current));
+            }
+          }
+
+          // Telemetry watchdog: if we've been connected but haven't received
+          // telemetry for TELEMETRY_TIMEOUT_MS, the DataChannel is stale.
+          // Browser readyState can remain "open" even after SCTP transport dies.
+          const lastRecv = lastTelemetryReceivedRef.current;
+          if (lastRecv > 0 && performance.now() - lastRecv > TELEMETRY_TIMEOUT_MS) {
+            console.warn("[WebRTC] Telemetry watchdog: no data for 5s, forcing reconnect");
+            lastTelemetryReceivedRef.current = 0; // Prevent repeated triggers
+            peerConnectionRef.current?.close();
+            signalingWsRef.current?.close();
+            setConnected(false);
+            clearIntervals();
+            reconnectTimeoutRef.current = setTimeout(() => {
+              connectRef.current();
+            }, RECONNECT_DELAY_MS);
           }
         }, HEARTBEAT_INTERVAL_MS);
 
@@ -313,6 +349,7 @@ export function useRoverConnectionRtc() {
           if (enableRising && !isOperatorRef.current && commandChannelRef.current?.readyState === "open") {
             // Claim operator and enable teleop
             isOperatorRef.current = true;
+            pendingModeRef.current = Mode.Teleop;
             commandChannelRef.current.send(encodeSetMode(Mode.Teleop));
           }
 
@@ -322,6 +359,7 @@ export function useRoverConnectionRtc() {
           if (disableRising && isOperatorRef.current && commandChannelRef.current?.readyState === "open") {
             // Release operator and disable
             isOperatorRef.current = false;
+            pendingModeRef.current = Mode.Disabled;
             commandChannelRef.current.send(encodeSetMode(Mode.Disabled));
           }
         }, INPUT_UPDATE_INTERVAL_MS);
@@ -331,6 +369,7 @@ export function useRoverConnectionRtc() {
         const { input, pointCloudEnabled } = useConsoleStore.getState();
         if (input.enable && !isOperatorRef.current) {
           isOperatorRef.current = true;
+          pendingModeRef.current = Mode.Teleop;
           commandChannelRef.current!.send(encodeSetMode(Mode.Teleop));
           prevEnableRef.current = true;
         }
@@ -358,6 +397,7 @@ export function useRoverConnectionRtc() {
         const channel = event.channel;
 
         if (channel.label === "telemetry") {
+          console.log("[WebRTC] Telemetry channel received");
           channel.binaryType = "arraybuffer";
           channel.onmessage = (msgEvent) => {
             if (msgEvent.data instanceof ArrayBuffer) {
@@ -369,6 +409,7 @@ export function useRoverConnectionRtc() {
                 return; // Drop - too soon since last processed message
               }
               lastTelemetryTimeRef.current = now;
+              lastTelemetryReceivedRef.current = now;
 
               // Track channel metrics
               const stats = channelStatsRef.current.get("telemetry");
@@ -379,6 +420,11 @@ export function useRoverConnectionRtc() {
 
               const decoded = decodeTelemetry(msgEvent.data);
               if (decoded) {
+                // Clear pending mode once telemetry confirms the rover changed
+                if (pendingModeRef.current !== null && decoded.mode === pendingModeRef.current) {
+                  pendingModeRef.current = null;
+                }
+
                 // Always push to interpolation buffer at full rate for smooth 3D rendering
                 pushSnapshotDirect({
                   serverTimestamp: decoded.timestamp_us,
@@ -725,6 +771,7 @@ export function useRoverConnectionRtc() {
 
     // Release operator status on disconnect
     isOperatorRef.current = false;
+    pendingModeRef.current = null;
 
     // Reset telemetry throttle
     lastTelemetryTimeRef.current = 0;
@@ -810,6 +857,7 @@ export function useRoverConnectionRtc() {
       }
       // Claim operator status - we're taking control
       isOperatorRef.current = true;
+      pendingModeRef.current = Mode.Teleop;
 
       // Rover boots into Idle — go straight to Teleop
       channel.send(encodeSetMode(Mode.Teleop));
@@ -817,6 +865,7 @@ export function useRoverConnectionRtc() {
     sendDisable: useCallback(() => {
       // Release operator status
       isOperatorRef.current = false;
+      pendingModeRef.current = Mode.Disabled;
 
       if (commandChannelRef.current?.readyState === "open") {
         commandChannelRef.current.send(encodeSetMode(Mode.Disabled));
@@ -835,6 +884,7 @@ export function useRoverConnectionRtc() {
       console.log("[WebRTC] sendSleep called");
       // Release operator status (going to sleep)
       isOperatorRef.current = false;
+      pendingModeRef.current = Mode.Sleep;
 
       if (commandChannelRef.current?.readyState === "open") {
         commandChannelRef.current.send(encodeSetMode(Mode.Sleep));
@@ -852,10 +902,25 @@ export function useRoverConnectionRtc() {
       }
       // Claim operator status - we're waking up
       isOperatorRef.current = true;
+      pendingModeRef.current = Mode.Idle;
 
       // Send Idle to wake from Sleep (state machine: Sleep -> Wake -> Idle)
       channel.send(encodeSetMode(Mode.Idle));
       console.log("[WebRTC] Wake command sent (SetMode Idle)");
+    }, []),
+    sendAutonomous: useCallback(() => {
+      const channel = commandChannelRef.current;
+      if (channel?.readyState !== "open") return;
+      // Don't claim operator — autonomous mode drives itself, no Twist commands from console
+      isOperatorRef.current = false;
+      pendingModeRef.current = Mode.Autonomous;
+      channel.send(encodeSetMode(Mode.Autonomous));
+    }, []),
+    sendStopAutonomy: useCallback(() => {
+      pendingModeRef.current = Mode.Idle;
+      if (commandChannelRef.current?.readyState === "open") {
+        commandChannelRef.current.send(encodeSetMode(Mode.Idle));
+      }
     }, []),
   };
 }

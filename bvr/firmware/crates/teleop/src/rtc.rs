@@ -973,14 +973,17 @@ async fn handle_signaling(
 
     // Handle connection state changes
     let pc_clone = peer_connection.clone();
+    let op_state_dc = operator_state.clone();
     peer_connection.on_peer_connection_state_change(Box::new(move |state| {
-        info!(?state, "WebRTC peer connection state changed");
+        info!(?state, conn_id, "WebRTC peer connection state changed");
         let pc = pc_clone.clone();
+        let op_state = op_state_dc.clone();
         Box::pin(async move {
             if state == RTCPeerConnectionState::Failed
                 || state == RTCPeerConnectionState::Disconnected
                 || state == RTCPeerConnectionState::Closed
             {
+                op_state.release(conn_id);
                 let _ = pc.close().await;
             }
         })
@@ -1088,7 +1091,7 @@ enum CommandFilter {
 /// - Heartbeat: Always allowed (keepalive)
 /// - SetMode(Disabled/Idle): Always allowed (safe to disable)
 /// - SetMode(Teleop): Requires claiming operator status
-/// - SetMode(Autonomous): Operator only
+/// - SetMode(Autonomous): Allowed from anyone (releases operator, rover drives itself)
 /// - Twist, Tool, EStopRelease: Operator only
 fn filter_command(cmd: &Command, conn_id: u64, op_state: &OperatorState) -> CommandFilter {
     match cmd {
@@ -1123,14 +1126,13 @@ fn filter_command(cmd: &Command, conn_id: u64, op_state: &OperatorState) -> Comm
                     CommandFilter::Reject("another operator is active")
                 }
             }
-            // Autonomous mode is operator-only
+            // Autonomous: anyone can request (rover drives itself, no operator needed)
             Mode::Autonomous => {
+                // Release operator if held — autonomous doesn't need one
                 if op_state.is_operator(conn_id) {
-                    op_state.touch();
-                    CommandFilter::Allow
-                } else {
-                    CommandFilter::Reject("not the operator")
+                    op_state.release(conn_id);
                 }
+                CommandFilter::Allow
             }
             // E-Stop mode shouldn't be set directly
             Mode::EStop => CommandFilter::Reject("cannot set EStop mode directly"),
