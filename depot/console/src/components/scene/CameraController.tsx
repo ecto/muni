@@ -165,7 +165,7 @@ export function CameraController() {
         if (firstFrame.current) {
           camera.position.copy(targetPos);
         } else {
-          camera.position.lerp(targetPos, 8 * delta);
+          camera.position.lerp(targetPos, Math.min(1, 8 * delta));
         }
         camera.lookAt(roverPos);
         break;
@@ -185,7 +185,7 @@ export function CameraController() {
         if (firstFrame.current) {
           camera.position.copy(targetPos);
         } else {
-          camera.position.lerp(targetPos, 8 * delta);
+          camera.position.lerp(targetPos, Math.min(1, 8 * delta));
         }
         camera.lookAt(roverPos);
         break;
