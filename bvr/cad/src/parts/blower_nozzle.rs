@@ -1,20 +1,24 @@
-//! Blower Nozzle - 3D printable square-to-slot transition
+//! Blower Nozzle - 3D printable circular-to-slot transition
 //!
-//! SIMPLIFIED VERSION: Square inlet → rectangular slot outlet
-//! No curves - just straight tapered walls for guaranteed watertight geometry.
+//! Circular inlet (matches 90mm EDF) → rectangular slot outlet (200mm × 15mm).
+//! Cross-section interpolation: circle → rounded rect → rectangle.
+//!
+//! Print orientation: inlet face down (circle gives great bed adhesion).
+//! No internal supports needed — all overhangs are gradual.
 
-use crate::{centered_cube, Part};
+use crate::{centered_cube, centered_cylinder, Part};
+use std::f64::consts::PI;
 
 /// Blower nozzle configuration
 #[derive(Debug, Clone)]
 pub struct BlowerNozzleConfig {
-    /// Inlet side length (mm) - square opening
-    pub inlet_size: f64,
+    /// Inlet diameter (mm) - circular opening matching EDF
+    pub inlet_diameter: f64,
     /// Outlet slot width (mm)
     pub outlet_width: f64,
     /// Outlet slot height (mm)
     pub outlet_height: f64,
-    /// Total nozzle length (mm)
+    /// Total nozzle body length (mm) - transition zone
     pub length: f64,
     /// Wall thickness (mm)
     pub wall_thickness: f64,
@@ -22,62 +26,94 @@ pub struct BlowerNozzleConfig {
     pub flange_width: f64,
     /// Flange thickness (mm)
     pub flange_thickness: f64,
-    /// Mount hole diameter (mm)
+    /// Mount hole diameter (mm) - M4 clearance
     pub mount_hole_diameter: f64,
-    /// Number of mount holes
+    /// Number of mount holes on flange
     pub mount_hole_count: usize,
+    /// Inlet collar length (mm) - slip-fit onto EDF duct
+    pub collar_length: f64,
+    /// Inlet collar inner diameter (mm) - slightly larger than EDF OD for slip fit
+    pub collar_id: f64,
+    /// Number of set-screw bosses on inlet collar
+    pub set_screw_count: usize,
+    /// Set-screw tap drill diameter (mm) - M4 tap = 3.3mm
+    pub set_screw_diameter: f64,
 }
 
 impl Default for BlowerNozzleConfig {
     fn default() -> Self {
         Self {
-            inlet_size: 90.0,        // 90mm square (matches blower outlet)
-            outlet_width: 200.0,     // Sized for H2D build volume (256mm max)
-            outlet_height: 6.0,      // Thin slot for velocity boost
-            length: 150.0,           // Shorter transition, fits H2D
-            wall_thickness: 2.5,     // 3D print friendly
-            flange_width: 15.0,      // Reduced to maximize outlet width
-            flange_thickness: 3.0,
-            mount_hole_diameter: 4.5, // M4 clearance
+            inlet_diameter: 90.0,
+            outlet_width: 200.0,
+            outlet_height: 15.0,
+            length: 180.0,
+            wall_thickness: 3.0,
+            flange_width: 15.0,
+            flange_thickness: 5.0,
+            mount_hole_diameter: 4.5,
             mount_hole_count: 8,
+            collar_length: 30.0,
+            collar_id: 91.0,
+            set_screw_count: 3,
+            set_screw_diameter: 3.3,
         }
     }
 }
 
 impl BlowerNozzleConfig {
-    /// Calculate inlet area (mm²)
+    /// Inlet area (mm²) - circular
     pub fn inlet_area(&self) -> f64 {
-        self.inlet_size * self.inlet_size
+        PI * (self.inlet_diameter / 2.0).powi(2)
     }
 
-    /// Calculate outlet area (mm²)
+    /// Outlet area (mm²) - rectangular
     pub fn outlet_area(&self) -> f64 {
         self.outlet_width * self.outlet_height
     }
 
-    /// Calculate velocity ratio (outlet / inlet)
+    /// Velocity ratio (inlet / outlet). Values > 1.0 mean converging (accelerating).
     pub fn velocity_ratio(&self) -> f64 {
         self.inlet_area() / self.outlet_area()
     }
 
-    /// Alias for compatibility
+    /// Total length including collar
     pub fn total_length(&self) -> f64 {
-        self.length
+        self.collar_length + self.length
     }
 
-    // Legacy getters for compatibility with tests
-    pub fn inlet_diameter(&self) -> f64 {
-        self.inlet_size
+    /// Bounding box dimensions [x, y, z] in mm (for build volume check)
+    pub fn bounding_box(&self) -> [f64; 3] {
+        let x = self.outlet_width + 2.0 * self.flange_width;
+        let y = self.inlet_diameter + 2.0 * self.wall_thickness;
+        let z = self.length;
+        [x, y, z]
+    }
+
+    /// Check if the nozzle fits in a cubic build volume
+    pub fn fits_build_volume(&self, max_dim: f64) -> bool {
+        let bb = self.bounding_box();
+        bb[0] <= max_dim && bb[1] <= max_dim && bb[2] <= max_dim
+    }
+
+    // Legacy compatibility
+    pub fn inlet_size(&self) -> f64 {
+        self.inlet_diameter
     }
     pub fn transition_length(&self) -> f64 {
-        self.length * 0.83 // ~150mm of 180mm
+        self.length * 0.83
     }
     pub fn inlet_length(&self) -> f64 {
-        self.length * 0.17 // ~30mm of 180mm
+        self.length * 0.17
     }
 }
 
-/// Blower nozzle: square-to-slot transition for airflow distribution
+/// Blower nozzle: circular inlet → rectangular slot outlet
+///
+/// Geometry from inlet (Z=0) to outlet (Z=length):
+/// - Collar extends below Z=0 (slip-fit onto EDF duct)
+/// - Cross-sections interpolate from circle to rounded-rect to rectangle
+/// - Reinforcement ribs near outlet
+/// - Mounting flange at outlet end
 pub struct BlowerNozzle {
     config: BlowerNozzleConfig,
 }
@@ -91,130 +127,56 @@ impl BlowerNozzle {
         Self::new(BlowerNozzleConfig::default())
     }
 
-    /// Generate 3D representation of the blower nozzle
-    ///
-    /// Square outer shell with circular inlet collar → wide rectangular outlet
+    /// Generate the complete nozzle part
     pub fn generate(&self) -> Part {
         let cfg = &self.config;
-        use crate::centered_cylinder;
 
-        // Outer solid (rectangular taper)
-        let outer = self.generate_tapered_box(
-            cfg.inlet_size,
-            cfg.inlet_size,
+        // Outer shell via cross-section loft
+        let outer = self.generate_loft(
+            cfg.inlet_diameter,
+            cfg.inlet_diameter,
             cfg.outlet_width,
             cfg.outlet_height,
             cfg.length,
         );
 
-        // Inner cavity (rectangular taper)
-        let inner_inlet = cfg.inlet_size - 2.0 * cfg.wall_thickness;
+        // Inner cavity (wall_thickness inset on all sides)
+        let inner_inlet_d = cfg.inlet_diameter - 2.0 * cfg.wall_thickness;
         let inner_outlet_w = cfg.outlet_width - 2.0 * cfg.wall_thickness;
-        let inner_outlet_h = (cfg.outlet_height - 2.0 * cfg.wall_thickness).max(1.0);
+        let inner_outlet_h = (cfg.outlet_height - 2.0 * cfg.wall_thickness).max(2.0);
+        let inner = self
+            .generate_loft(
+                inner_inlet_d,
+                inner_inlet_d,
+                inner_outlet_w,
+                inner_outlet_h,
+                cfg.length + 2.0,
+            )
+            .translate(0.0, 0.0, -1.0);
 
-        let inner = self.generate_tapered_box(
-            inner_inlet,
-            inner_inlet,
-            inner_outlet_w,
-            inner_outlet_h,
-            cfg.length + 2.0,
-        ).translate(0.0, 0.0, -1.0);
-
-        // Shell = outer - inner
         let shell = outer.difference(&inner);
 
-        // Add circular inlet collar (90mm ID, extends below Z=0)
-        let collar_length = 30.0;
-        let collar_od = cfg.inlet_size;
-        let collar_id = cfg.inlet_size - 2.0 * cfg.wall_thickness;
+        // Inlet collar with set-screw bosses
+        let collar = self.generate_collar();
 
-        let collar_outer = centered_cylinder("collar_outer", collar_od / 2.0, collar_length, 48)
-            .translate(0.0, 0.0, -collar_length / 2.0);
-        let collar_inner = centered_cylinder("collar_inner", collar_id / 2.0, collar_length + 2.0, 48)
-            .translate(0.0, 0.0, -collar_length / 2.0);
-        let collar = collar_outer.difference(&collar_inner);
-
-        // Bridge from circular collar to square funnel at Z=0
-        // Create overlapping zone where both shapes merge
-        let bridge = self.generate_inlet_bridge(collar_od, collar_id);
-
-        // Add reinforcement at outlet/flange junction
+        // Reinforcement near outlet
         let reinforce = self.generate_reinforcement();
 
-        // Add flange
+        // Mounting flange
         let flange = self.generate_flange();
 
-        shell.union(&collar).union(&bridge).union(&reinforce).union(&flange)
+        shell
+            .union(&collar)
+            .union(&reinforce)
+            .union(&flange)
     }
 
-    /// Generate bridge between circular collar and square funnel
+    /// Loft from inlet cross-section to outlet cross-section.
     ///
-    /// Creates a solid ring that fills the corners where circle meets square
-    fn generate_inlet_bridge(&self, outer_diameter: f64, inner_diameter: f64) -> Part {
-        use crate::centered_cylinder;
-
-        let bridge_height = 20.0; // Overlap zone height
-        let r_outer = outer_diameter / 2.0;
-        let r_inner = inner_diameter / 2.0;
-
-        // Outer: union of cylinder and square (fills corners)
-        let cyl_outer = centered_cylinder("bridge_cyl", r_outer, bridge_height, 48)
-            .translate(0.0, 0.0, bridge_height / 2.0);
-        let square_outer = centered_cube("bridge_sq", outer_diameter, outer_diameter, bridge_height)
-            .translate(0.0, 0.0, bridge_height / 2.0);
-        let outer_combined = cyl_outer.union(&square_outer);
-
-        // Inner: just cylinder (circular airflow path)
-        let inner_hole = centered_cylinder("bridge_inner", r_inner, bridge_height + 2.0, 48)
-            .translate(0.0, 0.0, bridge_height / 2.0);
-
-        outer_combined.difference(&inner_hole)
-    }
-
-    /// Generate reinforcement ribs at the narrow outlet end
-    fn generate_reinforcement(&self) -> Part {
-        let cfg = &self.config;
-
-        // Thickened transition zone near the outlet
-        // A wedge that bridges from the funnel walls to the flange
-        let reinforce_length = 30.0; // 30mm transition zone
-        let reinforce_start = cfg.length - reinforce_length;
-
-        // Create tapered reinforcement that thickens toward the flange
-        let num_layers = 30;
-        let mut reinforce = Part::empty("reinforcement");
-
-        for i in 0..=num_layers {
-            let t = i as f64 / num_layers as f64;
-            let z = reinforce_start + t * reinforce_length;
-
-            // Width/height at this z position (from main funnel)
-            let funnel_t = z / cfg.length;
-            let w = cfg.inlet_size + funnel_t * (cfg.outlet_width - cfg.inlet_size);
-            let h = cfg.inlet_size + funnel_t * (cfg.outlet_height - cfg.inlet_size);
-
-            // Extra thickness that grows toward outlet (0 at start, flange_width at end)
-            let extra = t * cfg.flange_width;
-
-            let layer = centered_cube("reinforce_layer", w + extra * 2.0, h + extra * 2.0, reinforce_length / num_layers as f64 * 2.0)
-                .translate(0.0, 0.0, z);
-
-            reinforce = reinforce.union(&layer);
-        }
-
-        // Hollow out the interior
-        let inner_outlet_w = cfg.outlet_width - 2.0 * cfg.wall_thickness;
-        let inner_outlet_h = (cfg.outlet_height - 2.0 * cfg.wall_thickness).max(1.0);
-        let hollow = centered_cube("hollow", inner_outlet_w, inner_outlet_h, reinforce_length + 10.0)
-            .translate(0.0, 0.0, reinforce_start + reinforce_length / 2.0);
-
-        reinforce.difference(&hollow)
-    }
-
-    /// Generate a tapered box using a single convex hull-like approach
-    ///
-    /// Creates inlet rectangle + outlet rectangle + connecting walls
-    fn generate_tapered_box(
+    /// Uses rounded-rectangle cross-sections that interpolate:
+    /// - t=0: circle (corner_radius = diameter/2)
+    /// - t=1: rectangle (corner_radius → 0)
+    fn generate_loft(
         &self,
         inlet_w: f64,
         inlet_h: f64,
@@ -222,14 +184,11 @@ impl BlowerNozzle {
         outlet_h: f64,
         length: f64,
     ) -> Part {
-        // Build as 6 faces (top, bottom, left, right, front, back)
-        // Each face is a tapered quadrilateral approximated by triangular prisms
+        let num_layers = 60;
+        let dz = length / num_layers as f64;
+        let layer_thickness = dz * 1.5; // overlap for watertight joins
 
-        // For simplicity: use dense stacked rectangles
-        let num_layers = 200; // Very dense
-        let layer_thickness = length / num_layers as f64 * 2.0; // 2x overlap
-
-        let mut solid = Part::empty("tapered_box");
+        let mut solid = Part::empty("loft");
 
         for i in 0..=num_layers {
             let t = i as f64 / num_layers as f64;
@@ -238,69 +197,233 @@ impl BlowerNozzle {
             let w = inlet_w + t * (outlet_w - inlet_w);
             let h = inlet_h + t * (outlet_h - inlet_h);
 
-            let layer = centered_cube("layer", w, h, layer_thickness)
+            // Corner radius: circle at inlet, rectangle at outlet.
+            // Cubic ease-out for smoother visual transition.
+            let t_ease = 1.0 - (1.0 - t).powi(3);
+            let max_r = h.min(w) / 2.0;
+            let corner_r = max_r * (1.0 - t_ease);
+
+            let slice = rounded_rect_slice(w, h, corner_r, layer_thickness)
                 .translate(0.0, 0.0, z);
 
-            solid = solid.union(&layer);
+            solid = solid.union(&slice);
         }
 
         solid
     }
 
-    /// Generate mounting flange at outlet end
+    /// Inlet collar: cylindrical tube that slip-fits over the EDF duct.
+    /// Extends below Z=0. Includes set-screw bosses for clamping.
+    fn generate_collar(&self) -> Part {
+        let cfg = &self.config;
+
+        let collar_od = cfg.collar_id + 2.0 * cfg.wall_thickness;
+
+        // Outer cylinder
+        let outer = centered_cylinder("collar_outer", collar_od / 2.0, cfg.collar_length, 48)
+            .translate(0.0, 0.0, -cfg.collar_length / 2.0);
+        // Inner bore
+        let inner =
+            centered_cylinder("collar_inner", cfg.collar_id / 2.0, cfg.collar_length + 2.0, 48)
+                .translate(0.0, 0.0, -cfg.collar_length / 2.0);
+
+        let collar = outer.difference(&inner);
+
+        // Bridge: overlap zone where collar merges with nozzle body at Z=0
+        let bridge_height = 15.0;
+        let bridge_cyl = centered_cylinder("bridge_cyl", collar_od / 2.0, bridge_height, 48)
+            .translate(0.0, 0.0, bridge_height / 2.0);
+        let bridge_sq = centered_cube(
+            "bridge_sq",
+            cfg.inlet_diameter,
+            cfg.inlet_diameter,
+            bridge_height,
+        )
+        .translate(0.0, 0.0, bridge_height / 2.0);
+        let bridge_outer = bridge_cyl.union(&bridge_sq);
+        let bridge_inner = centered_cylinder(
+            "bridge_inner",
+            (cfg.inlet_diameter - 2.0 * cfg.wall_thickness) / 2.0,
+            bridge_height + 2.0,
+            48,
+        )
+        .translate(0.0, 0.0, bridge_height / 2.0);
+        let bridge = bridge_outer.difference(&bridge_inner);
+
+        let collar_with_bridge = collar.union(&bridge);
+        self.add_set_screw_bosses(collar_with_bridge)
+    }
+
+    /// Add set-screw bosses around the collar.
+    ///
+    /// Each boss is a rectangular pad on the collar exterior with a radial hole
+    /// for an M4 set screw to clamp onto the EDF duct.
+    fn add_set_screw_bosses(&self, collar: Part) -> Part {
+        let cfg = &self.config;
+
+        let collar_od = cfg.collar_id + 2.0 * cfg.wall_thickness;
+        let boss_width = 12.0;
+        let boss_height = 12.0;
+        let boss_depth = 5.0;
+
+        let r_inner = cfg.collar_id / 2.0;
+
+        let mut result = collar;
+
+        for i in 0..cfg.set_screw_count {
+            let angle_deg = 360.0 * i as f64 / cfg.set_screw_count as f64;
+            let z_center = -cfg.collar_length / 2.0;
+
+            // Boss pad
+            let boss = centered_cube(
+                "boss",
+                boss_depth + cfg.wall_thickness,
+                boss_width,
+                boss_height,
+            )
+            .translate(
+                collar_od / 2.0 + boss_depth / 2.0 - cfg.wall_thickness,
+                0.0,
+                z_center,
+            )
+            .rotate(0.0, 0.0, angle_deg);
+
+            result = result.union(&boss);
+
+            // Radial set-screw hole
+            let hole_depth = collar_od / 2.0 + boss_depth - r_inner + 2.0;
+            let hole = centered_cylinder("set_screw", cfg.set_screw_diameter / 2.0, hole_depth, 16)
+                .rotate(0.0, 90.0, 0.0)
+                .translate(r_inner + hole_depth / 2.0, 0.0, z_center)
+                .rotate(0.0, 0.0, angle_deg);
+
+            result = result.difference(&hole);
+        }
+
+        result
+    }
+
+    /// Reinforcement zone near the outlet where the nozzle is thinnest.
+    fn generate_reinforcement(&self) -> Part {
+        let cfg = &self.config;
+
+        let reinforce_length = 30.0;
+        let reinforce_start = cfg.length - reinforce_length;
+        let num_layers = 20;
+
+        let mut reinforce = Part::empty("reinforcement");
+
+        for i in 0..=num_layers {
+            let t = i as f64 / num_layers as f64;
+            let z = reinforce_start + t * reinforce_length;
+
+            let body_t = z / cfg.length;
+            let w = cfg.inlet_diameter + body_t * (cfg.outlet_width - cfg.inlet_diameter);
+            let h = cfg.inlet_diameter + body_t * (cfg.outlet_height - cfg.inlet_diameter);
+
+            let extra = t * cfg.flange_width * 0.5;
+            let dz = reinforce_length / num_layers as f64 * 2.0;
+
+            let layer = centered_cube("rib", w + extra * 2.0, h + extra * 2.0, dz)
+                .translate(0.0, 0.0, z);
+
+            reinforce = reinforce.union(&layer);
+        }
+
+        // Hollow out interior
+        let inner_outlet_w = cfg.outlet_width - 2.0 * cfg.wall_thickness;
+        let inner_outlet_h = (cfg.outlet_height - 2.0 * cfg.wall_thickness).max(2.0);
+        let hollow = centered_cube(
+            "hollow",
+            inner_outlet_w,
+            inner_outlet_h,
+            reinforce_length + 10.0,
+        )
+        .translate(0.0, 0.0, reinforce_start + reinforce_length / 2.0);
+
+        reinforce.difference(&hollow)
+    }
+
+    /// Mounting flange at the outlet end
     fn generate_flange(&self) -> Part {
         let cfg = &self.config;
 
-        // Flange rectangle
         let outer_w = cfg.outlet_width + 2.0 * cfg.flange_width;
         let outer_h = cfg.outlet_height + 2.0 * cfg.flange_width;
 
         let flange_body = centered_cube("flange", outer_w, outer_h, cfg.flange_thickness)
             .translate(0.0, 0.0, cfg.length);
 
-        // Cutout for outlet
-        let cutout = centered_cube("cutout", cfg.outlet_width, cfg.outlet_height, cfg.flange_thickness + 2.0)
-            .translate(0.0, 0.0, cfg.length);
+        let cutout = centered_cube(
+            "cutout",
+            cfg.outlet_width,
+            cfg.outlet_height,
+            cfg.flange_thickness + 2.0,
+        )
+        .translate(0.0, 0.0, cfg.length);
 
         let flange = flange_body.difference(&cutout);
-
-        // Add mounting holes
         self.add_flange_holes(flange)
     }
 
     /// Add mounting holes to the flange
     fn add_flange_holes(&self, flange: Part) -> Part {
         let cfg = &self.config;
-        use crate::centered_cylinder;
 
         let hole_r = cfg.mount_hole_diameter / 2.0;
         let hole_y = cfg.outlet_height / 2.0 + cfg.flange_width / 2.0;
-
-        let num_holes_per_side = cfg.mount_hole_count / 2;
-        let spacing = cfg.outlet_width / (num_holes_per_side as f64 + 1.0);
+        let num_per_side = cfg.mount_hole_count / 2;
+        let spacing = cfg.outlet_width / (num_per_side as f64 + 1.0);
 
         let mut result = flange;
-        for i in 1..=num_holes_per_side {
+        for i in 1..=num_per_side {
             let x = -cfg.outlet_width / 2.0 + i as f64 * spacing;
 
-            // Top edge
-            let hole_top = centered_cylinder("hole", hole_r, cfg.flange_thickness * 3.0, 16)
-                .translate(x, hole_y, cfg.length);
+            let hole_top =
+                centered_cylinder("hole", hole_r, cfg.flange_thickness * 3.0, 16)
+                    .translate(x, hole_y, cfg.length);
             result = result.difference(&hole_top);
 
-            // Bottom edge
-            let hole_bottom = centered_cylinder("hole", hole_r, cfg.flange_thickness * 3.0, 16)
-                .translate(x, -hole_y, cfg.length);
+            let hole_bottom =
+                centered_cylinder("hole", hole_r, cfg.flange_thickness * 3.0, 16)
+                    .translate(x, -hole_y, cfg.length);
             result = result.difference(&hole_bottom);
         }
 
         result
     }
 
-    /// Get the configuration
     pub fn config(&self) -> &BlowerNozzleConfig {
         &self.config
     }
+}
+
+/// Create a rounded rectangle cross-section slice.
+///
+/// When corner_radius >= min(w,h)/2, the shape approaches a circle/stadium.
+/// When corner_radius = 0, it's a pure rectangle.
+fn rounded_rect_slice(w: f64, h: f64, corner_r: f64, thickness: f64) -> Part {
+    let r = corner_r.min(w / 2.0).min(h / 2.0);
+
+    if r < 0.5 {
+        return centered_cube("slice", w, h, thickness);
+    }
+
+    // Two overlapping rectangles forming a cross
+    let cross_h = centered_cube("ch", w, (h - 2.0 * r).max(0.1), thickness);
+    let cross_v = centered_cube("cv", (w - 2.0 * r).max(0.1), h, thickness);
+    let mut shape = cross_h.union(&cross_v);
+
+    // Quarter-cylinder at each corner
+    let cx = w / 2.0 - r;
+    let cy = h / 2.0 - r;
+    for &(sx, sy) in &[(1.0_f64, 1.0_f64), (1.0, -1.0), (-1.0, 1.0), (-1.0, -1.0)] {
+        let corner = centered_cylinder("corner", r, thickness, 16)
+            .translate(sx * cx, sy * cy, 0.0);
+        shape = shape.union(&corner);
+    }
+
+    shape
 }
 
 #[cfg(test)]
@@ -310,22 +433,48 @@ mod tests {
     #[test]
     fn test_config_defaults() {
         let cfg = BlowerNozzleConfig::default();
-        assert_eq!(cfg.inlet_size, 90.0);
+        assert_eq!(cfg.inlet_diameter, 90.0);
         assert_eq!(cfg.outlet_width, 200.0);
-        assert_eq!(cfg.outlet_height, 6.0);
+        assert_eq!(cfg.outlet_height, 15.0);
+        assert_eq!(cfg.length, 180.0);
+        assert_eq!(cfg.wall_thickness, 3.0);
+        assert_eq!(cfg.flange_thickness, 5.0);
     }
 
     #[test]
-    fn test_velocity_ratio() {
+    fn test_inlet_area_circular() {
         let cfg = BlowerNozzleConfig::default();
-        // 90×90 = 8100mm² inlet, 200×6 = 1200mm² outlet
-        // Ratio = 8100/1200 = 6.75
-        let ratio = cfg.velocity_ratio();
-        assert!(ratio > 6.0 && ratio < 7.5);
+        let area = cfg.inlet_area();
+        // pi * 45^2 = 6361.7 mm^2
+        assert!((area - 6361.7).abs() < 1.0);
     }
 
     #[test]
-    fn test_nozzle_generation() {
+    fn test_outlet_area() {
+        let cfg = BlowerNozzleConfig::default();
+        assert_eq!(cfg.outlet_area(), 3000.0);
+    }
+
+    #[test]
+    fn test_velocity_ratio_converging() {
+        let cfg = BlowerNozzleConfig::default();
+        let ratio = cfg.velocity_ratio();
+        // 6362 / 3000 = 2.12x converging
+        assert!(ratio > 2.0 && ratio < 2.3, "ratio = {}", ratio);
+    }
+
+    #[test]
+    fn test_fits_256mm_build_volume() {
+        let cfg = BlowerNozzleConfig::default();
+        assert!(cfg.fits_build_volume(256.0));
+        let bb = cfg.bounding_box();
+        assert!(bb[0] < 256.0, "width {} exceeds 256", bb[0]);
+        assert!(bb[1] < 256.0, "depth {} exceeds 256", bb[1]);
+        assert!(bb[2] < 256.0, "height {} exceeds 256", bb[2]);
+    }
+
+    #[test]
+    fn test_nozzle_generates() {
         let nozzle = BlowerNozzle::default_bvr1();
         let part = nozzle.generate();
         assert!(!part.is_empty());
@@ -335,45 +484,49 @@ mod tests {
     fn test_stl_export() {
         let nozzle = BlowerNozzle::default_bvr1();
         let part = nozzle.generate();
-        let stl_data = part.to_stl();
-        assert!(stl_data.is_ok());
+        assert!(part.to_stl().is_ok());
     }
 
     #[test]
     fn test_outlet_fits_shell_slot() {
         let cfg = BlowerNozzleConfig::default();
-        // Shell slot is 502mm × 52mm
+        // Shell slot is 502mm x 52mm
         assert!(cfg.outlet_width < 502.0);
         assert!(cfg.outlet_height < 52.0);
-        // Flange should also fit
         let flange_w = cfg.outlet_width + 2.0 * cfg.flange_width;
         let flange_h = cfg.outlet_height + 2.0 * cfg.flange_width;
         assert!(flange_w < 502.0);
         assert!(flange_h < 52.0);
     }
 
-    // Legacy test compatibility
     #[test]
-    fn test_blower_nozzle_config_defaults() {
+    fn test_rounded_rect_slice_circle() {
+        let slice = rounded_rect_slice(90.0, 90.0, 45.0, 2.0);
+        assert!(!slice.is_empty());
+    }
+
+    #[test]
+    fn test_rounded_rect_slice_rectangle() {
+        let slice = rounded_rect_slice(200.0, 15.0, 0.0, 2.0);
+        assert!(!slice.is_empty());
+    }
+
+    #[test]
+    fn test_collar_id_larger_than_edf() {
         let cfg = BlowerNozzleConfig::default();
-        assert_eq!(cfg.inlet_diameter(), 90.0);
+        assert!(cfg.collar_id > cfg.inlet_diameter);
     }
 
     #[test]
     fn test_total_length() {
         let cfg = BlowerNozzleConfig::default();
-        assert_eq!(cfg.total_length(), 150.0);
+        assert_eq!(cfg.total_length(), 210.0); // 30mm collar + 180mm body
     }
 
+    // Legacy compatibility
     #[test]
-    fn test_inlet_matches_blower() {
+    fn test_inlet_size_compat() {
         let cfg = BlowerNozzleConfig::default();
-        assert_eq!(cfg.inlet_size, 90.0);
-    }
-
-    #[test]
-    fn test_blend_factor() {
-        // Simplified - no blend factor in new design
-        assert!(true);
+        assert_eq!(cfg.inlet_size(), 90.0);
     }
 }
