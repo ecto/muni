@@ -6,16 +6,16 @@ import { getObstacleData, getObstacleVersion } from "@/lib/obstacleStore";
 import type { DecodedObstacle } from "@/lib/protocol";
 
 /**
- * Renders detected obstacles as wireframe 3D bounding boxes with
- * class-specific colors and floating labels.
+ * Renders detected obstacles as class-specific 3D shapes with
+ * floating labels.
  *
  * Obstacle classes (from firmware heuristics):
- *   0 = Unknown  → gray
- *   1 = Pole     → cyan
- *   2 = Vehicle  → red
- *   3 = Pedestrian → yellow
- *   4 = Wall     → blue
- *   5 = Debris   → orange
+ *   0 = Unknown    → wireframe box only (no solid)
+ *   1 = Pole       → cylinder
+ *   2 = Vehicle    → solid box
+ *   3 = Pedestrian → capsule (pill)
+ *   4 = Wall       → solid box (flat)
+ *   5 = Debris     → icosahedron (rock-like)
  *
  * Coordinate mapping (same as CostmapOverlay / RoverModel):
  *   Three.js X = -world_Y
@@ -23,7 +23,7 @@ import type { DecodedObstacle } from "@/lib/protocol";
  *   Three.js Y = height (vertical)
  */
 
-/** Maximum number of obstacle boxes to render. */
+/** Maximum number of obstacle shapes to render. */
 const MAX_BOXES = 64;
 
 /** Class-specific colors. Index = ObstacleClass enum value. */
@@ -46,6 +46,28 @@ const CLASS_NAMES: string[] = [
   "Debris",
 ];
 
+// Geometry type indices
+const GEO_BOX = 0;
+const GEO_CYLINDER = 1;
+const GEO_CAPSULE = 2;
+const GEO_ICOSAHEDRON = 3;
+
+/** Map obstacle class → geometry type. */
+const CLASS_GEO: number[] = [
+  GEO_BOX,         // 0: Unknown
+  GEO_CYLINDER,    // 1: Pole
+  GEO_BOX,         // 2: Vehicle
+  GEO_CAPSULE,     // 3: Pedestrian
+  GEO_BOX,         // 4: Wall
+  GEO_ICOSAHEDRON, // 5: Debris
+];
+
+/**
+ * Natural Y-axis size of each unit geometry (for correct height scaling).
+ * Box=1, Cylinder=1, Capsule=1.5 (radius 0.5 + length 0.5), Icosahedron=1
+ */
+const GEO_NATURAL_Y: number[] = [1.0, 1.0, 1.5, 1.0];
+
 function getClassColor(classId: number): number {
   return CLASS_COLORS[classId] ?? CLASS_COLORS[0];
 }
@@ -61,6 +83,10 @@ function estimateHeight(area: number): number {
   return 0.6; // small obstacle
 }
 
+// ============================================================================
+// Label helpers
+// ============================================================================
+
 /** Create a canvas-based text sprite for a label. */
 function createLabelSprite(text: string, color: number): THREE.Sprite {
   const canvas = document.createElement("canvas");
@@ -68,12 +94,10 @@ function createLabelSprite(text: string, color: number): THREE.Sprite {
   canvas.height = 32;
   const ctx = canvas.getContext("2d")!;
 
-  // Background
   ctx.fillStyle = "rgba(0, 0, 0, 0.6)";
   ctx.roundRect(0, 0, 128, 32, 4);
   ctx.fill();
 
-  // Text
   const hex = "#" + color.toString(16).padStart(6, "0");
   ctx.fillStyle = hex;
   ctx.font = "bold 18px monospace";
@@ -115,26 +139,91 @@ function updateLabelSprite(sprite: THREE.Sprite, text: string, color: number) {
   texture.needsUpdate = true;
 }
 
-interface BoxEntry {
+// ============================================================================
+// Shared geometry / material resources (created once, shared across pool)
+// ============================================================================
+
+interface SharedResources {
+  solidGeos: THREE.BufferGeometry[];
+  edgesGeos: THREE.EdgesGeometry[];
+  solidMats: THREE.MeshStandardMaterial[];
+  edgeMats: THREE.LineBasicMaterial[];
+}
+
+function createSharedResources(): SharedResources {
+  const box = new THREE.BoxGeometry(1, 1, 1);
+  const cylinder = new THREE.CylinderGeometry(0.5, 0.5, 1, 16);
+  const capsule = new THREE.CapsuleGeometry(0.5, 0.5, 4, 16);
+  const icosahedron = new THREE.IcosahedronGeometry(0.5, 1);
+  const solidGeos: THREE.BufferGeometry[] = [box, cylinder, capsule, icosahedron];
+
+  const edgesGeos = solidGeos.map((g) => new THREE.EdgesGeometry(g));
+
+  const solidMats = CLASS_COLORS.map(
+    (c) =>
+      new THREE.MeshStandardMaterial({
+        color: c,
+        emissive: c,
+        emissiveIntensity: 0.3,
+        transparent: true,
+        opacity: 0.35,
+        depthWrite: false,
+        side: THREE.DoubleSide,
+      }),
+  );
+
+  const edgeMats = CLASS_COLORS.map(
+    (c) =>
+      new THREE.LineBasicMaterial({
+        color: c,
+        transparent: true,
+        opacity: 0.9,
+      }),
+  );
+
+  return { solidGeos, edgesGeos, solidMats, edgeMats };
+}
+
+function disposeSharedResources(res: SharedResources) {
+  for (const g of res.solidGeos) g.dispose();
+  for (const g of res.edgesGeos) g.dispose();
+  for (const m of res.solidMats) m.dispose();
+  for (const m of res.edgeMats) m.dispose();
+}
+
+// ============================================================================
+// Pool entry
+// ============================================================================
+
+interface PoolEntry {
+  solidMesh: THREE.Mesh;
   wireframe: THREE.LineSegments;
   label: THREE.Sprite;
-  /** Last class assigned (to avoid unnecessary label redraws). */
+  /** Last class assigned (to avoid unnecessary geometry/material swaps). */
   lastClass: number;
 }
+
+// ============================================================================
+// Component
+// ============================================================================
 
 export function ObstacleOverlay() {
   const obstaclesEnabled = useConsoleStore((s) => s.obstaclesEnabled);
 
   const groupRef = useRef<THREE.Group>(null);
   const lastVersionRef = useRef<number>(0);
-  const poolRef = useRef<BoxEntry[]>([]);
+  const poolRef = useRef<PoolEntry[]>([]);
+  const sharedRef = useRef<SharedResources | null>(null);
 
-  // Cleanup on unmount
+  // Create shared resources on mount, dispose everything on unmount
   useEffect(() => {
+    sharedRef.current = createSharedResources();
     return () => {
+      if (sharedRef.current) {
+        disposeSharedResources(sharedRef.current);
+        sharedRef.current = null;
+      }
       for (const entry of poolRef.current) {
-        entry.wireframe.geometry.dispose();
-        (entry.wireframe.material as THREE.Material).dispose();
         (entry.label.material as THREE.SpriteMaterial).map?.dispose();
         (entry.label.material as THREE.SpriteMaterial).dispose();
       }
@@ -143,10 +232,11 @@ export function ObstacleOverlay() {
   }, []);
 
   useFrame(() => {
-    if (!obstaclesEnabled || !groupRef.current) {
+    if (!obstaclesEnabled || !groupRef.current || !sharedRef.current) {
       if (groupRef.current) {
         /* eslint-disable react-hooks/immutability -- imperative Three.js pool updates in frame loop */
         for (const entry of poolRef.current) {
+          entry.solidMesh.visible = false;
           entry.wireframe.visible = false;
           entry.label.visible = false;
         }
@@ -162,29 +252,33 @@ export function ObstacleOverlay() {
     const obstacles: DecodedObstacle[] = getObstacleData();
     const group = groupRef.current;
     const pool = poolRef.current;
+    const shared = sharedRef.current;
 
     // Grow pool if needed
     while (pool.length < Math.min(obstacles.length, MAX_BOXES)) {
-      const boxGeo = new THREE.BoxGeometry(1, 1, 1);
-      const edgesGeo = new THREE.EdgesGeometry(boxGeo);
-      const material = new THREE.LineBasicMaterial({
-        color: CLASS_COLORS[0],
-        linewidth: 1,
-        transparent: true,
-        opacity: 0.8,
-      });
-      const wireframe = new THREE.LineSegments(edgesGeo, material);
+      const solidMesh = new THREE.Mesh(
+        shared.solidGeos[GEO_BOX],
+        shared.solidMats[0],
+      );
+      solidMesh.visible = false;
+
+      const wireframe = new THREE.LineSegments(
+        shared.edgesGeos[GEO_BOX],
+        shared.edgeMats[0],
+      );
       wireframe.visible = false;
+      wireframe.renderOrder = 1;
 
       const label = createLabelSprite("?", CLASS_COLORS[0]);
       label.visible = false;
 
+      group.add(solidMesh);
       group.add(wireframe);
       group.add(label);
-      pool.push({ wireframe, label, lastClass: -1 });
+      pool.push({ solidMesh, wireframe, label, lastClass: -1 });
     }
 
-    // Update visible boxes
+    // Update visible entries
     const count = Math.min(obstacles.length, MAX_BOXES);
     for (let i = 0; i < count; i++) {
       const obs = obstacles[i];
@@ -192,31 +286,113 @@ export function ObstacleOverlay() {
 
       const worldW = obs.bboxMaxX - obs.bboxMinX;
       const worldH = obs.bboxMaxY - obs.bboxMinY;
-      const height = estimateHeight(obs.area);
       const cx = obs.centroidX;
       const cy = obs.centroidY;
 
-      // Position wireframe (Three.js X = -world_Y, Z = -world_X, Y = up)
-      entry.wireframe.position.set(-cy, height / 2, -cx);
-      entry.wireframe.scale.set(worldH, height, worldW);
-      entry.wireframe.visible = true;
+      // Use real height data when available, fall back to estimate
+      const hasHeight = obs.maxZ > obs.minZ + 0.01;
+      const rawHeight = hasHeight
+        ? obs.maxZ - obs.minZ
+        : estimateHeight(obs.area);
+      const baseZ = hasHeight ? obs.minZ : 0;
 
-      // Update color if class changed
+      // Swap geometry/material on class change (zero allocation)
       const classId = obs.obstacleClass;
-      const color = getClassColor(classId);
       if (entry.lastClass !== classId) {
-        (entry.wireframe.material as THREE.LineBasicMaterial).color.setHex(color);
-        updateLabelSprite(entry.label, getClassName(classId), color);
+        const geoType = CLASS_GEO[classId] ?? GEO_BOX;
+        entry.solidMesh.geometry = shared.solidGeos[geoType];
+        entry.solidMesh.material =
+          shared.solidMats[classId] ?? shared.solidMats[0];
+        entry.wireframe.geometry = shared.edgesGeos[geoType];
+        entry.wireframe.material =
+          shared.edgeMats[classId] ?? shared.edgeMats[0];
+        updateLabelSprite(
+          entry.label,
+          getClassName(classId),
+          getClassColor(classId),
+        );
         entry.lastClass = classId;
       }
 
-      // Position label above the box
-      entry.label.position.set(-cy, height + 0.15, -cx);
+      // Class-specific scaling
+      const geoType = CLASS_GEO[classId] ?? GEO_BOX;
+      const natY = GEO_NATURAL_Y[geoType];
+      let sx: number, sy: number, sz: number, renderHeight: number;
+
+      switch (classId) {
+        case 1: {
+          // Pole — cylinder; diameter from smaller bbox dimension
+          const diameter = Math.min(worldW, worldH);
+          renderHeight = Math.max(rawHeight, 1.5);
+          sx = diameter;
+          sy = renderHeight / natY;
+          sz = diameter;
+          break;
+        }
+        case 2: {
+          // Vehicle — solid box; height >= 1.4m
+          renderHeight = Math.max(rawHeight, 1.4);
+          sx = worldH;
+          sy = renderHeight / natY;
+          sz = worldW;
+          break;
+        }
+        case 3: {
+          // Pedestrian — capsule; height >= 1.0m
+          const bodyWidth = Math.max(worldW, worldH);
+          renderHeight = Math.max(rawHeight, 1.0);
+          sx = bodyWidth;
+          sy = renderHeight / natY;
+          sz = bodyWidth;
+          break;
+        }
+        case 4: {
+          // Wall — solid box; height <= 1.0m
+          renderHeight = Math.min(rawHeight, 1.0);
+          sx = worldH;
+          sy = renderHeight / natY;
+          sz = worldW;
+          break;
+        }
+        case 5: {
+          // Debris — icosahedron; height <= 0.8m
+          const debrisSize = Math.max(worldW, worldH);
+          renderHeight = Math.min(rawHeight, 0.8);
+          sx = debrisSize;
+          sy = renderHeight / natY;
+          sz = debrisSize;
+          break;
+        }
+        default: {
+          // Unknown (0) — wireframe box only
+          renderHeight = rawHeight;
+          sx = worldH;
+          sy = renderHeight / natY;
+          sz = worldW;
+          break;
+        }
+      }
+
+      // Position: Three.js X = -world_Y, Z = -world_X, Y = up
+      const posX = -cy;
+      const posY = baseZ + renderHeight / 2;
+      const posZ = -cx;
+
+      entry.solidMesh.position.set(posX, posY, posZ);
+      entry.solidMesh.scale.set(sx, sy, sz);
+      entry.solidMesh.visible = classId !== 0;
+
+      entry.wireframe.position.set(posX, posY, posZ);
+      entry.wireframe.scale.set(sx, sy, sz);
+      entry.wireframe.visible = true;
+
+      entry.label.position.set(posX, baseZ + renderHeight + 0.15, posZ);
       entry.label.visible = true;
     }
 
     // Hide excess pool entries
     for (let i = count; i < pool.length; i++) {
+      pool[i].solidMesh.visible = false;
       pool[i].wireframe.visible = false;
       pool[i].label.visible = false;
     }
