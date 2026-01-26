@@ -9,7 +9,7 @@ use clap::Parser;
 use control::{ChassisParams, DiffDriveMixer, Limits, RateLimiter, Watchdog};
 use gps::{Config as GpsConfig, GpsReader, GpsState};
 use hal::EStopEvent;
-use lidar::{Config as LidarConfig, LidarCommand, LidarReader};
+use lidar::{Config as LidarConfig, LidarCommand, LidarReader, LidarStatus};
 use localization::{AttitudeFilter, EkfConfig, EkfPoseEstimator, WheelOdometry};
 use slam::{SlamConfig, SlamProcessor, SlamState};
 use planner::PlannerConfig;
@@ -167,6 +167,14 @@ struct LidarFileConfig {
     /// Power save mode: only run lidar during Teleop/Autonomous, stop in Idle.
     /// Reduces heat and power consumption when rover is not active.
     power_save: bool,
+    /// Detection sensitivity: 0=normal, 1=sensitive (better for dark surfaces).
+    detect_mode: u8,
+    /// Enable lens heating (prevents fog/ice in winter).
+    glass_heat: bool,
+    /// Minimum detection range in cm (50-200, 0 = device default).
+    blind_spot_cm: u16,
+    /// Offload mounting pitch to lidar firmware (instead of software transform).
+    use_hardware_transform: bool,
 }
 
 impl Default for LidarFileConfig {
@@ -181,6 +189,10 @@ impl Default for LidarFileConfig {
             stream_max_points: 500,
             mounting_pitch_deg: 0.0,
             power_save: true,
+            detect_mode: 0,
+            glass_heat: false,
+            blind_spot_cm: 0,
+            use_hardware_transform: false,
         }
     }
 }
@@ -1135,6 +1147,7 @@ async fn main() -> Result<()> {
         active_tool: None,
         tool_status: None,
         slam_status: None,
+        lidar_core_temp_c: None,
     };
     let (telemetry_tx, telemetry_rx) = watch::channel(initial_telemetry);
 
@@ -1432,6 +1445,9 @@ async fn main() -> Result<()> {
     let (imu_tx, imu_rx) = watch::channel::<Option<lidar::ImuData>>(None);
     let mut lidar_rx_local = lidar_rx.clone();
 
+    // LiDAR status channel (populated by driver's 10s polling)
+    let (lidar_status_tx, lidar_status_rx) = watch::channel(LidarStatus::default());
+
     // Command channel for runtime lidar control (power save mode)
     let lidar_cmd_tx: Option<tokio::sync::mpsc::Sender<LidarCommand>> = if file_config.lidar.enabled
     {
@@ -1451,6 +1467,10 @@ async fn main() -> Result<()> {
             point_cloud_port: file_config.lidar.point_cloud_port,
             imu_port: file_config.lidar.imu_port,
             mounting_pitch_deg: file_config.lidar.mounting_pitch_deg,
+            detect_mode: file_config.lidar.detect_mode,
+            glass_heat: file_config.lidar.glass_heat,
+            blind_spot_cm: file_config.lidar.blind_spot_cm,
+            use_hardware_transform: file_config.lidar.use_hardware_transform,
             ..Default::default()
         };
 
@@ -1460,7 +1480,7 @@ async fn main() -> Result<()> {
             // Power save mode: lidar starts immediately, only stops during Sleep
             let (cmd_tx, cmd_rx) = tokio::sync::mpsc::channel::<LidarCommand>(4);
             let _lidar_handle =
-                lidar_reader.spawn_with_control(lidar_tx, imu_tx, cmd_rx, true);
+                lidar_reader.spawn_with_control(lidar_tx, imu_tx, cmd_rx, true, lidar_status_tx);
             info!(
                 ip = %file_config.lidar.lidar_ip,
                 port = file_config.lidar.point_cloud_port,
@@ -2655,6 +2675,14 @@ async fn main() -> Result<()> {
             (0.0, 0.0)
         };
 
+        // Read LiDAR status (polled every 10s by driver)
+        let lidar_status = *lidar_status_rx.borrow();
+        let lidar_core_temp_c = if lidar_status.responsive {
+            Some(lidar_status.core_temp_c)
+        } else {
+            None
+        };
+
         let telemetry = Telemetry {
             sequence: telem_seq,
             timestamp_us: std::time::SystemTime::now()
@@ -2685,6 +2713,7 @@ async fn main() -> Result<()> {
             active_tool,
             tool_status,
             slam_status,
+            lidar_core_temp_c,
         };
 
         let _ = telemetry_tx.send(telemetry.clone());
@@ -2731,6 +2760,7 @@ async fn main() -> Result<()> {
             gps_accuracy: gps_state.coord.as_ref().map(|c| c.accuracy).unwrap_or(0.0),
             system: sys_metrics.metrics(),
             webrtc: webrtc_metrics,
+            lidar_core_temp: lidar_core_temp_c.unwrap_or(0.0),
             ..Default::default()
         };
         drop(gps_state);

@@ -296,6 +296,9 @@ pub struct Telemetry {
     /// SLAM status (not sent over binary, only JSON)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub slam_status: Option<SlamStatus>,
+    /// LiDAR core temperature (°C, not sent over binary, only JSON)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub lidar_core_temp_c: Option<f32>,
 }
 
 impl Default for Telemetry {
@@ -324,6 +327,7 @@ impl Default for Telemetry {
             active_tool: None,
             tool_status: None,
             slam_status: None,
+            lidar_core_temp_c: None,
         }
     }
 }
@@ -804,6 +808,7 @@ mod tests {
             active_tool: None,
             tool_status: None,
             slam_status: None,
+            lidar_core_temp_c: None,
         };
 
         let data = serialize_telemetry(&telemetry);

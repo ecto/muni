@@ -59,7 +59,7 @@
         }
         .grid {
             display: grid;
-            grid-template-columns: repeat(5, 1fr);
+            grid-template-columns: repeat(6, 1fr);
             gap: 10px;
             flex: 1;
             min-height: 0;
@@ -369,6 +369,18 @@
                 <div class="tool-name" id="tool-name">No tool attached</div>
             </div>
         </div>
+
+        <div class="card">
+            <h2>LiDAR</h2>
+            <div class="stat">
+                <span class="stat-label">Core Temp</span>
+                <span class="stat-value" id="lidar-temp">--°C</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">State</span>
+                <span class="stat-value" id="lidar-state">--</span>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -488,6 +500,22 @@
                 el.textContent = temp.toFixed(0) + '°C';
                 el.className = 'motor-temp' + (temp > 80 ? ' critical' : temp > 60 ? ' hot' : '');
             });
+
+            // LiDAR
+            const lidarTempEl = document.getElementById('lidar-temp');
+            const lidarStateEl = document.getElementById('lidar-state');
+            if (data.lidar_core_temp_c != null) {
+                const t = data.lidar_core_temp_c;
+                lidarTempEl.textContent = t.toFixed(0) + '°C';
+                lidarTempEl.className = 'stat-value' + (t > 70 ? ' critical' : t > 50 ? ' hot' : '');
+            } else {
+                lidarTempEl.textContent = '--°C';
+                lidarTempEl.className = 'stat-value';
+            }
+            const workStateNames = {1: 'Sampling', 2: 'Idle', 3: 'Ready', 4: 'Error'};
+            if (data.lidar_work_state != null) {
+                lidarStateEl.textContent = workStateNames[data.lidar_work_state] || 'Unknown';
+            }
 
             // Tool
             const toolEl = document.getElementById('tool-status');

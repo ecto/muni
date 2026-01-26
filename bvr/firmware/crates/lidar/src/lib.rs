@@ -33,6 +33,10 @@ pub enum LidarCommand {
     Start,
     /// Stop sampling (motor stops, saves power).
     Stop,
+    /// Trigger forced lens heating (3 min max, clears fog/ice).
+    ForceHeat,
+    /// Set detection sensitivity at runtime (0=normal, 1=sensitive).
+    SetDetectMode(u8),
 }
 
 /// Livox Mid360 configuration.
@@ -51,6 +55,14 @@ pub struct Config {
     /// Mounting pitch angle in degrees (positive = tilted down/forward)
     /// Used to transform points from LiDAR frame to rover body frame.
     pub mounting_pitch_deg: f32,
+    /// Detection sensitivity: 0=normal, 1=sensitive (better for dark surfaces).
+    pub detect_mode: u8,
+    /// Enable lens heating (prevents fog/ice in winter).
+    pub glass_heat: bool,
+    /// Minimum detection range in cm (50-200, 0 = device default).
+    pub blind_spot_cm: u16,
+    /// Offload mounting pitch to lidar firmware (instead of software transform).
+    pub use_hardware_transform: bool,
 }
 
 impl Default for Config {
@@ -62,8 +74,23 @@ impl Default for Config {
             imu_port: 56401,
             cmd_port: 56101,
             mounting_pitch_deg: 0.0,
+            detect_mode: 0,
+            glass_heat: false,
+            blind_spot_cm: 0,
+            use_hardware_transform: false,
         }
     }
+}
+
+/// Runtime status from the LiDAR device (polled periodically).
+#[derive(Debug, Clone, Copy, Default)]
+pub struct LidarStatus {
+    /// Internal core temperature (°C).
+    pub core_temp_c: f32,
+    /// Current work state (1=sampling, 2=idle, etc.).
+    pub work_state: u8,
+    /// Device replied to last query.
+    pub responsive: bool,
 }
 
 /// A 3D point from the LiDAR.
@@ -169,11 +196,19 @@ impl LidarReader {
         imu_tx: watch::Sender<Option<ImuData>>,
         cmd_rx: mpsc::Receiver<LidarCommand>,
         start_immediately: bool,
+        status_tx: watch::Sender<LidarStatus>,
     ) -> tokio::task::JoinHandle<Result<(), LidarError>> {
         let config = self.config;
         tokio::spawn(async move {
-            driver::run_reader_with_control(config, point_tx, imu_tx, cmd_rx, start_immediately)
-                .await
+            driver::run_reader_with_control(
+                config,
+                point_tx,
+                imu_tx,
+                cmd_rx,
+                start_immediately,
+                status_tx,
+            )
+            .await
         })
     }
 }

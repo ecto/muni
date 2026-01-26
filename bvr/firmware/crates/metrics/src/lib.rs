@@ -101,6 +101,9 @@ pub struct MetricsSnapshot {
 
     /// WebRTC channel metrics (for diagnosing streaming hiccups)
     pub webrtc: WebRtcChannelMetrics,
+
+    /// LiDAR core temperature (°C, 0 if not available)
+    pub lidar_core_temp: f32,
 }
 
 /// Mesh network health metrics for coverage analysis.
@@ -447,6 +450,14 @@ impl MetricsPusher {
                 rtc.pointcloud_send_us,
                 rtc.pointcloud_send_max_us,
                 timestamp_ns
+            ));
+        }
+
+        // LiDAR health (only if temp is available / non-zero)
+        if snapshot.lidar_core_temp > 0.0 {
+            lines.push(format!(
+                "lidar,rover={},host={} core_temp={:.1} {}",
+                rover, rover, snapshot.lidar_core_temp, timestamp_ns
             ));
         }
 

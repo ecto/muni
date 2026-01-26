@@ -183,6 +183,14 @@ stream_max_points = 1000  # Maximum points per frame for streaming
 # IMU mounting pitch angle in degrees (positive = tilted forward/down)
 # Mid360 is mounted at 30 degrees forward tilt for maximum coverage
 mounting_pitch_deg = 30.0  # Mid360 mounted at 30° forward tilt
+# Detection sensitivity: 0=normal, 1=sensitive (better for dark surfaces)
+detect_mode = 1
+# Enable lens heating (prevents fog/ice in winter)
+glass_heat = true
+# Minimum detection range in cm (50-200, 0 = device default)
+blind_spot_cm = 50
+# Offload mounting pitch to lidar firmware (instead of software transform)
+use_hardware_transform = false
 
 [localization]
 # EKF process noise for linear displacement (m per m traveled)

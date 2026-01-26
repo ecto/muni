@@ -2,7 +2,7 @@
 //!
 //! Protocol reference: https://livox-wiki-en.readthedocs.io/en/latest/tutorials/new_product/mid360/livox_eth_protocol_mid360.html
 
-use crate::{Config, ImuData, LidarCommand, LidarError, Point3D, PointCloud};
+use crate::{Config, ImuData, LidarCommand, LidarError, LidarStatus, Point3D, PointCloud};
 use std::net::SocketAddr;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::time::{Duration, Instant};
@@ -52,14 +52,31 @@ impl MountingTransform {
 const LIVOX_CMD_PORT: u16 = 56100;
 
 /// SDK2 command IDs (u16)
-const CMD_ID_WORK_MODE: u16 = 0x0100; // Parameter configuration (set work mode)
+const CMD_ID_PARAM_SET: u16 = 0x0100; // Parameter configuration (set)
+const CMD_ID_PARAM_GET: u16 = 0x0101; // Parameter query (get)
 
 /// Work target mode values (key 0x001A)
 const WORK_MODE_SAMPLING: u8 = 0x01;
 const WORK_MODE_IDLE: u8 = 0x02;
 
-/// Parameter key for work target mode
+// --- Writable parameter keys ---
+const KEY_INSTALL_ATTITUDE: u16 = 0x0012;
+const KEY_BLIND_SPOT_SET: u16 = 0x0013;
+const KEY_DETECT_MODE: u16 = 0x0018;
 const KEY_WORK_TGT_MODE: u16 = 0x001A;
+const KEY_GLASS_HEAT: u16 = 0x001B;
+const KEY_IMU_DATA_EN: u16 = 0x001C;
+const KEY_FORCE_HEAT_EN: u16 = 0x001E;
+const KEY_WORKMODE_AFTER_BOOT: u16 = 0x0020;
+
+// --- Read-only parameter keys ---
+const KEY_SN: u16 = 0x8000;
+#[allow(dead_code)]
+const KEY_PRODUCT_INFO: u16 = 0x8001;
+const KEY_VERSION_APP: u16 = 0x8002;
+const KEY_VERSION_HARDWARE: u16 = 0x8004;
+const KEY_CUR_WORK_STATE: u16 = 0x8006;
+const KEY_CORE_TEMP: u16 = 0x8007;
 
 /// Point cloud packet header size (bytes)
 /// SDK2 header: version(1) + length(2) + time_interval(2) + dot_num(2) + udp_cnt(2) +
@@ -215,17 +232,135 @@ fn build_sdk2_frame(seq: u32, cmd_id: u16, payload: &[u8]) -> Vec<u8> {
     frame
 }
 
-/// Build payload for work mode parameter configuration.
+/// Build a parameter-set payload from key-value entries.
 ///
 /// Format: key_num(2) + rsvd(2) + [key(2) + length(2) + value(N)]...
-fn build_work_mode_payload(mode: u8) -> Vec<u8> {
-    let mut payload = Vec::with_capacity(9);
-    payload.extend_from_slice(&1u16.to_le_bytes());              // key_num = 1
-    payload.extend_from_slice(&0u16.to_le_bytes());              // reserved
-    payload.extend_from_slice(&KEY_WORK_TGT_MODE.to_le_bytes()); // key = 0x001A
-    payload.extend_from_slice(&1u16.to_le_bytes());              // value length = 1
-    payload.push(mode);                                           // value
+fn build_param_set_payload(entries: &[(u16, &[u8])]) -> Vec<u8> {
+    let total: usize = 4 + entries.iter().map(|(_, v)| 4 + v.len()).sum::<usize>();
+    let mut payload = Vec::with_capacity(total);
+    payload.extend_from_slice(&(entries.len() as u16).to_le_bytes()); // key_num
+    payload.extend_from_slice(&0u16.to_le_bytes()); // reserved
+    for (key, value) in entries {
+        payload.extend_from_slice(&key.to_le_bytes());
+        payload.extend_from_slice(&(value.len() as u16).to_le_bytes());
+        payload.extend_from_slice(value);
+    }
     payload
+}
+
+/// Build payload for work mode parameter configuration (convenience wrapper).
+fn build_work_mode_payload(mode: u8) -> Vec<u8> {
+    build_param_set_payload(&[(KEY_WORK_TGT_MODE, &[mode])])
+}
+
+/// Build a parameter-query payload for the given keys.
+///
+/// Format: key_num(2) + rsvd(2) + [key(2)]...
+fn build_param_query_payload(keys: &[u16]) -> Vec<u8> {
+    let mut payload = Vec::with_capacity(4 + keys.len() * 2);
+    payload.extend_from_slice(&(keys.len() as u16).to_le_bytes());
+    payload.extend_from_slice(&0u16.to_le_bytes());
+    for key in keys {
+        payload.extend_from_slice(&key.to_le_bytes());
+    }
+    payload
+}
+
+/// Parse a parameter response ACK (from CMD_ID_PARAM_SET or CMD_ID_PARAM_GET).
+///
+/// Expected layout after the 24-byte SDK2 header:
+///   ret_code(1) + key_num(2) + rsvd(2) + [key(2) + length(2) + value(N)]...
+///
+/// Returns `None` if malformed or ret_code != 0.
+fn parse_param_response(data: &[u8]) -> Option<Vec<(u16, Vec<u8>)>> {
+    // Need at least 24-byte header + 1 ret_code + 4 key_num/rsvd
+    if data.len() < 29 {
+        return None;
+    }
+    let payload = &data[24..];
+    let ret_code = payload[0];
+    if ret_code != 0 {
+        return None;
+    }
+    let key_num = u16::from_le_bytes([payload[1], payload[2]]) as usize;
+    // payload[3..5] = reserved
+    let mut offset = 5;
+    let mut result = Vec::with_capacity(key_num);
+    for _ in 0..key_num {
+        if offset + 4 > payload.len() {
+            return None;
+        }
+        let key = u16::from_le_bytes([payload[offset], payload[offset + 1]]);
+        let length = u16::from_le_bytes([payload[offset + 2], payload[offset + 3]]) as usize;
+        offset += 4;
+        if offset + length > payload.len() {
+            return None;
+        }
+        result.push((key, payload[offset..offset + length].to_vec()));
+        offset += length;
+    }
+    Some(result)
+}
+
+/// Send a single u8 parameter and drain the ACK.
+async fn send_param_u8(
+    socket: &UdpSocket,
+    addr: SocketAddr,
+    key: u16,
+    val: u8,
+    seq: u32,
+) -> Result<(), LidarError> {
+    let payload = build_param_set_payload(&[(key, &[val])]);
+    let frame = build_sdk2_frame(seq, CMD_ID_PARAM_SET, &payload);
+    socket
+        .send_to(&frame, addr)
+        .await
+        .map_err(|e| LidarError::Network(format!("send_param_u8 key={key:#06x}: {e}")))?;
+    drain_ack(socket).await;
+    Ok(())
+}
+
+/// Send a single u16 parameter and drain the ACK.
+async fn send_param_u16(
+    socket: &UdpSocket,
+    addr: SocketAddr,
+    key: u16,
+    val: u16,
+    seq: u32,
+) -> Result<(), LidarError> {
+    let payload = build_param_set_payload(&[(key, &val.to_le_bytes())]);
+    let frame = build_sdk2_frame(seq, CMD_ID_PARAM_SET, &payload);
+    socket
+        .send_to(&frame, addr)
+        .await
+        .map_err(|e| LidarError::Network(format!("send_param_u16 key={key:#06x}: {e}")))?;
+    drain_ack(socket).await;
+    Ok(())
+}
+
+/// Send a parameter query and return parsed key-value pairs.
+async fn query_params(
+    socket: &UdpSocket,
+    addr: SocketAddr,
+    keys: &[u16],
+    seq: u32,
+) -> Option<Vec<(u16, Vec<u8>)>> {
+    let payload = build_param_query_payload(keys);
+    let frame = build_sdk2_frame(seq, CMD_ID_PARAM_GET, &payload);
+    if socket.send_to(&frame, addr).await.is_err() {
+        return None;
+    }
+    let mut buf = [0u8; 512];
+    match tokio::time::timeout(Duration::from_millis(500), socket.recv(&mut buf)).await {
+        Ok(Ok(len)) => parse_param_response(&buf[..len]),
+        _ => None,
+    }
+}
+
+/// Drain a single ACK response (non-blocking, best-effort).
+async fn drain_ack(socket: &UdpSocket) {
+    let mut buf = [0u8; 256];
+    let _ = tokio::time::timeout(Duration::from_millis(200), socket.recv(&mut buf)).await;
 }
 
 /// Send a work mode command (start/stop sampling) to the Livox Mid-360.
@@ -241,7 +376,7 @@ pub async fn connect_and_start(config: &Config) -> Result<(), LidarError> {
     info!(%control_addr, "Sending SDK2 work mode SAMPLING to Livox Mid360");
 
     let payload = build_work_mode_payload(WORK_MODE_SAMPLING);
-    let frame = build_sdk2_frame(1, CMD_ID_WORK_MODE, &payload);
+    let frame = build_sdk2_frame(1, CMD_ID_PARAM_SET, &payload);
 
     cmd_socket
         .send_to(&frame, control_addr)
@@ -281,10 +416,13 @@ async fn send_work_mode(
     let (mode, label) = match command {
         LidarCommand::Start => (WORK_MODE_SAMPLING, "SAMPLING"),
         LidarCommand::Stop => (WORK_MODE_IDLE, "IDLE"),
+        // ForceHeat and SetDetectMode use different SDK2 command IDs;
+        // they should not be routed through work-mode dispatch.
+        _ => return Err(LidarError::Parse("unsupported command for work mode".into())),
     };
 
     let payload = build_work_mode_payload(mode);
-    let frame = build_sdk2_frame(seq, CMD_ID_WORK_MODE, &payload);
+    let frame = build_sdk2_frame(seq, CMD_ID_PARAM_SET, &payload);
 
     debug!(label, seq, frame_len = frame.len(), "Sending SDK2 work mode command");
 
@@ -471,6 +609,89 @@ pub async fn run_reader_with_imu(
     Ok(())
 }
 
+/// Perform one-time device configuration at startup.
+///
+/// Queries device info, then sets parameters from config. Each step is
+/// best-effort: failures are logged but don't prevent startup.
+async fn configure_device(
+    socket: &UdpSocket,
+    addr: SocketAddr,
+    config: &Config,
+    seq: &mut u32,
+) {
+    // 1. Query device info (SN, firmware version, hardware version)
+    if let Some(kv) = query_params(socket, addr, &[KEY_SN, KEY_VERSION_APP, KEY_VERSION_HARDWARE], *seq).await {
+        let sn = kv.iter().find(|(k, _)| *k == KEY_SN)
+            .map(|(_, v)| String::from_utf8_lossy(v).trim_end_matches('\0').to_string())
+            .unwrap_or_default();
+        let fw = kv.iter().find(|(k, _)| *k == KEY_VERSION_APP)
+            .map(|(_, v)| format_version_bytes(v))
+            .unwrap_or_default();
+        let hw = kv.iter().find(|(k, _)| *k == KEY_VERSION_HARDWARE)
+            .map(|(_, v)| format_version_bytes(v))
+            .unwrap_or_default();
+        info!(sn, fw, hw, "Livox Mid-360 device info");
+    } else {
+        warn!("Failed to query device info (device may not be ready)");
+    }
+    *seq += 1;
+
+    // 2. Set workmode_after_boot = 0 (standby on next power cycle)
+    let _ = send_param_u8(socket, addr, KEY_WORKMODE_AFTER_BOOT, 0, *seq).await;
+    *seq += 1;
+
+    // 3. Set detect_mode from config
+    let _ = send_param_u8(socket, addr, KEY_DETECT_MODE, config.detect_mode, *seq).await;
+    info!(detect_mode = config.detect_mode, "Set detect mode");
+    *seq += 1;
+
+    // 4. Set glass_heat from config
+    let heat_val: u8 = if config.glass_heat { 1 } else { 0 };
+    let _ = send_param_u8(socket, addr, KEY_GLASS_HEAT, heat_val, *seq).await;
+    info!(glass_heat = config.glass_heat, "Set glass heat");
+    *seq += 1;
+
+    // 5. Set blind_spot_set from config (only if > 0)
+    if config.blind_spot_cm > 0 {
+        let _ = send_param_u16(socket, addr, KEY_BLIND_SPOT_SET, config.blind_spot_cm, *seq).await;
+        info!(blind_spot_cm = config.blind_spot_cm, "Set blind spot");
+        *seq += 1;
+    }
+
+    // 6. Set install_attitude if use_hardware_transform
+    if config.use_hardware_transform {
+        // 24-byte payload: roll(f32) + pitch(f32) + yaw(f32) + x(i32) + y(i32) + z(i32)
+        let mut attitude = Vec::with_capacity(24);
+        attitude.extend_from_slice(&0.0f32.to_le_bytes()); // roll = 0
+        attitude.extend_from_slice(&config.mounting_pitch_deg.to_le_bytes()); // pitch
+        attitude.extend_from_slice(&0.0f32.to_le_bytes()); // yaw = 0
+        attitude.extend_from_slice(&0i32.to_le_bytes()); // x offset = 0
+        attitude.extend_from_slice(&0i32.to_le_bytes()); // y offset = 0
+        attitude.extend_from_slice(&0i32.to_le_bytes()); // z offset = 0
+        let payload = build_param_set_payload(&[(KEY_INSTALL_ATTITUDE, &attitude)]);
+        let frame = build_sdk2_frame(*seq, CMD_ID_PARAM_SET, &payload);
+        let _ = socket.send_to(&frame, addr).await;
+        drain_ack(socket).await;
+        info!(pitch_deg = config.mounting_pitch_deg, "Set hardware install attitude");
+        *seq += 1;
+    }
+
+    // 7. Set imu_data_en based on whether IMU port is configured
+    let imu_en: u8 = if config.imu_port > 0 { 1 } else { 0 };
+    let _ = send_param_u8(socket, addr, KEY_IMU_DATA_EN, imu_en, *seq).await;
+    debug!(imu_enabled = imu_en != 0, "Set IMU data enable");
+    *seq += 1;
+}
+
+/// Format a 4-byte version payload as "a.b.c.d".
+fn format_version_bytes(v: &[u8]) -> String {
+    if v.len() >= 4 {
+        format!("{}.{}.{}.{}", v[0], v[1], v[2], v[3])
+    } else {
+        format!("{v:?}")
+    }
+}
+
 /// Run the LiDAR reader with runtime start/stop control.
 ///
 /// This version keeps a control socket open and responds to Start/Stop commands
@@ -481,6 +702,7 @@ pub async fn run_reader_with_control(
     imu_tx: watch::Sender<Option<ImuData>>,
     mut cmd_rx: mpsc::Receiver<LidarCommand>,
     start_immediately: bool,
+    status_tx: watch::Sender<LidarStatus>,
 ) -> Result<(), LidarError> {
     info!(
         lidar_ip = %config.lidar_ip,
@@ -491,9 +713,9 @@ pub async fn run_reader_with_control(
 
     let control_addr: SocketAddr = (config.lidar_ip, LIVOX_CMD_PORT).into();
 
-    // Create mounting transform
+    // Create mounting transform — skip software transform if hardware handles it
+    let has_transform = !config.use_hardware_transform && config.mounting_pitch_deg.abs() > 0.01;
     let transform = MountingTransform::new(config.mounting_pitch_deg);
-    let has_transform = config.mounting_pitch_deg.abs() > 0.01;
 
     // Bind command socket for sending start/stop (SDK2 commands to port 56100)
     let cmd_socket = UdpSocket::bind((config.host_ip, 0))
@@ -504,6 +726,9 @@ pub async fn run_reader_with_control(
 
     let mut seq: u32 = 1;
     let mut sampling = false;
+
+    // One-time startup configuration
+    configure_device(&cmd_socket, control_addr, &config, &mut seq).await;
 
     if start_immediately {
         if let Err(e) = send_work_mode(&cmd_socket, control_addr, LidarCommand::Start, seq).await {
@@ -536,6 +761,7 @@ pub async fn run_reader_with_control(
     // Heartbeat keeps the Livox control session alive (especially while stopped).
     let mut heartbeat_interval = tokio::time::interval(Duration::from_secs(1));
     heartbeat_interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+    let mut heartbeat_count: u32 = 0;
 
     loop {
         tokio::select! {
@@ -544,7 +770,7 @@ pub async fn run_reader_with_control(
                 match cmd {
                     LidarCommand::Start if !sampling => {
                         info!("Setting LiDAR work mode to SAMPLING");
-                        if let Err(e) = send_work_mode(&cmd_socket, control_addr, cmd, seq).await {
+                        if let Err(e) = send_work_mode(&cmd_socket, control_addr, LidarCommand::Start, seq).await {
                             warn!(?e, "Failed to send SAMPLING command");
                         }
                         seq += 1;
@@ -554,11 +780,21 @@ pub async fn run_reader_with_control(
                     }
                     LidarCommand::Stop if sampling => {
                         info!("Setting LiDAR work mode to IDLE");
-                        if let Err(e) = send_work_mode(&cmd_socket, control_addr, cmd, seq).await {
+                        if let Err(e) = send_work_mode(&cmd_socket, control_addr, LidarCommand::Stop, seq).await {
                             warn!(?e, "Failed to send IDLE command");
                         }
                         seq += 1;
                         sampling = false;
+                    }
+                    LidarCommand::ForceHeat => {
+                        info!("Triggering forced lens heating");
+                        let _ = send_param_u8(&cmd_socket, control_addr, KEY_FORCE_HEAT_EN, 1, seq).await;
+                        seq += 1;
+                    }
+                    LidarCommand::SetDetectMode(m) => {
+                        info!(detect_mode = m, "Setting detect mode at runtime");
+                        let _ = send_param_u8(&cmd_socket, control_addr, KEY_DETECT_MODE, m, seq).await;
+                        seq += 1;
                     }
                     _ => {
                         // Redundant command (already in requested state)
@@ -619,23 +855,65 @@ pub async fn run_reader_with_control(
                 }
             }
 
-            // Periodic keepalive: re-send current work mode to maintain session
+            // Periodic keepalive + monitoring
             _ = heartbeat_interval.tick() => {
-                // Silently re-assert current state (don't log at info level)
+                heartbeat_count += 1;
+
+                // Re-assert current work mode to maintain session
                 let payload = build_work_mode_payload(
                     if sampling { WORK_MODE_SAMPLING } else { WORK_MODE_IDLE }
                 );
-                let frame = build_sdk2_frame(seq, CMD_ID_WORK_MODE, &payload);
+                let frame = build_sdk2_frame(seq, CMD_ID_PARAM_SET, &payload);
                 if let Err(e) = cmd_socket.send_to(&frame, control_addr).await {
                     debug!(?e, "Keepalive send failed");
                 }
-                // Drain any response
+                // Drain keepalive ACK
                 let mut buf = [0u8; 256];
                 let _ = tokio::time::timeout(
                     Duration::from_millis(100),
                     cmd_socket.recv(&mut buf),
                 ).await;
                 seq += 1;
+
+                // Every 10s: query core temp + work state for monitoring
+                if heartbeat_count % 10 == 0 {
+                    if let Some(kv) = query_params(
+                        &cmd_socket,
+                        control_addr,
+                        &[KEY_CORE_TEMP, KEY_CUR_WORK_STATE],
+                        seq,
+                    ).await {
+                        let mut status = LidarStatus {
+                            responsive: true,
+                            ..Default::default()
+                        };
+                        for (key, val) in &kv {
+                            match *key {
+                                KEY_CORE_TEMP if val.len() >= 4 => {
+                                    status.core_temp_c = i32::from_le_bytes(
+                                        val[..4].try_into().unwrap_or([0; 4])
+                                    ) as f32;
+                                }
+                                KEY_CUR_WORK_STATE if !val.is_empty() => {
+                                    status.work_state = val[0];
+                                }
+                                _ => {}
+                            }
+                        }
+                        debug!(
+                            temp_c = status.core_temp_c,
+                            work_state = status.work_state,
+                            "LiDAR status poll"
+                        );
+                        let _ = status_tx.send(status);
+                    } else {
+                        let _ = status_tx.send(LidarStatus {
+                            responsive: false,
+                            ..Default::default()
+                        });
+                    }
+                    seq += 1;
+                }
             }
         }
     }
@@ -970,5 +1248,87 @@ mod tests {
         assert_eq!(u16::from_le_bytes([payload[6], payload[7]]), 1);
         // value = SAMPLING (0x01)
         assert_eq!(payload[8], 0x01);
+    }
+
+    #[test]
+    fn test_build_param_set_single() {
+        let payload = build_param_set_payload(&[(0x0018, &[1u8])]);
+        assert_eq!(payload.len(), 9); // 4 header + 4 key/len + 1 value
+        assert_eq!(u16::from_le_bytes([payload[0], payload[1]]), 1); // key_num
+        assert_eq!(u16::from_le_bytes([payload[4], payload[5]]), 0x0018); // key
+        assert_eq!(u16::from_le_bytes([payload[6], payload[7]]), 1); // length
+        assert_eq!(payload[8], 1); // value
+    }
+
+    #[test]
+    fn test_build_param_set_multiple() {
+        let val16 = 100u16.to_le_bytes();
+        let payload = build_param_set_payload(&[
+            (0x0018, &[1u8]),
+            (0x0013, &val16),
+        ]);
+        // 4 header + (4+1) first entry + (4+2) second entry = 15
+        assert_eq!(payload.len(), 15);
+        assert_eq!(u16::from_le_bytes([payload[0], payload[1]]), 2); // key_num = 2
+        // First entry at offset 4
+        assert_eq!(u16::from_le_bytes([payload[4], payload[5]]), 0x0018);
+        assert_eq!(u16::from_le_bytes([payload[6], payload[7]]), 1);
+        assert_eq!(payload[8], 1);
+        // Second entry at offset 9
+        assert_eq!(u16::from_le_bytes([payload[9], payload[10]]), 0x0013);
+        assert_eq!(u16::from_le_bytes([payload[11], payload[12]]), 2);
+        assert_eq!(u16::from_le_bytes([payload[13], payload[14]]), 100);
+    }
+
+    #[test]
+    fn test_build_param_query_payload() {
+        let payload = build_param_query_payload(&[KEY_CORE_TEMP, KEY_CUR_WORK_STATE]);
+        assert_eq!(payload.len(), 8); // 4 header + 2*2 keys
+        assert_eq!(u16::from_le_bytes([payload[0], payload[1]]), 2); // key_num
+        assert_eq!(u16::from_le_bytes([payload[4], payload[5]]), KEY_CORE_TEMP);
+        assert_eq!(u16::from_le_bytes([payload[6], payload[7]]), KEY_CUR_WORK_STATE);
+    }
+
+    #[test]
+    fn test_parse_param_response_valid() {
+        // Build synthetic ACK: 24-byte header + ret_code + key_num + rsvd + entries
+        let mut data = vec![0u8; 24]; // dummy header
+        data.push(0); // ret_code = 0 (success)
+        data.extend_from_slice(&1u16.to_le_bytes()); // key_num = 1
+        data.extend_from_slice(&0u16.to_le_bytes()); // reserved
+        data.extend_from_slice(&KEY_CORE_TEMP.to_le_bytes()); // key
+        data.extend_from_slice(&4u16.to_le_bytes()); // length = 4
+        data.extend_from_slice(&42i32.to_le_bytes()); // value = 42°C
+
+        let result = parse_param_response(&data);
+        assert!(result.is_some());
+        let kv = result.unwrap();
+        assert_eq!(kv.len(), 1);
+        assert_eq!(kv[0].0, KEY_CORE_TEMP);
+        assert_eq!(i32::from_le_bytes(kv[0].1[..4].try_into().unwrap()), 42);
+    }
+
+    #[test]
+    fn test_parse_param_response_error_code() {
+        let mut data = vec![0u8; 24];
+        data.push(1); // ret_code = 1 (error)
+        data.extend_from_slice(&0u16.to_le_bytes());
+        data.extend_from_slice(&0u16.to_le_bytes());
+
+        assert!(parse_param_response(&data).is_none());
+    }
+
+    #[test]
+    fn test_parse_param_response_too_short() {
+        let data = vec![0u8; 20]; // less than 29 bytes
+        assert!(parse_param_response(&data).is_none());
+    }
+
+    #[test]
+    fn test_format_version_bytes() {
+        assert_eq!(format_version_bytes(&[1, 2, 3, 4]), "1.2.3.4");
+        assert_eq!(format_version_bytes(&[10, 0, 5, 1]), "10.0.5.1");
+        // Short input
+        assert_eq!(format_version_bytes(&[1, 2]), "[1, 2]");
     }
 }
