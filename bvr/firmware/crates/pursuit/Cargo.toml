@@ -1,0 +1,19 @@
+[package]
+name = "pursuit"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Pure pursuit path follower with reactive obstacle avoidance"
+
+[dependencies]
+planner = { path = "../planner" }
+costmap = { path = "../costmap" }
+types = { path = "../types" }
+transforms = { path = "../transforms" }
+nalgebra.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+approx = "0.5"

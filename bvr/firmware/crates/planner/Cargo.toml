@@ -1,0 +1,18 @@
+[package]
+name = "planner"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "A* path planner for autonomous navigation"
+
+[dependencies]
+costmap = { path = "../costmap" }
+types = { path = "../types" }
+transforms = { path = "../transforms" }
+nalgebra.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+approx = "0.5"
