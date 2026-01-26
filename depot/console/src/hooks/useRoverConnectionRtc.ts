@@ -417,9 +417,15 @@ export function useRoverConnectionRtc() {
 
               const decoded = decodeTelemetry(msgEvent.data);
               if (decoded) {
-                // Clear pending mode once telemetry confirms the rover changed
-                if (pendingModeRef.current !== null && decoded.mode === pendingModeRef.current) {
-                  pendingModeRef.current = null;
+                // Clear pending mode once telemetry confirms the rover changed.
+                // Note: rover maps Disabled → Idle (Disabled is a legacy variant),
+                // so we must treat them as equivalent when checking confirmation.
+                if (pendingModeRef.current !== null) {
+                  const pending = pendingModeRef.current === Mode.Disabled ? Mode.Idle : pendingModeRef.current;
+                  const actual = decoded.mode === Mode.Disabled ? Mode.Idle : decoded.mode;
+                  if (actual === pending) {
+                    pendingModeRef.current = null;
+                  }
                 }
 
                 // Always push to interpolation buffer at full rate for smooth 3D rendering

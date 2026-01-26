@@ -124,11 +124,8 @@ export function encodeHeartbeat(): ArrayBuffer {
 export function encodeSetMode(mode: Mode): ArrayBuffer {
   const buf = new ArrayBuffer(CMD_HEADER_SIZE + 1);
   const view = new DataView(buf);
-  const seq = buildHeader(view, MSG_SET_MODE, CMD_FLAG_MUST_ACK);
+  buildHeader(view, MSG_SET_MODE, CMD_FLAG_MUST_ACK);
   view.setUint8(8, mode);
-  // Debug: log the encoded bytes
-  const bytes = new Uint8Array(buf);
-  console.log(`[protocol] encodeSetMode(${mode}) seq=${seq} bytes=[${Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join(' ')}]`);
   return buf;
 }
 
