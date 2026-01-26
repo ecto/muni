@@ -2315,13 +2315,13 @@ async fn main() -> Result<()> {
         });
 
         // Update wheel odometry from VESC tachometers
-        // Negate right side (FR=1, RR=3) - motors are mounted facing opposite direction
-        // but VESC motor direction config only affects duty, not tachometer readings
+        // VESC "Invert Motor Direction" inverts both duty AND tachometer readings,
+        // so right-side values already use the correct sign convention (positive = forward).
         let tach: [i32; 4] = [
             vesc_states[0].status5.tachometer,  // FL
-            -vesc_states[1].status5.tachometer, // FR
+            vesc_states[1].status5.tachometer,  // FR
             vesc_states[2].status5.tachometer,  // RL
-            -vesc_states[3].status5.tachometer, // RR
+            vesc_states[3].status5.tachometer,  // RR
         ];
         let (dx, dy, dtheta) = odometry.update(tach);
 
