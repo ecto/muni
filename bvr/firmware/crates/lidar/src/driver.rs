@@ -273,8 +273,8 @@ fn build_param_query_payload(keys: &[u16]) -> Vec<u8> {
 ///
 /// Returns `None` if malformed or ret_code != 0.
 fn parse_param_response(data: &[u8]) -> Option<Vec<(u16, Vec<u8>)>> {
-    // Need at least 24-byte header + 1 ret_code + 4 key_num/rsvd
-    if data.len() < 29 {
+    // Need at least 24-byte header + 1 ret_code + 2 key_num
+    if data.len() < 27 {
         return None;
     }
     let payload = &data[24..];
@@ -283,8 +283,8 @@ fn parse_param_response(data: &[u8]) -> Option<Vec<(u16, Vec<u8>)>> {
         return None;
     }
     let key_num = u16::from_le_bytes([payload[1], payload[2]]) as usize;
-    // payload[3..5] = reserved
-    let mut offset = 5;
+    // Response has no reserved field (unlike request payloads)
+    let mut offset = 3;
     let mut result = Vec::with_capacity(key_num);
     for _ in 0..key_num {
         if offset + 4 > payload.len() {
@@ -619,6 +619,9 @@ async fn configure_device(
     config: &Config,
     seq: &mut u32,
 ) {
+    // Brief delay to let the device become ready after socket creation
+    tokio::time::sleep(Duration::from_millis(500)).await;
+
     // 1. Query device info (SN, firmware version, hardware version)
     if let Some(kv) = query_params(socket, addr, &[KEY_SN, KEY_VERSION_APP, KEY_VERSION_HARDWARE], *seq).await {
         let sn = kv.iter().find(|(k, _)| *k == KEY_SN)
@@ -876,7 +879,7 @@ pub async fn run_reader_with_control(
                 seq += 1;
 
                 // Every 10s: query core temp + work state for monitoring
-                if heartbeat_count % 10 == 0 {
+                if heartbeat_count % 10 == 0 && heartbeat_count > 0 {
                     if let Some(kv) = query_params(
                         &cmd_socket,
                         control_addr,
@@ -890,9 +893,11 @@ pub async fn run_reader_with_control(
                         for (key, val) in &kv {
                             match *key {
                                 KEY_CORE_TEMP if val.len() >= 4 => {
-                                    status.core_temp_c = i32::from_le_bytes(
+                                    // SDK2 reports temperature in 0.01°C units
+                                    let raw = i32::from_le_bytes(
                                         val[..4].try_into().unwrap_or([0; 4])
-                                    ) as f32;
+                                    );
+                                    status.core_temp_c = raw as f32 / 100.0;
                                 }
                                 KEY_CUR_WORK_STATE if !val.is_empty() => {
                                     status.work_state = val[0];
@@ -907,6 +912,7 @@ pub async fn run_reader_with_control(
                         );
                         let _ = status_tx.send(status);
                     } else {
+                        warn!("LiDAR status poll failed (no response to query)");
                         let _ = status_tx.send(LidarStatus {
                             responsive: false,
                             ..Default::default()
@@ -1291,11 +1297,11 @@ mod tests {
 
     #[test]
     fn test_parse_param_response_valid() {
-        // Build synthetic ACK: 24-byte header + ret_code + key_num + rsvd + entries
+        // Build synthetic ACK: 24-byte header + ret_code + key_num + entries
         let mut data = vec![0u8; 24]; // dummy header
         data.push(0); // ret_code = 0 (success)
         data.extend_from_slice(&1u16.to_le_bytes()); // key_num = 1
-        data.extend_from_slice(&0u16.to_le_bytes()); // reserved
+        // No reserved field in response (only in request payloads)
         data.extend_from_slice(&KEY_CORE_TEMP.to_le_bytes()); // key
         data.extend_from_slice(&4u16.to_le_bytes()); // length = 4
         data.extend_from_slice(&42i32.to_le_bytes()); // value = 42°C
@@ -1312,15 +1318,14 @@ mod tests {
     fn test_parse_param_response_error_code() {
         let mut data = vec![0u8; 24];
         data.push(1); // ret_code = 1 (error)
-        data.extend_from_slice(&0u16.to_le_bytes());
-        data.extend_from_slice(&0u16.to_le_bytes());
+        data.extend_from_slice(&0u16.to_le_bytes()); // key_num
 
         assert!(parse_param_response(&data).is_none());
     }
 
     #[test]
     fn test_parse_param_response_too_short() {
-        let data = vec![0u8; 20]; // less than 29 bytes
+        let data = vec![0u8; 20]; // less than 27 bytes
         assert!(parse_param_response(&data).is_none());
     }
 
