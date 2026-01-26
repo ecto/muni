@@ -59,3 +59,11 @@ depot/sftp/ssh_host_keys/
 .mcp.json
 .vercel
 .env*.local
+
+# Non-muni agent configs
+.agent/
+.agents/
+.codex/
+.cursor/
+.gemini/
+.opencode/
