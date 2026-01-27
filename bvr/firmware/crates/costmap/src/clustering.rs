@@ -78,13 +78,14 @@ pub struct Obstacle {
     pub max_z: f32,
 }
 
-/// Classify an obstacle based on size and shape heuristics.
+/// Classify an obstacle based on size, shape, and fill ratio heuristics.
 ///
-/// Uses bounding box dimensions and area to estimate type:
-/// - **Pole**: small area, low aspect ratio (compact & tiny)
-/// - **Wall**: high aspect ratio (one dimension much larger than the other)
-/// - **Vehicle**: large area, moderate aspect ratio
-/// - **Pedestrian**: medium area, compact shape
+/// Uses bounding box dimensions, area, and fill ratio (`area / bbox_area`)
+/// to estimate type:
+/// - **Pole**: small area (<0.1 m²), low aspect (<3), tall if height available
+/// - **Wall**: high aspect (>4) or moderate aspect (>2.5) with low fill (<0.55)
+/// - **Vehicle**: large area (>1.0 m²), fill >0.4, tall if height available
+/// - **Pedestrian**: medium area (0.15–1.0 m²), compact, fill >0.4, human height if available
 /// - **Debris**: anything else
 fn classify_obstacle(obs: &Obstacle) -> ObstacleClass {
     let w = obs.bbox_max_x - obs.bbox_min_x;
@@ -98,6 +99,12 @@ fn classify_obstacle(obs: &Obstacle) -> ObstacleClass {
     };
 
     let area = obs.area;
+    let bbox_area = w * h;
+    let fill_ratio = if bbox_area > 0.0001 {
+        area / bbox_area
+    } else {
+        1.0 // degenerate bbox → assume fully filled
+    };
 
     // Height info available when min_z <= max_z and span > 0
     let height_z = obs.max_z - obs.min_z;
@@ -110,19 +117,22 @@ fn classify_obstacle(obs: &Obstacle) -> ObstacleClass {
         }
     }
 
-    // Wall: high aspect ratio (> 4:1) regardless of area
-    if aspect > 4.0 {
+    // Wall: high aspect ratio, or moderate aspect with low fill ratio
+    // (angled/occluded walls produce thin strips that don't fill their bbox)
+    if aspect > 4.0 || (aspect > 2.5 && fill_ratio < 0.55) {
         return ObstacleClass::Wall;
     }
 
-    // Vehicle: large area (> 1.0 m²)
-    if area > 1.0 {
-        return ObstacleClass::Vehicle;
+    // Vehicle: large area with substantial fill; height confirms when available
+    if area > 1.0 && fill_ratio > 0.4 {
+        if !has_height || height_z > 1.0 {
+            return ObstacleClass::Vehicle;
+        }
     }
 
-    // Pedestrian: medium area (0.15 - 1.0 m²), compact shape
+    // Pedestrian: medium area, compact shape, substantial fill
     // Height tightens match: 0.8-2.2m is human range
-    if area >= 0.15 && aspect < 2.5 {
+    if area >= 0.15 && area <= 1.0 && aspect < 2.5 && fill_ratio > 0.4 {
         if !has_height || (height_z >= 0.8 && height_z <= 2.2) {
             return ObstacleClass::Pedestrian;
         }
@@ -657,5 +667,34 @@ mod tests {
         // Medium area, compact, but very short → Debris (not a person)
         let obs = make_obstacle_with_height(0.3, 0.5, 0.6, 0.0, 0.3);
         assert_eq!(classify_obstacle(&obs), ObstacleClass::Debris);
+    }
+
+    // ====================================================================
+    // Fill-ratio classification tests
+    // ====================================================================
+
+    #[test]
+    fn test_classify_wall_moderate_aspect() {
+        // Wall seen at an angle: aspect 3:1 (below old 4:1 threshold),
+        // but low fill ratio reveals it's a thin strip in its bbox.
+        // fill = 0.9 / (3.0 * 1.0) = 0.3
+        let obs = make_obstacle(0.9, 3.0, 1.0);
+        assert_eq!(classify_obstacle(&obs), ObstacleClass::Wall);
+    }
+
+    #[test]
+    fn test_classify_vehicle_not_wall() {
+        // Large solid obstacle: low aspect prevents wall classification
+        // despite large area. fill = 1.5 / 2.0 = 0.75
+        let obs = make_obstacle(1.5, 2.0, 1.0);
+        assert_eq!(classify_obstacle(&obs), ObstacleClass::Vehicle);
+    }
+
+    #[test]
+    fn test_classify_thin_large_cluster_as_wall() {
+        // Thin L-shaped cluster: large area but low fill + moderate aspect
+        // prevents vehicle classification. fill = 1.2 / 3.0 = 0.4
+        let obs = make_obstacle(1.2, 3.0, 1.0);
+        assert_eq!(classify_obstacle(&obs), ObstacleClass::Wall);
     }
 }
