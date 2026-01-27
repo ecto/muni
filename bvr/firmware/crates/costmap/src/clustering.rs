@@ -14,6 +14,11 @@ const MIN_CLUSTER_CELLS: usize = 12;
 /// Maximum number of obstacles to report (sorted by area, largest first).
 const MAX_OBSTACLES: usize = 64;
 
+/// Maximum Chebyshev distance (in cells) between bounding boxes for two clusters
+/// to merge. At 0.1 m resolution, 3 cells = 0.3 m — bridges small costmap gaps
+/// (e.g. from LiDAR returns missing a thin section) without merging unrelated obstacles.
+const MERGE_GAP_CELLS: usize = 3;
+
 /// Obstacle classification based on shape/size heuristics.
 ///
 /// Wire format: single u8, matching the console decoder.
@@ -82,6 +87,119 @@ pub struct Obstacle {
     /// Maximum observed Z (height) across cluster cells, in meters.
     /// 0.0 when no height data is available.
     pub max_z: f32,
+}
+
+/// Accumulator for a BFS cluster, holding raw sums for deferred PCA computation.
+/// Kept separate from `Obstacle` so clusters can be merged before finalization.
+struct RawCluster {
+    sum_gx: u64,
+    sum_gy: u64,
+    sum_gx2: u64,
+    sum_gy2: u64,
+    sum_gxgy: u64,
+    count: u32,
+    min_gx: usize,
+    min_gy: usize,
+    max_gx: usize,
+    max_gy: usize,
+    min_z: f32,
+    max_z: f32,
+}
+
+impl RawCluster {
+    fn merge(&mut self, other: &RawCluster) {
+        self.sum_gx += other.sum_gx;
+        self.sum_gy += other.sum_gy;
+        self.sum_gx2 += other.sum_gx2;
+        self.sum_gy2 += other.sum_gy2;
+        self.sum_gxgy += other.sum_gxgy;
+        self.count += other.count;
+        self.min_gx = self.min_gx.min(other.min_gx);
+        self.min_gy = self.min_gy.min(other.min_gy);
+        self.max_gx = self.max_gx.max(other.max_gx);
+        self.max_gy = self.max_gy.max(other.max_gy);
+        self.min_z = self.min_z.min(other.min_z);
+        self.max_z = self.max_z.max(other.max_z);
+    }
+}
+
+/// Chebyshev distance between two bounding boxes (in grid cells).
+/// Returns 0 when boxes overlap or are adjacent.
+fn bbox_gap(a: &RawCluster, b: &RawCluster) -> usize {
+    let x_gap = a.min_gx.saturating_sub(b.max_gx)
+        .max(b.min_gx.saturating_sub(a.max_gx));
+    let y_gap = a.min_gy.saturating_sub(b.max_gy)
+        .max(b.min_gy.saturating_sub(a.max_gy));
+    x_gap.max(y_gap)
+}
+
+/// Union-find: find root with path compression.
+fn uf_find(parent: &mut [usize], mut i: usize) -> usize {
+    while parent[i] != i {
+        parent[i] = parent[parent[i]];
+        i = parent[i];
+    }
+    i
+}
+
+/// Union-find: merge two sets.
+fn uf_union(parent: &mut [usize], a: usize, b: usize) {
+    let ra = uf_find(parent, a);
+    let rb = uf_find(parent, b);
+    if ra != rb {
+        parent[rb] = ra;
+    }
+}
+
+/// Convert a raw cluster into a finalized `Obstacle` with world-space coordinates and PCA.
+fn finalize_cluster(c: &RawCluster, resolution: f64, origin_x: f64, origin_y: f64) -> Obstacle {
+    let n = c.count as f64;
+    let mean_x = c.sum_gx as f64 / n;
+    let mean_y = c.sum_gy as f64 / n;
+    let cov_xx = c.sum_gx2 as f64 / n - mean_x * mean_x;
+    let cov_yy = c.sum_gy2 as f64 / n - mean_y * mean_y;
+    let cov_xy = c.sum_gxgy as f64 / n - mean_x * mean_y;
+
+    let half_trace = (cov_xx + cov_yy) * 0.5;
+    let diff_half = (cov_xx - cov_yy) * 0.5;
+    let disc = (diff_half * diff_half + cov_xy * cov_xy).sqrt();
+    let lambda1 = half_trace + disc;
+    let lambda2 = half_trace - disc;
+
+    let elongation = if lambda2 > 1e-9 {
+        (lambda1 / lambda2).sqrt() as f32
+    } else {
+        10.0_f32
+    };
+
+    let rotation = (0.5 * (2.0 * cov_xy).atan2(cov_xx - cov_yy)) as f32;
+
+    let centroid_x = origin_x + (mean_x + 0.5) * resolution;
+    let centroid_y = origin_y + (mean_y + 0.5) * resolution;
+
+    let bbox_min_x = origin_x + c.min_gx as f64 * resolution;
+    let bbox_min_y = origin_y + c.min_gy as f64 * resolution;
+    let bbox_max_x = origin_x + (c.max_gx + 1) as f64 * resolution;
+    let bbox_max_y = origin_y + (c.max_gy + 1) as f64 * resolution;
+
+    let area = c.count as f64 * resolution * resolution;
+
+    Obstacle {
+        id: 0,
+        class: ObstacleClass::Unknown,
+        centroid_x: centroid_x as f32,
+        centroid_y: centroid_y as f32,
+        bbox_min_x: bbox_min_x as f32,
+        bbox_min_y: bbox_min_y as f32,
+        bbox_max_x: bbox_max_x as f32,
+        bbox_max_y: bbox_max_y as f32,
+        cell_count: c.count,
+        area: area as f32,
+        elongation,
+        rotation,
+        min_z: if c.min_z <= c.max_z { c.min_z } else { 0.0 },
+        max_z: if c.min_z <= c.max_z { c.max_z } else { 0.0 },
+    }
 }
 
 /// Classify an obstacle based on size, PCA elongation, and fill ratio.
@@ -160,8 +278,10 @@ pub fn extract_obstacles(
 
     let has_height = height_min.len() == total && height_max.len() == total;
 
+    // ── Phase 1: BFS — collect raw cluster accumulators ──────────────
+
     let mut visited = vec![false; total];
-    let mut obstacles = Vec::new();
+    let mut raw_clusters: Vec<RawCluster> = Vec::new();
     let mut queue = VecDeque::new();
 
     for start in 0..total {
@@ -169,49 +289,49 @@ pub fn extract_obstacles(
             continue;
         }
 
-        // BFS flood fill through occupied cells (8-connected)
         queue.clear();
         queue.push_back(start);
         visited[start] = true;
 
-        let mut sum_gx: u64 = 0;
-        let mut sum_gy: u64 = 0;
-        let mut sum_gx2: u64 = 0;
-        let mut sum_gy2: u64 = 0;
-        let mut sum_gxgy: u64 = 0;
-        let mut min_gx = usize::MAX;
-        let mut min_gy = usize::MAX;
-        let mut max_gx: usize = 0;
-        let mut max_gy: usize = 0;
-        let mut count: u32 = 0;
-        let mut cluster_min_z = f32::INFINITY;
-        let mut cluster_max_z = f32::NEG_INFINITY;
+        let mut rc = RawCluster {
+            sum_gx: 0,
+            sum_gy: 0,
+            sum_gx2: 0,
+            sum_gy2: 0,
+            sum_gxgy: 0,
+            count: 0,
+            min_gx: usize::MAX,
+            min_gy: usize::MAX,
+            max_gx: 0,
+            max_gy: 0,
+            min_z: f32::INFINITY,
+            max_z: f32::NEG_INFINITY,
+        };
 
         while let Some(idx) = queue.pop_front() {
             let gx = idx % width;
             let gy = idx / width;
 
-            sum_gx += gx as u64;
-            sum_gy += gy as u64;
-            sum_gx2 += (gx as u64) * (gx as u64);
-            sum_gy2 += (gy as u64) * (gy as u64);
-            sum_gxgy += (gx as u64) * (gy as u64);
-            min_gx = min_gx.min(gx);
-            min_gy = min_gy.min(gy);
-            max_gx = max_gx.max(gx);
-            max_gy = max_gy.max(gy);
-            count += 1;
+            rc.sum_gx += gx as u64;
+            rc.sum_gy += gy as u64;
+            rc.sum_gx2 += (gx as u64) * (gx as u64);
+            rc.sum_gy2 += (gy as u64) * (gy as u64);
+            rc.sum_gxgy += (gx as u64) * (gy as u64);
+            rc.min_gx = rc.min_gx.min(gx);
+            rc.min_gy = rc.min_gy.min(gy);
+            rc.max_gx = rc.max_gx.max(gx);
+            rc.max_gy = rc.max_gy.max(gy);
+            rc.count += 1;
 
             if has_height {
                 let lo = height_min[idx];
                 let hi = height_max[idx];
                 if lo <= hi {
-                    cluster_min_z = cluster_min_z.min(lo);
-                    cluster_max_z = cluster_max_z.max(hi);
+                    rc.min_z = rc.min_z.min(lo);
+                    rc.max_z = rc.max_z.max(hi);
                 }
             }
 
-            // 8-connected neighbors through occupied cells
             for (dx, dy) in [(-1i32, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)] {
                 let nx = gx as i32 + dx;
                 let ny = gy as i32 + dy;
@@ -226,71 +346,52 @@ pub fn extract_obstacles(
             }
         }
 
-        if (count as usize) < MIN_CLUSTER_CELLS {
+        if (rc.count as usize) < MIN_CLUSTER_CELLS {
             continue;
         }
 
-        // PCA elongation from second-order moments
-        let n = count as f64;
-        let mean_x = sum_gx as f64 / n;
-        let mean_y = sum_gy as f64 / n;
-        let cov_xx = sum_gx2 as f64 / n - mean_x * mean_x;
-        let cov_yy = sum_gy2 as f64 / n - mean_y * mean_y;
-        let cov_xy = sum_gxgy as f64 / n - mean_x * mean_y;
-
-        // Eigenvalues of 2×2 covariance matrix:
-        // λ = (cov_xx + cov_yy)/2 ± sqrt(((cov_xx - cov_yy)/2)² + cov_xy²)
-        let half_trace = (cov_xx + cov_yy) * 0.5;
-        let diff_half = (cov_xx - cov_yy) * 0.5;
-        let disc = (diff_half * diff_half + cov_xy * cov_xy).sqrt();
-        let lambda1 = half_trace + disc; // larger eigenvalue
-        let lambda2 = half_trace - disc; // smaller eigenvalue
-
-        let elongation = if lambda2 > 1e-9 {
-            (lambda1 / lambda2).sqrt() as f32
-        } else {
-            // Degenerate (collinear cells) → very elongated
-            10.0_f32
-        };
-
-        // Principal axis angle: atan2(2·cov_xy, cov_xx - cov_yy) / 2
-        let rotation = (0.5 * (2.0 * cov_xy).atan2(cov_xx - cov_yy)) as f32;
-
-        // Convert grid coordinates to world coordinates
-        let centroid_x = origin_x + (mean_x + 0.5) * resolution;
-        let centroid_y = origin_y + (mean_y + 0.5) * resolution;
-
-        // Bounding box: use cell edges (not centers)
-        let bbox_min_x = origin_x + min_gx as f64 * resolution;
-        let bbox_min_y = origin_y + min_gy as f64 * resolution;
-        let bbox_max_x = origin_x + (max_gx + 1) as f64 * resolution;
-        let bbox_max_y = origin_y + (max_gy + 1) as f64 * resolution;
-
-        let area = count as f64 * resolution * resolution;
-
-        obstacles.push(Obstacle {
-            id: 0,
-            class: ObstacleClass::Unknown,
-            centroid_x: centroid_x as f32,
-            centroid_y: centroid_y as f32,
-            bbox_min_x: bbox_min_x as f32,
-            bbox_min_y: bbox_min_y as f32,
-            bbox_max_x: bbox_max_x as f32,
-            bbox_max_y: bbox_max_y as f32,
-            cell_count: count,
-            area: area as f32,
-            elongation,
-            rotation,
-            min_z: if cluster_min_z <= cluster_max_z { cluster_min_z } else { 0.0 },
-            max_z: if cluster_min_z <= cluster_max_z { cluster_max_z } else { 0.0 },
-        });
+        raw_clusters.push(rc);
     }
 
-    // Sort by area descending, truncate to max
+    // ── Phase 2: Merge nearby clusters via union-find ────────────────
+
+    let n = raw_clusters.len();
+    let mut parent: Vec<usize> = (0..n).collect();
+
+    for i in 0..n {
+        for j in (i + 1)..n {
+            if bbox_gap(&raw_clusters[i], &raw_clusters[j]) <= MERGE_GAP_CELLS {
+                uf_union(&mut parent, i, j);
+            }
+        }
+    }
+
+    // Resolve all roots (path compression).
+    for i in 0..n {
+        uf_find(&mut parent, i);
+    }
+
+    // Combine accumulators for clusters sharing a root.
+    let mut merged: Vec<Option<RawCluster>> = raw_clusters.into_iter().map(Some).collect();
+    for i in 0..n {
+        let root = parent[i];
+        if root != i {
+            let child = merged[i].take().unwrap();
+            merged[root].as_mut().unwrap().merge(&child);
+        }
+    }
+
+    // ── Phase 3: Finalize — convert to Obstacles ─────────────────────
+
+    let mut obstacles: Vec<Obstacle> = merged
+        .into_iter()
+        .flatten()
+        .map(|c| finalize_cluster(&c, resolution, origin_x, origin_y))
+        .collect();
+
     obstacles.sort_by(|a, b| b.area.partial_cmp(&a.area).unwrap_or(std::cmp::Ordering::Equal));
     obstacles.truncate(MAX_OBSTACLES);
 
-    // Assign sequential IDs and classify
     for (i, obs) in obstacles.iter_mut().enumerate() {
         obs.id = i as u16;
         obs.class = classify_obstacle(obs);
@@ -797,18 +898,17 @@ mod tests {
     }
 
     #[test]
-    fn test_no_gap_bridging() {
+    fn test_no_gap_bridging_wide() {
         let mut cells = make_grid(20, 20);
-        // Two 12-cell blocks separated by a 1-cell gap.
-        // Without dilation, they stay separate.
-        // Block A: 3×4 = 12 cells
+        // Two 12-cell blocks separated by a wide gap (bbox_gap = 5 > MERGE_GAP_CELLS).
+        // Block A: 3×4 = 12 cells (max_gx = 4)
         for gx in 2..5 {
             for gy in 2..6 {
                 set_cell(&mut cells, 20, gx, gy, costs::LETHAL);
             }
         }
-        // Block B: 3×4 = 12 cells (gap at gx=5)
-        for gx in 6..9 {
+        // Block B: 3×4 = 12 cells (min_gx = 9, bbox_gap = 9 - 4 = 5)
+        for gx in 9..12 {
             for gy in 2..6 {
                 set_cell(&mut cells, 20, gx, gy, costs::LETHAL);
             }
@@ -816,5 +916,48 @@ mod tests {
 
         let obs = extract_obstacles(&cells, 20, 20, 0.1, 0.0, 0.0, costs::LETHAL, &[], &[]);
         assert_eq!(obs.len(), 2);
+    }
+
+    #[test]
+    fn test_merge_gap_bridging() {
+        let mut cells = make_grid(20, 20);
+        // Two 12-cell blocks with bbox_gap = 3 (≤ MERGE_GAP_CELLS) → merged.
+        // Block A: 3×4 = 12 cells (max_gx = 4)
+        for gx in 2..5 {
+            for gy in 2..6 {
+                set_cell(&mut cells, 20, gx, gy, costs::LETHAL);
+            }
+        }
+        // Block B: 3×4 = 12 cells (min_gx = 7, bbox_gap = 7 - 4 = 3)
+        for gx in 7..10 {
+            for gy in 2..6 {
+                set_cell(&mut cells, 20, gx, gy, costs::LETHAL);
+            }
+        }
+
+        let obs = extract_obstacles(&cells, 20, 20, 0.1, 0.0, 0.0, costs::LETHAL, &[], &[]);
+        assert_eq!(obs.len(), 1, "nearby clusters should merge");
+        assert_eq!(obs[0].cell_count, 24);
+    }
+
+    #[test]
+    fn test_merge_does_not_bridge_far() {
+        let mut cells = make_grid(20, 20);
+        // Two 12-cell blocks with bbox_gap = 6 (> MERGE_GAP_CELLS) → separate.
+        // Block A: 3×4 = 12 cells (max_gx = 4)
+        for gx in 2..5 {
+            for gy in 2..6 {
+                set_cell(&mut cells, 20, gx, gy, costs::LETHAL);
+            }
+        }
+        // Block B: 3×4 = 12 cells (min_gx = 10, bbox_gap = 10 - 4 = 6)
+        for gx in 10..13 {
+            for gy in 2..6 {
+                set_cell(&mut cells, 20, gx, gy, costs::LETHAL);
+            }
+        }
+
+        let obs = extract_obstacles(&cells, 20, 20, 0.1, 0.0, 0.0, costs::LETHAL, &[], &[]);
+        assert_eq!(obs.len(), 2, "far-apart clusters should not merge");
     }
 }
