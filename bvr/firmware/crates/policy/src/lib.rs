@@ -104,7 +104,7 @@ pub struct PolicyMetrics {
 pub enum Architecture {
     /// Simple linear policy: action = W * obs + b
     Linear,
-    /// Multi-layer perceptron (future)
+    /// Multi-layer perceptron with tanh activations
     Mlp,
 }
 
@@ -112,6 +112,15 @@ impl Default for Architecture {
     fn default() -> Self {
         Self::Linear
     }
+}
+
+/// A single dense layer in an MLP: y = tanh(W * x + b).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MlpLayer {
+    /// Weight matrix (output_size x input_size)
+    pub weights: Vec<Vec<f32>>,
+    /// Bias vector (output_size)
+    pub biases: Vec<f32>,
 }
 
 /// Serializable policy file format.
@@ -147,6 +156,9 @@ pub struct PolicyFile {
     /// Log standard deviation for stochastic policies
     #[serde(default)]
     pub log_std: Option<Vec<f32>>,
+    /// MLP layers (used when architecture == "mlp")
+    #[serde(default)]
+    pub layers: Option<Vec<MlpLayer>>,
 }
 
 /// Observation input for policy inference.
@@ -283,13 +295,17 @@ pub struct Policy {
     pub metadata: PolicyMetadata,
     /// Expected observation size
     observation_size: usize,
-    /// Action output size (unused but kept for metadata)
+    /// Action output size
     #[allow(dead_code)]
     action_size: usize,
-    /// Weight matrix (action_size x observation_size)
+    /// Network architecture
+    architecture: Architecture,
+    /// Weight matrix for linear policy (action_size x observation_size)
     weights: Vec<Vec<f32>>,
-    /// Bias vector
+    /// Bias vector for linear policy
     biases: Vec<f32>,
+    /// MLP layers (used when architecture == Mlp)
+    layers: Vec<MlpLayer>,
 }
 
 impl Policy {
@@ -302,18 +318,24 @@ impl Policy {
         }
 
         let content = std::fs::read_to_string(path)?;
-        let file: PolicyFile = serde_json::from_str(&content)?;
+        Self::from_json(&content)
+    }
 
-        if file.architecture != Architecture::Linear {
-            return Err(PolicyError::UnsupportedArchitecture(format!(
-                "{:?}",
-                file.architecture
-            )));
-        }
+    /// Load a policy from a JSON string.
+    pub fn from_json(json: &str) -> Result<Self, PolicyError> {
+        let file: PolicyFile = serde_json::from_str(json)?;
+        Self::from_file(file)
+    }
+
+    /// Construct a Policy from a deserialized PolicyFile.
+    fn from_file(file: PolicyFile) -> Result<Self, PolicyError> {
+        let architecture = file.architecture.clone();
+        let layers = file.layers.unwrap_or_default();
 
         info!(
             name = %file.name,
             version = %file.version,
+            architecture = ?architecture,
             obs_size = file.observation_size,
             act_size = file.action_size,
             "Loaded policy"
@@ -330,35 +352,10 @@ impl Policy {
             },
             observation_size: file.observation_size,
             action_size: file.action_size,
+            architecture,
             weights: file.weights,
             biases: file.biases,
-        })
-    }
-
-    /// Load a policy from a JSON string.
-    pub fn from_json(json: &str) -> Result<Self, PolicyError> {
-        let file: PolicyFile = serde_json::from_str(json)?;
-
-        if file.architecture != Architecture::Linear {
-            return Err(PolicyError::UnsupportedArchitecture(format!(
-                "{:?}",
-                file.architecture
-            )));
-        }
-
-        Ok(Self {
-            metadata: PolicyMetadata {
-                version: file.version,
-                name: file.name,
-                description: file.description,
-                created_at: file.created_at,
-                training_id: file.training_id,
-                metrics: file.metrics,
-            },
-            observation_size: file.observation_size,
-            action_size: file.action_size,
-            weights: file.weights,
-            biases: file.biases,
+            layers,
         })
     }
 
@@ -402,17 +399,43 @@ impl Policy {
         Ok(PolicyAction::new(output[0], output[1]))
     }
 
+    /// Get the architecture type.
+    pub fn architecture(&self) -> &Architecture {
+        &self.architecture
+    }
+
     /// Forward pass through the policy network.
     fn forward(&self, obs: &[f32]) -> Vec<f32> {
+        match self.architecture {
+            Architecture::Linear => self.forward_linear(obs),
+            Architecture::Mlp => self.forward_mlp(obs),
+        }
+    }
+
+    /// Linear forward pass: action = tanh(W * obs + b).
+    fn forward_linear(&self, obs: &[f32]) -> Vec<f32> {
         self.weights
             .iter()
             .zip(&self.biases)
             .map(|(w, b)| {
                 let sum: f32 = w.iter().zip(obs).map(|(wi, oi)| wi * oi).sum();
-                // Tanh activation to bound output to [-1, 1]
                 (sum + b).tanh()
             })
             .collect()
+    }
+
+    /// MLP forward pass through dense layers with tanh activations.
+    fn forward_mlp(&self, obs: &[f32]) -> Vec<f32> {
+        let mut x = obs.to_vec();
+        for layer in &self.layers {
+            let mut next = Vec::with_capacity(layer.weights.len());
+            for (w, b) in layer.weights.iter().zip(&layer.biases) {
+                let sum: f32 = w.iter().zip(&x).map(|(wi, xi)| wi * xi).sum();
+                next.push((sum + b).tanh());
+            }
+            x = next;
+        }
+        x
     }
 
     /// Get a reference to the policy name.
@@ -520,7 +543,7 @@ pub struct PolicyBuilder {
 }
 
 impl PolicyBuilder {
-    /// Create a new policy builder with required fields.
+    /// Create a new linear policy builder with required fields.
     pub fn new(name: &str, version: &str, weights: Vec<Vec<f32>>, biases: Vec<f32>) -> Self {
         let observation_size = weights.first().map(|w| w.len()).unwrap_or(0);
         let action_size = weights.len();
@@ -539,6 +562,38 @@ impl PolicyBuilder {
                 weights,
                 biases,
                 log_std: None,
+                layers: None,
+            },
+        }
+    }
+
+    /// Create a new MLP policy builder.
+    ///
+    /// `layers` defines the dense layers of the MLP. The observation_size is
+    /// inferred from the first layer's weight width, and action_size from the
+    /// last layer's output dimension.
+    pub fn new_mlp(name: &str, version: &str, layers: Vec<MlpLayer>) -> Self {
+        let observation_size = layers
+            .first()
+            .and_then(|l| l.weights.first().map(|w| w.len()))
+            .unwrap_or(0);
+        let action_size = layers.last().map(|l| l.weights.len()).unwrap_or(0);
+
+        Self {
+            file: PolicyFile {
+                version: version.to_string(),
+                name: name.to_string(),
+                description: String::new(),
+                created_at: chrono_now(),
+                training_id: None,
+                metrics: None,
+                observation_size,
+                action_size,
+                architecture: Architecture::Mlp,
+                weights: vec![],
+                biases: vec![],
+                log_std: None,
+                layers: Some(layers),
             },
         }
     }
@@ -688,5 +743,126 @@ mod tests {
         assert!(obs.pose[0].abs() <= 1.0);
         assert!(obs.pose[1].abs() <= 1.0);
         assert!(obs.velocity[0].abs() <= 1.0);
+    }
+
+    fn sample_mlp_policy_json() -> &'static str {
+        r#"{
+            "version": "0.1.0",
+            "name": "bc-teleop",
+            "description": "Behavioral cloning from teleop demos",
+            "observation_size": 7,
+            "action_size": 2,
+            "architecture": "mlp",
+            "weights": [],
+            "biases": [],
+            "layers": [
+                {
+                    "weights": [
+                        [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1],
+                        [0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2],
+                        [0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3],
+                        [0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4]
+                    ],
+                    "biases": [0.0, 0.0, 0.0, 0.0]
+                },
+                {
+                    "weights": [
+                        [0.5, 0.5, 0.5, 0.5],
+                        [-0.5, -0.5, -0.5, -0.5]
+                    ],
+                    "biases": [0.0, 0.0]
+                }
+            ]
+        }"#
+    }
+
+    #[test]
+    fn test_mlp_policy_load_from_json() {
+        let policy = Policy::from_json(sample_mlp_policy_json()).unwrap();
+        assert_eq!(policy.name(), "bc-teleop");
+        assert_eq!(policy.version(), "0.1.0");
+        assert_eq!(policy.observation_size(), 7);
+        assert_eq!(*policy.architecture(), Architecture::Mlp);
+        assert_eq!(policy.layers.len(), 2);
+    }
+
+    #[test]
+    fn test_mlp_policy_roundtrip() {
+        let layers = vec![
+            MlpLayer {
+                weights: vec![vec![0.1; 7]; 4],
+                biases: vec![0.0; 4],
+            },
+            MlpLayer {
+                weights: vec![vec![0.5; 4]; 2],
+                biases: vec![0.0; 2],
+            },
+        ];
+
+        let builder = PolicyBuilder::new_mlp("roundtrip-test", "1.0.0", layers)
+            .description("Roundtrip test policy");
+
+        let json = builder.to_json().unwrap();
+        let policy = Policy::from_json(&json).unwrap();
+
+        assert_eq!(policy.name(), "roundtrip-test");
+        assert_eq!(*policy.architecture(), Architecture::Mlp);
+        assert_eq!(policy.observation_size(), 7);
+    }
+
+    #[test]
+    fn test_mlp_forward_pass_known_weights() {
+        // 2-input -> 2-hidden -> 1-output MLP with known weights
+        let layers = vec![
+            MlpLayer {
+                weights: vec![
+                    vec![1.0, 0.0], // hidden[0] = tanh(x0)
+                    vec![0.0, 1.0], // hidden[1] = tanh(x1)
+                ],
+                biases: vec![0.0, 0.0],
+            },
+            MlpLayer {
+                weights: vec![
+                    vec![1.0, 1.0], // out = tanh(tanh(x0) + tanh(x1))
+                ],
+                biases: vec![0.0],
+            },
+        ];
+
+        let json = PolicyBuilder::new_mlp("fwd-test", "0.1.0", layers)
+            .to_json()
+            .unwrap();
+        let policy = Policy::from_json(&json).unwrap();
+
+        let obs = vec![0.5_f32, 0.3];
+        let out = policy.forward_mlp(&obs);
+
+        let expected_h0 = 0.5_f32.tanh();
+        let expected_h1 = 0.3_f32.tanh();
+        let expected_out = (expected_h0 + expected_h1).tanh();
+
+        assert!((out[0] - expected_out).abs() < 1e-6, "got {}", out[0]);
+    }
+
+    #[test]
+    fn test_mlp_inference_bounded() {
+        let policy = Policy::from_json(sample_mlp_policy_json()).unwrap();
+        let obs = PolicyObservation::new([1.0, 1.0, 1.0], [1.0, 1.0], [1.0, 1.0]);
+
+        let action = policy.infer(&obs).unwrap();
+        assert!(action.linear >= -1.0 && action.linear <= 1.0);
+        assert!(action.angular >= -1.0 && action.angular <= 1.0);
+    }
+
+    #[test]
+    fn test_linear_backward_compat() {
+        // Ensure old linear policies still load and work
+        let policy = Policy::from_json(sample_policy_json()).unwrap();
+        assert_eq!(*policy.architecture(), Architecture::Linear);
+        assert!(policy.layers.is_empty());
+
+        let obs = PolicyObservation::new([0.0, 0.0, 0.0], [0.0, 0.0], [1.0, 0.0]);
+        let action = policy.infer(&obs).unwrap();
+        assert!(action.linear >= -1.0 && action.linear <= 1.0);
     }
 }
