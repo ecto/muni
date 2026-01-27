@@ -1,9 +1,9 @@
-//! Object tracker with stable IDs and velocity estimation.
+//! Object tracker with stable IDs and alpha-beta position filtering.
 //!
 //! Greedy nearest-centroid tracker that sits between `extract_obstacles()`
 //! and the watch channel. Provides:
 //! - Stable track IDs across frames (monotonic u32, never recycled)
-//! - Velocity estimation via exponential moving average
+//! - Alpha-beta filter for smooth position and velocity estimation
 //! - Classification hysteresis (require N consistent frames before switching)
 //! - Coasting (dead-reckoning with velocity when detection is lost)
 
@@ -53,8 +53,10 @@ pub struct TrackerConfig {
     pub max_association_distance: f32,
     /// Number of frames a track can coast without detection before deletion.
     pub coast_frames: u16,
-    /// EMA alpha for velocity smoothing (0-1, higher = more responsive).
-    pub velocity_alpha: f32,
+    /// Alpha-beta filter: position correction gain (0-1, higher = more responsive).
+    pub position_alpha: f32,
+    /// Alpha-beta filter: velocity correction gain (0-1, higher = more responsive).
+    pub velocity_beta: f32,
     /// Number of consistent raw-class frames before switching classification.
     pub class_hysteresis_frames: u8,
     /// Number of frames before a tentative track is confirmed.
@@ -66,7 +68,8 @@ impl Default for TrackerConfig {
         Self {
             max_association_distance: 1.0,
             coast_frames: 5,
-            velocity_alpha: 0.3,
+            position_alpha: 0.5,
+            velocity_beta: 0.1,
             class_hysteresis_frames: 3,
             confirm_age: 2,
         }
@@ -174,17 +177,17 @@ impl ObstacleTracker {
 
             let det = &detections[di];
             let track = &mut self.tracks[ti];
-            let alpha = self.config.velocity_alpha;
+            let alpha = self.config.position_alpha;
+            let beta = self.config.velocity_beta;
 
-            // Update velocity with EMA
-            let raw_vx = (det.centroid_x - track.centroid_x) / dt;
-            let raw_vy = (det.centroid_y - track.centroid_y) / dt;
-            track.velocity_x = track.velocity_x * (1.0 - alpha) + raw_vx * alpha;
-            track.velocity_y = track.velocity_y * (1.0 - alpha) + raw_vy * alpha;
-
-            // Update position
-            track.centroid_x = det.centroid_x;
-            track.centroid_y = det.centroid_y;
+            // Alpha-beta filter: correct predicted position and velocity
+            // using the residual between detection and prediction.
+            let residual_x = det.centroid_x - track.predicted_x;
+            let residual_y = det.centroid_y - track.predicted_y;
+            track.centroid_x = track.predicted_x + alpha * residual_x;
+            track.centroid_y = track.predicted_y + alpha * residual_y;
+            track.velocity_x += (beta / dt) * residual_x;
+            track.velocity_y += (beta / dt) * residual_y;
 
             // Update shape data
             track.bbox_min_x = det.bbox_min_x;
@@ -323,6 +326,7 @@ mod tests {
             bbox_max_y: cy + 0.3,
             cell_count: 25,
             area: 0.36,
+            elongation: 1.2,
             min_z: 0.0,
             max_z: 1.7,
         }
@@ -366,7 +370,8 @@ mod tests {
     fn test_velocity_estimation() {
         let mut tracker = ObstacleTracker::new(TrackerConfig {
             confirm_age: 1,
-            velocity_alpha: 1.0, // no smoothing for test
+            position_alpha: 1.0, // snap to detection for test
+            velocity_beta: 1.0,  // full velocity correction for test
             ..Default::default()
         });
 
@@ -450,6 +455,33 @@ mod tests {
         let t2 = tracker.update(&dets, 0.1);
         assert_eq!(t2.len(), 1);
         assert_ne!(t2[0].track_id, id1); // new ID, not recycled
+    }
+
+    #[test]
+    fn test_position_smoothing() {
+        let mut tracker = ObstacleTracker::new(TrackerConfig {
+            confirm_age: 1,
+            position_alpha: 0.5,
+            velocity_beta: 0.1,
+            ..Default::default()
+        });
+
+        // Frame 1: obstacle at (0, 0)
+        let dets1 = vec![make_obstacle(0, 0.0, 0.0)];
+        let t1 = tracker.update(&dets1, 0.1);
+        assert_eq!(t1.len(), 1);
+        assert!((t1[0].centroid_x).abs() < 0.01);
+
+        // Frame 2: detection jumps to (1, 0). With alpha=0.5, position should
+        // NOT snap to 1.0 — it should be predicted(0) + 0.5 * residual(1) = 0.5
+        let dets2 = vec![make_obstacle(0, 1.0, 0.0)];
+        let t2 = tracker.update(&dets2, 0.1);
+        assert_eq!(t2.len(), 1);
+        assert!(
+            (t2[0].centroid_x - 0.5).abs() < 0.01,
+            "expected ~0.5, got {}",
+            t2[0].centroid_x
+        );
     }
 
     #[test]

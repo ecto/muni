@@ -1,8 +1,8 @@
 //! Connected-component clustering for obstacle extraction.
 //!
 //! Identifies discrete obstacles in the costmap by flood-filling
-//! nearby LETHAL cells (8-connected with 1-cell gap bridging), then
-//! computes bounding boxes and centroids in world coordinates.
+//! LETHAL cells (8-connected), then computes bounding boxes,
+//! centroids, and PCA elongation in world coordinates.
 
 use std::collections::VecDeque;
 
@@ -13,12 +13,6 @@ const MIN_CLUSTER_CELLS: usize = 12;
 
 /// Maximum number of obstacles to report (sorted by area, largest first).
 const MAX_OBSTACLES: usize = 64;
-
-/// Gap (in cells) to bridge during clustering via morphological dilation.
-/// At 0.1 m resolution, 1 cell dilation bridges up to 2 free cells (0.2 m)
-/// between occupied regions — connects sparse lidar returns and temporal
-/// decay gaps in continuous structures like walls and fences.
-const CLUSTER_GAP_CELLS: usize = 1;
 
 /// Obstacle classification based on shape/size heuristics.
 ///
@@ -76,6 +70,9 @@ pub struct Obstacle {
     pub cell_count: u32,
     /// Area in square meters.
     pub area: f32,
+    /// PCA elongation ratio √(λ₁/λ₂) — rotation-invariant shape measure.
+    /// 1.0 = perfectly round, higher = more elongated.
+    pub elongation: f32,
     /// Minimum observed Z (height) across cluster cells, in meters.
     /// 0.0 when no height data is available.
     pub min_z: f32,
@@ -84,48 +81,39 @@ pub struct Obstacle {
     pub max_z: f32,
 }
 
-/// Classify an obstacle based on size, shape, and fill ratio heuristics.
+/// Classify an obstacle based on size, PCA elongation, and fill ratio.
 ///
-/// Uses bounding box dimensions, area, and fill ratio (`area / bbox_area`)
-/// to estimate type:
-/// - **Pole**: small area (<0.1 m²), low aspect (<3), tall if height available
-/// - **Wall**: high aspect (>4) or moderate aspect (>2.5) with low fill (<0.55)
+/// Uses PCA elongation (rotation-invariant) instead of bbox aspect ratio:
+/// - **Pole**: small area (<0.1 m²), low elongation (<3), tall if height available
+/// - **Wall**: high elongation (>2.5)
 /// - **Vehicle**: large area (>1.0 m²), fill >0.4, tall if height available
 /// - **Pedestrian**: medium area (0.15–1.0 m²), compact, fill >0.4, human height if available
 /// - **Debris**: anything else
 fn classify_obstacle(obs: &Obstacle) -> ObstacleClass {
+    let area = obs.area;
+    let elongation = obs.elongation;
+
     let w = obs.bbox_max_x - obs.bbox_min_x;
     let h = obs.bbox_max_y - obs.bbox_min_y;
-    let extent_max = w.max(h);
-    let extent_min = w.min(h);
-    let aspect = if extent_min > 0.01 {
-        extent_max / extent_min
-    } else {
-        10.0 // degenerate → treat as wall-like
-    };
-
-    let area = obs.area;
     let bbox_area = w * h;
     let fill_ratio = if bbox_area > 0.0001 {
         area / bbox_area
     } else {
-        1.0 // degenerate bbox → assume fully filled
+        1.0
     };
 
-    // Height info available when min_z <= max_z and span > 0
     let height_z = obs.max_z - obs.min_z;
     let has_height = obs.min_z <= obs.max_z && height_z > 0.0;
 
-    // Pole: small footprint + tall when height is available
-    if area < 0.1 && aspect < 3.0 {
+    // Pole: small footprint, compact shape, tall when height is available
+    if area < 0.1 && elongation < 3.0 {
         if !has_height || height_z > 0.5 {
             return ObstacleClass::Pole;
         }
     }
 
-    // Wall: high aspect ratio, or moderate aspect with low fill ratio
-    // (angled/occluded walls produce thin strips that don't fill their bbox)
-    if aspect > 4.0 || (aspect > 2.5 && fill_ratio < 0.55) {
+    // Wall: high PCA elongation (rotation-invariant — works for diagonal walls)
+    if elongation > 2.5 {
         return ObstacleClass::Wall;
     }
 
@@ -137,8 +125,7 @@ fn classify_obstacle(obs: &Obstacle) -> ObstacleClass {
     }
 
     // Pedestrian: medium area, compact shape, substantial fill
-    // Height tightens match: 0.8-2.2m is human range
-    if area >= 0.15 && area <= 1.0 && aspect < 2.5 && fill_ratio > 0.4 {
+    if area >= 0.15 && area <= 1.0 && elongation < 2.5 && fill_ratio > 0.4 {
         if !has_height || (height_z >= 0.8 && height_z <= 2.2) {
             return ObstacleClass::Pedestrian;
         }
@@ -170,48 +157,25 @@ pub fn extract_obstacles(
 
     let has_height = height_min.len() == total && height_max.len() == total;
 
-    // Build reachability map: dilate occupied cells to bridge small gaps.
-    // BFS traverses reachable cells but only counts occupied cells in stats.
-    let mut reachable = vec![false; total];
-    for i in 0..total {
-        if cells[i] >= threshold {
-            reachable[i] = true;
-        }
-    }
-    for _ in 0..CLUSTER_GAP_CELLS {
-        let prev = reachable.clone();
-        for i in 0..total {
-            if prev[i] {
-                let gx = (i % width) as i32;
-                let gy = (i / width) as i32;
-                for (dx, dy) in [(-1i32, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)] {
-                    let nx = gx + dx;
-                    let ny = gy + dy;
-                    if nx >= 0 && ny >= 0 && nx < width as i32 && ny < height as i32 {
-                        reachable[ny as usize * width + nx as usize] = true;
-                    }
-                }
-            }
-        }
-    }
-
     let mut visited = vec![false; total];
     let mut obstacles = Vec::new();
     let mut queue = VecDeque::new();
 
     for start in 0..total {
-        // Only start clusters from occupied cells
         if visited[start] || cells[start] < threshold {
             continue;
         }
 
-        // BFS flood fill through reachable cells (bridges small gaps)
+        // BFS flood fill through occupied cells (8-connected)
         queue.clear();
         queue.push_back(start);
         visited[start] = true;
 
         let mut sum_gx: u64 = 0;
         let mut sum_gy: u64 = 0;
+        let mut sum_gx2: u64 = 0;
+        let mut sum_gy2: u64 = 0;
+        let mut sum_gxgy: u64 = 0;
         let mut min_gx = usize::MAX;
         let mut min_gy = usize::MAX;
         let mut max_gx: usize = 0;
@@ -224,28 +188,27 @@ pub fn extract_obstacles(
             let gx = idx % width;
             let gy = idx / width;
 
-            // Only accumulate stats for occupied cells, not bridge cells
-            if cells[idx] >= threshold {
-                sum_gx += gx as u64;
-                sum_gy += gy as u64;
-                min_gx = min_gx.min(gx);
-                min_gy = min_gy.min(gy);
-                max_gx = max_gx.max(gx);
-                max_gy = max_gy.max(gy);
-                count += 1;
+            sum_gx += gx as u64;
+            sum_gy += gy as u64;
+            sum_gx2 += (gx as u64) * (gx as u64);
+            sum_gy2 += (gy as u64) * (gy as u64);
+            sum_gxgy += (gx as u64) * (gy as u64);
+            min_gx = min_gx.min(gx);
+            min_gy = min_gy.min(gy);
+            max_gx = max_gx.max(gx);
+            max_gy = max_gy.max(gy);
+            count += 1;
 
-                // Accumulate height envelope from per-cell data
-                if has_height {
-                    let lo = height_min[idx];
-                    let hi = height_max[idx];
-                    if lo <= hi {
-                        cluster_min_z = cluster_min_z.min(lo);
-                        cluster_max_z = cluster_max_z.max(hi);
-                    }
+            if has_height {
+                let lo = height_min[idx];
+                let hi = height_max[idx];
+                if lo <= hi {
+                    cluster_min_z = cluster_min_z.min(lo);
+                    cluster_max_z = cluster_max_z.max(hi);
                 }
             }
 
-            // 8-connected neighbors through reachable (dilated) map
+            // 8-connected neighbors through occupied cells
             for (dx, dy) in [(-1i32, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)] {
                 let nx = gx as i32 + dx;
                 let ny = gy as i32 + dy;
@@ -253,7 +216,7 @@ pub fn extract_obstacles(
                     continue;
                 }
                 let nidx = ny as usize * width + nx as usize;
-                if !visited[nidx] && reachable[nidx] {
+                if !visited[nidx] && cells[nidx] >= threshold {
                     visited[nidx] = true;
                     queue.push_back(nidx);
                 }
@@ -264,12 +227,32 @@ pub fn extract_obstacles(
             continue;
         }
 
-        // Convert grid coordinates to world coordinates
-        let centroid_gx = sum_gx as f64 / count as f64;
-        let centroid_gy = sum_gy as f64 / count as f64;
+        // PCA elongation from second-order moments
+        let n = count as f64;
+        let mean_x = sum_gx as f64 / n;
+        let mean_y = sum_gy as f64 / n;
+        let cov_xx = sum_gx2 as f64 / n - mean_x * mean_x;
+        let cov_yy = sum_gy2 as f64 / n - mean_y * mean_y;
+        let cov_xy = sum_gxgy as f64 / n - mean_x * mean_y;
 
-        let centroid_x = origin_x + (centroid_gx + 0.5) * resolution;
-        let centroid_y = origin_y + (centroid_gy + 0.5) * resolution;
+        // Eigenvalues of 2×2 covariance matrix:
+        // λ = (cov_xx + cov_yy)/2 ± sqrt(((cov_xx - cov_yy)/2)² + cov_xy²)
+        let half_trace = (cov_xx + cov_yy) * 0.5;
+        let diff_half = (cov_xx - cov_yy) * 0.5;
+        let disc = (diff_half * diff_half + cov_xy * cov_xy).sqrt();
+        let lambda1 = half_trace + disc; // larger eigenvalue
+        let lambda2 = half_trace - disc; // smaller eigenvalue
+
+        let elongation = if lambda2 > 1e-9 {
+            (lambda1 / lambda2).sqrt() as f32
+        } else {
+            // Degenerate (collinear cells) → very elongated
+            10.0_f32
+        };
+
+        // Convert grid coordinates to world coordinates
+        let centroid_x = origin_x + (mean_x + 0.5) * resolution;
+        let centroid_y = origin_y + (mean_y + 0.5) * resolution;
 
         // Bounding box: use cell edges (not centers)
         let bbox_min_x = origin_x + min_gx as f64 * resolution;
@@ -280,8 +263,8 @@ pub fn extract_obstacles(
         let area = count as f64 * resolution * resolution;
 
         obstacles.push(Obstacle {
-            id: 0, // assigned after sorting
-            class: ObstacleClass::Unknown, // classified after construction
+            id: 0,
+            class: ObstacleClass::Unknown,
             centroid_x: centroid_x as f32,
             centroid_y: centroid_y as f32,
             bbox_min_x: bbox_min_x as f32,
@@ -290,6 +273,7 @@ pub fn extract_obstacles(
             bbox_max_y: bbox_max_y as f32,
             cell_count: count,
             area: area as f32,
+            elongation,
             min_z: if cluster_min_z <= cluster_max_z { cluster_min_z } else { 0.0 },
             max_z: if cluster_min_z <= cluster_max_z { cluster_max_z } else { 0.0 },
         });
@@ -475,24 +459,27 @@ mod tests {
     // Classification tests
     // ====================================================================
 
-    fn make_obstacle(area: f32, w: f32, h: f32) -> Obstacle {
+    fn make_obstacle(area: f32, elongation: f32) -> Obstacle {
+        // bbox is only used for fill_ratio now; make it consistent with area
+        let side = area.sqrt();
         Obstacle {
             id: 0,
             class: ObstacleClass::Unknown,
             centroid_x: 0.0,
             centroid_y: 0.0,
-            bbox_min_x: -w / 2.0,
-            bbox_min_y: -h / 2.0,
-            bbox_max_x: w / 2.0,
-            bbox_max_y: h / 2.0,
+            bbox_min_x: -side / 2.0,
+            bbox_min_y: -side / 2.0,
+            bbox_max_x: side / 2.0,
+            bbox_max_y: side / 2.0,
             cell_count: (area / 0.01) as u32,
             area,
+            elongation,
             min_z: 0.0,
             max_z: 0.0,
         }
     }
 
-    fn make_obstacle_with_height(area: f32, w: f32, h: f32, min_z: f32, max_z: f32) -> Obstacle {
+    fn make_obstacle_with_bbox(area: f32, elongation: f32, w: f32, h: f32) -> Obstacle {
         Obstacle {
             id: 0,
             class: ObstacleClass::Unknown,
@@ -504,6 +491,26 @@ mod tests {
             bbox_max_y: h / 2.0,
             cell_count: (area / 0.01) as u32,
             area,
+            elongation,
+            min_z: 0.0,
+            max_z: 0.0,
+        }
+    }
+
+    fn make_obstacle_with_height(area: f32, elongation: f32, min_z: f32, max_z: f32) -> Obstacle {
+        let side = area.sqrt();
+        Obstacle {
+            id: 0,
+            class: ObstacleClass::Unknown,
+            centroid_x: 0.0,
+            centroid_y: 0.0,
+            bbox_min_x: -side / 2.0,
+            bbox_min_y: -side / 2.0,
+            bbox_max_x: side / 2.0,
+            bbox_max_y: side / 2.0,
+            cell_count: (area / 0.01) as u32,
+            area,
+            elongation,
             min_z,
             max_z,
         }
@@ -511,36 +518,37 @@ mod tests {
 
     #[test]
     fn test_classify_pole() {
-        // Small, compact: area < 0.1, aspect < 3
-        let obs = make_obstacle(0.05, 0.2, 0.2);
+        // Small, compact: area < 0.1, elongation < 3
+        let obs = make_obstacle(0.05, 1.2);
         assert_eq!(classify_obstacle(&obs), ObstacleClass::Pole);
     }
 
     #[test]
     fn test_classify_wall() {
-        // Long and thin: aspect > 4
-        let obs = make_obstacle(0.5, 3.0, 0.3);
+        // High elongation > 2.5
+        let obs = make_obstacle(0.5, 5.0);
         assert_eq!(classify_obstacle(&obs), ObstacleClass::Wall);
     }
 
     #[test]
     fn test_classify_vehicle() {
-        // Large area (> 1.0 m²)
-        let obs = make_obstacle(2.0, 2.0, 1.5);
+        // Large area (> 1.0 m²), low elongation, good fill
+        let obs = make_obstacle(2.0, 1.3);
         assert_eq!(classify_obstacle(&obs), ObstacleClass::Vehicle);
     }
 
     #[test]
     fn test_classify_pedestrian() {
-        // Medium area (0.1 - 1.0), compact shape
-        let obs = make_obstacle(0.3, 0.5, 0.6);
+        // Medium area (0.15 - 1.0), compact shape, good fill
+        let obs = make_obstacle(0.3, 1.2);
         assert_eq!(classify_obstacle(&obs), ObstacleClass::Pedestrian);
     }
 
     #[test]
     fn test_classify_debris() {
-        // Medium area but somewhat elongated (not wall, not compact enough for pedestrian)
-        let obs = make_obstacle(0.4, 1.2, 0.4);
+        // Medium area but low fill ratio → Debris
+        let obs = make_obstacle_with_bbox(0.4, 1.5, 2.0, 1.0);
+        // fill = 0.4 / 2.0 = 0.2 → pedestrian fill check fails → Debris
         assert_eq!(classify_obstacle(&obs), ObstacleClass::Debris);
     }
 
@@ -685,100 +693,118 @@ mod tests {
     #[test]
     fn test_classify_pole_with_height() {
         // Small footprint + confirmed tall → Pole
-        let obs = make_obstacle_with_height(0.05, 0.2, 0.2, 0.0, 1.0);
+        let obs = make_obstacle_with_height(0.05, 1.2, 0.0, 1.0);
         assert_eq!(classify_obstacle(&obs), ObstacleClass::Pole);
     }
 
     #[test]
     fn test_classify_pedestrian_with_height() {
         // Medium area, compact, human height range → Pedestrian
-        let obs = make_obstacle_with_height(0.3, 0.5, 0.6, 0.0, 1.7);
+        let obs = make_obstacle_with_height(0.3, 1.2, 0.0, 1.7);
         assert_eq!(classify_obstacle(&obs), ObstacleClass::Pedestrian);
     }
 
     #[test]
     fn test_classify_pedestrian_too_short_with_height() {
         // Medium area, compact, but very short → Debris (not a person)
-        let obs = make_obstacle_with_height(0.3, 0.5, 0.6, 0.0, 0.3);
+        let obs = make_obstacle_with_height(0.3, 1.2, 0.0, 0.3);
         assert_eq!(classify_obstacle(&obs), ObstacleClass::Debris);
     }
 
     // ====================================================================
-    // Fill-ratio classification tests
+    // PCA elongation classification tests
     // ====================================================================
 
     #[test]
-    fn test_classify_wall_moderate_aspect() {
-        // Wall seen at an angle: aspect 3:1 (below old 4:1 threshold),
-        // but low fill ratio reveals it's a thin strip in its bbox.
-        // fill = 0.9 / (3.0 * 1.0) = 0.3
-        let obs = make_obstacle(0.9, 3.0, 1.0);
+    fn test_classify_diagonal_wall() {
+        // Diagonal wall: high PCA elongation despite roughly square bbox
+        let obs = make_obstacle(0.5, 4.0);
         assert_eq!(classify_obstacle(&obs), ObstacleClass::Wall);
     }
 
     #[test]
     fn test_classify_vehicle_not_wall() {
-        // Large solid obstacle: low aspect prevents wall classification
-        // despite large area. fill = 1.5 / 2.0 = 0.75
-        let obs = make_obstacle(1.5, 2.0, 1.0);
+        // Large solid obstacle: low elongation → Vehicle, not Wall
+        let obs = make_obstacle(1.5, 1.3);
         assert_eq!(classify_obstacle(&obs), ObstacleClass::Vehicle);
     }
 
     #[test]
-    fn test_classify_thin_large_cluster_as_wall() {
-        // Thin L-shaped cluster: large area but low fill + moderate aspect
-        // prevents vehicle classification. fill = 1.2 / 3.0 = 0.4
-        let obs = make_obstacle(1.2, 3.0, 1.0);
+    fn test_classify_elongated_large_cluster_as_wall() {
+        // Thin L-shaped cluster: high elongation → Wall even with large area
+        let obs = make_obstacle(1.2, 3.5);
         assert_eq!(classify_obstacle(&obs), ObstacleClass::Wall);
     }
 
     // ====================================================================
-    // Gap bridging tests
+    // PCA elongation integration tests
     // ====================================================================
 
     #[test]
-    fn test_gap_bridging_connects_nearby_clusters() {
-        let mut cells = make_grid(20, 20);
-        // Two 6-cell blocks separated by a 1-cell gap at x=8.
-        // Without gap bridging: two 6-cell clusters (both < MIN_CLUSTER_CELLS).
-        // With gap bridging: merged into one 12-cell cluster.
-        // Block A: gx=5..8, gy=5..7 → 3×2 = 6 cells
-        for gx in 5..8 {
-            for gy in 5..7 {
-                set_cell(&mut cells, 20, gx, gy, costs::LETHAL);
-            }
+    fn test_horizontal_bar_elongation() {
+        let mut cells = make_grid(30, 10);
+        // Horizontal bar: 20 cells in a line at y=5
+        for gx in 5..25 {
+            set_cell(&mut cells, 30, gx, 5, costs::LETHAL);
         }
-        // Block B: gx=9..12, gy=5..7 → 3×2 = 6 cells (gap at x=8)
-        for gx in 9..12 {
-            for gy in 5..7 {
+
+        let obs = extract_obstacles(&cells, 30, 10, 0.1, 0.0, 0.0, costs::LETHAL, &[], &[]);
+        assert_eq!(obs.len(), 1);
+        // 20 cells in a row → very elongated
+        assert!(obs[0].elongation > 3.0, "expected high elongation, got {}", obs[0].elongation);
+        assert_eq!(obs[0].class, ObstacleClass::Wall);
+    }
+
+    #[test]
+    fn test_square_block_elongation() {
+        let mut cells = make_grid(20, 20);
+        // 4×4 square block = 16 cells
+        for gx in 5..9 {
+            for gy in 5..9 {
                 set_cell(&mut cells, 20, gx, gy, costs::LETHAL);
             }
         }
 
         let obs = extract_obstacles(&cells, 20, 20, 0.1, 0.0, 0.0, costs::LETHAL, &[], &[]);
         assert_eq!(obs.len(), 1);
-        assert_eq!(obs[0].cell_count, 12);
+        // Square → elongation ≈ 1.0
+        assert!(obs[0].elongation < 1.5, "expected low elongation, got {}", obs[0].elongation);
     }
 
     #[test]
-    fn test_gap_too_large_keeps_clusters_separate() {
-        let mut cells = make_grid(30, 10);
-        // Two 12-cell blocks separated by a 3-cell gap (x=5,6,7).
-        // Gap too large for CLUSTER_GAP_CELLS=1 → stays as two clusters.
-        // Block A: gx=2..5, gy=2..6 → 3×4 = 12 cells
+    fn test_diagonal_line_elongation() {
+        let mut cells = make_grid(30, 30);
+        // Diagonal line: 15 cells along y=x
+        for i in 5..20 {
+            set_cell(&mut cells, 30, i, i, costs::LETHAL);
+        }
+
+        let obs = extract_obstacles(&cells, 30, 30, 0.1, 0.0, 0.0, costs::LETHAL, &[], &[]);
+        assert_eq!(obs.len(), 1);
+        // Diagonal line → high elongation despite square-ish bbox
+        assert!(obs[0].elongation > 3.0, "expected high elongation for diagonal, got {}", obs[0].elongation);
+        assert_eq!(obs[0].class, ObstacleClass::Wall);
+    }
+
+    #[test]
+    fn test_no_gap_bridging() {
+        let mut cells = make_grid(20, 20);
+        // Two 12-cell blocks separated by a 1-cell gap.
+        // Without dilation, they stay separate.
+        // Block A: 3×4 = 12 cells
         for gx in 2..5 {
             for gy in 2..6 {
-                set_cell(&mut cells, 30, gx, gy, costs::LETHAL);
+                set_cell(&mut cells, 20, gx, gy, costs::LETHAL);
             }
         }
-        // Block B: gx=8..11, gy=2..6 → 3×4 = 12 cells
-        for gx in 8..11 {
+        // Block B: 3×4 = 12 cells (gap at gx=5)
+        for gx in 6..9 {
             for gy in 2..6 {
-                set_cell(&mut cells, 30, gx, gy, costs::LETHAL);
+                set_cell(&mut cells, 20, gx, gy, costs::LETHAL);
             }
         }
 
-        let obs = extract_obstacles(&cells, 30, 10, 0.1, 0.0, 0.0, costs::LETHAL, &[], &[]);
+        let obs = extract_obstacles(&cells, 20, 20, 0.1, 0.0, 0.0, costs::LETHAL, &[], &[]);
         assert_eq!(obs.len(), 2);
     }
 }
