@@ -1,11 +1,8 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { Scene } from "@/components/scene/Scene";
-import { CameraFeedCard } from "@/components/scene/EquirectangularSky";
 import { ModeBar } from "@/components/teleop/ModeBar";
-import { StatusPanel } from "@/components/teleop/StatusPanel";
-import { DiagnosticsPanel } from "@/components/teleop/DiagnosticsPanel";
-import { InputPanel } from "@/components/teleop/InputPanel";
+import { TeleopSidebar } from "@/components/teleop/TeleopSidebar";
 import { ConnectionBar } from "@/components/teleop/ConnectionBar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -155,16 +152,9 @@ export function RoverView() {
           />
         </div>
 
-        {/* Right side panels */}
-        <div className="absolute top-16 right-4 bottom-12 flex flex-col gap-3 pointer-events-auto overflow-y-auto overflow-x-hidden pl-2 scrollbar-thin items-end">
-          <StatusPanel />
-          <DiagnosticsPanel onToggleLidar={toggleLidar} />
-          <InputPanel />
-        </div>
-
-        {/* Bottom left — Camera feeds */}
-        <div className="absolute bottom-12 left-4 pointer-events-auto">
-          <CameraFeedCard />
+        {/* Right side panel */}
+        <div className="absolute top-16 right-4 bottom-12 pointer-events-auto">
+          <TeleopSidebar onToggleLidar={toggleLidar} />
         </div>
 
         {/* Bottom bar */}

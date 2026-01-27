@@ -1,7 +1,6 @@
 import { useRef, useEffect, useMemo, useState } from "react";
 import { useFrame } from "@react-three/fiber";
 import { useConsoleStore } from "@/store";
-import { CaretDown, CaretRight } from "@phosphor-icons/react";
 import {
   PlaneGeometry,
   MeshBasicMaterial,
@@ -263,25 +262,22 @@ function CameraFeed({ cameraId, url }: { cameraId: number; url: string | null })
 }
 
 /**
- * Picture-in-picture camera feed card.
- * Displays raw video frames from all cameras as HTML images for debugging
- * and as an always-visible camera view for operators.
+ * Camera feed section for the teleop sidebar.
+ * Displays raw video frames from all cameras as HTML images.
+ * No card chrome — designed to sit inside a parent container.
  *
  * Polls the mutable video frame store at 15Hz (matching frame rate) to
  * update the display without excessive React re-renders.
  */
-export function CameraFeedCard() {
+export function CameraFeedSection() {
   const videoConnected = useConsoleStore((s) => s.videoConnected);
   const videoFps = useConsoleStore((s) => s.videoFps);
   const cameraCount = useConsoleStore((s) => s.cameraCount);
-  const [collapsed, setCollapsed] = useState(false);
   const [cameras, setCameras] = useState<Array<[number, CameraFrame]>>([]);
   const lastFrameVersionRef = useRef(0);
 
-  // Poll the mutable store at 15Hz when not collapsed
+  // Poll the mutable store at 15Hz
   useEffect(() => {
-    if (collapsed) return;
-
     const interval = setInterval(() => {
       const currentVersion = getFrameVersion();
       if (currentVersion !== lastFrameVersionRef.current) {
@@ -293,38 +289,30 @@ export function CameraFeedCard() {
     }, 67); // ~15Hz polling
 
     return () => clearInterval(interval);
-  }, [collapsed]);
+  }, []);
 
   return (
-    <div className="bg-card/90 backdrop-blur-sm border border-border rounded-lg overflow-hidden shadow-lg">
-      {/* Header */}
-      <div
-        className="flex items-center justify-between px-2 py-1 bg-muted/50 border-b border-border cursor-pointer hover:bg-muted/70"
-        onClick={() => setCollapsed(!collapsed)}
-      >
-        <span className="text-xs font-medium text-muted-foreground flex items-center gap-1">
-          {collapsed ? <CaretRight className="h-3 w-3" /> : <CaretDown className="h-3 w-3" />}
-          Cameras ({cameraCount})
-        </span>
-        <span className={`text-xs font-mono ${videoConnected ? 'text-green-500' : 'text-red-500'}`}>
+    <div className="p-2 space-y-1">
+      {/* Info row */}
+      <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+        <span>Cameras ({cameraCount})</span>
+        <span className={`font-mono ${videoConnected ? 'text-green-500' : 'text-red-500'}`}>
           {videoConnected ? `${videoFps} FPS` : 'OFFLINE'}
         </span>
       </div>
 
       {/* Camera feeds - vertical stack */}
-      {!collapsed && (
-        <div className="flex flex-col gap-1 p-1">
-          {cameras.length > 0 ? (
-            cameras.map(([cameraId, frame]) => (
-              <CameraFeed key={cameraId} cameraId={cameraId} url={frame.url} />
-            ))
-          ) : (
-            <div className="w-20 h-24 flex items-center justify-center text-muted-foreground text-xs bg-black">
-              {videoConnected ? 'Waiting...' : 'No cameras'}
-            </div>
-          )}
-        </div>
-      )}
+      <div className="flex flex-col gap-1">
+        {cameras.length > 0 ? (
+          cameras.map(([cameraId, frame]) => (
+            <CameraFeed key={cameraId} cameraId={cameraId} url={frame.url} />
+          ))
+        ) : (
+          <div className="w-full h-24 flex items-center justify-center text-muted-foreground text-xs bg-black rounded">
+            {videoConnected ? 'Waiting...' : 'No cameras'}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

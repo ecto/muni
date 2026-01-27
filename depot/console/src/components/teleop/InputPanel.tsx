@@ -1,5 +1,4 @@
 import { useState, useEffect, memo } from "react";
-import { Badge } from "@/components/ui/badge";
 import {
   Tooltip,
   TooltipTrigger,
@@ -159,49 +158,69 @@ export function InputPanel() {
         inputSource={inputSource}
       />
 
-      {/* Buttons */}
-      <div className="grid grid-cols-4 gap-1 pt-1 border-t border-border">
+      {/* Annunciator panel */}
+      <div className="grid grid-cols-4 gap-1.5 pt-1.5">
         <Tooltip>
           <TooltipTrigger asChild>
-            <Badge
-              variant={input.boost ? "default" : "outline"}
-              className="text-[10px] h-4 px-0.5 justify-center cursor-help"
-            >
-              BOOST
-            </Badge>
+            <div className={`
+              flex flex-col items-center justify-center h-7 rounded-sm cursor-help
+              font-mono text-[10px] tracking-wider border transition-colors
+              ${input.boost
+                ? "border-emerald-500/60 bg-emerald-500/15 text-emerald-400 shadow-[inset_0_0_8px_rgba(16,185,129,0.15)]"
+                : "border-stone-700 bg-stone-900/50 text-stone-500"
+              }
+            `}>
+              <span className={`w-1.5 h-1.5 rounded-full mb-0.5 ${input.boost ? "bg-emerald-400 shadow-[0_0_4px_rgba(16,185,129,0.6)]" : "bg-stone-700"}`} />
+              BST
+            </div>
           </TooltipTrigger>
           <TooltipContent side="bottom">Hold for 2x speed multiplier</TooltipContent>
         </Tooltip>
         <Tooltip>
           <TooltipTrigger asChild>
-            <Badge
-              variant={input.actionA ? "default" : "outline"}
-              className="text-[10px] h-4 px-0.5 justify-center cursor-help"
-            >
+            <div className={`
+              flex flex-col items-center justify-center h-7 rounded-sm cursor-help
+              font-mono text-[10px] tracking-wider border transition-colors
+              ${input.actionA
+                ? "border-emerald-500/60 bg-emerald-500/15 text-emerald-400 shadow-[inset_0_0_8px_rgba(16,185,129,0.15)]"
+                : "border-stone-700 bg-stone-900/50 text-stone-500"
+              }
+            `}>
+              <span className={`w-1.5 h-1.5 rounded-full mb-0.5 ${input.actionA ? "bg-emerald-400 shadow-[0_0_4px_rgba(16,185,129,0.6)]" : "bg-stone-700"}`} />
               A
-            </Badge>
+            </div>
           </TooltipTrigger>
           <TooltipContent side="bottom">Action A (context-dependent)</TooltipContent>
         </Tooltip>
         <Tooltip>
           <TooltipTrigger asChild>
-            <Badge
-              variant={input.actionB ? "default" : "outline"}
-              className="text-[10px] h-4 px-0.5 justify-center cursor-help"
-            >
+            <div className={`
+              flex flex-col items-center justify-center h-7 rounded-sm cursor-help
+              font-mono text-[10px] tracking-wider border transition-colors
+              ${input.actionB
+                ? "border-emerald-500/60 bg-emerald-500/15 text-emerald-400 shadow-[inset_0_0_8px_rgba(16,185,129,0.15)]"
+                : "border-stone-700 bg-stone-900/50 text-stone-500"
+              }
+            `}>
+              <span className={`w-1.5 h-1.5 rounded-full mb-0.5 ${input.actionB ? "bg-emerald-400 shadow-[0_0_4px_rgba(16,185,129,0.6)]" : "bg-stone-700"}`} />
               B
-            </Badge>
+            </div>
           </TooltipTrigger>
           <TooltipContent side="bottom">Action B (context-dependent)</TooltipContent>
         </Tooltip>
         <Tooltip>
           <TooltipTrigger asChild>
-            <Badge
-              variant={input.estop ? "destructive" : "outline"}
-              className="text-[10px] h-4 px-0.5 justify-center cursor-help"
-            >
-              STOP
-            </Badge>
+            <div className={`
+              flex flex-col items-center justify-center h-7 rounded-sm cursor-help
+              font-mono text-[10px] tracking-wider border transition-colors
+              ${input.estop
+                ? "border-red-500/60 bg-red-500/15 text-red-400 shadow-[inset_0_0_8px_rgba(239,68,68,0.2)]"
+                : "border-stone-700 bg-stone-900/50 text-stone-500"
+              }
+            `}>
+              <span className={`w-1.5 h-1.5 rounded-full mb-0.5 ${input.estop ? "bg-red-400 shadow-[0_0_4px_rgba(239,68,68,0.6)]" : "bg-stone-700"}`} />
+              STP
+            </div>
           </TooltipTrigger>
           <TooltipContent side="bottom">Software E-Stop triggered</TooltipContent>
         </Tooltip>
