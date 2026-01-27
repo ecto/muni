@@ -32,6 +32,10 @@ pub struct EkfConfig {
     pub gps_heading_min_speed: f64,
     /// Weight for IMU yaw rate vs wheel odometry (0.0 = wheel only, 1.0 = IMU only)
     pub imu_yaw_weight: f64,
+    /// Speed (m/s) at which full IMU yaw weight is restored (ramps linearly from 0)
+    pub imu_yaw_speed_ramp: f64,
+    /// Gyro rate (rad/s) above which IMU is trusted even at zero speed
+    pub imu_yaw_gyro_gate: f64,
     /// Gyro noise spectral density (rad/√s)
     pub gyro_noise: f64,
 }
@@ -47,6 +51,8 @@ impl Default for EkfConfig {
             gps_noise_standalone: 3.0,
             gps_heading_min_speed: 0.3,
             imu_yaw_weight: 0.7,
+            imu_yaw_speed_ramp: 0.1,
+            imu_yaw_gyro_gate: 0.1,
             gyro_noise: 0.01,
         }
     }
@@ -97,11 +103,17 @@ impl EkfPoseEstimator {
     /// * `gyro_z` - Optional IMU yaw rate in body frame (rad/s)
     /// * `dt` - Time step in seconds
     pub fn predict(&mut self, dx: f64, dy: f64, dtheta_wheels: f64, gyro_z: Option<f32>, dt: f64) {
-        // Fuse wheel dtheta with IMU gyro_z
+        // Fuse wheel dtheta with IMU gyro_z.
+        // When stationary with small gyro readings (bias), down-weight IMU to
+        // prevent heading drift. Trust IMU again if speed or gyro rate is high.
         let dtheta = match gyro_z {
             Some(gz) => {
                 let imu_dtheta = gz as f64 * dt;
-                let w = self.config.imu_yaw_weight;
+                let speed = (dx * dx + dy * dy).sqrt() / dt.max(1e-9);
+                let speed_scale = (speed / self.config.imu_yaw_speed_ramp).clamp(0.0, 1.0);
+                let gyro_scale =
+                    ((gz as f64).abs() / self.config.imu_yaw_gyro_gate).clamp(0.0, 1.0);
+                let w = self.config.imu_yaw_weight * speed_scale.max(gyro_scale);
                 w * imu_dtheta + (1.0 - w) * dtheta_wheels
             }
             None => dtheta_wheels,
@@ -657,6 +669,76 @@ mod tests {
         assert!((p1.x - p2.x).abs() < 0.001);
         assert!((p1.y - p2.y).abs() < 0.001);
         assert!((p1.theta - p2.theta).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_stationary_no_heading_drift_from_gyro_bias() {
+        let mut ekf = EkfPoseEstimator::new();
+
+        // Simulate 10 seconds stationary with small gyro bias (0.01 rad/s).
+        // Wheels correctly report zero rotation.
+        let dt = 0.01;
+        let gyro_bias = 0.01_f32; // below 0.1 gate
+        for _ in 0..1000 {
+            ekf.predict(0.0, 0.0, 0.0, Some(gyro_bias), dt);
+        }
+
+        let pose = ekf.pose();
+        // Without the fix, heading would drift to ~0.07 rad (0.7 * 0.01 * 10).
+        // With the fix, gyro_scale = 0.01/0.1 = 0.1 → effective w = 0.07,
+        // so drift is reduced to ~0.007 rad (10× less than without the fix).
+        assert!(
+            pose.theta.abs() < 0.01,
+            "Stationary heading drift from gyro bias should be small: got {} rad (unfixed would be ~0.07)",
+            pose.theta
+        );
+    }
+
+    #[test]
+    fn test_wheel_slip_still_tracks_imu() {
+        // When stationary but gyro reads a large rate (actual rotation / wheel slip),
+        // IMU weight should stay high via gyro gate.
+        let mut ekf = EkfPoseEstimator::new();
+
+        let dt = 0.01;
+        let gyro_rate = 0.5_f32; // well above 0.1 gate
+        for _ in 0..100 {
+            ekf.predict(0.0, 0.0, 0.0, Some(gyro_rate), dt);
+        }
+
+        let pose = ekf.pose();
+        // gyro_scale = 0.5/0.1 = clamped to 1.0 → full weight 0.7
+        let expected = 100.0 * dt * 0.5 * 0.7;
+        assert!(
+            (pose.theta - expected).abs() < 0.05,
+            "IMU should still drive heading on wheel slip: got {} expected ~{}",
+            pose.theta,
+            expected
+        );
+    }
+
+    #[test]
+    fn test_moving_restores_full_imu_weight() {
+        // When moving above speed_ramp, IMU weight should be at configured value.
+        let mut ekf = EkfPoseEstimator::new();
+
+        let dt = 0.01;
+        let dx = 0.005; // 0.005m / 0.01s = 0.5 m/s, well above 0.1 ramp
+        let gyro_rate = 0.05_f32; // small gyro — below gate, but speed is high
+        for _ in 0..100 {
+            ekf.predict(dx, 0.0, 0.0, Some(gyro_rate), dt);
+        }
+
+        let pose = ekf.pose();
+        // speed_scale = 0.5/0.1 = clamped to 1.0 → full weight 0.7
+        let expected_dtheta_per_step = 0.7 * (0.05 * dt) + 0.3 * 0.0;
+        let expected_total = 100.0 * expected_dtheta_per_step;
+        assert!(
+            (pose.theta - expected_total).abs() < 0.01,
+            "Moving should restore full IMU weight: got {} expected ~{}",
+            pose.theta,
+            expected_total
+        );
     }
 
     #[test]

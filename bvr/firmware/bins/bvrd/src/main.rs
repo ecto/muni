@@ -209,6 +209,8 @@ struct LocalizationFileConfig {
     gps_noise_standalone: f64,
     gps_heading_min_speed: f64,
     imu_yaw_weight: f64,
+    imu_yaw_speed_ramp: f64,
+    imu_yaw_gyro_gate: f64,
 }
 
 impl Default for LocalizationFileConfig {
@@ -222,6 +224,8 @@ impl Default for LocalizationFileConfig {
             gps_noise_standalone: 3.0,
             gps_heading_min_speed: 0.3,
             imu_yaw_weight: 0.7,
+            imu_yaw_speed_ramp: 0.1,
+            imu_yaw_gyro_gate: 0.1,
         }
     }
 }
@@ -1420,6 +1424,8 @@ async fn main() -> Result<()> {
         gps_noise_standalone: file_config.localization.gps_noise_standalone,
         gps_heading_min_speed: file_config.localization.gps_heading_min_speed,
         imu_yaw_weight: file_config.localization.imu_yaw_weight,
+        imu_yaw_speed_ramp: file_config.localization.imu_yaw_speed_ramp,
+        imu_yaw_gyro_gate: file_config.localization.imu_yaw_gyro_gate,
         ..Default::default()
     };
     let mut pose_estimator = EkfPoseEstimator::with_config(ekf_config);

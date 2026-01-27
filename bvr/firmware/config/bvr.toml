@@ -206,6 +206,10 @@ gps_noise_standalone = 3.0
 gps_heading_min_speed = 0.3
 # IMU yaw rate weight (0.0 = wheel only, 1.0 = IMU only)
 imu_yaw_weight = 0.7
+# Speed (m/s) at which full IMU yaw weight is restored
+imu_yaw_speed_ramp = 0.1
+# Gyro rate (rad/s) above which IMU is trusted even at zero speed
+imu_yaw_gyro_gate = 0.1
 
 [slam]
 # Enable SLAM (Simultaneous Localization and Mapping)
