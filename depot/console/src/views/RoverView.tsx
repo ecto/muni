@@ -57,8 +57,15 @@ export function RoverView() {
     };
   }, [disconnect]);
 
-  // Show direct connect prompt when discovery is unavailable
-  if (!selectedRover && rovers.length === 0 && rtcAddress === "ws://localhost:4852") {
+  // Auto-connect directly when discovery is unavailable but we have a rover ID from the URL
+  useEffect(() => {
+    if (!selectedRover && rovers.length === 0 && rtcAddress === "ws://localhost:4852" && roverId) {
+      connectDirect(roverId);
+    }
+  }, [selectedRover, rovers.length, rtcAddress, roverId, connectDirect]);
+
+  // Show direct connect prompt only when we don't have a rover ID to try
+  if (!selectedRover && rovers.length === 0 && rtcAddress === "ws://localhost:4852" && !roverId) {
     return <DirectConnectPrompt roverId={roverId} onConnect={connectDirect} />;
   }
 

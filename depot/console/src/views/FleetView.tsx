@@ -1,5 +1,5 @@
-import { useMemo } from "react";
-import { Link } from "react-router-dom";
+import { useMemo, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { useConsoleStore } from "@/store";
 import { useDispatch } from "@/hooks/useDispatch";
 import {
@@ -13,9 +13,42 @@ import {
 } from "@phosphor-icons/react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Mode, ModeLabels, type RoverInfo, type Mode as ModeType } from "@/lib/types";
 import { getBatteryPercent } from "@/lib/utils";
+
+function DirectConnectCard() {
+  const [hostname, setHostname] = useState("");
+  const navigate = useNavigate();
+
+  const submit = () => {
+    const trimmed = hostname.trim();
+    if (trimmed) navigate(`/rover/${trimmed}`);
+  };
+
+  return (
+    <div className="bg-muted/50 border border-border p-8 text-center rounded-lg">
+      <Robot className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
+      <h3 className="font-medium mb-1">No Rovers Discovered</h3>
+      <p className="text-sm text-muted-foreground mb-4">
+        Discovery service unavailable. Connect directly by hostname or IP.
+      </p>
+      <div className="flex gap-2 max-w-xs mx-auto">
+        <Input
+          value={hostname}
+          onChange={(e) => setHostname(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && submit()}
+          placeholder="frog-0 or 192.168.1.100"
+          autoFocus
+        />
+        <Button onClick={submit} disabled={!hostname.trim()}>
+          Connect
+        </Button>
+      </div>
+    </div>
+  );
+}
 
 function timeAgo(timestamp: number): string {
   const diff = Date.now() - timestamp;
@@ -299,15 +332,7 @@ export function FleetView() {
 
           {/* Rover Cards */}
           {rovers.length === 0 ? (
-            <div className="bg-muted/50 border border-border p-8 text-center rounded-lg">
-              <Robot className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
-              <h3 className="font-medium mb-2">No Rovers Registered</h3>
-              <p className="text-sm text-muted-foreground max-w-md mx-auto">
-                Rovers will appear here once they connect to the discovery
-                service. Make sure rovers are configured to register with
-                this depot.
-              </p>
-            </div>
+            <DirectConnectCard />
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {sortedRovers.map((rover) => (
