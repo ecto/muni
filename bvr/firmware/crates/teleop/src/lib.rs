@@ -19,8 +19,6 @@ pub mod obstacle_stream;
 pub mod pointcloud;
 pub mod rtc;
 pub mod video;
-pub mod video_ws;
-pub mod ws;
 
 use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
@@ -503,7 +501,7 @@ impl Server {
 /// Serialize telemetry for transmission (148 bytes).
 ///
 /// This is the single source of truth for telemetry serialization.
-/// Used by UDP, WebSocket, and WebRTC transports.
+/// Used by UDP and WebRTC transports.
 ///
 /// Binary format:
 /// ```text

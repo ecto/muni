@@ -3014,7 +3014,7 @@ fn init_logging(
     let (non_blocking_file, guard) = tracing_appender::non_blocking(file_appender);
 
     // Build filter from level string, with fallback
-    // Include teleop for WebSocket command timing diagnostics
+    // Include teleop for command timing diagnostics
     let filter = EnvFilter::try_from_default_env()
         .unwrap_or_else(|_| EnvFilter::new(format!("bvrd={},teleop={},recording=info", level, level)));
 
