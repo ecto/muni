@@ -104,6 +104,10 @@ interface ConsoleState {
   // from pointCloudStore to read data in useFrame or polling loops.
   pointCloudEnabled: boolean;
   setPointCloudEnabled: (enabled: boolean) => void;
+  lidarStreamRate: number;
+  setLidarStreamRate: (rate: number) => void;
+  lidarMaxPoints: number;
+  setLidarMaxPoints: (maxPoints: number) => void;
 
   // Costmap overlay
   // Note: Costmap data is stored in a mutable store (costmapStore.ts) to avoid
@@ -234,11 +238,11 @@ export const useConsoleStore = create<ConsoleState>()(
       id,
       name: hostname,
       rtcAddress,
-      online: true,
+      online: false,
       batteryVoltage: 0,
       lastPose: { x: 0, y: 0, theta: 0, roll: 0, pitch: 0 },
       mode: Mode.Idle,
-      lastSeen: Date.now(),
+      lastSeen: 0,
     };
     set((state) => ({
       rovers: state.rovers.some((r) => r.id === id)
@@ -354,6 +358,10 @@ export const useConsoleStore = create<ConsoleState>()(
   // Point cloud
   pointCloudEnabled: false,
   setPointCloudEnabled: (enabled) => set({ pointCloudEnabled: enabled }),
+  lidarStreamRate: 5,
+  setLidarStreamRate: (rate) => set({ lidarStreamRate: rate }),
+  lidarMaxPoints: 1000,
+  setLidarMaxPoints: (maxPoints) => set({ lidarMaxPoints: maxPoints }),
 
   // Costmap overlay
   costmapEnabled: true,

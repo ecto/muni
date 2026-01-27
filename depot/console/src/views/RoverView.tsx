@@ -118,10 +118,10 @@ export function RoverView() {
       {/* Connecting Overlay */}
       {connecting && !connected && (
         <div className="absolute inset-0 flex items-center justify-center z-40 pointer-events-none">
-          <div className="flex flex-col items-center gap-3">
-            <CircleNotch className="h-12 w-12 animate-spin text-primary" />
-            <span className="text-lg text-muted-foreground">
-              Connecting to {selectedRover?.name ?? "rover"}...
+          <div className="flex items-center gap-2.5 bg-card/80 backdrop-blur-sm border border-border rounded-lg px-4 py-2.5 shadow-lg">
+            <CircleNotch className="h-4 w-4 animate-spin text-muted-foreground" />
+            <span className="text-sm text-muted-foreground">
+              Connecting to {selectedRover?.name ?? "rover"}…
             </span>
           </div>
         </div>

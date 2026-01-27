@@ -550,13 +550,20 @@ export function decodePointCloud(data: ArrayBuffer): DecodedPointCloud | null {
 
 /**
  * Encode a LiDAR toggle command.
- * Format: [type:u8] [flags:u8] [sequence:u16 LE] [timestamp_ms:u32 LE] [enabled:u8]
+ * Format: [type:u8] [flags:u8] [sequence:u16 LE] [timestamp_ms:u32 LE]
+ *         [enabled:u8] [rate_hz:u8] [max_points:u16 LE]
  */
-export function encodeLidarToggle(enabled: boolean): ArrayBuffer {
-  const buf = new ArrayBuffer(CMD_HEADER_SIZE + 1);
+export function encodeLidarToggle(
+  enabled: boolean,
+  rateHz: number = 5,
+  maxPoints: number = 1000,
+): ArrayBuffer {
+  const buf = new ArrayBuffer(CMD_HEADER_SIZE + 4);
   const view = new DataView(buf);
   buildHeader(view, MSG_LIDAR_TOGGLE);
   view.setUint8(CMD_HEADER_SIZE, enabled ? 1 : 0);
+  view.setUint8(CMD_HEADER_SIZE + 1, Math.max(1, Math.min(10, rateHz)));
+  view.setUint16(CMD_HEADER_SIZE + 2, Math.max(100, Math.min(10000, maxPoints)), true);
   return buf;
 }
 

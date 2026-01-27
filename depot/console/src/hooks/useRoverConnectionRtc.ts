@@ -374,8 +374,9 @@ export function useRoverConnectionRtc() {
         // Sync LiDAR state on connection - rover starts with streaming disabled,
         // but console may have it enabled from a previous session
         if (pointCloudEnabled) {
-          console.log("[WebRTC] Syncing LiDAR state: enabled");
-          commandChannelRef.current!.send(encodeLidarToggle(true));
+          const { lidarStreamRate, lidarMaxPoints } = useConsoleStore.getState();
+          console.log(`[WebRTC] Syncing LiDAR state: enabled, rate: ${lidarStreamRate}Hz, maxPts: ${lidarMaxPoints}`);
+          commandChannelRef.current!.send(encodeLidarToggle(true, lidarStreamRate, lidarMaxPoints));
         }
       };
 
@@ -875,9 +876,10 @@ export function useRoverConnectionRtc() {
       }
     }, []),
     toggleLidar: useCallback((enabled: boolean) => {
-      console.log(`[WebRTC] Toggling LiDAR: ${enabled}`);
+      const { lidarStreamRate, lidarMaxPoints } = useConsoleStore.getState();
+      console.log(`[WebRTC] Toggling LiDAR: ${enabled}, rate: ${lidarStreamRate}Hz, maxPts: ${lidarMaxPoints}`);
       if (commandChannelRef.current?.readyState === "open") {
-        commandChannelRef.current.send(encodeLidarToggle(enabled));
+        commandChannelRef.current.send(encodeLidarToggle(enabled, lidarStreamRate, lidarMaxPoints));
         console.log("[WebRTC] LiDAR toggle command sent");
       } else {
         console.warn("[WebRTC] Cannot toggle LiDAR - command channel not open");

@@ -5,6 +5,7 @@ import {
   TooltipTrigger,
   TooltipContent,
 } from "@/components/ui/tooltip";
+import { Slider } from "@/components/ui/slider";
 import { Sparkline } from "@/components/ui/sparkline";
 import { getChannelColor } from "@/lib/channelColor";
 import {
@@ -72,7 +73,7 @@ function WheelDot({ label, status }: { label: string; status: WheelStatus }) {
 
 const CHANNEL_CONFIG = [
   { key: "telemetry", label: "Telem", tooltip: "Telemetry data channel (~30-60 msg/s)" },
-  { key: "video", label: "Video", tooltip: "Video frames channel (~10-15 FPS per camera)" },
+  { key: "video", label: "FPS", tooltip: "Video decode frame rate (~10-15 FPS per camera)" },
   { key: "pointcloud", label: "Cloud", tooltip: "LiDAR point cloud channel (~5 msg/s when enabled)" },
   { key: "costmap", label: "Costmap", tooltip: "Occupancy costmap channel (~5 msg/s when enabled)" },
   { key: "obstacles", label: "Objects", tooltip: "Obstacle detections channel (~5 msg/s when enabled)" },
@@ -110,6 +111,13 @@ function getLatencyColor(ms: number): string {
   return "#22c55e";
 }
 
+function getFpsColor(fps: number): string {
+  if (fps === 0) return "#6b7280";
+  if (fps < 5) return "#ef4444";
+  if (fps < 10) return "#f59e0b";
+  return "#22c55e";
+}
+
 const LATENCY_HISTORY_LEN = 30;
 
 interface DiagnosticsPanelProps {
@@ -120,6 +128,10 @@ export function DiagnosticsPanel({ onToggleLidar }: DiagnosticsPanelProps) {
   const connected = useConsoleStore((s) => s.connected);
   const pointCloudEnabled = useConsoleStore((s) => s.pointCloudEnabled);
   const setPointCloudEnabled = useConsoleStore((s) => s.setPointCloudEnabled);
+  const lidarStreamRate = useConsoleStore((s) => s.lidarStreamRate);
+  const setLidarStreamRate = useConsoleStore((s) => s.setLidarStreamRate);
+  const lidarMaxPoints = useConsoleStore((s) => s.lidarMaxPoints);
+  const setLidarMaxPoints = useConsoleStore((s) => s.setLidarMaxPoints);
   const splatEnabled = useConsoleStore((s) => s.splatEnabled);
   const setSplatEnabled = useConsoleStore((s) => s.setSplatEnabled);
   const costmapEnabled = useConsoleStore((s) => s.costmapEnabled);
@@ -156,6 +168,16 @@ export function DiagnosticsPanel({ onToggleLidar }: DiagnosticsPanelProps) {
     onToggleLidar?.(newEnabled);
   }, [pointCloudEnabled, setPointCloudEnabled, onToggleLidar]);
 
+  const handleLidarRateChange = useCallback((value: number[]) => {
+    setLidarStreamRate(value[0]);
+    onToggleLidar?.(true);
+  }, [setLidarStreamRate, onToggleLidar]);
+
+  const handleLidarDensityChange = useCallback((value: number[]) => {
+    setLidarMaxPoints(value[0]);
+    onToggleLidar?.(true);
+  }, [setLidarMaxPoints, onToggleLidar]);
+
   const handleToggleSplat = useCallback(() => {
     setSplatEnabled(!splatEnabled);
   }, [splatEnabled, setSplatEnabled]);
@@ -167,8 +189,6 @@ export function DiagnosticsPanel({ onToggleLidar }: DiagnosticsPanelProps) {
   const handleToggleObstacles = useCallback(() => {
     setObstaclesEnabled(!obstaclesEnabled);
   }, [obstaclesEnabled, setObstaclesEnabled]);
-
-  if (!connected) return null;
 
   return (
     <div className="p-2 space-y-2">
@@ -284,6 +304,40 @@ export function DiagnosticsPanel({ onToggleLidar }: DiagnosticsPanelProps) {
         </Tooltip>
       </div>
 
+      {/* LiDAR stream config (visible when streaming) */}
+      {pointCloudEnabled && telemetry.health.lidar_active && (
+        <div className="space-y-1.5">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="flex items-center gap-2 text-xs cursor-help">
+                <span className="text-muted-foreground w-8">{lidarStreamRate}Hz</span>
+                <Slider
+                  min={1} max={10} step={1}
+                  value={[lidarStreamRate]}
+                  onValueChange={handleLidarRateChange}
+                  className="[&_[data-slot=slider-track]]:h-0.5 [&_[data-slot=slider-thumb]]:h-2.5 [&_[data-slot=slider-thumb]]:w-2.5 [&_[data-slot=slider-range]]:bg-green-500"
+                />
+              </div>
+            </TooltipTrigger>
+            <TooltipContent side="right">Streaming rate (1–10 Hz)</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="flex items-center gap-2 text-xs cursor-help">
+                <span className="text-muted-foreground w-8">{(lidarMaxPoints / 1000).toFixed(1)}k</span>
+                <Slider
+                  min={500} max={5000} step={500}
+                  value={[lidarMaxPoints]}
+                  onValueChange={handleLidarDensityChange}
+                  className="[&_[data-slot=slider-track]]:h-0.5 [&_[data-slot=slider-thumb]]:h-2.5 [&_[data-slot=slider-thumb]]:w-2.5 [&_[data-slot=slider-range]]:bg-green-500"
+                />
+              </div>
+            </TooltipTrigger>
+            <TooltipContent side="right">Max points per frame (500–5000)</TooltipContent>
+          </Tooltip>
+        </div>
+      )}
+
       {/* Channel Metrics — no header */}
       <div className="pt-1 border-t border-border space-y-0.5">
         {/* Latency */}
@@ -304,7 +358,7 @@ export function DiagnosticsPanel({ onToggleLidar }: DiagnosticsPanelProps) {
           const rate = metrics?.messagesPerSec ?? 0;
           const lastTime = metrics?.lastMessageTime ?? 0;
           const history = metrics?.history ?? [];
-          const color = getChannelColor(rate, lastTime, connected);
+          const color = key === "video" ? getFpsColor(rate) : getChannelColor(rate, lastTime, connected);
 
           return (
             <Tooltip key={key}>
@@ -313,7 +367,7 @@ export function DiagnosticsPanel({ onToggleLidar }: DiagnosticsPanelProps) {
                   <span className="text-muted-foreground w-10">{label}</span>
                   <Sparkline data={history} color={color} width={48} height={14} />
                   <span className="font-mono text-stone-900 dark:text-stone-100 w-10 text-right" style={{ color }}>
-                    {rate.toFixed(0)}/s
+                    {rate.toFixed(0)}{key === "video" ? "fps" : "/s"}
                   </span>
                 </div>
               </TooltipTrigger>
