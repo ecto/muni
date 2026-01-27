@@ -844,6 +844,12 @@ export function useRoverConnectionRtc() {
     sendEStopRelease: useCallback(() => {
       currentInputRef.current.estop = false;
       if (commandChannelRef.current?.readyState === "open") {
+        // Claim operator first — EStopRelease requires operator status,
+        // and we may not have claimed yet. SetMode(Teleop) triggers
+        // try_claim() on the firmware side (the mode won't change from
+        // EStop, but the operator claim succeeds).
+        commandChannelRef.current.send(encodeSetMode(Mode.Teleop));
+        isOperatorRef.current = true;
         commandChannelRef.current.send(encodeEStopRelease());
       }
     }, []),
