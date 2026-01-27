@@ -25,7 +25,7 @@ use crate::{
     MSG_ESTOP_RELEASE, MSG_HEARTBEAT, MSG_LIDAR_TOGGLE, MSG_SET_MODE, MSG_TOOL, MSG_TWIST,
 };
 use costmap::CostmapSnapshot;
-use costmap::clustering::Obstacle;
+use costmap::TrackedObstacle;
 use lidar::PointCloud;
 use futures_util::{SinkExt, StreamExt};
 use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering};
@@ -240,7 +240,7 @@ pub struct RtcServer {
     video_rx: Option<Arc<Mutex<tokio_mpsc::Receiver<VideoFrame>>>>,
     lidar_rx: Option<watch::Receiver<Option<PointCloud>>>,
     costmap_rx: Option<watch::Receiver<Option<CostmapSnapshot>>>,
-    obstacles_rx: Option<watch::Receiver<Option<Vec<Obstacle>>>>,
+    obstacles_rx: Option<watch::Receiver<Option<Vec<TrackedObstacle>>>>,
     operator_state: Arc<OperatorState>,
     metrics: Arc<RtcMetrics>,
 }
@@ -311,7 +311,7 @@ impl RtcServer {
     }
 
     /// Set the obstacles receiver for streaming obstacle data to the console.
-    pub fn set_obstacles_rx(&mut self, rx: watch::Receiver<Option<Vec<Obstacle>>>) {
+    pub fn set_obstacles_rx(&mut self, rx: watch::Receiver<Option<Vec<TrackedObstacle>>>) {
         self.obstacles_rx = Some(rx);
     }
 
@@ -406,7 +406,7 @@ async fn handle_signaling(
     video_rx: Option<Arc<Mutex<tokio_mpsc::Receiver<VideoFrame>>>>,
     lidar_rx: Option<watch::Receiver<Option<PointCloud>>>,
     costmap_rx: Option<watch::Receiver<Option<CostmapSnapshot>>>,
-    obstacles_rx: Option<watch::Receiver<Option<Vec<Obstacle>>>>,
+    obstacles_rx: Option<watch::Receiver<Option<Vec<TrackedObstacle>>>>,
     config: Arc<RtcConfig>,
     conn_id: u64,
     operator_state: Arc<OperatorState>,
@@ -886,8 +886,8 @@ async fn handle_signaling(
             let stats = obs_metrics.clone();
             Box::pin(async move {
                 info!("WebRTC obstacles channel opened");
-                // Stream at 2Hz (same cadence as costmap)
-                let mut interval = tokio::time::interval(Duration::from_millis(500));
+                // Stream at 10Hz for smooth client-side interpolation
+                let mut interval = tokio::time::interval(Duration::from_millis(100));
                 let mut frame_count: u64 = 0;
 
                 loop {
@@ -903,7 +903,7 @@ async fn handle_signaling(
                     // Get latest obstacles
                     let obstacles = rx.borrow_and_update().clone();
                     if let Some(obstacles) = obstacles {
-                        let data = obstacle_stream::serialize(&obstacles);
+                        let data = obstacle_stream::serialize_tracked(&obstacles);
                         let start = std::time::Instant::now();
                         if let Err(e) = channel.send(&bytes::Bytes::from(data)).await {
                             debug!(?e, "Failed to send obstacles (channel closing?)");

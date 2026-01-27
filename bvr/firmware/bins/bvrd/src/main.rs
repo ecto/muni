@@ -15,7 +15,7 @@ use slam::{SlamConfig, SlamProcessor, SlamState};
 use planner::PlannerConfig;
 use pursuit::PursuitConfig;
 use control_loop::{NavigationConfig, NavigationController, NavigationState};
-use costmap::CostmapSnapshot;
+use costmap::{CostmapSnapshot, ObstacleTracker, TrackerConfig};
 use transforms::Transform2D;
 use metrics::{Config as MetricsConfig, DiscoveryClient, DiscoveryConfig, MetricsPusher, MetricsSnapshot, SystemMetricsCollector};
 use policy::{NormalizationConfig, Policy, PolicyManager, PolicyObservation};
@@ -1162,8 +1162,10 @@ async fn main() -> Result<()> {
     let (lidar_tx, lidar_rx) = watch::channel::<Option<lidar::PointCloud>>(None);
     // watch for costmap streaming (created early for RtcServer, populated from control loop)
     let (costmap_tx, costmap_rx) = watch::channel::<Option<CostmapSnapshot>>(None);
-    // watch for obstacle streaming (extracted from costmap, populated from control loop)
-    let (obstacles_tx, obstacles_rx) = watch::channel::<Option<Vec<costmap::Obstacle>>>(None);
+    // watch for obstacle streaming (tracked obstacles with stable IDs and velocity)
+    let (obstacles_tx, obstacles_rx) = watch::channel::<Option<Vec<costmap::TrackedObstacle>>>(None);
+    // Object tracker for stable IDs and velocity estimation
+    let mut obstacle_tracker = ObstacleTracker::new(TrackerConfig::default());
 
     // Spawn teleop server (UDP)
     let teleop_config = TeleopConfig::default();
@@ -2571,9 +2573,12 @@ async fn main() -> Result<()> {
             if let Some(ref mut nav) = navigation_controller {
                 let robot_tf = Transform2D::from_pose(&pose_estimator.pose());
                 nav.update_costmap(&scan, &robot_tf);
-                // Publish costmap snapshot and obstacles for console streaming
+                // Publish costmap snapshot for console streaming
                 let _ = costmap_tx.send(Some(nav.costmap_snapshot()));
-                let _ = obstacles_tx.send(Some(nav.extract_obstacles()));
+                // Track obstacles for stable IDs and velocity
+                let raw_obstacles = nav.extract_obstacles();
+                let tracked = obstacle_tracker.update(&raw_obstacles, dt as f32);
+                let _ = obstacles_tx.send(Some(tracked));
             }
             let costmap_ms = costmap_start.elapsed().as_millis();
 
