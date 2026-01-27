@@ -177,35 +177,13 @@ export function StatusPanel() {
             <Progress value={batteryPercent} className="h-1.5" />
           </div>
         </TooltipTrigger>
-        <TooltipContent side="right">12S LiPo. Critical &lt;42V, Warning &lt;45V, Full ~50.4V</TooltipContent>
+        <TooltipContent side="right">13S LiPo. Critical &lt;42V, Warning &lt;45V, Full ~54.6V</TooltipContent>
       </Tooltip>
 
-      {/* Velocity — no header */}
-      <div className="grid grid-cols-2 gap-2 text-xs text-stone-900 dark:text-stone-100">
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <div className="flex justify-between cursor-help">
-              <span className="text-muted-foreground">Lin</span>
-              <span className="font-mono">{telemetry.velocity.linear.toFixed(2)}</span>
-            </div>
-          </TooltipTrigger>
-          <TooltipContent side="right">Forward/backward speed in m/s</TooltipContent>
-        </Tooltip>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <div className="flex justify-between cursor-help">
-              <span className="text-muted-foreground">Ang</span>
-              <span className="font-mono">{telemetry.velocity.angular.toFixed(2)}</span>
-            </div>
-          </TooltipTrigger>
-          <TooltipContent side="right">Rotation rate in rad/s (positive = CCW)</TooltipContent>
-        </Tooltip>
-      </div>
-
-      {/* Position + Attitude — divider above */}
+      {/* Position + Velocity + Attitude */}
       <div className="pt-1 border-t border-border space-y-1.5">
-        {/* X / Y / θ — vertical label + value */}
-        <div className="grid grid-cols-3 gap-1 text-xs text-center text-stone-900 dark:text-stone-100">
+        {/* X / Y / θ / Lin / Ang */}
+        <div className="grid grid-cols-5 gap-1 text-xs text-center text-stone-900 dark:text-stone-100">
           <Tooltip>
             <TooltipTrigger asChild>
               <div className="cursor-help">
@@ -232,6 +210,24 @@ export function StatusPanel() {
               </div>
             </TooltipTrigger>
             <TooltipContent side="right">Heading angle. 0&deg; = East, 90&deg; = North</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="cursor-help">
+                <div className="text-muted-foreground">Lin</div>
+                <div className="font-mono">{telemetry.velocity.linear.toFixed(2)}</div>
+              </div>
+            </TooltipTrigger>
+            <TooltipContent side="right">Forward/backward speed in m/s</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="cursor-help">
+                <div className="text-muted-foreground">Ang</div>
+                <div className="font-mono">{telemetry.velocity.angular.toFixed(2)}</div>
+              </div>
+            </TooltipTrigger>
+            <TooltipContent side="right">Rotation rate in rad/s (positive = CCW)</TooltipContent>
           </Tooltip>
         </div>
 

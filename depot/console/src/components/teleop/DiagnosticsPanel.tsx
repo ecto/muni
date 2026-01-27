@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Badge } from "@/components/ui/badge";
 import {
   Tooltip,
@@ -103,6 +103,15 @@ function lidarIconColor(state: number): string {
   return "text-muted-foreground/50";
 }
 
+function getLatencyColor(ms: number): string {
+  if (ms === 0) return "#6b7280";
+  if (ms > 200) return "#ef4444";
+  if (ms > 100) return "#f59e0b";
+  return "#22c55e";
+}
+
+const LATENCY_HISTORY_LEN = 30;
+
 interface DiagnosticsPanelProps {
   onToggleLidar?: (enabled: boolean) => void;
 }
@@ -123,11 +132,20 @@ export function DiagnosticsPanel({ onToggleLidar }: DiagnosticsPanelProps) {
     )
   );
 
-  // Poll telemetry at 4Hz (always — no collapsed state)
+  // Poll telemetry + latency at 4Hz (always — no collapsed state)
   const [telemetry, setTelemetry] = useState(useConsoleStore.getState().telemetry);
+  const [latencyMs, setLatencyMs] = useState(useConsoleStore.getState().latencyMs);
+  const latencyHistoryRef = useRef<number[]>([]);
+  const [latencyHistory, setLatencyHistory] = useState<number[]>([]);
   useEffect(() => {
     const id = setInterval(() => {
-      setTelemetry(useConsoleStore.getState().telemetry);
+      const state = useConsoleStore.getState();
+      setTelemetry(state.telemetry);
+      setLatencyMs(state.latencyMs);
+      const h = latencyHistoryRef.current;
+      h.push(state.latencyMs);
+      if (h.length > LATENCY_HISTORY_LEN) h.shift();
+      setLatencyHistory([...h]);
     }, 250);
     return () => clearInterval(id);
   }, []);
@@ -268,6 +286,19 @@ export function DiagnosticsPanel({ onToggleLidar }: DiagnosticsPanelProps) {
 
       {/* Channel Metrics — no header */}
       <div className="pt-1 border-t border-border space-y-0.5">
+        {/* Latency */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div className="flex items-center justify-between text-xs cursor-help">
+              <span className="text-muted-foreground w-10">Ping</span>
+              <Sparkline data={latencyHistory} color={getLatencyColor(latencyMs)} width={48} height={14} />
+              <span className="font-mono w-10 text-right" style={{ color: getLatencyColor(latencyMs) }}>
+                {latencyMs}ms
+              </span>
+            </div>
+          </TooltipTrigger>
+          <TooltipContent side="right">WebSocket round-trip latency</TooltipContent>
+        </Tooltip>
         {CHANNEL_CONFIG.map(({ key, label, tooltip }, index) => {
           const metrics = channelMetricsData[index];
           const rate = metrics?.messagesPerSec ?? 0;
