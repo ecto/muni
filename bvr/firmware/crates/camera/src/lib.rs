@@ -52,6 +52,22 @@ pub struct DetectedCamera {
     pub name: String,
 }
 
+impl DetectedCamera {
+    /// Stable identity key for tracking across hot-plug cycles.
+    ///
+    /// Returns a unique string per physical camera:
+    /// - USB: device path (e.g. `/dev/video0`)
+    /// - CSI: `csi:<sensor_id>`
+    /// - AVF: `avf:<device_index>`
+    pub fn stable_id(&self) -> String {
+        match &self.camera_type {
+            CameraType::Usb { device } => device.clone(),
+            CameraType::Csi { sensor_id } => format!("csi:{sensor_id}"),
+            CameraType::Avf { device_index } => format!("avf:{device_index}"),
+        }
+    }
+}
+
 /// Camera configuration.
 #[derive(Debug, Clone)]
 pub struct Config {
@@ -473,13 +489,15 @@ fn build_pipeline_string(camera: &DetectedCamera, config: &Config) -> (String, b
         }
         CameraType::Usb { device } => {
             // USB/V4L2 camera pipeline (Linux) - software JPEG encoding
+            // Don't constrain v4l2src caps — let it negotiate the camera's native
+            // format, then videoconvert + videoscale to the desired output.
             let pipeline = format!(
                 "v4l2src device={} do-timestamp=true ! \
-                 video/x-raw,width={},height={},framerate={}/1 ! \
                  videoconvert ! \
-                 video/x-raw,format=RGB ! \
+                 videoscale ! \
+                 video/x-raw,format=RGB,width={},height={} ! \
                  appsink name=sink emit-signals=true max-buffers=1 drop=true sync=false",
-                device, config.width, config.height, config.fps
+                device, config.width, config.height
             );
             (pipeline, false)
         }
@@ -729,6 +747,27 @@ fn capture_loop(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_stable_id() {
+        let usb = DetectedCamera {
+            camera_type: CameraType::Usb { device: "/dev/video0".into() },
+            name: "USB Camera".into(),
+        };
+        assert_eq!(usb.stable_id(), "/dev/video0");
+
+        let csi = DetectedCamera {
+            camera_type: CameraType::Csi { sensor_id: 1 },
+            name: "CSI Camera".into(),
+        };
+        assert_eq!(csi.stable_id(), "csi:1");
+
+        let avf = DetectedCamera {
+            camera_type: CameraType::Avf { device_index: 2 },
+            name: "AVF Camera".into(),
+        };
+        assert_eq!(avf.stable_id(), "avf:2");
+    }
 
     #[test]
     fn test_camera_mount_intrinsics() {

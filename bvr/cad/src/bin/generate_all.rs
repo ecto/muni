@@ -9,7 +9,7 @@ use anyhow::Result;
 use bvr_cad::export::{export_stl, Materials};
 #[cfg(feature = "gltf")]
 use bvr_cad::export::{export_glb, export_scene_glb};
-use bvr_cad::export::{export_usd, export_robot_usd, WheelConfig};
+use bvr_cad::export::{export_usd, export_robot_usd, RobotPhysics, WheelConfig};
 use bvr_cad::parts::{
     // Custom fabricated
     BVR1Frame, CornerBracket, ElectronicsPlate, Extrusion2020, MotorMount, SensorMount, TNut,
@@ -228,7 +228,7 @@ fn main() -> Result<()> {
     let part = blower_nozzle.generate();
     export_part("blower_nozzle", &part, "3d_printed")?;
     println!("  Blower Nozzle (3D printed, {:.0}mm inlet → {:.0}mm × {:.0}mm outlet)",
-             nozzle_config.inlet_size, nozzle_config.outlet_width, nozzle_config.outlet_height);
+             nozzle_config.inlet_size(), nozzle_config.outlet_width, nozzle_config.outlet_height);
     println!("    - Velocity boost: {:.1}× (converging profile)",
              nozzle_config.velocity_ratio());
     println!("    - Length: {:.0}mm", nozzle_config.length);
@@ -421,7 +421,15 @@ fn main() -> Result<()> {
     ];
 
     let robot_usd_path = usd_dir.join("bvr1_robot.usda");
-    export_robot_usd(&bvr1, &wheel_configs, &materials, &robot_usd_path)?;
+    export_robot_usd(
+        &bvr1,
+        &wheel_configs,
+        &materials,
+        &robot_usd_path,
+        "BVR1",
+        "bvr1_assembly",
+        &RobotPhysics::default(),
+    )?;
     usd_count += 1;
     println!("  bvr1_robot.usda (articulated)");
 
