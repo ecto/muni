@@ -1,15 +1,63 @@
 #!/usr/bin/env python3
 """Extract (observation, action) pairs from .rrd teleop recordings.
 
-Reads Rerun .rrd session files, filters to teleop-mode segments, computes
-pseudo-goals from future trajectory, and outputs a normalized dataset
-suitable for behavioral cloning.
+This is the first step in the behavioral cloning pipeline. It reads Rerun
+.rrd session files recorded during teleop, filters to teleop-mode segments,
+computes pseudo-goals from the future trajectory, and outputs a normalized
+dataset ready for supervised learning.
 
-Output: demos.npz with:
-    observations: (N, 7) float32 — [x, y, theta, lin_vel, ang_vel, goal_dx, goal_dy]
-    actions: (N, 2) float32 — [linear_cmd, angular_cmd]
+Pipeline position:
+    teleop .rrd files  →  [THIS SCRIPT]  →  demos.npz  →  train_bc.py
 
-All values normalized to approximately [-1, 1].
+Output format (demos.npz):
+    observations : ndarray, shape (N, 7), dtype float32
+        Each row is a normalized observation vector:
+            [0] x          — robot x position / MAX_POSITION
+            [1] y          — robot y position / MAX_POSITION
+            [2] theta      — robot heading / pi
+            [3] lin_vel    — commanded linear velocity / MAX_LINEAR_VEL
+            [4] ang_vel    — commanded angular velocity / MAX_ANGULAR_VEL
+            [5] goal_dx    — pseudo-goal delta-x in robot frame / MAX_POSITION
+            [6] goal_dy    — pseudo-goal delta-y in robot frame / MAX_POSITION
+
+    actions : ndarray, shape (N, 2), dtype float32
+        Each row is a normalized action (the operator's commanded velocity):
+            [0] linear_cmd  — commanded linear velocity / MAX_LINEAR_VEL
+            [1] angular_cmd — commanded angular velocity / MAX_ANGULAR_VEL
+
+    sessions_used : int
+        Number of .rrd files that contributed at least one sample.
+
+    All values are clipped to [-1, 1].
+
+Pseudo-goal strategy:
+    Teleop recordings contain no explicit navigation goals. To create the
+    goal input that the policy expects at deploy time, we use the robot's
+    actual position GOAL_HORIZON_S seconds in the future as a "pseudo-goal."
+    This position is transformed into the robot's local frame at the current
+    timestep. At deploy time, the classical planner provides real goals in
+    the same format.
+
+Filtering:
+    - Only samples in Teleop mode are included (autonomous/idle excluded).
+    - Stationary samples (|linear_vel| < MIN_SPEED) are discarded to avoid
+      training on "do nothing" data that would bias the policy toward zero.
+    - The raw 100Hz recording is subsampled to 10Hz (SUBSAMPLE_STEP=10) to
+      reduce temporal correlation between adjacent samples.
+    - The last GOAL_HORIZON_S seconds of each session are discarded because
+      there is no future trajectory data to construct a pseudo-goal.
+
+Normalization constants:
+    MAX_POSITION, MAX_LINEAR_VEL, MAX_ANGULAR_VEL must match the Rust
+    policy crate's NormalizationConfig::default(). If those constants change,
+    update them here too — otherwise the Python-trained policy will produce
+    incorrect outputs when loaded in Rust.
+
+Usage:
+    python extract_demos.py --sessions-dir /path/to/sessions --output demos.npz
+
+Requirements:
+    pip install rerun-sdk numpy   (see requirements.txt)
 """
 
 from __future__ import annotations
@@ -25,23 +73,45 @@ try:
 except ImportError:
     raise SystemExit("rerun-sdk is required: pip install rerun-sdk")
 
-# --- Normalization constants (must match policy crate NormalizationConfig) ---
-MAX_POSITION = 50.0
-MAX_LINEAR_VEL = 2.0
-MAX_ANGULAR_VEL = 2.0
+# --- Normalization constants ---
+# These MUST match the Rust policy crate's NormalizationConfig::default().
+# See: bvr/firmware/crates/policy/src/lib.rs → NormalizationConfig
+MAX_POSITION = 50.0      # meters — normalizes x, y, goal_dx, goal_dy
+MAX_LINEAR_VEL = 2.0     # m/s — normalizes linear velocity & commands
+MAX_ANGULAR_VEL = 2.0    # rad/s — normalizes angular velocity & commands
 
 # --- Extraction parameters ---
-GOAL_HORIZON_S = 2.0  # seconds ahead for pseudo-goal
-SOURCE_HZ = 100  # assumed recording rate
-TARGET_HZ = 10  # output rate
-SUBSAMPLE_STEP = SOURCE_HZ // TARGET_HZ
-MIN_SPEED = 0.05  # filter stationary samples
+GOAL_HORIZON_S = 2.0     # seconds ahead for pseudo-goal lookahead
+SOURCE_HZ = 100          # assumed .rrd recording rate (bvrd default)
+TARGET_HZ = 10           # output dataset rate (reduce temporal correlation)
+SUBSAMPLE_STEP = SOURCE_HZ // TARGET_HZ  # take every 10th sample
+MIN_SPEED = 0.05         # m/s — discard stationary samples below this
 
 
 def transform_to_robot_frame(
     dx: float, dy: float, theta: float
 ) -> tuple[float, float]:
-    """Transform a world-frame delta into robot-frame coordinates."""
+    """Transform a world-frame displacement into robot-frame coordinates.
+
+    Given a displacement (dx, dy) in the world frame and the robot's heading
+    theta, returns the same displacement expressed in the robot's local frame
+    where +x is forward and +y is left.
+
+    This is a 2D rotation by -theta (inverse of the robot's heading):
+        rx =  dx * cos(theta) + dy * sin(theta)
+        ry = -dx * sin(theta) + dy * cos(theta)
+
+    This matches the transform in the Rust policy crate's
+    PolicyObservation::from_raw() method.
+
+    Args:
+        dx: World-frame x displacement (meters).
+        dy: World-frame y displacement (meters).
+        theta: Robot heading in radians (0 = east, pi/2 = north).
+
+    Returns:
+        (rx, ry): Displacement in robot frame (forward, left).
+    """
     cos_t = math.cos(theta)
     sin_t = math.sin(theta)
     rx = dx * cos_t + dy * sin_t
@@ -50,9 +120,29 @@ def transform_to_robot_frame(
 
 
 def extract_session(rrd_path: Path) -> tuple[np.ndarray, np.ndarray] | None:
-    """Extract demo pairs from a single .rrd session file.
+    """Extract (observation, action) pairs from a single .rrd session file.
 
-    Returns (observations, actions) arrays or None if no valid data.
+    Opens the .rrd file using Rerun's dataframe API, queries the required
+    channels, and iterates through timesteps to build normalized
+    observation-action pairs.
+
+    The required .rrd channels are:
+        - robot/x, robot/y, robot/heading — pose from localization
+        - velocity/linear/commanded — operator's linear velocity command
+        - velocity/angular/commanded — operator's angular velocity command
+        - state/mode — rover operating mode (filters to Teleop only)
+
+    For each valid timestep (teleop mode, moving, not in last 2s), the
+    pseudo-goal is computed as the robot's position GOAL_HORIZON_S seconds
+    in the future, transformed into the robot's local frame.
+
+    Args:
+        rrd_path: Path to a .rrd session recording file.
+
+    Returns:
+        Tuple of (observations, actions) numpy arrays, or None if the
+        session has no valid teleop samples. observations has shape
+        (N, 7) and actions has shape (N, 2), both float32.
     """
     recording = rr.dataframe.load_recording(str(rrd_path))
     view = recording.view(

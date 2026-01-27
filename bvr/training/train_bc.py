@@ -1,10 +1,76 @@
 #!/usr/bin/env python3
 """Train an MLP policy via behavioral cloning on teleop demonstrations.
 
-Input: demos.npz (from extract_demos.py)
-Output: JSON policy file compatible with the Rust policy crate.
+This is the second step in the behavioral cloning pipeline. It takes the
+dataset produced by extract_demos.py and trains a small MLP to imitate the
+teleop operator's velocity commands.
 
-Architecture: 7 -> 64 (tanh) -> 64 (tanh) -> 2 (tanh)  (4802 params)
+Pipeline position:
+    extract_demos.py  →  demos.npz  →  [THIS SCRIPT]  →  policy.json  →  rover
+
+Input:
+    demos.npz — NumPy archive with:
+        observations: (N, 7) float32 — normalized observation vectors
+        actions: (N, 2) float32 — normalized velocity commands
+        sessions_used: int — number of source sessions
+
+Output:
+    JSON policy file directly loadable by the Rust policy crate
+    (bvr/firmware/crates/policy). The file contains the MLP weights,
+    biases, architecture metadata, and training metrics.
+
+Architecture:
+    7 → 64 (tanh) → 64 (tanh) → 2 (tanh)
+
+    - Input: 7-dim observation (pose, velocity, goal — see extract_demos.py)
+    - Hidden: two 64-unit layers with tanh activation
+    - Output: 2-dim action (linear vel, angular vel), tanh-bounded to [-1, 1]
+    - Total parameters: 4802
+        Layer 0: 7×64 + 64     = 512
+        Layer 1: 64×64 + 64    = 4160
+        Layer 2: 64×2 + 2      = 130
+                                  ----
+                                  4802
+
+    Tanh is used everywhere (not ReLU) because:
+    1. The Rust inference engine uses tanh — matching activations avoids
+       train/deploy mismatch.
+    2. Bounded outputs are desirable for velocity commands.
+    3. The network is small enough that vanishing gradients aren't an issue.
+
+Training:
+    - Loss: MSE between predicted and demonstrated actions
+    - Optimizer: Adam with default betas, lr=1e-3
+    - Batch size: 256
+    - Epochs: 200
+    - Validation: 10% held out, best model selected by val MSE
+    - Deterministic: seeded (default seed=42) for reproducibility
+
+Output JSON format:
+    The output JSON is designed to be loaded by Policy::load() in the Rust
+    crate without any conversion step. Key fields:
+
+    {
+        "architecture": "mlp",
+        "observation_size": 7,
+        "action_size": 2,
+        "layers": [
+            {"weights": [[...]], "biases": [...]},  // 64x7 + 64
+            {"weights": [[...]], "biases": [...]},  // 64x64 + 64
+            {"weights": [[...]], "biases": [...]}   // 2x64 + 2
+        ],
+        "metrics": {"mse": ..., "r2": ..., ...}
+    }
+
+    The "weights" and "biases" top-level fields are empty arrays (they exist
+    only for backward compatibility with linear policies).
+
+Usage:
+    python train_bc.py --data demos.npz --output bc-teleop-v0.1.0.json
+    python train_bc.py --data demos.npz --epochs 500 --lr 5e-4
+
+Requirements:
+    pip install numpy torch   (see requirements.txt)
 """
 
 from __future__ import annotations
@@ -21,9 +87,30 @@ from torch.utils.data import DataLoader, TensorDataset
 
 
 class BCPolicy(nn.Module):
-    """Simple MLP for behavioral cloning."""
+    """MLP policy network for behavioral cloning.
+
+    A simple feedforward network: obs → hidden → hidden → action, with tanh
+    activations on every layer (including the output). The architecture is
+    intentionally small — it needs to run in real-time on the rover's Jetson
+    Orin NX via the Rust policy crate's forward_mlp() function.
+
+    The network structure mirrors the Rust inference engine exactly:
+    each nn.Linear layer corresponds to one MlpLayer in the Rust crate,
+    and tanh is applied after every layer (there is no final linear output).
+
+    Attributes:
+        net: Sequential stack of Linear → Tanh layers.
+    """
 
     def __init__(self, obs_dim: int = 7, act_dim: int = 2, hidden: int = 64):
+        """Initialize the BC policy network.
+
+        Args:
+            obs_dim: Observation vector size (default 7: pose + velocity + goal).
+            act_dim: Action vector size (default 2: linear vel + angular vel).
+            hidden: Hidden layer width (default 64). Both hidden layers use
+                the same width.
+        """
         super().__init__()
         self.net = nn.Sequential(
             nn.Linear(obs_dim, hidden),
@@ -35,10 +122,31 @@ class BCPolicy(nn.Module):
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Forward pass: observation tensor → action tensor.
+
+        Args:
+            x: Batch of observations, shape (batch_size, obs_dim).
+
+        Returns:
+            Batch of actions, shape (batch_size, act_dim), values in [-1, 1].
+        """
         return self.net(x)
 
     def export_layers(self) -> list[dict]:
-        """Export weights/biases as list of layer dicts for Rust policy format."""
+        """Export weights and biases for the Rust policy JSON format.
+
+        Iterates through the Sequential modules, extracts weight matrices
+        and bias vectors from each nn.Linear layer, and returns them as
+        plain Python lists (JSON-serializable).
+
+        The weight matrix shape is (output_dim, input_dim), matching the
+        Rust MlpLayer::weights convention (and PyTorch's native layout).
+
+        Returns:
+            List of dicts, one per linear layer, each with:
+                "weights": list of lists (output_dim × input_dim)
+                "biases": list (output_dim)
+        """
         layers = []
         for module in self.net:
             if isinstance(module, nn.Linear):
@@ -51,6 +159,7 @@ class BCPolicy(nn.Module):
         return layers
 
     def param_count(self) -> int:
+        """Total number of trainable parameters."""
         return sum(p.numel() for p in self.parameters())
 
 
@@ -63,7 +172,30 @@ def train(
     val_split: float = 0.1,
     seed: int = 42,
 ) -> dict:
-    """Train the BC policy and return metrics."""
+    """Train the behavioral cloning policy and export to JSON.
+
+    Loads the demonstration dataset, splits into train/validation, trains
+    the MLP with MSE loss and Adam optimizer, selects the best model by
+    validation loss, and exports it as a Rust-compatible policy JSON file.
+
+    The training loop uses early-stopping-like behavior: it tracks the best
+    validation MSE across all epochs and restores those weights before
+    exporting. All epochs are run (no early termination) to keep the
+    interface simple.
+
+    Args:
+        data_path: Path to demos.npz (output of extract_demos.py).
+        output_path: Where to write the policy JSON file.
+        epochs: Number of training epochs (default 200).
+        batch_size: Mini-batch size for SGD (default 256).
+        lr: Adam learning rate (default 1e-3).
+        val_split: Fraction of data for validation (default 0.1).
+        seed: Random seed for reproducibility (default 42).
+
+    Returns:
+        Dict of training metrics (mse, r2, mae, sample counts, etc.).
+        These same metrics are embedded in the output JSON.
+    """
     torch.manual_seed(seed)
     np.random.seed(seed)
 
