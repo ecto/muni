@@ -8,17 +8,20 @@
 //! The costmap is used for path planning and obstacle avoidance.
 
 pub mod clustering;
+pub mod tracker;
 
 use lidar::PointCloud;
 use nalgebra::{Vector2, Vector3};
 use rand::rngs::SmallRng;
 use rand::seq::SliceRandom;
 use rand::SeedableRng;
+use std::collections::VecDeque;
 use thiserror::Error;
 use tracing::debug;
 use transforms::Transform2D;
 
 pub use clustering::{Obstacle, ObstacleClass};
+pub use tracker::{ObstacleTracker, TrackedObstacle, TrackerConfig};
 
 #[derive(Error, Debug)]
 pub enum CostmapError {
@@ -647,6 +650,18 @@ impl OccupancyGrid {
         }
     }
 
+    /// Mark a cell as occupied at the given world position, updating the height envelope.
+    ///
+    /// Unlike raytrace, this only sets the endpoint cell to occupied without
+    /// clearing intermediate cells. Used for reinforcing old obstacle evidence
+    /// from accumulated scans where the original sensor origin is unavailable.
+    pub fn mark_occupied(&mut self, world_pt: Vector2<f64>, z: f32) {
+        if let Some((gx, gy)) = self.world_to_grid(world_pt.x, world_pt.y) {
+            self.update_cell(gx, gy, true);
+            self.update_height(gx, gy, z);
+        }
+    }
+
     /// Convert to PNG-compatible grayscale (0 = occupied, 255 = free, 128 = unknown).
     pub fn to_grayscale(&self) -> Vec<u8> {
         self.data
@@ -747,6 +762,33 @@ impl Costmap {
     /// RANSAC ground segmentation (rather than a naive z-threshold).
     pub fn update_obstacles(&mut self, scan: &PointCloud, robot_pose: &Transform2D) {
         self.obstacle_layer.decay(self.decay_step);
+        self.obstacle_layer
+            .integrate_scan_segmented(scan, robot_pose, &mut self.ground_segmenter);
+        self.recompute();
+    }
+
+    /// Update obstacle layer with multi-frame accumulation.
+    ///
+    /// Like `update_obstacles`, but also stores obstacle points in the
+    /// accumulator and reinforces old obstacle evidence via `mark_occupied`.
+    pub fn update_obstacles_accumulated(
+        &mut self,
+        scan: &PointCloud,
+        robot_pose: &Transform2D,
+        accumulator: &mut ScanAccumulator,
+    ) {
+        self.obstacle_layer.decay(self.decay_step);
+
+        // Segment current scan to get obstacle points
+        let (_ground, obstacle_pts) = self.ground_segmenter.segment(scan, robot_pose);
+
+        // Store obstacle points in accumulator
+        accumulator.push(obstacle_pts.clone());
+
+        // Apply accumulated old obstacle points (mark_occupied only, no raytrace)
+        accumulator.apply_accumulated(&mut self.obstacle_layer);
+
+        // Integrate current scan fully (raytrace + hit)
         self.obstacle_layer
             .integrate_scan_segmented(scan, robot_pose, &mut self.ground_segmenter);
         self.recompute();
@@ -933,6 +975,59 @@ impl Costmap {
             origin_x: self.origin.x as f32,
             origin_y: self.origin.y as f32,
         }
+    }
+}
+
+/// Multi-frame scan accumulator for reinforcing obstacle evidence.
+///
+/// Stores classified obstacle points (in world frame) from recent scans.
+/// Old obstacle points are re-applied to the occupancy grid using `mark_occupied()`
+/// which sets occupancy without raycasting (since the original sensor origin
+/// is unavailable for old scans).
+#[derive(Debug)]
+pub struct ScanAccumulator {
+    /// Ring buffer of (obstacle_points_world, z_values).
+    buffer: VecDeque<Vec<Vector3<f64>>>,
+    /// Maximum number of scans to retain.
+    capacity: usize,
+}
+
+impl ScanAccumulator {
+    /// Create a new accumulator with the given capacity.
+    pub fn new(capacity: usize) -> Self {
+        Self {
+            buffer: VecDeque::with_capacity(capacity),
+            capacity,
+        }
+    }
+
+    /// Push a new set of obstacle points (world frame, with Z).
+    pub fn push(&mut self, obstacle_points: Vec<Vector3<f64>>) {
+        if self.buffer.len() >= self.capacity {
+            self.buffer.pop_front();
+        }
+        self.buffer.push_back(obstacle_points);
+    }
+
+    /// Apply all accumulated obstacle points (except the most recent scan)
+    /// to the occupancy grid using mark_occupied.
+    pub fn apply_accumulated(&self, grid: &mut OccupancyGrid) {
+        // Skip the last entry (current scan is already fully integrated via raytrace)
+        let count = if self.buffer.len() > 1 {
+            self.buffer.len() - 1
+        } else {
+            return;
+        };
+        for scan in self.buffer.iter().take(count) {
+            for pt in scan {
+                grid.mark_occupied(Vector2::new(pt.x, pt.y), pt.z as f32);
+            }
+        }
+    }
+
+    /// Clear all accumulated data.
+    pub fn clear(&mut self) {
+        self.buffer.clear();
     }
 }
 
