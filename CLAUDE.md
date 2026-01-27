@@ -19,6 +19,11 @@ muni/
 │   │   ├── bins/           # Executables (bvrd daemon, muni CLI, train)
 │   │   ├── crates/         # Library crates (control, can, teleop, etc.)
 │   │   └── config/         # Runtime configuration and systemd services
+│   ├── training/           # Behavioral cloning pipeline (Python)
+│   │   ├── extract_demos.py    # .rrd → demos.npz
+│   │   ├── train_bc.py         # demos.npz → policy.json (MLP)
+│   │   ├── evaluate.py         # policy + data → metrics report
+│   │   └── requirements.txt    # rerun-sdk, numpy, torch
 │   ├── cad/                # Mechanical design files
 │   ├── electrical/         # Schematics and PCBs
 │   └── docs/               # BVR-specific documentation
@@ -62,9 +67,12 @@ muni/
 - **Routing**: React Router v7
 - **Linting**: ESLint with typescript-eslint
 
-### Python (depot/splat-worker)
+### Python (depot/splat-worker, bvr/training)
 
-- GPU-accelerated Gaussian splatting for 3D reconstruction
+- GPU-accelerated Gaussian splatting for 3D reconstruction (depot/splat-worker)
+- **Behavioral cloning pipeline** (bvr/training): PyTorch, NumPy, Rerun SDK
+  - Runs on depot or dev machine, NOT on rover (training only)
+  - Output: JSON policy files loaded by the Rust `policy` crate on the rover
 
 ### Typst (paper/)
 
@@ -206,6 +214,58 @@ cargo build --release
 espflash flash --monitor target/xtensa-esp32s3-none-elf/release/heltec-attachment
 ```
 
+### Behavioral Cloning Training (bvr/training)
+
+The training pipeline converts teleop recordings into learned navigation
+policies. It runs offline on a dev machine or depot — not on the rover.
+
+```bash
+cd bvr/training
+
+# 1. Set up Python environment
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+
+# 2. Collect .rrd session files from rover
+#    Sessions are recorded by bvrd at /var/log/bvr/sessions/ on the rover.
+scp frog-0:/var/log/bvr/sessions/2026-01-26T*/session.rrd ./sessions/
+
+# 3. Extract (observation, action) pairs from teleop recordings
+python extract_demos.py --sessions-dir ./sessions --output demos.npz
+
+# 4. Train MLP policy (7→64→64→2, ~5k params)
+python train_bc.py --data demos.npz --output bc-teleop-v0.1.0.json
+
+# 5. Evaluate and print metrics
+python evaluate.py --policy bc-teleop-v0.1.0.json --data demos.npz
+
+# 6. Deploy to rover
+scp bc-teleop-v0.1.0.json frog-0:/var/lib/bvr/policies/default.json
+```
+
+**Pipeline architecture:**
+
+```
+teleop .rrd ──→ extract_demos.py ──→ demos.npz ──→ train_bc.py ──→ policy.json
+                                                                        │
+                 rover (bvrd) ◂── scp ──────────────────────────────────┘
+                 Policy::load() auto-detects architecture (linear or mlp)
+```
+
+**Key details:**
+
+- **Observation**: 7-dim vector `[x, y, θ, v_lin, v_ang, goal_dx, goal_dy]`,
+  normalized to [-1, 1]. Goal is in robot frame. During training, goals are
+  pseudo-goals (robot's position 2s in the future). At deploy, classical
+  planner provides real goals.
+- **Action**: 2-dim `[linear_vel, angular_vel]`, tanh-bounded to [-1, 1].
+- **Normalization constants** are shared between Python (extract_demos.py)
+  and Rust (policy crate `NormalizationConfig`). If one changes, update both.
+- **Rerun SDK version** must match the firmware's rerun version (currently 0.22).
+  Check `bvr/firmware/Cargo.toml` workspace deps.
+- **Policy JSON** is directly loadable by the Rust `policy` crate — no
+  conversion step needed. Architecture is auto-detected from the JSON.
+
 ### Static Website (web/)
 
 ```bash
@@ -274,6 +334,12 @@ Requires Typst installed.
 | Dispatch service | `depot/dispatch/src/main.rs` |
 | Dispatch UI | `depot/console/src/views/DispatchView.tsx` |
 | Docker services | `depot/docker-compose.yml` |
+| Policy inference (Rust) | `bvr/firmware/crates/policy/src/lib.rs` |
+| Demo extraction (Python) | `bvr/training/extract_demos.py` |
+| BC training (Python) | `bvr/training/train_bc.py` |
+| Policy evaluation (Python) | `bvr/training/evaluate.py` |
+| Deployed policy (rover) | `/var/lib/bvr/policies/default.json` |
+| Session recordings (rover) | `/var/log/bvr/sessions/` |
 | MCU LED controller | `mcu/bins/rp2350/src/main.rs` |
 | GitHub Pages CI | `.github/workflows/pages.yml` |
 
@@ -293,6 +359,17 @@ cargo test -p control
 cd depot/console
 npm run lint    # ESLint
 npm run build   # Type checking via tsc
+```
+
+### Policy / Training
+```bash
+# Rust policy crate (MLP inference, JSON round-trip, backward compat)
+cargo test -p policy
+
+# Python pipeline (requires .rrd sessions and venv with requirements.txt)
+python extract_demos.py --sessions-dir ./sessions --output demos.npz
+python train_bc.py --data demos.npz --output test.json --epochs 20
+python evaluate.py --policy test.json --data demos.npz
 ```
 
 ## Common Tasks
@@ -333,3 +410,5 @@ Configuration is file-based, not environment variables. See `bvr/firmware/config
 - **Cross-compilation**: Requires Docker for `cross` to work with GStreamer ARM64 libs.
 - **LFS**: Large files are tracked with Git LFS. Run `git lfs pull` after cloning.
 - **Tailscale**: Rovers connect to depot via Tailscale for secure networking.
+- **Policy normalization**: The Python training scripts and Rust `policy` crate share normalization constants (`max_position=50`, `max_linear_vel=2`, `max_angular_vel=2`). These must stay in sync — see `NormalizationConfig` in `policy/src/lib.rs` and the constants at the top of `extract_demos.py`.
+- **Rerun version**: The training pipeline's `rerun-sdk` version must match the firmware workspace's `rerun` crate version (currently 0.22). Mismatched versions will fail to decode `.rrd` files.

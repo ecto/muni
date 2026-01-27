@@ -1,3 +1,5 @@
-rerun-sdk>=0.22
+# Pin rerun-sdk to match bvr/firmware/Cargo.toml workspace rerun version.
+# Mismatched versions will fail to decode .rrd session files.
+rerun-sdk>=0.22,<0.23
 numpy>=1.24
 torch>=2.0

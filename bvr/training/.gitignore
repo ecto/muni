@@ -1,0 +1,4 @@
+sessions/
+*.npz
+*.json
+.venv/
