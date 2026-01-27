@@ -132,7 +132,7 @@ impl Default for SlamConfig {
             huber_threshold: 1.0,
             loop_closure_max_disagreement_sigma: 3.0,
             min_scan_match_distance: 0.05,
-            min_scan_match_rotation: 0.02,
+            min_scan_match_rotation: 0.05,
             odom_linear_noise: 0.05,
             odom_angular_noise: 0.05,
             odom_linear_to_angular_noise: 0.02,

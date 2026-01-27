@@ -209,7 +209,7 @@ imu_yaw_weight = 0.7
 # Speed (m/s) at which full IMU yaw weight is restored
 imu_yaw_speed_ramp = 0.1
 # Gyro rate (rad/s) above which IMU is trusted even at zero speed
-imu_yaw_gyro_gate = 0.1
+imu_yaw_gyro_gate = 0.5
 
 [slam]
 # Enable SLAM (Simultaneous Localization and Mapping)

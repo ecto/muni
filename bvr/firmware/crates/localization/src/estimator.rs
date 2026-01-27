@@ -36,6 +36,9 @@ pub struct EkfConfig {
     pub imu_yaw_speed_ramp: f64,
     /// Gyro rate (rad/s) above which IMU is trusted even at zero speed
     pub imu_yaw_gyro_gate: f64,
+    /// Maximum SLAM heading innovation before rejecting the update (radians).
+    /// Prevents erroneous scan matches from snapping heading.
+    pub max_slam_heading_innovation: f64,
     /// Gyro noise spectral density (rad/√s)
     pub gyro_noise: f64,
 }
@@ -52,7 +55,8 @@ impl Default for EkfConfig {
             gps_heading_min_speed: 0.3,
             imu_yaw_weight: 0.7,
             imu_yaw_speed_ramp: 0.1,
-            imu_yaw_gyro_gate: 0.1,
+            imu_yaw_gyro_gate: 0.5,
+            max_slam_heading_innovation: 0.5,
             gyro_noise: 0.01,
         }
     }
@@ -280,6 +284,16 @@ impl EkfPoseEstimator {
         // Innovation with angle wrapping
         let mut y = z - h * self.x;
         y[2] = normalize_angle(y[2]);
+
+        // Reject SLAM updates with heading innovation too large — likely misregistration
+        if y[2].abs() > self.config.max_slam_heading_innovation {
+            debug!(
+                heading_innovation = y[2],
+                limit = self.config.max_slam_heading_innovation,
+                "EKF SLAM update rejected: heading innovation too large"
+            );
+            return;
+        }
 
         // Innovation covariance
         let s = h * self.p * h.transpose() + r;
@@ -738,6 +752,68 @@ mod tests {
             "Moving should restore full IMU weight: got {} expected ~{}",
             pose.theta,
             expected_total
+        );
+    }
+
+    #[test]
+    fn test_slam_rejects_large_heading_innovation() {
+        let mut ekf = EkfPoseEstimator::new();
+
+        // Drive forward to build up some covariance
+        for _ in 0..100 {
+            ekf.predict(0.1, 0.0, 0.0, None, 0.01);
+        }
+
+        let pre = ekf.pose();
+
+        // SLAM says heading is 2.0 rad different — clearly a misregistration
+        let slam_pose = Pose {
+            x: pre.x,
+            y: pre.y,
+            theta: pre.theta + 2.0,
+        };
+        let slam_cov = Matrix3::identity() * 0.01;
+
+        ekf.update_slam(&slam_pose, &slam_cov);
+
+        let post = ekf.pose();
+        // Heading should NOT have moved significantly — update should be rejected
+        assert!(
+            (post.theta - pre.theta).abs() < 0.01,
+            "Large heading innovation should be rejected: pre={:.4} post={:.4}",
+            pre.theta,
+            post.theta
+        );
+    }
+
+    #[test]
+    fn test_slam_accepts_small_heading_innovation() {
+        let mut ekf = EkfPoseEstimator::new();
+
+        // Drive forward
+        for _ in 0..100 {
+            ekf.predict(0.1, 0.0, 0.0, None, 0.01);
+        }
+
+        let pre = ekf.pose();
+
+        // SLAM says heading is 0.1 rad different — reasonable correction
+        let slam_pose = Pose {
+            x: pre.x,
+            y: pre.y,
+            theta: pre.theta + 0.1,
+        };
+        let slam_cov = Matrix3::identity() * 0.01;
+
+        ekf.update_slam(&slam_pose, &slam_cov);
+
+        let post = ekf.pose();
+        // Heading should have moved toward SLAM
+        assert!(
+            (post.theta - pre.theta).abs() > 0.01,
+            "Small heading innovation should be accepted: pre={:.4} post={:.4}",
+            pre.theta,
+            post.theta
         );
     }
 

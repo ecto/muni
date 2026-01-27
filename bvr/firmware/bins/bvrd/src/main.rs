@@ -225,7 +225,7 @@ impl Default for LocalizationFileConfig {
             gps_heading_min_speed: 0.3,
             imu_yaw_weight: 0.7,
             imu_yaw_speed_ramp: 0.1,
-            imu_yaw_gyro_gate: 0.1,
+            imu_yaw_gyro_gate: 0.5,
         }
     }
 }
