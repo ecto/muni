@@ -38,6 +38,8 @@ interface ConsoleState {
   setRovers: (rovers: RoverInfo[]) => void;
   updateRover: (id: string, updates: Partial<RoverInfo>) => void;
   selectRover: (id: string | null) => void;
+  /** Connect directly to a rover by hostname/IP, bypassing discovery */
+  connectDirect: (hostname: string) => void;
 
   // Connection (for teleop)
   /** WebRTC signaling address for the selected rover */
@@ -223,6 +225,27 @@ export const useConsoleStore = create<ConsoleState>()(
       }
       return { selectedRoverId: id };
     });
+  },
+  connectDirect: (hostname) => {
+    const rtcAddress = `ws://${hostname}:4852`;
+    const id = hostname.replace(/\.\d+/g, ""); // strip IP dots for a usable id
+    const synthetic: RoverInfo = {
+      id,
+      name: hostname,
+      rtcAddress,
+      online: true,
+      batteryVoltage: 0,
+      lastPose: { x: 0, y: 0, theta: 0, roll: 0, pitch: 0 },
+      mode: Mode.Idle,
+      lastSeen: Date.now(),
+    };
+    set((state) => ({
+      rovers: state.rovers.some((r) => r.id === id)
+        ? state.rovers
+        : [...state.rovers, synthetic],
+      selectedRoverId: id,
+      rtcAddress,
+    }));
   },
 
   // Connection

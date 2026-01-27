@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { Scene } from "@/components/scene/Scene";
 import { CameraFeedCard } from "@/components/scene/EquirectangularSky";
@@ -8,6 +8,7 @@ import { DiagnosticsPanel } from "@/components/teleop/DiagnosticsPanel";
 import { InputPanel } from "@/components/teleop/InputPanel";
 import { ConnectionBar } from "@/components/teleop/ConnectionBar";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Tooltip,
   TooltipTrigger,
@@ -26,6 +27,7 @@ export function RoverView() {
   const telemetryMode = useConsoleStore((s) => s.telemetry.mode);
   const selectRover = useConsoleStore((s) => s.selectRover);
   const rtcAddress = useConsoleStore((s) => s.rtcAddress);
+  const connectDirect = useConsoleStore((s) => s.connectDirect);
   const connecting = useConsoleStore((s) => s.connecting);
   const connected = useConsoleStore((s) => s.connected);
 
@@ -54,6 +56,11 @@ export function RoverView() {
       disconnect();
     };
   }, [disconnect]);
+
+  // Show direct connect prompt when discovery is unavailable
+  if (!selectedRover && rovers.length === 0 && rtcAddress === "ws://localhost:4852") {
+    return <DirectConnectPrompt roverId={roverId} onConnect={connectDirect} />;
+  }
 
   // Show not found state
   if (!selectedRover && rovers.length > 0) {
@@ -156,6 +163,45 @@ export function RoverView() {
         {/* Bottom bar */}
         <div className="absolute bottom-0 left-0 right-0 pointer-events-auto">
           <ConnectionBar />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DirectConnectPrompt({
+  roverId,
+  onConnect,
+}: {
+  roverId: string | undefined;
+  onConnect: (hostname: string) => void;
+}) {
+  const [hostname, setHostname] = useState(roverId ?? "");
+
+  const submit = () => {
+    const trimmed = hostname.trim();
+    if (trimmed) onConnect(trimmed);
+  };
+
+  return (
+    <div className="h-full flex items-center justify-center">
+      <div className="text-center">
+        <Robot className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
+        <h3 className="font-medium mb-1">No rovers discovered</h3>
+        <p className="text-sm text-muted-foreground mb-4">
+          Connect directly by hostname or IP
+        </p>
+        <div className="flex gap-2 max-w-xs mx-auto">
+          <Input
+            value={hostname}
+            onChange={(e) => setHostname(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && submit()}
+            placeholder="frog-0 or 192.168.1.100"
+            autoFocus
+          />
+          <Button onClick={submit} disabled={!hostname.trim()}>
+            Connect
+          </Button>
         </div>
       </div>
     </div>
