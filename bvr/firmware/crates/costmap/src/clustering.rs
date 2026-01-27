@@ -1,8 +1,8 @@
 //! Connected-component clustering for obstacle extraction.
 //!
 //! Identifies discrete obstacles in the costmap by flood-filling
-//! contiguous LETHAL cells, then computes bounding boxes and centroids
-//! in world coordinates.
+//! nearby LETHAL cells (8-connected with 1-cell gap bridging), then
+//! computes bounding boxes and centroids in world coordinates.
 
 use std::collections::VecDeque;
 
@@ -13,6 +13,12 @@ const MIN_CLUSTER_CELLS: usize = 12;
 
 /// Maximum number of obstacles to report (sorted by area, largest first).
 const MAX_OBSTACLES: usize = 64;
+
+/// Gap (in cells) to bridge during clustering via morphological dilation.
+/// At 0.1 m resolution, 1 cell dilation bridges up to 2 free cells (0.2 m)
+/// between occupied regions — connects sparse lidar returns and temporal
+/// decay gaps in continuous structures like walls and fences.
+const CLUSTER_GAP_CELLS: usize = 1;
 
 /// Obstacle classification based on shape/size heuristics.
 ///
@@ -164,16 +170,42 @@ pub fn extract_obstacles(
 
     let has_height = height_min.len() == total && height_max.len() == total;
 
+    // Build reachability map: dilate occupied cells to bridge small gaps.
+    // BFS traverses reachable cells but only counts occupied cells in stats.
+    let mut reachable = vec![false; total];
+    for i in 0..total {
+        if cells[i] >= threshold {
+            reachable[i] = true;
+        }
+    }
+    for _ in 0..CLUSTER_GAP_CELLS {
+        let prev = reachable.clone();
+        for i in 0..total {
+            if prev[i] {
+                let gx = (i % width) as i32;
+                let gy = (i / width) as i32;
+                for (dx, dy) in [(-1i32, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)] {
+                    let nx = gx + dx;
+                    let ny = gy + dy;
+                    if nx >= 0 && ny >= 0 && nx < width as i32 && ny < height as i32 {
+                        reachable[ny as usize * width + nx as usize] = true;
+                    }
+                }
+            }
+        }
+    }
+
     let mut visited = vec![false; total];
     let mut obstacles = Vec::new();
     let mut queue = VecDeque::new();
 
     for start in 0..total {
+        // Only start clusters from occupied cells
         if visited[start] || cells[start] < threshold {
             continue;
         }
 
-        // BFS flood fill from this cell
+        // BFS flood fill through reachable cells (bridges small gaps)
         queue.clear();
         queue.push_back(start);
         visited[start] = true;
@@ -192,34 +224,36 @@ pub fn extract_obstacles(
             let gx = idx % width;
             let gy = idx / width;
 
-            sum_gx += gx as u64;
-            sum_gy += gy as u64;
-            min_gx = min_gx.min(gx);
-            min_gy = min_gy.min(gy);
-            max_gx = max_gx.max(gx);
-            max_gy = max_gy.max(gy);
-            count += 1;
+            // Only accumulate stats for occupied cells, not bridge cells
+            if cells[idx] >= threshold {
+                sum_gx += gx as u64;
+                sum_gy += gy as u64;
+                min_gx = min_gx.min(gx);
+                min_gy = min_gy.min(gy);
+                max_gx = max_gx.max(gx);
+                max_gy = max_gy.max(gy);
+                count += 1;
 
-            // Accumulate height envelope from per-cell data
-            if has_height {
-                let lo = height_min[idx];
-                let hi = height_max[idx];
-                if lo <= hi {
-                    // Valid observation
-                    cluster_min_z = cluster_min_z.min(lo);
-                    cluster_max_z = cluster_max_z.max(hi);
+                // Accumulate height envelope from per-cell data
+                if has_height {
+                    let lo = height_min[idx];
+                    let hi = height_max[idx];
+                    if lo <= hi {
+                        cluster_min_z = cluster_min_z.min(lo);
+                        cluster_max_z = cluster_max_z.max(hi);
+                    }
                 }
             }
 
-            // 4-connected neighbors
-            for (dx, dy) in [(-1i32, 0), (1, 0), (0, -1), (0, 1)] {
+            // 8-connected neighbors through reachable (dilated) map
+            for (dx, dy) in [(-1i32, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)] {
                 let nx = gx as i32 + dx;
                 let ny = gy as i32 + dy;
                 if nx < 0 || ny < 0 || nx >= width as i32 || ny >= height as i32 {
                     continue;
                 }
                 let nidx = ny as usize * width + nx as usize;
-                if !visited[nidx] && cells[nidx] >= threshold {
+                if !visited[nidx] && reachable[nidx] {
                     visited[nidx] = true;
                     queue.push_back(nidx);
                 }
@@ -406,15 +440,15 @@ mod tests {
     }
 
     #[test]
-    fn test_diagonal_cells_not_connected() {
+    fn test_diagonal_cluster_too_small() {
         let mut cells = make_grid(20, 20);
-        // Diagonal cells (4-connected means these are separate)
+        // 3 diagonal cells: connected via 8-connectivity but still below
+        // MIN_CLUSTER_CELLS (12), so filtered out.
         set_cell(&mut cells, 20, 5, 5, costs::LETHAL);
         set_cell(&mut cells, 20, 6, 6, costs::LETHAL);
         set_cell(&mut cells, 20, 7, 7, costs::LETHAL);
 
         let obs = extract_obstacles(&cells, 20, 20, 0.1, 0.0, 0.0, costs::LETHAL, &[], &[]);
-        // Each is a single cell < MIN_CLUSTER_CELLS, all filtered
         assert!(obs.is_empty());
     }
 
@@ -696,5 +730,55 @@ mod tests {
         // prevents vehicle classification. fill = 1.2 / 3.0 = 0.4
         let obs = make_obstacle(1.2, 3.0, 1.0);
         assert_eq!(classify_obstacle(&obs), ObstacleClass::Wall);
+    }
+
+    // ====================================================================
+    // Gap bridging tests
+    // ====================================================================
+
+    #[test]
+    fn test_gap_bridging_connects_nearby_clusters() {
+        let mut cells = make_grid(20, 20);
+        // Two 6-cell blocks separated by a 1-cell gap at x=8.
+        // Without gap bridging: two 6-cell clusters (both < MIN_CLUSTER_CELLS).
+        // With gap bridging: merged into one 12-cell cluster.
+        // Block A: gx=5..8, gy=5..7 → 3×2 = 6 cells
+        for gx in 5..8 {
+            for gy in 5..7 {
+                set_cell(&mut cells, 20, gx, gy, costs::LETHAL);
+            }
+        }
+        // Block B: gx=9..12, gy=5..7 → 3×2 = 6 cells (gap at x=8)
+        for gx in 9..12 {
+            for gy in 5..7 {
+                set_cell(&mut cells, 20, gx, gy, costs::LETHAL);
+            }
+        }
+
+        let obs = extract_obstacles(&cells, 20, 20, 0.1, 0.0, 0.0, costs::LETHAL, &[], &[]);
+        assert_eq!(obs.len(), 1);
+        assert_eq!(obs[0].cell_count, 12);
+    }
+
+    #[test]
+    fn test_gap_too_large_keeps_clusters_separate() {
+        let mut cells = make_grid(30, 10);
+        // Two 12-cell blocks separated by a 3-cell gap (x=5,6,7).
+        // Gap too large for CLUSTER_GAP_CELLS=1 → stays as two clusters.
+        // Block A: gx=2..5, gy=2..6 → 3×4 = 12 cells
+        for gx in 2..5 {
+            for gy in 2..6 {
+                set_cell(&mut cells, 30, gx, gy, costs::LETHAL);
+            }
+        }
+        // Block B: gx=8..11, gy=2..6 → 3×4 = 12 cells
+        for gx in 8..11 {
+            for gy in 2..6 {
+                set_cell(&mut cells, 30, gx, gy, costs::LETHAL);
+            }
+        }
+
+        let obs = extract_obstacles(&cells, 30, 10, 0.1, 0.0, 0.0, costs::LETHAL, &[], &[]);
+        assert_eq!(obs.len(), 2);
     }
 }
