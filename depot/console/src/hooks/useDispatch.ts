@@ -8,6 +8,7 @@ import type {
   GpsCoord,
   Schedule,
   ConnectedRover,
+  CoverageConfig,
 } from "@/lib/types";
 
 const RECONNECT_DELAY_MS = 3000;
@@ -355,6 +356,17 @@ export function useDispatch() {
     [fetchApi]
   );
 
+  const generateCoverage = useCallback(
+    async (id: string, config: CoverageConfig): Promise<Zone> => {
+      const data = await fetchApi<Zone>(`/zones/${id}/generate-coverage`, {
+        method: "POST",
+        body: JSON.stringify(config),
+      });
+      return data;
+    },
+    [fetchApi]
+  );
+
   // ==========================================================================
   // Mission CRUD
   // ==========================================================================
@@ -502,6 +514,7 @@ export function useDispatch() {
     createZone,
     updateZone,
     deleteZone,
+    generateCoverage,
 
     // Mission operations
     fetchMissions,

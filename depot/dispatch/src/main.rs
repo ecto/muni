@@ -13,6 +13,7 @@
 //! - Health: GET /health
 
 pub mod alerts;
+pub mod coverage;
 pub mod weather;
 
 use axum::{
@@ -62,6 +63,10 @@ pub struct Zone {
     /// Lat/lng polygon for map display (separate from local-frame waypoints)
     pub polygon_latlng: Option<serde_json::Value>,
     pub map_id: Option<Uuid>,
+    /// Coverage tool configuration (for coverage zones)
+    pub coverage_config: Option<serde_json::Value>,
+    /// Generated coverage waypoints (boustrophedon sweep path)
+    pub coverage_waypoints: Option<serde_json::Value>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -215,6 +220,14 @@ pub struct UpdateMission {
     pub rover_id: Option<String>,
     pub schedule: Option<Schedule>,
     pub enabled: Option<bool>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GenerateCoverageRequest {
+    pub tool_width: f64,
+    pub overlap_pct: f64,
+    pub swath_angle: Option<f64>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -395,6 +408,7 @@ async fn main() {
         .route("/zones/{id}", get(get_zone))
         .route("/zones/{id}", put(update_zone))
         .route("/zones/{id}", delete(delete_zone))
+        .route("/zones/{id}/generate-coverage", post(generate_coverage))
         // Mission endpoints
         .route("/missions", post(create_mission))
         .route("/missions", get(list_missions))
@@ -438,6 +452,7 @@ async fn main() {
 async fn run_migrations(pool: &PgPool) {
     let migration_001 = include_str!("../migrations/001_initial.sql");
     let migration_002 = include_str!("../migrations/002_phase2.sql");
+    let migration_003 = include_str!("../migrations/003_coverage.sql");
 
     // Check if initial migration has been run
     let table_exists: bool = sqlx::query_scalar(
@@ -473,6 +488,23 @@ async fn run_migrations(pool: &PgPool) {
         info!("Migration 002 complete");
     } else {
         info!("Database already up to date");
+    }
+
+    // Check if coverage migration has been run (check for coverage_config column)
+    let coverage_col_exists: bool = sqlx::query_scalar(
+        "SELECT EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'zones' AND column_name = 'coverage_config')",
+    )
+    .fetch_one(pool)
+    .await
+    .unwrap_or(false);
+
+    if !coverage_col_exists {
+        info!("Running coverage migration...");
+        sqlx::raw_sql(migration_003)
+            .execute(pool)
+            .await
+            .expect("Failed to run migration 003");
+        info!("Migration 003 complete");
     }
 }
 
@@ -580,7 +612,7 @@ async fn create_zone(
         r#"
         INSERT INTO zones (name, zone_type, waypoints, polygon, polygon_latlng, map_id)
         VALUES ($1, $2, $3, $4, $5, $6)
-        RETURNING id, name, zone_type, waypoints, polygon, polygon_latlng, map_id, created_at, updated_at
+        RETURNING id, name, zone_type, waypoints, polygon, polygon_latlng, map_id, coverage_config, coverage_waypoints, created_at, updated_at
         "#,
     )
     .bind(&payload.name)
@@ -601,7 +633,7 @@ async fn create_zone(
 
 async fn list_zones(State(state): State<SharedState>) -> Result<impl IntoResponse, (StatusCode, String)> {
     let zones: Vec<Zone> = sqlx::query_as(
-        "SELECT id, name, zone_type, waypoints, polygon, polygon_latlng, map_id, created_at, updated_at FROM zones ORDER BY created_at DESC",
+        "SELECT id, name, zone_type, waypoints, polygon, polygon_latlng, map_id, coverage_config, coverage_waypoints, created_at, updated_at FROM zones ORDER BY created_at DESC",
     )
     .fetch_all(&state.db)
     .await
@@ -615,7 +647,7 @@ async fn get_zone(
     Path(id): Path<Uuid>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
     let zone: Zone = sqlx::query_as(
-        "SELECT id, name, zone_type, waypoints, polygon, polygon_latlng, map_id, created_at, updated_at FROM zones WHERE id = $1",
+        "SELECT id, name, zone_type, waypoints, polygon, polygon_latlng, map_id, coverage_config, coverage_waypoints, created_at, updated_at FROM zones WHERE id = $1",
     )
     .bind(id)
     .fetch_optional(&state.db)
@@ -633,7 +665,7 @@ async fn update_zone(
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
     // First fetch existing zone
     let existing: Zone = sqlx::query_as(
-        "SELECT id, name, zone_type, waypoints, polygon, polygon_latlng, map_id, created_at, updated_at FROM zones WHERE id = $1",
+        "SELECT id, name, zone_type, waypoints, polygon, polygon_latlng, map_id, coverage_config, coverage_waypoints, created_at, updated_at FROM zones WHERE id = $1",
     )
     .bind(id)
     .fetch_optional(&state.db)
@@ -675,7 +707,7 @@ async fn update_zone(
         UPDATE zones
         SET name = $2, zone_type = $3, waypoints = $4, polygon = $5, polygon_latlng = $6, map_id = $7, updated_at = now()
         WHERE id = $1
-        RETURNING id, name, zone_type, waypoints, polygon, polygon_latlng, map_id, created_at, updated_at
+        RETURNING id, name, zone_type, waypoints, polygon, polygon_latlng, map_id, coverage_config, coverage_waypoints, created_at, updated_at
         "#,
     )
     .bind(id)
@@ -711,6 +743,77 @@ async fn delete_zone(
 
     info!(id = %id, "Zone deleted");
     Ok(StatusCode::NO_CONTENT)
+}
+
+// =============================================================================
+// Coverage Generation
+// =============================================================================
+
+async fn generate_coverage(
+    State(state): State<SharedState>,
+    Path(id): Path<Uuid>,
+    Json(payload): Json<GenerateCoverageRequest>,
+) -> Result<impl IntoResponse, (StatusCode, String)> {
+    let zone: Zone = sqlx::query_as(
+        "SELECT id, name, zone_type, waypoints, polygon, polygon_latlng, map_id, coverage_config, coverage_waypoints, created_at, updated_at FROM zones WHERE id = $1",
+    )
+    .bind(id)
+    .fetch_optional(&state.db)
+    .await
+    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
+    .ok_or((StatusCode::NOT_FOUND, "Zone not found".to_string()))?;
+
+    // Parse polygon vertices from zone waypoints
+    let polygon_wps: Vec<Waypoint> =
+        serde_json::from_value(zone.waypoints.clone()).unwrap_or_default();
+
+    if polygon_wps.len() < 3 {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "Zone must have at least 3 waypoints to generate coverage".to_string(),
+        ));
+    }
+
+    let config = coverage::CoverageConfig {
+        tool_width: payload.tool_width,
+        overlap_pct: payload.overlap_pct,
+        swath_angle: payload.swath_angle,
+    };
+
+    let result = coverage::generate(&polygon_wps, &config)
+        .map_err(|e| (StatusCode::BAD_REQUEST, e))?;
+
+    let config_json = serde_json::to_value(&config)
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    let waypoints_json = serde_json::to_value(&result.waypoints)
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    let zone: Zone = sqlx::query_as(
+        r#"
+        UPDATE zones
+        SET zone_type = 'coverage', coverage_config = $2, coverage_waypoints = $3, updated_at = now()
+        WHERE id = $1
+        RETURNING id, name, zone_type, waypoints, polygon, polygon_latlng, map_id, coverage_config, coverage_waypoints, created_at, updated_at
+        "#,
+    )
+    .bind(id)
+    .bind(&config_json)
+    .bind(&waypoints_json)
+    .fetch_one(&state.db)
+    .await
+    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    info!(
+        id = %zone.id,
+        sweeps = result.num_sweeps,
+        waypoints = result.waypoints.len(),
+        path_length = format!("{:.1}m", result.path_length),
+        "Coverage path generated"
+    );
+
+    state.broadcast(BroadcastMessage::ZoneUpdate { zone: zone.clone() });
+
+    Ok(Json(zone))
 }
 
 // =============================================================================
@@ -875,7 +978,7 @@ async fn start_mission(
     .ok_or((StatusCode::NOT_FOUND, "Mission not found".to_string()))?;
 
     let zone: Zone = sqlx::query_as(
-        "SELECT id, name, zone_type, waypoints, polygon, polygon_latlng, map_id, created_at, updated_at FROM zones WHERE id = $1",
+        "SELECT id, name, zone_type, waypoints, polygon, polygon_latlng, map_id, coverage_config, coverage_waypoints, created_at, updated_at FROM zones WHERE id = $1",
     )
     .bind(mission.zone_id)
     .fetch_one(&state.db)
@@ -944,8 +1047,15 @@ async fn start_mission(
         }
     }
 
-    // Parse waypoints from zone
-    let waypoints: Vec<Waypoint> = serde_json::from_value(zone.waypoints.clone()).unwrap_or_default();
+    // Parse waypoints from zone — prefer coverage waypoints for coverage zones
+    let waypoints: Vec<Waypoint> = if zone.zone_type == "coverage" {
+        zone.coverage_waypoints
+            .as_ref()
+            .and_then(|v| serde_json::from_value(v.clone()).ok())
+            .unwrap_or_else(|| serde_json::from_value(zone.waypoints.clone()).unwrap_or_default())
+    } else {
+        serde_json::from_value(zone.waypoints.clone()).unwrap_or_default()
+    };
 
     // Send task to rover
     let msg = DispatchToRover::Task {
@@ -1559,7 +1669,7 @@ async fn schedule_evaluator(state: SharedState) {
 
             // Get zone
             let zone: Option<Zone> = sqlx::query_as(
-                "SELECT id, name, zone_type, waypoints, polygon, polygon_latlng, map_id, created_at, updated_at FROM zones WHERE id = $1",
+                "SELECT id, name, zone_type, waypoints, polygon, polygon_latlng, map_id, coverage_config, coverage_waypoints, created_at, updated_at FROM zones WHERE id = $1",
             )
             .bind(mission.zone_id)
             .fetch_optional(&state.db)
@@ -1607,9 +1717,15 @@ async fn schedule_evaluator(state: SharedState) {
                 }
             }
 
-            // Send task to rover
-            let waypoints: Vec<Waypoint> =
-                serde_json::from_value(zone.waypoints.clone()).unwrap_or_default();
+            // Send task to rover — prefer coverage waypoints for coverage zones
+            let waypoints: Vec<Waypoint> = if zone.zone_type == "coverage" {
+                zone.coverage_waypoints
+                    .as_ref()
+                    .and_then(|v| serde_json::from_value(v.clone()).ok())
+                    .unwrap_or_else(|| serde_json::from_value(zone.waypoints.clone()).unwrap_or_default())
+            } else {
+                serde_json::from_value(zone.waypoints.clone()).unwrap_or_default()
+            };
 
             let msg = DispatchToRover::Task {
                 task_id: task.id,

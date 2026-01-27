@@ -3,6 +3,7 @@ import {
   MapContainer,
   TileLayer,
   Polygon,
+  Polyline,
   Marker,
   Tooltip,
   useMapEvents,
@@ -31,6 +32,8 @@ interface ZoneEditorProps {
   /** If true, show drawing tools for creating new zones */
   drawingMode?: boolean;
   onDrawComplete?: (polygon: [number, number][]) => void;
+  /** If true, show coverage path overlay for the selected zone */
+  showCoveragePath?: boolean;
 }
 
 function ZonePolygon({
@@ -163,6 +166,68 @@ function DrawingHandler({
   );
 }
 
+function CoveragePathOverlay({
+  zone,
+  visible,
+}: {
+  zone: Zone;
+  visible: boolean;
+}) {
+  if (!visible || !zone.coverageWaypoints?.length || !zone.polygonLatlng?.length)
+    return null;
+
+  // Coverage waypoints are in local frame (x,y) matching the polygon vertices.
+  // The polygon vertices in waypoints[] correspond to polygonLatlng[].
+  // We need to map coverage waypoints from local to lat/lng.
+  // Use an affine approximation from the polygon's local→latlng mapping.
+  const wps = zone.waypoints;
+  const latlng = zone.polygonLatlng;
+  if (wps.length < 2 || latlng.length < 2) return null;
+
+  // Build a simple affine transform from 2 point pairs
+  const x0 = wps[0].x, y0 = wps[0].y;
+  const x1 = wps[1].x, y1 = wps[1].y;
+  const lat0 = latlng[0][0], lng0 = latlng[0][1];
+  const lat1 = latlng[1][0], lng1 = latlng[1][1];
+
+  // Use more points if available for better transform
+  const dx = x1 - x0, dy = y1 - y0;
+  const localDist = Math.sqrt(dx * dx + dy * dy);
+  if (localDist < 1e-9) return null;
+
+  const dlat = lat1 - lat0, dlng = lng1 - lng0;
+  const geoDist = Math.sqrt(dlat * dlat + dlng * dlng);
+  const scale = geoDist / localDist;
+
+  // Rotation from local to geo
+  const localAngle = Math.atan2(dy, dx);
+  const geoAngle = Math.atan2(dlat, dlng);
+  const rot = geoAngle - localAngle;
+
+  const cosR = Math.cos(rot);
+  const sinR = Math.sin(rot);
+
+  const positions: [number, number][] = zone.coverageWaypoints.map((wp) => {
+    const rx = wp.x - x0;
+    const ry = wp.y - y0;
+    const tx = (cosR * rx - sinR * ry) * scale;
+    const ty = (sinR * rx + cosR * ry) * scale;
+    return [lat0 + ty, lng0 + tx] as [number, number];
+  });
+
+  return (
+    <Polyline
+      positions={positions}
+      pathOptions={{
+        color: "#f59e0b",
+        weight: 2,
+        opacity: 0.8,
+        dashArray: "4 4",
+      }}
+    />
+  );
+}
+
 export function ZoneEditor({
   zones,
   selectedZoneId,
@@ -171,6 +236,7 @@ export function ZoneEditor({
   zoom = 18,
   drawingMode = false,
   onDrawComplete,
+  showCoveragePath = false,
 }: ZoneEditorProps) {
   return (
     <div className="relative h-full w-full">
@@ -201,6 +267,15 @@ export function ZoneEditor({
             zone={zone}
             color={ZONE_COLORS[idx % ZONE_COLORS.length]}
             visible={zone.id === selectedZoneId}
+          />
+        ))}
+
+        {/* Coverage path overlay for selected zone */}
+        {zones.map((zone) => (
+          <CoveragePathOverlay
+            key={`cov-${zone.id}`}
+            zone={zone}
+            visible={showCoveragePath && zone.id === selectedZoneId}
           />
         ))}
 

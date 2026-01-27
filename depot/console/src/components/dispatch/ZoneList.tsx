@@ -94,6 +94,9 @@ export function ZoneList({
               {zone.polygonLatlng && zone.polygonLatlng.length > 0 && (
                 <span> · {zone.polygonLatlng.length} vertices</span>
               )}
+              {zone.zoneType === "coverage" && zone.coverageWaypoints && (
+                <span> · {zone.coverageWaypoints.length} sweep pts</span>
+              )}
               {isActive && activeTask && (
                 <span className="ml-2">
                   · WP {activeTask.waypoint + 1} · Lap {activeTask.lap + 1}

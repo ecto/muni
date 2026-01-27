@@ -7,7 +7,8 @@ import { ZoneEditor } from "@/components/dispatch/ZoneEditor";
 import { ZoneList } from "@/components/dispatch/ZoneList";
 import { MissionEditor } from "@/components/dispatch/MissionEditor";
 import { TaskTimeline } from "@/components/dispatch/TaskTimeline";
-import type { Zone, Waypoint, Schedule } from "@/lib/types";
+import { CoverageConfig } from "@/components/dispatch/CoverageConfig";
+import type { Zone, Waypoint, Schedule, CoverageConfig as CoverageConfigType } from "@/lib/types";
 import { TaskStatus } from "@/lib/types";
 
 type DispatchTab = "zones" | "missions" | "timeline";
@@ -96,6 +97,7 @@ export function DispatchView() {
     createZone,
     updateZone,
     deleteZone,
+    generateCoverage,
     createMission,
     updateMission,
     deleteMission,
@@ -164,6 +166,20 @@ export function DispatchView() {
       setShowZoneEditor(true);
     },
     []
+  );
+
+  // Coverage generation
+  const handleGenerateCoverage = useCallback(
+    async (zoneId: string, config: CoverageConfigType) => {
+      await generateCoverage(zoneId, config);
+    },
+    [generateCoverage]
+  );
+
+  // Selected zone (for coverage config panel)
+  const selectedZone = useMemo(
+    () => zones.find((z) => z.id === selectedZoneId) ?? null,
+    [zones, selectedZoneId]
   );
 
   // Quick patrol
@@ -246,6 +262,7 @@ export function DispatchView() {
             zoom={mapZoom}
             drawingMode={drawingMode}
             onDrawComplete={handleDrawComplete}
+            showCoveragePath={selectedZone?.zoneType === "coverage"}
           />
 
           {/* Error overlay */}
@@ -366,23 +383,35 @@ export function DispatchView() {
           {/* Tab content */}
           <div className="flex-1 overflow-y-auto">
             {activeTab === "zones" && (
-              <ZoneList
-                zones={zones}
-                selectedZoneId={selectedZoneId}
-                onSelectZone={setSelectedZoneId}
-                onEditZone={(zone) => {
-                  setEditingZone(zone);
-                  setShowZoneEditor(true);
-                }}
-                onDeleteZone={(id) => {
-                  deleteZone(id);
-                  setSelectedZoneId(null);
-                }}
-                onStartPatrol={handleStartPatrol}
-                onStopPatrol={handleStopPatrol}
-                getActiveTask={getActiveTask}
-                canStartPatrol={connectedRovers.length > 0}
-              />
+              <>
+                <ZoneList
+                  zones={zones}
+                  selectedZoneId={selectedZoneId}
+                  onSelectZone={setSelectedZoneId}
+                  onEditZone={(zone) => {
+                    setEditingZone(zone);
+                    setShowZoneEditor(true);
+                  }}
+                  onDeleteZone={(id) => {
+                    deleteZone(id);
+                    setSelectedZoneId(null);
+                  }}
+                  onStartPatrol={handleStartPatrol}
+                  onStopPatrol={handleStopPatrol}
+                  getActiveTask={getActiveTask}
+                  canStartPatrol={connectedRovers.length > 0}
+                />
+                {selectedZone && (
+                  <div className="px-2 pb-2">
+                    <CoverageConfig
+                      zoneId={selectedZone.id}
+                      initialConfig={selectedZone.coverageConfig}
+                      coverageWaypointCount={selectedZone.coverageWaypoints?.length}
+                      onGenerate={handleGenerateCoverage}
+                    />
+                  </div>
+                )}
+              </>
             )}
 
             {activeTab === "missions" && (

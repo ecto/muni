@@ -253,6 +253,12 @@ export interface GpsCoord {
   lon: number;
 }
 
+export interface CoverageConfig {
+  toolWidth: number;
+  overlapPct: number;
+  swathAngle?: number | null;
+}
+
 export interface Zone {
   id: string;
   name: string;
@@ -262,6 +268,10 @@ export interface Zone {
   /** Lat/lng polygon for map display */
   polygonLatlng?: [number, number][];
   mapId?: string;
+  /** Coverage tool configuration (for coverage zones) */
+  coverageConfig?: CoverageConfig | null;
+  /** Generated coverage waypoints (boustrophedon sweep path) */
+  coverageWaypoints?: Waypoint[] | null;
   createdAt: string;
   updatedAt: string;
 }
