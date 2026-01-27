@@ -638,6 +638,8 @@ function rleDecodeU8(encoded: Uint8Array, expectedLen: number): Uint8Array | nul
 /** Header size for obstacle messages. */
 const OBSTACLES_HEADER_SIZE = 4;
 
+/** Per-obstacle record size in bytes (v2, tracked). */
+const OBSTACLE_RECORD_SIZE_V2 = 56;
 /** Per-obstacle record size in bytes (v1). */
 const OBSTACLE_RECORD_SIZE_V1 = 44;
 /** Per-obstacle record size in bytes (v0, legacy). */
@@ -645,9 +647,14 @@ const OBSTACLE_RECORD_SIZE_V0 = 36;
 
 /** A detected obstacle with bounding box and centroid in world coordinates. */
 export interface DecodedObstacle {
-  id: number;
-  /** Obstacle class: 0=Unknown (reserved for Phase 3 classification). */
+  /** Stable track ID (v2) or frame-local ID (v0/v1). */
+  trackId: number;
+  /** Obstacle class: 0=Unknown, 1=Pole, 2=Vehicle, 3=Pedestrian, 4=Wall, 5=Debris. */
   obstacleClass: number;
+  /** Tracker confidence (0-255). 0 for legacy. */
+  confidence: number;
+  /** Track age in frames. 0 for legacy. */
+  age: number;
   centroidX: number;
   centroidY: number;
   bboxMinX: number;
@@ -661,6 +668,10 @@ export interface DecodedObstacle {
   minZ: number;
   /** Maximum observed Z (height) in meters. 0 when unavailable. */
   maxZ: number;
+  /** Velocity X in m/s. 0 for legacy. */
+  velocityX: number;
+  /** Velocity Y in m/s. 0 for legacy. */
+  velocityY: number;
 }
 
 /**
@@ -700,7 +711,12 @@ export function decodeObstacles(data: ArrayBuffer): DecodedObstacle[] | null {
 
   const count = view.getUint8(1);
   const version = view.getUint16(2, true);
-  const recordSize = version >= 1 ? OBSTACLE_RECORD_SIZE_V1 : OBSTACLE_RECORD_SIZE_V0;
+  const recordSize =
+    version >= 2
+      ? OBSTACLE_RECORD_SIZE_V2
+      : version >= 1
+        ? OBSTACLE_RECORD_SIZE_V1
+        : OBSTACLE_RECORD_SIZE_V0;
   const expectedLen = OBSTACLES_HEADER_SIZE + count * recordSize;
   if (data.byteLength < expectedLen) {
     return null;
@@ -709,20 +725,48 @@ export function decodeObstacles(data: ArrayBuffer): DecodedObstacle[] | null {
   const obstacles: DecodedObstacle[] = [];
   for (let i = 0; i < count; i++) {
     const offset = OBSTACLES_HEADER_SIZE + i * recordSize;
-    obstacles.push({
-      id: view.getUint16(offset, true),
-      obstacleClass: view.getUint8(offset + 2),
-      centroidX: view.getFloat32(offset + 4, true),
-      centroidY: view.getFloat32(offset + 8, true),
-      bboxMinX: view.getFloat32(offset + 12, true),
-      bboxMinY: view.getFloat32(offset + 16, true),
-      bboxMaxX: view.getFloat32(offset + 20, true),
-      bboxMaxY: view.getFloat32(offset + 24, true),
-      cellCount: view.getUint32(offset + 28, true),
-      area: view.getFloat32(offset + 32, true),
-      minZ: version >= 1 ? view.getFloat32(offset + 36, true) : 0,
-      maxZ: version >= 1 ? view.getFloat32(offset + 40, true) : 0,
-    });
+
+    if (version >= 2) {
+      // v2: tracked obstacles (56 bytes each)
+      obstacles.push({
+        trackId: view.getUint32(offset, true),
+        obstacleClass: view.getUint8(offset + 4),
+        confidence: view.getUint8(offset + 5),
+        age: view.getUint16(offset + 6, true),
+        centroidX: view.getFloat32(offset + 8, true),
+        centroidY: view.getFloat32(offset + 12, true),
+        bboxMinX: view.getFloat32(offset + 16, true),
+        bboxMinY: view.getFloat32(offset + 20, true),
+        bboxMaxX: view.getFloat32(offset + 24, true),
+        bboxMaxY: view.getFloat32(offset + 28, true),
+        cellCount: view.getUint32(offset + 32, true),
+        area: view.getFloat32(offset + 36, true),
+        minZ: view.getFloat32(offset + 40, true),
+        maxZ: view.getFloat32(offset + 44, true),
+        velocityX: view.getFloat32(offset + 48, true),
+        velocityY: view.getFloat32(offset + 52, true),
+      });
+    } else {
+      // v0/v1: legacy untracked (36/44 bytes each)
+      obstacles.push({
+        trackId: view.getUint16(offset, true),
+        obstacleClass: view.getUint8(offset + 2),
+        confidence: 255,
+        age: 0,
+        centroidX: view.getFloat32(offset + 4, true),
+        centroidY: view.getFloat32(offset + 8, true),
+        bboxMinX: view.getFloat32(offset + 12, true),
+        bboxMinY: view.getFloat32(offset + 16, true),
+        bboxMaxX: view.getFloat32(offset + 20, true),
+        bboxMaxY: view.getFloat32(offset + 24, true),
+        cellCount: view.getUint32(offset + 28, true),
+        area: view.getFloat32(offset + 32, true),
+        minZ: version >= 1 ? view.getFloat32(offset + 36, true) : 0,
+        maxZ: version >= 1 ? view.getFloat32(offset + 40, true) : 0,
+        velocityX: 0,
+        velocityY: 0,
+      });
+    }
   }
 
   return obstacles;

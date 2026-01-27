@@ -2,20 +2,20 @@ import { useRef, useEffect } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { useConsoleStore } from "@/store";
-import { getObstacleData, getObstacleVersion } from "@/lib/obstacleStore";
-import type { DecodedObstacle } from "@/lib/protocol";
+import { getInterpolatedObstacles } from "@/lib/obstacleStore";
+import type { InterpolatedObstacle } from "@/lib/obstacleInterpolation";
 
 /**
  * Renders detected obstacles as class-specific 3D shapes with
  * floating labels.
  *
  * Obstacle classes (from firmware heuristics):
- *   0 = Unknown    → wireframe box only (no solid)
- *   1 = Pole       → cylinder
- *   2 = Vehicle    → solid box
- *   3 = Pedestrian → capsule (pill)
- *   4 = Wall       → solid box (flat)
- *   5 = Debris     → icosahedron (rock-like)
+ *   0 = Unknown    -> wireframe box only (no solid)
+ *   1 = Pole       -> cylinder
+ *   2 = Vehicle    -> solid box
+ *   3 = Pedestrian -> capsule (pill)
+ *   4 = Wall       -> solid box (flat)
+ *   5 = Debris     -> icosahedron (rock-like)
  *
  * Coordinate mapping (same as CostmapOverlay / RoverModel):
  *   Three.js X = -world_Y
@@ -28,12 +28,12 @@ const MAX_BOXES = 64;
 
 /** Class-specific colors. Index = ObstacleClass enum value. */
 const CLASS_COLORS: number[] = [
-  0x9ca3af, // 0: Unknown  — gray
-  0x22d3ee, // 1: Pole     — cyan
-  0xef4444, // 2: Vehicle  — red
-  0xfacc15, // 3: Pedestrian — yellow
-  0x3b82f6, // 4: Wall     — blue
-  0xfb923c, // 5: Debris   — orange
+  0x9ca3af, // 0: Unknown  - gray
+  0x22d3ee, // 1: Pole     - cyan
+  0xef4444, // 2: Vehicle  - red
+  0xfacc15, // 3: Pedestrian - yellow
+  0x3b82f6, // 4: Wall     - blue
+  0xfb923c, // 5: Debris   - orange
 ];
 
 /** Class names for labels. */
@@ -52,7 +52,7 @@ const GEO_CYLINDER = 1;
 const GEO_CAPSULE = 2;
 const GEO_ICOSAHEDRON = 3;
 
-/** Map obstacle class → geometry type. */
+/** Map obstacle class -> geometry type. */
 const CLASS_GEO: number[] = [
   GEO_BOX,         // 0: Unknown
   GEO_CYLINDER,    // 1: Pole
@@ -199,8 +199,13 @@ interface PoolEntry {
   solidMesh: THREE.Mesh;
   wireframe: THREE.LineSegments;
   label: THREE.Sprite;
+  /** Per-entry cloned materials for independent opacity. */
+  solidMat: THREE.MeshStandardMaterial;
+  edgeMat: THREE.LineBasicMaterial;
   /** Last class assigned (to avoid unnecessary geometry/material swaps). */
   lastClass: number;
+  /** Track ID currently assigned to this pool entry. */
+  lastTrackId: number;
 }
 
 // ============================================================================
@@ -211,9 +216,10 @@ export function ObstacleOverlay() {
   const obstaclesEnabled = useConsoleStore((s) => s.obstaclesEnabled);
 
   const groupRef = useRef<THREE.Group>(null);
-  const lastVersionRef = useRef<number>(0);
   const poolRef = useRef<PoolEntry[]>([]);
   const sharedRef = useRef<SharedResources | null>(null);
+  /** Map trackId -> pool index for stable assignment. */
+  const trackPoolRef = useRef<Map<number, number>>(new Map());
 
   // Create shared resources on mount, dispose everything on unmount
   useEffect(() => {
@@ -224,10 +230,13 @@ export function ObstacleOverlay() {
         sharedRef.current = null;
       }
       for (const entry of poolRef.current) {
+        entry.solidMat.dispose();
+        entry.edgeMat.dispose();
         (entry.label.material as THREE.SpriteMaterial).map?.dispose();
         (entry.label.material as THREE.SpriteMaterial).dispose();
       }
       poolRef.current = [];
+      trackPoolRef.current.clear();
     };
   }, []);
 
@@ -245,26 +254,28 @@ export function ObstacleOverlay() {
       return;
     }
 
-    const version = getObstacleVersion();
-    if (version === lastVersionRef.current) return;
-    lastVersionRef.current = version;
-
-    const obstacles: DecodedObstacle[] = getObstacleData();
+    // Interpolation produces different values each frame — no version check needed
+    const obstacles: InterpolatedObstacle[] = getInterpolatedObstacles();
     const group = groupRef.current;
     const pool = poolRef.current;
     const shared = sharedRef.current;
+    const trackPool = trackPoolRef.current;
 
     // Grow pool if needed
     while (pool.length < Math.min(obstacles.length, MAX_BOXES)) {
+      // Clone materials per entry for independent opacity
+      const solidMat = shared.solidMats[0].clone();
+      const edgeMat = shared.edgeMats[0].clone();
+
       const solidMesh = new THREE.Mesh(
         shared.solidGeos[GEO_BOX],
-        shared.solidMats[0],
+        solidMat,
       );
       solidMesh.visible = false;
 
       const wireframe = new THREE.LineSegments(
         shared.edgesGeos[GEO_BOX],
-        shared.edgeMats[0],
+        edgeMat,
       );
       wireframe.visible = false;
       wireframe.renderOrder = 1;
@@ -275,14 +286,54 @@ export function ObstacleOverlay() {
       group.add(solidMesh);
       group.add(wireframe);
       group.add(label);
-      pool.push({ solidMesh, wireframe, label, lastClass: -1 });
+      pool.push({ solidMesh, wireframe, label, solidMat, edgeMat, lastClass: -1, lastTrackId: -1 });
+    }
+
+    // Build trackId -> obstacle index for stable pool assignment
+    const usedPoolIndices = new Set<number>();
+    const obstacleAssignment: number[] = new Array(obstacles.length);
+
+    // First pass: reuse existing pool entries for known trackIds
+    for (let i = 0; i < Math.min(obstacles.length, MAX_BOXES); i++) {
+      const trackId = obstacles[i].trackId;
+      const existingIdx = trackPool.get(trackId);
+      if (existingIdx !== undefined && existingIdx < pool.length && !usedPoolIndices.has(existingIdx)) {
+        obstacleAssignment[i] = existingIdx;
+        usedPoolIndices.add(existingIdx);
+      } else {
+        obstacleAssignment[i] = -1; // needs assignment
+      }
+    }
+
+    // Second pass: assign unmatched obstacles to unused pool entries
+    let nextFreePool = 0;
+    for (let i = 0; i < Math.min(obstacles.length, MAX_BOXES); i++) {
+      if (obstacleAssignment[i] !== -1) continue;
+      while (nextFreePool < pool.length && usedPoolIndices.has(nextFreePool)) {
+        nextFreePool++;
+      }
+      if (nextFreePool < pool.length) {
+        obstacleAssignment[i] = nextFreePool;
+        usedPoolIndices.add(nextFreePool);
+        nextFreePool++;
+      }
+    }
+
+    // Update trackPool map
+    trackPool.clear();
+    const count = Math.min(obstacles.length, MAX_BOXES);
+    for (let i = 0; i < count; i++) {
+      const poolIdx = obstacleAssignment[i];
+      if (poolIdx === -1 || poolIdx === undefined) continue;
+      trackPool.set(obstacles[i].trackId, poolIdx);
     }
 
     // Update visible entries
-    const count = Math.min(obstacles.length, MAX_BOXES);
     for (let i = 0; i < count; i++) {
       const obs = obstacles[i];
-      const entry = pool[i];
+      const poolIdx = obstacleAssignment[i];
+      if (poolIdx === -1 || poolIdx === undefined || poolIdx >= pool.length) continue;
+      const entry = pool[poolIdx];
 
       const worldW = obs.bboxMaxX - obs.bboxMinX;
       const worldH = obs.bboxMaxY - obs.bboxMinY;
@@ -296,23 +347,31 @@ export function ObstacleOverlay() {
         : estimateHeight(obs.area);
       const baseZ = hasHeight ? obs.minZ : 0;
 
-      // Swap geometry/material on class change (zero allocation)
+      // Swap geometry/material on class change
       const classId = obs.obstacleClass;
       if (entry.lastClass !== classId) {
         const geoType = CLASS_GEO[classId] ?? GEO_BOX;
         entry.solidMesh.geometry = shared.solidGeos[geoType];
-        entry.solidMesh.material =
-          shared.solidMats[classId] ?? shared.solidMats[0];
         entry.wireframe.geometry = shared.edgesGeos[geoType];
-        entry.wireframe.material =
-          shared.edgeMats[classId] ?? shared.edgeMats[0];
+
+        // Update cloned material colors
+        const color = getClassColor(classId);
+        entry.solidMat.color.setHex(color);
+        entry.solidMat.emissive.setHex(color);
+        entry.edgeMat.color.setHex(color);
+
         updateLabelSprite(
           entry.label,
           getClassName(classId),
-          getClassColor(classId),
+          color,
         );
         entry.lastClass = classId;
       }
+
+      // Apply interpolated opacity
+      const opacity = obs.opacity;
+      entry.solidMat.opacity = 0.35 * opacity;
+      entry.edgeMat.opacity = 0.9 * opacity;
 
       // Class-specific scaling
       const geoType = CLASS_GEO[classId] ?? GEO_BOX;
@@ -321,7 +380,7 @@ export function ObstacleOverlay() {
 
       switch (classId) {
         case 1: {
-          // Pole — cylinder; diameter from smaller bbox dimension
+          // Pole - cylinder; diameter from smaller bbox dimension
           const diameter = Math.min(worldW, worldH);
           renderHeight = Math.max(rawHeight, 1.5);
           sx = diameter;
@@ -330,7 +389,7 @@ export function ObstacleOverlay() {
           break;
         }
         case 2: {
-          // Vehicle — solid box; height >= 1.4m
+          // Vehicle - solid box; height >= 1.4m
           renderHeight = Math.max(rawHeight, 1.4);
           sx = worldH;
           sy = renderHeight / natY;
@@ -338,7 +397,7 @@ export function ObstacleOverlay() {
           break;
         }
         case 3: {
-          // Pedestrian — capsule; height >= 1.0m
+          // Pedestrian - capsule; height >= 1.0m
           const bodyWidth = Math.max(worldW, worldH);
           renderHeight = Math.max(rawHeight, 1.0);
           sx = bodyWidth;
@@ -347,7 +406,7 @@ export function ObstacleOverlay() {
           break;
         }
         case 4: {
-          // Wall — solid box; height <= 1.0m
+          // Wall - solid box; height <= 1.0m
           renderHeight = Math.min(rawHeight, 1.0);
           sx = worldH;
           sy = renderHeight / natY;
@@ -355,7 +414,7 @@ export function ObstacleOverlay() {
           break;
         }
         case 5: {
-          // Debris — icosahedron; height <= 0.8m
+          // Debris - icosahedron; height <= 0.8m
           const debrisSize = Math.max(worldW, worldH);
           renderHeight = Math.min(rawHeight, 0.8);
           sx = debrisSize;
@@ -364,7 +423,7 @@ export function ObstacleOverlay() {
           break;
         }
         default: {
-          // Unknown (0) — wireframe box only
+          // Unknown (0) - wireframe box only
           renderHeight = rawHeight;
           sx = worldH;
           sy = renderHeight / natY;
@@ -380,21 +439,25 @@ export function ObstacleOverlay() {
 
       entry.solidMesh.position.set(posX, posY, posZ);
       entry.solidMesh.scale.set(sx, sy, sz);
-      entry.solidMesh.visible = classId !== 0;
+      entry.solidMesh.visible = classId !== 0 && opacity > 0.01;
 
       entry.wireframe.position.set(posX, posY, posZ);
       entry.wireframe.scale.set(sx, sy, sz);
-      entry.wireframe.visible = true;
+      entry.wireframe.visible = opacity > 0.01;
 
       entry.label.position.set(posX, baseZ + renderHeight + 0.15, posZ);
-      entry.label.visible = true;
+      entry.label.visible = opacity > 0.01;
+
+      entry.lastTrackId = obs.trackId;
     }
 
     // Hide excess pool entries
-    for (let i = count; i < pool.length; i++) {
-      pool[i].solidMesh.visible = false;
-      pool[i].wireframe.visible = false;
-      pool[i].label.visible = false;
+    for (let i = 0; i < pool.length; i++) {
+      if (!usedPoolIndices.has(i)) {
+        pool[i].solidMesh.visible = false;
+        pool[i].wireframe.visible = false;
+        pool[i].label.visible = false;
+      }
     }
   });
 
