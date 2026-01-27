@@ -68,10 +68,10 @@ impl Default for TrackerConfig {
         Self {
             max_association_distance: 1.0,
             coast_frames: 5,
-            position_alpha: 0.5,
-            velocity_beta: 0.1,
+            position_alpha: 0.3,
+            velocity_beta: 0.05,
             class_hysteresis_frames: 3,
-            confirm_age: 2,
+            confirm_age: 3,
         }
     }
 }
@@ -338,10 +338,14 @@ mod tests {
         let dets = vec![make_obstacle(0, 1.0, 2.0), make_obstacle(1, 5.0, 6.0)];
         let tracked = tracker.update(&dets, 0.1);
 
-        // First frame: age=1, confirm_age=2 -> tentative, not yet confirmed
+        // First frame: age=1, confirm_age=3 -> tentative, not yet confirmed
         assert!(tracked.is_empty());
 
-        // Second frame: matched, age=2 >= confirm_age=2 -> confirmed
+        // Second frame: age=2, still tentative
+        let tracked = tracker.update(&dets, 0.1);
+        assert!(tracked.is_empty());
+
+        // Third frame: matched, age=3 >= confirm_age=3 -> confirmed
         let tracked = tracker.update(&dets, 0.1);
         assert_eq!(tracked.len(), 2);
         assert_ne!(tracked[0].track_id, tracked[1].track_id);

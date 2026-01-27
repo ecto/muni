@@ -293,7 +293,7 @@ impl OccupancyGrid {
             height,
             resolution,
             origin,
-            log_odds_hit: 20,   // ~0.75 probability
+            log_odds_hit: 30,   // ~0.88 probability
             log_odds_miss: -10, // ~0.45 probability
             log_odds_max: 100,  // ~0.9999 probability
             log_odds_min: -100, // ~0.0001 probability
@@ -741,7 +741,7 @@ impl Costmap {
             inflation_radius,
             inscribed_radius,
             ground_segmenter: GroundSegmenter::new(GroundSegmenterConfig::default()),
-            decay_step: 5,
+            decay_step: 3,
         }
     }
 
@@ -1233,7 +1233,7 @@ mod tests {
         let mut grid = OccupancyGrid::new(10, 10, 1.0, Vector2::new(0.0, 0.0));
 
         // Set some cells to positive (occupied) and negative (free)
-        grid.update_cell(2, 2, true); // +20
+        grid.update_cell(2, 2, true); // +30
         grid.update_cell(5, 5, false); // -10
 
         let before_occ = grid.get_log_odds(2, 2).unwrap();
@@ -1248,7 +1248,7 @@ mod tests {
 
         // Positive cell decayed toward zero
         assert!(after_occ < before_occ);
-        assert!(after_occ > 0); // 20 - 5 = 15, still positive
+        assert!(after_occ > 0); // 30 - 5 = 25, still positive
 
         // Negative cell decayed toward zero
         assert!(after_free > before_free);
