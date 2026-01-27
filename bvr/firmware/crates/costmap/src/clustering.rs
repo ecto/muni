@@ -73,6 +73,9 @@ pub struct Obstacle {
     /// PCA elongation ratio √(λ₁/λ₂) — rotation-invariant shape measure.
     /// 1.0 = perfectly round, higher = more elongated.
     pub elongation: f32,
+    /// PCA principal axis angle in radians (-π/2 to π/2).
+    /// Angle of the longest axis from the world +X direction.
+    pub rotation: f32,
     /// Minimum observed Z (height) across cluster cells, in meters.
     /// 0.0 when no height data is available.
     pub min_z: f32,
@@ -250,6 +253,9 @@ pub fn extract_obstacles(
             10.0_f32
         };
 
+        // Principal axis angle: atan2(2·cov_xy, cov_xx - cov_yy) / 2
+        let rotation = (0.5 * (2.0 * cov_xy).atan2(cov_xx - cov_yy)) as f32;
+
         // Convert grid coordinates to world coordinates
         let centroid_x = origin_x + (mean_x + 0.5) * resolution;
         let centroid_y = origin_y + (mean_y + 0.5) * resolution;
@@ -274,6 +280,7 @@ pub fn extract_obstacles(
             cell_count: count,
             area: area as f32,
             elongation,
+            rotation,
             min_z: if cluster_min_z <= cluster_max_z { cluster_min_z } else { 0.0 },
             max_z: if cluster_min_z <= cluster_max_z { cluster_max_z } else { 0.0 },
         });
@@ -474,6 +481,7 @@ mod tests {
             cell_count: (area / 0.01) as u32,
             area,
             elongation,
+            rotation: 0.0,
             min_z: 0.0,
             max_z: 0.0,
         }
@@ -492,6 +500,7 @@ mod tests {
             cell_count: (area / 0.01) as u32,
             area,
             elongation,
+            rotation: 0.0,
             min_z: 0.0,
             max_z: 0.0,
         }
@@ -511,6 +520,7 @@ mod tests {
             cell_count: (area / 0.01) as u32,
             area,
             elongation,
+            rotation: 0.0,
             min_z,
             max_z,
         }

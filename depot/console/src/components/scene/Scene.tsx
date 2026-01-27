@@ -12,6 +12,7 @@ import { World3D } from "./World3D";
 import { PointCloud3D } from "./PointCloud3D";
 import { CostmapOverlay } from "./CostmapOverlay";
 import { ObstacleOverlay } from "./ObstacleOverlay";
+import { IntentionMarker } from "./IntentionMarker";
 import { useConsoleStore } from "@/store";
 import { useMapData } from "@/hooks/useMapData";
 import type { Zone, Task } from "@/lib/types";
@@ -131,6 +132,7 @@ export function Scene({ mode = "teleop", zones: propZones, activeTasks, onZoneCl
         <>
           <RoverTrail />
           <RoverModel />
+          <IntentionMarker />
           <PointCloud3D />
           <CostmapOverlay />
           <ObstacleOverlay />

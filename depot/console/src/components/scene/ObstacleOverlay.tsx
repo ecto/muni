@@ -83,6 +83,45 @@ function estimateHeight(area: number): number {
   return 0.6; // small obstacle
 }
 
+/**
+ * Recover principal/cross axis lengths from axis-aligned bbox and PCA rotation.
+ *
+ * The axis-aligned bbox of a rotated rectangle is:
+ *   bboxW = L·|cos θ| + C·|sin θ|
+ *   bboxH = L·|sin θ| + C·|cos θ|
+ * Inverting this 2×2 system gives the true extents (L, C).
+ */
+function unrotateExtents(
+  bboxW: number,
+  bboxH: number,
+  rotation: number,
+  area: number,
+): [number, number] {
+  const cosA = Math.abs(Math.cos(rotation));
+  const sinA = Math.abs(Math.sin(rotation));
+  const cos2theta = cosA * cosA - sinA * sinA; // cos(2θ)
+
+  if (Math.abs(cos2theta) > 0.1) {
+    // Well-conditioned: solve linear system
+    const principal = Math.max(0.1, (bboxW * cosA - bboxH * sinA) / cos2theta);
+    const cross = Math.max(0.1, (bboxH * cosA - bboxW * sinA) / cos2theta);
+    return [principal, cross];
+  }
+
+  // Near 45°: cos(2θ) ≈ 0, system is ill-conditioned.
+  // Use L + C ≈ (bboxW + bboxH) / (|cosθ| + |sinθ|) and L·C ≈ area.
+  const sum = (bboxW + bboxH) / (cosA + sinA);
+  const disc = sum * sum - 4 * area;
+  if (disc > 0) {
+    const sqrtDisc = Math.sqrt(disc);
+    return [
+      Math.max(0.1, (sum + sqrtDisc) / 2),
+      Math.max(0.1, (sum - sqrtDisc) / 2),
+    ];
+  }
+  return [sum / 2, sum / 2];
+}
+
 // ============================================================================
 // Label helpers
 // ============================================================================
@@ -377,6 +416,8 @@ export function ObstacleOverlay() {
       const geoType = CLASS_GEO[classId] ?? GEO_BOX;
       const natY = GEO_NATURAL_Y[geoType];
       let sx: number, sy: number, sz: number, renderHeight: number;
+      // PCA rotation for box-shaped obstacles (world angle → Three.js Y rotation)
+      let rotY = 0;
 
       switch (classId) {
         case 1: {
@@ -390,10 +431,12 @@ export function ObstacleOverlay() {
         }
         case 2: {
           // Vehicle - solid box; height >= 1.4m
+          const [vLen, vCross] = unrotateExtents(worldW, worldH, obs.rotation, obs.area);
           renderHeight = Math.max(rawHeight, 1.4);
-          sx = worldH;
+          sx = vCross;
           sy = renderHeight / natY;
-          sz = worldW;
+          sz = vLen;
+          rotY = obs.rotation;
           break;
         }
         case 3: {
@@ -407,10 +450,12 @@ export function ObstacleOverlay() {
         }
         case 4: {
           // Wall - solid box; height <= 1.0m
+          const [wLen, wCross] = unrotateExtents(worldW, worldH, obs.rotation, obs.area);
           renderHeight = Math.min(rawHeight, 1.0);
-          sx = worldH;
+          sx = wCross;
           sy = renderHeight / natY;
-          sz = worldW;
+          sz = wLen;
+          rotY = obs.rotation;
           break;
         }
         case 5: {
@@ -424,10 +469,12 @@ export function ObstacleOverlay() {
         }
         default: {
           // Unknown (0) - wireframe box only
+          const [uLen, uCross] = unrotateExtents(worldW, worldH, obs.rotation, obs.area);
           renderHeight = rawHeight;
-          sx = worldH;
+          sx = uCross;
           sy = renderHeight / natY;
-          sz = worldW;
+          sz = uLen;
+          rotY = obs.rotation;
           break;
         }
       }
@@ -439,10 +486,12 @@ export function ObstacleOverlay() {
 
       entry.solidMesh.position.set(posX, posY, posZ);
       entry.solidMesh.scale.set(sx, sy, sz);
+      entry.solidMesh.rotation.set(0, rotY, 0);
       entry.solidMesh.visible = classId !== 0 && opacity > 0.01;
 
       entry.wireframe.position.set(posX, posY, posZ);
       entry.wireframe.scale.set(sx, sy, sz);
+      entry.wireframe.rotation.set(0, rotY, 0);
       entry.wireframe.visible = opacity > 0.01;
 
       entry.label.position.set(posX, baseZ + renderHeight + 0.15, posZ);

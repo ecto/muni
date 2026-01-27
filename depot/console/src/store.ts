@@ -170,6 +170,7 @@ const defaultTelemetry: Telemetry = {
   mem_percent: 0,
   disk_percent: 0,
   modeChangedAt: Date.now(),
+  policyIntention: null,
 };
 
 const defaultInput: GamepadInput = {

@@ -1,14 +1,17 @@
 /**
  * Client-side obstacle interpolation for smooth rendering.
  *
- * Ring buffer of obstacle snapshots with LERP/dead-reckoning between
- * server updates. Follows the same pattern as interpolation.ts.
+ * Uses one-frame-behind interpolation: renders at (now - delay) so we can
+ * LERP between two known snapshots instead of snapping. Falls back to
+ * velocity-based extrapolation when data is stale.
  *
  * Design principles:
  * - Global mutable state (no React involvement)
- * - LERP between snapshots, dead-reckon with velocity when extrapolating
- * - Fade in new tracks, fade out dead tracks
- * - Clear buffer on large gaps
+ * - LERP between consecutive snapshots for smooth motion
+ * - Velocity extrapolation when past the newest snapshot
+ * - Grace period before declaring tracks dead (suppresses single-frame dropout ghosts)
+ * - Fade in new tracks, fade out confirmed-dead tracks
+ * - Confidence filtering to suppress noisy detections
  */
 
 import type { DecodedObstacle } from "./protocol";
@@ -25,20 +28,29 @@ interface ObstacleSnapshot {
   obstacles: DecodedObstacle[];
 }
 
-/** Buffer capacity (4 slots at 10Hz = 400ms history). */
+/** Buffer capacity (4 slots at ~10Hz = 400ms history). */
 const BUFFER_CAPACITY = 4;
 
 /** Maximum gap before clearing buffer (ms). */
 const MAX_GAP_MS = 300;
 
-/** Maximum extrapolation time (ms). */
+/** Render one snapshot behind for smooth LERP (ms). */
+const INTERPOLATION_DELAY_MS = 100;
+
+/** Maximum velocity extrapolation beyond newest snapshot (ms). */
 const MAX_EXTRAPOLATION_MS = 150;
+
+/** Minimum tracker confidence to render (0-255). Legacy formats use 255. */
+const MIN_CONFIDENCE = 10;
+
+/** Grace period before a missing track is declared dead (ms). */
+const DEATH_GRACE_MS = 150;
 
 /** Fade-in duration for new tracks (ms). */
 const FADE_IN_MS = 200;
 
-/** Fade-out duration for dead tracks (ms). */
-const FADE_OUT_MS = 300;
+/** Fade-out duration for confirmed-dead tracks (ms). */
+const FADE_OUT_MS = 200;
 
 // ============================================================================
 // Global mutable state
@@ -48,18 +60,19 @@ const buffer: (ObstacleSnapshot | null)[] = Array(BUFFER_CAPACITY).fill(null);
 let head = 0;
 let count = 0;
 
-/**
- * Map of trackId -> { lastSeenAt, lastObstacle } for fade-out tracking.
- * Tracks that disappear from snapshots get dead-reckoned and faded out.
- */
-const dyingTracks = new Map<
+/** Tracks missing from recent snapshots, awaiting grace period. */
+const pendingDeath = new Map<
   number,
-  { lastSeenAt: number; obstacle: DecodedObstacle }
+  { missingSince: number; obstacle: DecodedObstacle }
 >();
 
-/**
- * Map of trackId -> firstSeenAt for fade-in tracking.
- */
+/** Tracks confirmed dead, being faded out. */
+const dyingTracks = new Map<
+  number,
+  { diedAt: number; obstacle: DecodedObstacle }
+>();
+
+/** First-seen times for fade-in. */
 const birthTimes = new Map<number, number>();
 
 // ============================================================================
@@ -70,49 +83,63 @@ const birthTimes = new Map<number, number>();
 export function pushObstacleSnapshot(obstacles: DecodedObstacle[]): void {
   const now = performance.now();
 
-  // Check for large gap -> clear
-  const prevIdx = head;
-  const prev = buffer[prevIdx];
-  if (prev && count > 0) {
-    const gap = now - prev.receivedAt;
-    if (gap > MAX_GAP_MS) {
-      buffer.fill(null);
-      head = 0;
-      count = 0;
-      dyingTracks.clear();
-      birthTimes.clear();
-    }
+  // Large gap -> reset everything
+  const prev = count > 0 ? buffer[head] : null;
+  if (prev && now - prev.receivedAt > MAX_GAP_MS) {
+    buffer.fill(null);
+    head = 0;
+    count = 0;
+    pendingDeath.clear();
+    dyingTracks.clear();
+    birthTimes.clear();
   }
 
+  // Write into ring buffer
   const newHead = (head + 1) % BUFFER_CAPACITY;
   buffer[newHead] = { receivedAt: now, obstacles };
   head = newHead;
   count = Math.min(count + 1, BUFFER_CAPACITY);
 
-  // Track births
+  // Current track IDs
   const currentIds = new Set<number>();
   for (const obs of obstacles) {
     currentIds.add(obs.trackId);
     if (!birthTimes.has(obs.trackId)) {
       birthTimes.set(obs.trackId, now);
     }
-    // Remove from dying if it reappeared
+    // Reappeared — cancel any pending/dying state
+    pendingDeath.delete(obs.trackId);
     dyingTracks.delete(obs.trackId);
   }
 
-  // Move disappeared tracks to dying
-  const prevSnap = count >= 2 ? buffer[(newHead - 1 + BUFFER_CAPACITY) % BUFFER_CAPACITY] : null;
+  // Tracks that disappeared since previous snapshot
+  const prevSnap =
+    count >= 2
+      ? buffer[(newHead - 1 + BUFFER_CAPACITY) % BUFFER_CAPACITY]
+      : null;
   if (prevSnap) {
     for (const obs of prevSnap.obstacles) {
-      if (!currentIds.has(obs.trackId) && !dyingTracks.has(obs.trackId)) {
-        dyingTracks.set(obs.trackId, { lastSeenAt: now, obstacle: obs });
+      if (
+        !currentIds.has(obs.trackId) &&
+        !pendingDeath.has(obs.trackId) &&
+        !dyingTracks.has(obs.trackId)
+      ) {
+        pendingDeath.set(obs.trackId, { missingSince: now, obstacle: obs });
       }
     }
   }
 
-  // Clean up old dying tracks and stale birth entries
+  // Promote pending deaths past grace period
+  for (const [id, info] of pendingDeath) {
+    if (now - info.missingSince >= DEATH_GRACE_MS) {
+      dyingTracks.set(id, { diedAt: now, obstacle: info.obstacle });
+      pendingDeath.delete(id);
+    }
+  }
+
+  // Clean up expired dying tracks
   for (const [id, info] of dyingTracks) {
-    if (now - info.lastSeenAt > FADE_OUT_MS) {
+    if (now - info.diedAt > FADE_OUT_MS) {
       dyingTracks.delete(id);
       birthTimes.delete(id);
     }
@@ -129,66 +156,104 @@ export function computeInterpolatedObstacles(
   const prevIdx = (head - 1 + BUFFER_CAPACITY) % BUFFER_CAPACITY;
   const prev = count >= 2 ? buffer[prevIdx] : null;
 
-  const timeSinceNewest = now - newest.receivedAt;
+  const renderTime = now - INTERPOLATION_DELAY_MS;
   const result: InterpolatedObstacle[] = [];
 
-  // Build a map of newest obstacles by trackId
-  const newestMap = new Map<number, DecodedObstacle>();
-  for (const obs of newest.obstacles) {
-    newestMap.set(obs.trackId, obs);
-  }
-
-  // Build a map of prev obstacles by trackId (for interpolation)
-  const prevMap = new Map<number, DecodedObstacle>();
-  if (prev) {
-    for (const obs of prev.obstacles) {
-      prevMap.set(obs.trackId, obs);
-    }
-  }
-
-  if (timeSinceNewest <= 0 || !prev) {
-    // At or before newest snapshot — use newest directly
+  if (!prev) {
+    // Single snapshot — use directly
     for (const obs of newest.obstacles) {
+      if (obs.confidence < MIN_CONFIDENCE) continue;
+      result.push({ ...obs, opacity: computeFadeIn(obs.trackId, now) });
+    }
+    appendDyingTracks(result, now);
+    return result;
+  }
+
+  const segmentDuration = newest.receivedAt - prev.receivedAt;
+
+  // Build prev map for LERP matching
+  const prevMap = new Map<number, DecodedObstacle>();
+  for (const obs of prev.obstacles) {
+    prevMap.set(obs.trackId, obs);
+  }
+
+  if (
+    segmentDuration > 0 &&
+    renderTime >= prev.receivedAt &&
+    renderTime <= newest.receivedAt
+  ) {
+    // Happy path: LERP between prev and newest
+    const t = (renderTime - prev.receivedAt) / segmentDuration;
+    for (const obs of newest.obstacles) {
+      if (obs.confidence < MIN_CONFIDENCE) continue;
+      const p = prevMap.get(obs.trackId);
+      if (p) {
+        result.push({
+          ...obs,
+          centroidX: lerp(p.centroidX, obs.centroidX, t),
+          centroidY: lerp(p.centroidY, obs.centroidY, t),
+          bboxMinX: lerp(p.bboxMinX, obs.bboxMinX, t),
+          bboxMinY: lerp(p.bboxMinY, obs.bboxMinY, t),
+          bboxMaxX: lerp(p.bboxMaxX, obs.bboxMaxX, t),
+          bboxMaxY: lerp(p.bboxMaxY, obs.bboxMaxY, t),
+          opacity: computeFadeIn(obs.trackId, now),
+        });
+      } else {
+        // New track not in prev — show at newest position
+        result.push({ ...obs, opacity: computeFadeIn(obs.trackId, now) });
+      }
+    }
+  } else if (renderTime > newest.receivedAt) {
+    // Past newest — extrapolate with velocity, clamped
+    const dtSec =
+      Math.min(renderTime - newest.receivedAt, MAX_EXTRAPOLATION_MS) / 1000;
+    for (const obs of newest.obstacles) {
+      if (obs.confidence < MIN_CONFIDENCE) continue;
       result.push({
         ...obs,
+        centroidX: obs.centroidX + obs.velocityX * dtSec,
+        centroidY: obs.centroidY + obs.velocityY * dtSec,
+        bboxMinX: obs.bboxMinX + obs.velocityX * dtSec,
+        bboxMinY: obs.bboxMinY + obs.velocityY * dtSec,
+        bboxMaxX: obs.bboxMaxX + obs.velocityX * dtSec,
+        bboxMaxY: obs.bboxMaxY + obs.velocityY * dtSec,
         opacity: computeFadeIn(obs.trackId, now),
       });
     }
-  } else if (prev) {
-    const segmentDuration = newest.receivedAt - prev.receivedAt;
-
-    if (segmentDuration > 0 && timeSinceNewest <= MAX_EXTRAPOLATION_MS) {
-      // Extrapolate forward from newest using velocity
-      for (const obs of newest.obstacles) {
-        const dtSec = timeSinceNewest / 1000;
-        result.push({
-          ...obs,
-          centroidX: obs.centroidX + obs.velocityX * dtSec,
-          centroidY: obs.centroidY + obs.velocityY * dtSec,
-          bboxMinX: obs.bboxMinX + obs.velocityX * dtSec,
-          bboxMinY: obs.bboxMinY + obs.velocityY * dtSec,
-          bboxMaxX: obs.bboxMaxX + obs.velocityX * dtSec,
-          bboxMaxY: obs.bboxMaxY + obs.velocityY * dtSec,
-          opacity: computeFadeIn(obs.trackId, now),
-        });
-      }
-    } else {
-      // Beyond max extrapolation — hold position
-      for (const obs of newest.obstacles) {
-        result.push({
-          ...obs,
-          opacity: computeFadeIn(obs.trackId, now),
-        });
-      }
+  } else {
+    // Before prev (shouldn't happen normally) — use newest
+    for (const obs of newest.obstacles) {
+      if (obs.confidence < MIN_CONFIDENCE) continue;
+      result.push({ ...obs, opacity: computeFadeIn(obs.trackId, now) });
     }
   }
 
-  // Add dying tracks (fade out)
-  for (const [, info] of dyingTracks) {
-    const elapsed = now - info.lastSeenAt;
-    if (elapsed > FADE_OUT_MS) continue;
+  appendDyingTracks(result, now);
+  return result;
+}
 
-    const opacity = 1 - elapsed / FADE_OUT_MS;
+/** Clear all interpolation state. Called on disconnect. */
+export function clearObstacleInterpolation(): void {
+  buffer.fill(null);
+  head = 0;
+  count = 0;
+  pendingDeath.clear();
+  dyingTracks.clear();
+  birthTimes.clear();
+}
+
+// ============================================================================
+// Internal
+// ============================================================================
+
+function appendDyingTracks(
+  result: InterpolatedObstacle[],
+  now: number,
+): void {
+  for (const [, info] of dyingTracks) {
+    const elapsed = now - info.diedAt;
+    if (elapsed > FADE_OUT_MS) continue;
+    const fadeOut = 1 - elapsed / FADE_OUT_MS;
     const dtSec = elapsed / 1000;
     const obs = info.obstacle;
     result.push({
@@ -199,25 +264,10 @@ export function computeInterpolatedObstacles(
       bboxMinY: obs.bboxMinY + obs.velocityY * dtSec,
       bboxMaxX: obs.bboxMaxX + obs.velocityX * dtSec,
       bboxMaxY: obs.bboxMaxY + obs.velocityY * dtSec,
-      opacity: opacity * computeFadeIn(obs.trackId, now),
+      opacity: fadeOut,
     });
   }
-
-  return result;
 }
-
-/** Clear all interpolation state. Called on disconnect. */
-export function clearObstacleInterpolation(): void {
-  buffer.fill(null);
-  head = 0;
-  count = 0;
-  dyingTracks.clear();
-  birthTimes.clear();
-}
-
-// ============================================================================
-// Internal
-// ============================================================================
 
 function computeFadeIn(trackId: number, now: number): number {
   const birth = birthTimes.get(trackId);
@@ -225,4 +275,8 @@ function computeFadeIn(trackId: number, now: number): number {
   const age = now - birth;
   if (age >= FADE_IN_MS) return 1;
   return age / FADE_IN_MS;
+}
+
+function lerp(a: number, b: number, t: number): number {
+  return a + (b - a) * t;
 }

@@ -111,6 +111,8 @@ export interface Telemetry {
   modeChangedAt: number;
   /** LiDAR sensor status (undefined when no data available) */
   lidar?: LidarTelemetry;
+  /** Policy intention point in world coordinates (meters), null when inactive */
+  policyIntention: { x: number; y: number } | null;
 }
 
 export interface GamepadInput {

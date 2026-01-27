@@ -40,6 +40,8 @@ pub struct TrackedObstacle {
     pub min_z: f32,
     /// Maximum observed Z (height).
     pub max_z: f32,
+    /// PCA principal axis angle in radians.
+    pub rotation: f32,
     /// Estimated velocity X (m/s).
     pub velocity_x: f32,
     /// Estimated velocity Y (m/s).
@@ -104,6 +106,7 @@ struct Track {
     area: f32,
     min_z: f32,
     max_z: f32,
+    rotation: f32,
 }
 
 /// Object tracker with greedy nearest-centroid matching.
@@ -198,6 +201,7 @@ impl ObstacleTracker {
             track.area = det.area;
             track.min_z = det.min_z;
             track.max_z = det.max_z;
+            track.rotation = det.rotation;
 
             // Classification hysteresis
             if det.class != track.pending_class {
@@ -243,6 +247,7 @@ impl ObstacleTracker {
                 area: det.area,
                 min_z: det.min_z,
                 max_z: det.max_z,
+                rotation: det.rotation,
             });
         }
 
@@ -303,6 +308,7 @@ impl ObstacleTracker {
                 area: t.area,
                 min_z: t.min_z,
                 max_z: t.max_z,
+                rotation: t.rotation,
                 velocity_x: t.velocity_x,
                 velocity_y: t.velocity_y,
             })
@@ -327,6 +333,7 @@ mod tests {
             cell_count: 25,
             area: 0.36,
             elongation: 1.2,
+            rotation: 0.0,
             min_z: 0.0,
             max_z: 1.7,
         }

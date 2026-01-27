@@ -12,7 +12,7 @@
 //! - ts: u32 LE timestamp in milliseconds
 //!
 //! ## Telemetry (Rover → Console)
-//! 140 bytes with pose, velocity, measured velocity, acceleration, motor data, ACK fields, IMU orientation, mode timestamp, lidar status.
+//! 148 bytes with pose, velocity, measured velocity, acceleration, motor data, ACK fields, IMU orientation, mode timestamp, lidar status, policy intention.
 
 pub mod costmap_stream;
 pub mod obstacle_stream;
@@ -303,6 +303,10 @@ pub struct Telemetry {
     pub lidar_work_state: u8,
     /// Epoch seconds when the current mode was entered (rover-sourced).
     pub mode_changed_at: u32,
+    /// Policy intention point in world coordinates (x, y) in meters.
+    /// Set when the BC policy is actively driving; None otherwise.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub policy_intention: Option<(f32, f32)>,
 }
 
 impl Default for Telemetry {
@@ -334,6 +338,7 @@ impl Default for Telemetry {
             lidar_core_temp_c: None,
             lidar_work_state: 0,
             mode_changed_at: 0,
+            policy_intention: None,
         }
     }
 }
@@ -495,7 +500,7 @@ impl Server {
 
 }
 
-/// Serialize telemetry for transmission (140 bytes).
+/// Serialize telemetry for transmission (148 bytes).
 ///
 /// This is the single source of truth for telemetry serialization.
 /// Used by UDP, WebSocket, and WebRTC transports.
@@ -526,11 +531,14 @@ impl Server {
 /// [124-127] u32 LE  mode_changed_at (epoch seconds)
 /// [128-131] f32 LE  lidar_core_temp_c (0.0 if unavailable)
 /// [132]     u8      lidar_work_state
-/// [133-135] u8×3    reserved (padding)
-/// [136-139] u32     crc32
+/// [133]     u8      policy_active (0=inactive, 1=policy driving)
+/// [134-137] f32 LE  intention_x (world meters)
+/// [138-141] f32 LE  intention_y (world meters)
+/// [142-143] u8×2    reserved (padding)
+/// [144-147] u32     crc32
 /// ```
 pub fn serialize_telemetry(telemetry: &Telemetry) -> Option<Vec<u8>> {
-    let mut buf = Vec::with_capacity(140);
+    let mut buf = Vec::with_capacity(148);
 
     // Header
     buf.push(MSG_TELEMETRY);        // [0]
@@ -598,17 +606,25 @@ pub fn serialize_telemetry(telemetry: &Telemetry) -> Option<Vec<u8>> {
 
     // LiDAR core temp [128-131]
     buf.extend_from_slice(&telemetry.lidar_core_temp_c.unwrap_or(0.0).to_le_bytes());
-    // LiDAR work state [132] + reserved [133-135]
+    // LiDAR work state [132]
     buf.push(telemetry.lidar_work_state);
-    buf.push(0); // reserved
-    buf.push(0); // reserved
-    buf.push(0); // reserved
 
-    // CRC32 [136-139]
+    // Policy intention [133-141]
+    let policy_active = telemetry.policy_intention.is_some();
+    buf.push(policy_active as u8); // [133]
+    let (ix, iy) = telemetry.policy_intention.unwrap_or((0.0, 0.0));
+    buf.extend_from_slice(&ix.to_le_bytes()); // [134-137]
+    buf.extend_from_slice(&iy.to_le_bytes()); // [138-141]
+
+    // Reserved [142-143]
+    buf.push(0);
+    buf.push(0);
+
+    // CRC32 [144-147]
     let crc = crc32fast::hash(&buf);
     buf.extend_from_slice(&crc.to_le_bytes());
 
-    debug_assert_eq!(buf.len(), 140);
+    debug_assert_eq!(buf.len(), 148);
     Some(buf)
 }
 
@@ -832,14 +848,15 @@ mod tests {
             lidar_core_temp_c: None,
             lidar_work_state: 0,
             mode_changed_at: 1706000000,
+            policy_intention: None,
         };
 
         let data = serialize_telemetry(&telemetry);
         assert!(data.is_some());
         let data = data.unwrap();
 
-        // Verify size (140 bytes)
-        assert_eq!(data.len(), 140);
+        // Verify size (148 bytes)
+        assert_eq!(data.len(), 148);
 
         // Verify message type
         assert_eq!(data[0], MSG_TELEMETRY);

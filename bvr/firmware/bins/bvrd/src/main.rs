@@ -1154,6 +1154,7 @@ async fn main() -> Result<()> {
         lidar_core_temp_c: None,
         lidar_work_state: 0,
         mode_changed_at: 0,
+        policy_intention: None,
     };
     let (telemetry_tx, telemetry_rx) = watch::channel(initial_telemetry);
 
@@ -2208,6 +2209,9 @@ async fn main() -> Result<()> {
             (state.state_machine.mode(), state.commanded_twist)
         };
 
+        // Track policy intention for telemetry visualization
+        let mut policy_intention: Option<(f32, f32)> = None;
+
         // Compute motor outputs based on mode
         let (target_twist, boost_active) = match current_mode {
             Mode::Autonomous => {
@@ -2371,6 +2375,12 @@ async fn main() -> Result<()> {
                         if let Some(action) = action {
                             watchdog.feed();
                             let twist = action.to_twist(autonomous_max_linear, autonomous_max_angular);
+
+                            // Compute intention point: project velocity forward 1.5s from current pose
+                            let lookahead = 1.5_f32;
+                            let intent_x = current_pose.x as f32 + twist.linear as f32 * (current_pose.theta as f32).cos() * lookahead;
+                            let intent_y = current_pose.y as f32 + twist.linear as f32 * (current_pose.theta as f32).sin() * lookahead;
+                            policy_intention = Some((intent_x, intent_y));
 
                             // Check waypoint reached (policy mode)
                             let dx = goal[0] - current_pose.x;
@@ -2798,6 +2808,7 @@ async fn main() -> Result<()> {
             lidar_core_temp_c,
             lidar_work_state: lidar_status.work_state,
             mode_changed_at: state.state_machine.mode_changed_at_epoch_secs(),
+            policy_intention,
         };
 
         let _ = telemetry_tx.send(telemetry.clone());
