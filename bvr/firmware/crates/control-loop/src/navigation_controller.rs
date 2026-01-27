@@ -10,7 +10,7 @@
 //! - Reactive obstacle detection and stopping
 //! - Automatic replanning when path is blocked
 
-use costmap::{Costmap, CostmapSnapshot, Obstacle};
+use costmap::{Costmap, CostmapSnapshot, Obstacle, ScanAccumulator};
 use dispatch::TaskAssignment;
 use lidar::PointCloud;
 use planner::{PlannerConfig, ReactivePlanner, Waypoint};
@@ -196,6 +196,8 @@ pub struct NavigationController {
     current_task: Option<ActiveTask>,
     blocked_start: Option<Instant>,
     last_pose: Pose,
+    /// Multi-frame scan accumulator for reinforcing obstacle evidence.
+    accumulator: ScanAccumulator,
 }
 
 impl NavigationController {
@@ -221,6 +223,7 @@ impl NavigationController {
             current_task: None,
             blocked_start: None,
             last_pose: Pose::default(),
+            accumulator: ScanAccumulator::new(4),
         }
     }
 
@@ -301,8 +304,12 @@ impl NavigationController {
     }
 
     /// Update costmap with new LiDAR scan.
+    ///
+    /// Uses multi-frame scan accumulation to reinforce obstacle evidence
+    /// from recent scans, producing denser and more stable obstacles.
     pub fn update_costmap(&mut self, scan: &PointCloud, robot_pose: &Transform2D) {
-        self.costmap.update_obstacles(scan, robot_pose);
+        self.costmap
+            .update_obstacles_accumulated(scan, robot_pose, &mut self.accumulator);
     }
 
     /// Clear costmap obstacles (use when starting fresh).
