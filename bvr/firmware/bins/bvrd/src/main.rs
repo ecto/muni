@@ -23,7 +23,9 @@ use recording::{Config as RecordingConfig, Recorder};
 use serde::Deserialize;
 use sim::SimBus;
 use state::{Event, StateMachine};
+use std::collections::HashSet;
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicU8, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use teleop::video::{VideoConfig, VideoFrame, VideoServer};
@@ -84,6 +86,9 @@ struct CameraFileConfig {
     /// On Jetson, initializing multiple CSI cameras can hang GStreamer.
     /// Set to 1 if experiencing camera init hangs.
     max_cameras: usize,
+    /// Hot-plug polling interval in seconds (0 = disabled).
+    /// When enabled, bvrd periodically re-scans for new cameras and starts them.
+    hot_plug_interval_secs: u64,
 }
 
 impl Default for CameraFileConfig {
@@ -91,6 +96,7 @@ impl Default for CameraFileConfig {
         Self {
             enabled: true,
             max_cameras: 1, // Default to 1 to avoid Jetson CSI init issues
+            hot_plug_interval_secs: 3,
         }
     }
 }
@@ -139,7 +145,7 @@ impl Default for DispatchFileConfig {
     fn default() -> Self {
         Self {
             enabled: true,
-            endpoint: "ws://depot.local:4890/ws".to_string(),
+            endpoint: "ws://depot:4890/ws".to_string(),
         }
     }
 }
@@ -164,6 +170,9 @@ struct LidarFileConfig {
     /// Mounting pitch angle in degrees (positive = sensor tilted forward/down).
     /// Applied to both point cloud transform and IMU readings.
     mounting_pitch_deg: f32,
+    /// Mounting height above ground in meters.
+    /// Translates point cloud Z so ground ≈ 0 after pitch rotation.
+    mounting_height_m: f32,
     /// Power save mode: only run lidar during Teleop/Autonomous, stop in Idle.
     /// Reduces heat and power consumption when rover is not active.
     power_save: bool,
@@ -188,6 +197,7 @@ impl Default for LidarFileConfig {
             stream_voxel_size: 0.3,
             stream_max_points: 500,
             mounting_pitch_deg: 0.0,
+            mounting_height_m: 0.0,
             power_save: true,
             detect_mode: 0,
             glass_heat: false,
@@ -398,7 +408,7 @@ impl Default for MetricsFileConfig {
     fn default() -> Self {
         Self {
             enabled: true,
-            endpoint: "depot.local:8089".to_string(),
+            endpoint: "depot:8089".to_string(),
             interval_hz: 1,
         }
     }
@@ -422,7 +432,7 @@ impl Default for DiscoveryFileConfig {
     fn default() -> Self {
         Self {
             enabled: true,
-            endpoint: "depot.local:4860".to_string(),
+            endpoint: "depot:4860".to_string(),
             rover_id: None,
             rover_name: None,
             rtc_port: 4852,
@@ -814,6 +824,115 @@ struct SharedState {
     tool_registry: ToolRegistry,
     /// Subsystem health status (updated by various components)
     health: SubsystemHealth,
+}
+
+/// Start a single camera: spawn_capture + sync→async bridge + forwarder task.
+///
+/// Returns `true` if the camera started successfully. The forwarder task removes
+/// the camera's stable ID from `active_cameras` when it exits, enabling the
+/// hot-plug monitor to re-detect and restart it.
+fn start_camera(
+    cam: &camera::DetectedCamera,
+    config: CameraConfig,
+    next_camera_id: &Arc<AtomicU8>,
+    active_cameras: &Arc<Mutex<HashSet<String>>>,
+    video_tx_rtc: &tokio::sync::mpsc::Sender<VideoFrame>,
+    video_tx_udp: &watch::Sender<Option<VideoFrame>>,
+    shared: &Arc<Mutex<SharedState>>,
+) -> bool {
+    let stable_id = cam.stable_id();
+    let camera_id = next_camera_id.fetch_add(1, Ordering::Relaxed);
+
+    match camera::spawn_capture(cam, config) {
+        Ok((frame_rx, _camera_handle)) => {
+            info!(
+                camera_id,
+                stable_id = %stable_id,
+                camera = %cam.name,
+                "Camera {camera_id} started (GStreamer)",
+            );
+
+            // Register in active set
+            active_cameras.lock().unwrap().insert(stable_id.clone());
+            shared.lock().unwrap().health.camera_active = true;
+
+            let video_tx_rtc = video_tx_rtc.clone();
+            let video_tx_udp = video_tx_udp.clone();
+            let active_cameras = active_cameras.clone();
+
+            // Bridge sync channel → async channel
+            let (async_tx, mut async_rx) = mpsc::channel::<camera::Frame>(4);
+
+            tokio::task::spawn_blocking(move || {
+                loop {
+                    match frame_rx.recv() {
+                        Ok(frame) => {
+                            if async_tx.blocking_send(frame).is_err() {
+                                break;
+                            }
+                        }
+                        Err(_) => break,
+                    }
+                }
+            });
+
+            // Forwarder task: forwards frames and removes ID from active set on exit
+            tokio::spawn(async move {
+                let mut frame_count: u64 = 0;
+                let mut total_bytes: u64 = 0;
+                let mut last_log = std::time::Instant::now();
+
+                while let Some(frame) = async_rx.recv().await {
+                    let frame_size = frame.data.len();
+                    let video_frame = VideoFrame {
+                        camera_id,
+                        data: frame.data,
+                        width: frame.width,
+                        height: frame.height,
+                        sequence: frame.sequence,
+                        timestamp_ms: frame.timestamp_ms,
+                    };
+
+                    match video_tx_rtc.try_send(video_frame.clone()) {
+                        Ok(_) => {}
+                        Err(mpsc::error::TrySendError::Full(_)) => {}
+                        Err(mpsc::error::TrySendError::Closed(_)) => break,
+                    }
+
+                    let _ = video_tx_udp.send(Some(video_frame));
+
+                    frame_count += 1;
+                    total_bytes += frame_size as u64;
+
+                    if last_log.elapsed() >= std::time::Duration::from_secs(5) {
+                        let elapsed = last_log.elapsed().as_secs_f64();
+                        let fps = frame_count as f64 / elapsed;
+                        let mbps = (total_bytes as f64 * 8.0) / (elapsed * 1_000_000.0);
+                        tracing::debug!(
+                            camera_id,
+                            frame_count,
+                            fps = format!("{:.1}", fps),
+                            mbps = format!("{:.2}", mbps),
+                            "camera.async_stats"
+                        );
+                        frame_count = 0;
+                        total_bytes = 0;
+                        last_log = std::time::Instant::now();
+                    }
+                }
+
+                // Camera died — remove from active set so monitor can restart it
+                active_cameras.lock().unwrap().remove(&stable_id);
+                info!(camera_id, stable_id = %stable_id, "Camera forwarder stopped, removed from active set");
+            });
+
+            true
+        }
+        Err(e) => {
+            warn!(camera_id, ?e, "Failed to start camera {camera_id} - skipping");
+            false
+        }
+    }
 }
 
 #[tokio::main]
@@ -1261,12 +1380,26 @@ async fn main() -> Result<()> {
             jpeg_quality: 60,
         };
 
-        // Auto-detect cameras (fast filesystem scan, no GStreamer init needed)
+        // Always spawn UDP video server so hot-plugged cameras have somewhere to send frames
+        let video_config = VideoConfig::default();
+        let video_server = VideoServer::new(video_config.clone(), video_rx_udp.clone());
+        info!(port = video_config.port, "UDP video server starting");
+        tokio::spawn(async move {
+            if let Err(e) = video_server.run().await {
+                error!(?e, "UDP video server error");
+            }
+        });
+
+        // Shared set of active camera stable IDs (dead cameras remove themselves)
+        let active_cameras: Arc<Mutex<HashSet<String>>> = Arc::new(Mutex::new(HashSet::new()));
+        // Monotonically increasing camera_id counter (informational only)
+        let next_camera_id: Arc<AtomicU8> = Arc::new(AtomicU8::new(0));
+
+        let max_cameras = file_config.camera.max_cameras;
+
+        // Initial camera scan
         info!("Detecting cameras...");
         let cameras = camera::detect_cameras();
-
-        // Apply max_cameras limit from config (0 = unlimited)
-        let max_cameras = file_config.camera.max_cameras;
         let cameras_to_start: Vec<_> = if max_cameras > 0 {
             cameras.into_iter().take(max_cameras).collect()
         } else {
@@ -1274,143 +1407,84 @@ async fn main() -> Result<()> {
         };
 
         if cameras_to_start.is_empty() {
-            info!("No cameras detected");
+            info!("No cameras detected (hot-plug monitor will retry)");
         } else {
             info!(count = cameras_to_start.len(), max = max_cameras, "Cameras detected");
             for cam in &cameras_to_start {
                 info!(name = %cam.name, "  - {:?}", cam.camera_type);
             }
 
-            // Start capture on detected cameras using the new async V4L2/nokhwa API
-            // This avoids GStreamer's threading conflicts with tokio
-            info!("Starting camera capture for {} camera(s)...", cameras_to_start.len());
-
             let mut cameras_started = 0u8;
-
-            for (camera_id, cam) in cameras_to_start.iter().enumerate() {
-                let camera_id = camera_id as u8;
-
-                // Use the GStreamer-based camera API (sync, runs in dedicated thread)
-                match camera::spawn_capture(cam, camera_config.clone()) {
-                    Ok((frame_rx, _camera_handle)) => {
-                        info!(
-                            camera_id,
-                            camera = %cam.name,
-                            "Camera {} started: {}x{} @ {}fps (GStreamer)",
-                            camera_id,
-                            width,
-                            height,
-                            args.camera_fps
-                        );
-
-                        cameras_started += 1;
-
-                        // Clone video tx channels for this camera task
-                        let video_tx_rtc_camera = video_tx_rtc.clone();
-                        let video_tx_udp_camera = video_tx_udp.clone();
-
-                        // Bridge sync channel to async using spawn_blocking for proper blocking receive.
-                        // This avoids the CPU-spinning issue with try_recv polling.
-                        let (async_tx, mut async_rx) = mpsc::channel::<camera::Frame>(4);
-
-                        // Blocking task: receive from sync channel, send to async channel
-                        tokio::task::spawn_blocking(move || {
-                            loop {
-                                // Blocking receive - waits for frame without spinning
-                                match frame_rx.recv() {
-                                    Ok(frame) => {
-                                        // Send to async channel (blocking if full, which throttles camera)
-                                        if async_tx.blocking_send(frame).is_err() {
-                                            break; // Receiver dropped
-                                        }
-                                    }
-                                    Err(_) => break, // Camera thread stopped
-                                }
-                            }
-                        });
-
-                        // Async task: receive from async channel, forward to video servers
-                        tokio::spawn(async move {
-                            let mut frame_count: u64 = 0;
-                            let mut total_bytes: u64 = 0;
-                            let mut last_log = std::time::Instant::now();
-
-                            while let Some(frame) = async_rx.recv().await {
-                                let frame_size = frame.data.len();
-                                // frame.data is already Arc<Vec<u8>> - zero-copy sharing
-                                let video_frame = VideoFrame {
-                                    camera_id,
-                                    data: frame.data, // Arc clone is cheap (~8 bytes)
-                                    width: frame.width,
-                                    height: frame.height,
-                                    sequence: frame.sequence,
-                                    timestamp_ms: frame.timestamp_ms,
-                                };
-
-                                // Send to WebRTC (mpsc - queues frames)
-                                // Use try_send to avoid backpressure stalling the camera
-                                // Clone is cheap since data is Arc
-                                match video_tx_rtc_camera.try_send(video_frame.clone()) {
-                                    Ok(_) => {}
-                                    Err(mpsc::error::TrySendError::Full(_)) => {
-                                        // Channel full - drop frame (no WebRTC clients consuming)
-                                    }
-                                    Err(mpsc::error::TrySendError::Closed(_)) => {
-                                        break; // Receiver dropped
-                                    }
-                                }
-
-                                // Send to UDP (watch - latest frame only, for native CLI)
-                                let _ = video_tx_udp_camera.send(Some(video_frame));
-
-                                frame_count += 1;
-                                total_bytes += frame_size as u64;
-
-                                // Log stats every 5 seconds
-                                if last_log.elapsed() >= std::time::Duration::from_secs(5) {
-                                    let elapsed = last_log.elapsed().as_secs_f64();
-                                    let fps = frame_count as f64 / elapsed;
-                                    let mbps = (total_bytes as f64 * 8.0) / (elapsed * 1_000_000.0);
-                                    tracing::debug!(
-                                        camera_id,
-                                        frame_count,
-                                        fps = format!("{:.1}", fps),
-                                        mbps = format!("{:.2}", mbps),
-                                        "camera.async_stats"
-                                    );
-                                    frame_count = 0;
-                                    total_bytes = 0;
-                                    last_log = std::time::Instant::now();
-                                }
-                            }
-
-                            debug!(camera_id, "Camera frame forwarder stopped");
-                        });
-                    }
-                    Err(e) => {
-                        warn!(camera_id, ?e, "Failed to start camera {} - skipping", camera_id);
-                    }
+            for cam in &cameras_to_start {
+                if start_camera(
+                    cam,
+                    camera_config.clone(),
+                    &next_camera_id,
+                    &active_cameras,
+                    &video_tx_rtc,
+                    &video_tx_udp,
+                    &shared,
+                ) {
+                    cameras_started += 1;
                 }
             }
 
             if cameras_started > 0 {
-                // Mark camera as active in health status
-                shared.lock().unwrap().health.camera_active = true;
                 info!(count = cameras_started, "Camera capture started (GStreamer)");
-
-                // Spawn UDP video server (for native operator CLI)
-                let video_config = VideoConfig::default();
-                let video_server = VideoServer::new(video_config.clone(), video_rx_udp.clone());
-                info!(port = video_config.port, "UDP video server starting");
-
-                tokio::spawn(async move {
-                    if let Err(e) = video_server.run().await {
-                        error!(?e, "UDP video server error");
-                    }
-                });
             } else {
-                warn!("No cameras could be started - continuing without video");
+                warn!("No cameras could be started - hot-plug monitor will retry");
             }
+        }
+
+        // Spawn hot-plug monitor task
+        let hot_plug_secs = file_config.camera.hot_plug_interval_secs;
+        if hot_plug_secs > 0 {
+            let monitor_active = active_cameras.clone();
+            let monitor_next_id = next_camera_id.clone();
+            let monitor_config = camera_config.clone();
+            let monitor_rtc_tx = video_tx_rtc.clone();
+            let monitor_udp_tx = video_tx_udp.clone();
+            let monitor_shared = shared.clone();
+            let monitor_interval = Duration::from_secs(hot_plug_secs);
+
+            tokio::spawn(async move {
+                loop {
+                    tokio::time::sleep(monitor_interval).await;
+
+                    let detected = camera::detect_cameras();
+                    let active = monitor_active.lock().unwrap().clone();
+                    let active_count = active.len();
+
+                    for cam in &detected {
+                        // Respect max_cameras as concurrent limit
+                        if max_cameras > 0 && active_count >= max_cameras {
+                            break;
+                        }
+
+                        let id = cam.stable_id();
+                        if active.contains(&id) {
+                            continue;
+                        }
+
+                        info!(stable_id = %id, name = %cam.name, "Hot-plugged camera detected, starting...");
+                        start_camera(
+                            cam,
+                            monitor_config.clone(),
+                            &monitor_next_id,
+                            &monitor_active,
+                            &monitor_rtc_tx,
+                            &monitor_udp_tx,
+                            &monitor_shared,
+                        );
+                    }
+
+                    // Update health flag based on active camera count
+                    let has_cameras = !monitor_active.lock().unwrap().is_empty();
+                    monitor_shared.lock().unwrap().health.camera_active = has_cameras;
+                }
+            });
+
+            info!(interval_secs = hot_plug_secs, "Camera hot-plug monitor started");
         }
     }
 
@@ -1478,6 +1552,7 @@ async fn main() -> Result<()> {
             point_cloud_port: file_config.lidar.point_cloud_port,
             imu_port: file_config.lidar.imu_port,
             mounting_pitch_deg: file_config.lidar.mounting_pitch_deg,
+            mounting_height_m: file_config.lidar.mounting_height_m,
             detect_mode: file_config.lidar.detect_mode,
             glass_heat: file_config.lidar.glass_heat,
             blind_spot_cm: file_config.lidar.blind_spot_cm,

@@ -66,7 +66,7 @@ update_rate_hz = 10
 # Enable NTRIP client for RTK corrections
 enabled = true
 # Base station NTRIP caster (depot server on mesh network)
-server = "192.168.1.129"
+server = "depot"
 port = 2101
 # Mountpoint name on the caster
 mountpoint = "ROVER"
@@ -119,7 +119,7 @@ min_age_secs = 60
 enabled = true
 # Depot endpoint (IP:port or hostname:port)
 # InfluxDB listens on UDP port 8089 for line protocol
-endpoint = "192.168.1.129:8089"
+endpoint = "depot:8089"
 # Push rate in Hz (1 = once per second, recommended)
 interval_hz = 1
 
@@ -127,7 +127,7 @@ interval_hz = 1
 # Enable rover discovery registration
 enabled = true
 # Discovery service endpoint
-endpoint = "192.168.1.129:4860"
+endpoint = "depot:4860"
 # Rover identity (defaults to identity.rover_id if not set)
 rover_id = "frog-0"
 rover_name = "Frog-0"
@@ -183,6 +183,9 @@ stream_max_points = 1000  # Maximum points per frame for streaming
 # IMU mounting pitch angle in degrees (positive = tilted forward/down)
 # Mid360 is mounted at 30 degrees forward tilt for maximum coverage
 mounting_pitch_deg = 30.0  # Mid360 mounted at 30° forward tilt
+# Height of LiDAR sensor above ground (meters)
+# Translates Z so ground ≈ 0 after pitch rotation
+mounting_height_m = 0.42
 # Detection sensitivity: 0=normal, 1=sensitive (better for dark surfaces)
 detect_mode = 1
 # Enable lens heating (prevents fog/ice in winter)
@@ -261,13 +264,19 @@ top_k = 5
 # Descriptor distance threshold (lower = stricter)
 descriptor_threshold = 0.3
 
+[dispatch]
+# Enable dispatch (mission planning) connection
+enabled = true
+# Dispatch service WebSocket endpoint
+endpoint = "ws://depot:4890/ws"
+
 [costmap]
 # RANSAC ground plane distance threshold (meters)
 ground_distance_threshold = 0.15
 # Minimum ground plane inlier fraction for RANSAC
 ground_min_inlier_ratio = 0.3
 # RANSAC iterations for ground plane fitting
-ground_ransac_iterations = 50
+ground_ransac_iterations = 150
 
 [camera]
 # Enable camera capture
@@ -276,6 +285,9 @@ enabled = true
 # Set to 1 on Jetson to reduce CPU usage (~35% per camera)
 # Set to 0 to use all detected cameras
 max_cameras = 1
+# Hot-plug polling interval in seconds (0 = disabled)
+# Periodically re-scans for new cameras and starts them automatically
+hot_plug_interval_secs = 3
 
 [blower]
 # Enable blower subsystem (90mm EDF)
