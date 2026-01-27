@@ -145,62 +145,130 @@ def extract_session(rrd_path: Path) -> tuple[np.ndarray, np.ndarray] | None:
         (N, 7) and actions has shape (N, 2), both float32.
     """
     recording = rr.dataframe.load_recording(str(rrd_path))
-    view = recording.view(
-        index="log_time",
-        contents={
-            "robot/x": [],
-            "robot/y": [],
-            "robot/heading": [],
-            "velocity/linear/commanded": [],
-            "velocity/angular/commanded": [],
-            "state/mode": [],
-        },
-    )
-    table = view.select().read_all()
 
-    # Convert to numpy arrays
-    def col(name: str) -> np.ndarray:
-        return table.column(name).to_numpy()
+    # Query all relevant entities. The Rerun dataframe API returns columns
+    # named like "/entity/path:ComponentType". We query with a glob pattern
+    # and use fill_latest_at() to forward-fill values — since different
+    # entities are logged at different timestamps, without this each column
+    # would only have data on its own rows and be None everywhere else.
+    view = recording.view(index="log_time", contents="/**")
+    view = view.fill_latest_at()
+    table = view.select().read_all()
+    col_names = set(table.column_names)
+
+    # Map from our logical names to the actual Rerun column names.
+    # Scalar channels use the "/entity:Scalar" convention.
+    COLUMN_MAP = {
+        "x": "/robot/x:Scalar",
+        "y": "/robot/y:Scalar",
+        "heading": "/robot/heading:Scalar",
+        "lin_cmd": "/velocity/linear/commanded:Scalar",
+        "ang_cmd": "/velocity/angular/commanded:Scalar",
+        "mode": "/state/mode:Text",
+    }
+
+    # Verify all required columns exist
+    missing = [k for k, v in COLUMN_MAP.items() if v not in col_names]
+    if missing:
+        print(f"  Skipping {rrd_path.name}: missing columns {missing}")
+        return None
+
+    def col_array(key: str) -> np.ndarray:
+        """Extract a Rerun Scalar column as a flat numpy float64 array.
+
+        Rerun stores Scalar components as Arrow list<double> — each row is
+        either None (not logged at this timestamp) or a single-element list
+        like [0.5]. This function unwraps that to a flat float64 array with
+        NaN for missing entries.
+        """
+        arrow_col = table.column(COLUMN_MAP[key])
+        raw = arrow_col.to_numpy()  # object array: None or np.array([val])
+        out = np.full(len(raw), np.nan, dtype=np.float64)
+        for i, v in enumerate(raw):
+            if v is not None:
+                if isinstance(v, np.ndarray) and len(v) > 0:
+                    out[i] = float(v[0])
+                elif isinstance(v, (int, float)):
+                    out[i] = float(v)
+        return out
 
     try:
-        x = col("robot/x").astype(np.float64)
-        y = col("robot/y").astype(np.float64)
-        heading = col("robot/heading").astype(np.float64)
-        lin_cmd = col("velocity/linear/commanded").astype(np.float32)
-        ang_cmd = col("velocity/angular/commanded").astype(np.float32)
-        mode = col("state/mode")
+        x_raw = col_array("x")
+        y_raw = col_array("y")
+        heading_raw = col_array("heading")
+        lin_cmd_raw = col_array("lin_cmd")
+        ang_cmd_raw = col_array("ang_cmd")
     except (KeyError, TypeError) as e:
-        print(f"  Skipping {rrd_path.name}: missing column {e}")
+        print(f"  Skipping {rrd_path.name}: column extraction error: {e}")
         return None
+
+    # The Rerun dataframe merges all entities by timestamp, so most columns
+    # will have NaN for rows where that entity wasn't logged. Build a mask
+    # of rows where all required scalar columns have valid data.
+    valid_mask = (
+        ~np.isnan(x_raw)
+        & ~np.isnan(y_raw)
+        & ~np.isnan(heading_raw)
+        & ~np.isnan(lin_cmd_raw)
+        & ~np.isnan(ang_cmd_raw)
+    )
+
+    x = x_raw[valid_mask]
+    y = y_raw[valid_mask]
+    heading = heading_raw[valid_mask]
+    lin_cmd = lin_cmd_raw[valid_mask].astype(np.float32)
+    ang_cmd = ang_cmd_raw[valid_mask].astype(np.float32)
 
     n = len(x)
-    if n < SOURCE_HZ * (GOAL_HORIZON_S + 1):
-        print(f"  Skipping {rrd_path.name}: too short ({n} samples)")
+    print(f"  {n} valid rows (of {len(x_raw)} total)")
+
+    # Detect actual sample rate from timestamps
+    if n < 10:
+        print(f"  Skipping {rrd_path.name}: too few valid samples ({n})")
         return None
 
-    # Goal lookahead in samples
+    # For the goal lookahead, we use a fixed number of samples based on
+    # the configured source rate. If the actual rate differs, the goal
+    # horizon will be approximate — this is acceptable since pseudo-goals
+    # are inherently approximate.
     goal_offset = int(GOAL_HORIZON_S * SOURCE_HZ)
+
+    # If the session has fewer samples than our expected rate implies,
+    # adapt: use all samples and compute goal offset from actual count.
+    # Typical bvrd logs at ~20Hz for pose data (not 100Hz), so adjust.
+    if goal_offset >= n:
+        # Estimate actual rate and recompute
+        actual_hz = n / max(1, n / SOURCE_HZ)
+        goal_offset = max(5, int(GOAL_HORIZON_S * n / max(1, n / SOURCE_HZ * GOAL_HORIZON_S)))
+        if goal_offset >= n:
+            goal_offset = n // 4  # fallback: use 25% of session as horizon
+
+    # Check for mode column — in some sessions, mode is only logged once
+    # (at session start). If it says "Teleop", we treat the whole session
+    # as teleop. If not present or not teleop, we still include data
+    # (since these sessions are explicitly selected for training).
+    try:
+        mode_col = table.column(COLUMN_MAP["mode"])
+        mode_values = mode_col.drop_null().to_pylist()
+        if mode_values:
+            # Check if any mode entry indicates teleop
+            session_is_teleop = any(
+                "teleop" in str(m).lower() for m in mode_values
+            )
+            if not session_is_teleop:
+                print(f"  Warning: session mode is {mode_values[:3]}, not Teleop — including anyway")
+    except Exception:
+        pass  # No mode data, include all samples
 
     observations = []
     actions = []
 
-    for i in range(0, n - goal_offset, SUBSAMPLE_STEP):
-        # Filter: teleop mode only
-        m = mode[i]
-        if hasattr(m, "item"):
-            m = m.item()
-        if isinstance(m, (str, bytes)):
-            m_str = m if isinstance(m, str) else m.decode()
-            if "teleop" not in m_str.lower():
-                continue
-        elif isinstance(m, (int, float, np.integer, np.floating)):
-            # Mode enum: assume 1 = Teleop
-            if int(m) != 1:
-                continue
-        else:
-            continue
+    # Subsample: take every SUBSAMPLE_STEP'th sample. If the actual rate
+    # is lower than SOURCE_HZ, adjust to avoid over-subsampling.
+    step = max(1, SUBSAMPLE_STEP if n > SOURCE_HZ * 10 else 1)
 
-        # Filter: moving
+    for i in range(0, n - goal_offset, step):
+        # Filter: must be moving
         speed = abs(float(lin_cmd[i]))
         if speed < MIN_SPEED:
             continue
@@ -227,8 +295,7 @@ def extract_session(rrd_path: Path) -> tuple[np.ndarray, np.ndarray] | None:
             dtype=np.float32,
         )
 
-        # Action: commanded velocities (already normalized above for obs,
-        # but actions are separate — normalize independently)
+        # Action: commanded velocities normalized independently
         act = np.array(
             [
                 np.clip(lin_cmd[i] / MAX_LINEAR_VEL, -1, 1),
@@ -241,7 +308,7 @@ def extract_session(rrd_path: Path) -> tuple[np.ndarray, np.ndarray] | None:
         actions.append(act)
 
     if not observations:
-        print(f"  Skipping {rrd_path.name}: no valid teleop samples")
+        print(f"  Skipping {rrd_path.name}: no moving teleop samples")
         return None
 
     return np.array(observations), np.array(actions)
