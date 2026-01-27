@@ -17,8 +17,18 @@ use tracing::{debug, info, warn};
 use transforms::Transform2D;
 use types::Pose;
 
+mod imu_preintegration;
+mod persistence;
+mod scan_context;
 mod scan_matcher;
 
+pub use imu_preintegration::{
+    compute_initial_guess, ImuPreintegrationConfig, ImuPreintegrator, PreintegratedDelta,
+};
+pub use persistence::{MapError, PersistenceConfig};
+pub use scan_context::{
+    ScanContextCandidate, ScanContextConfig, ScanContextDatabase, ScanContextDescriptor,
+};
 pub use scan_matcher::{CorrelativeScanMatcher, ScanMatchConfig, ScanMatchResult};
 
 /// State from SLAM task for use by the main control loop.
@@ -100,6 +110,10 @@ pub struct SlamConfig {
     pub odom_linear_to_angular_noise: f64,
     /// EKF process noise: linear noise per radian of rotation (m/rad).
     pub odom_angular_to_linear_noise: f64,
+    /// IMU pre-integration configuration
+    pub imu: ImuPreintegrationConfig,
+    /// Scan context descriptor configuration for loop closure
+    pub scan_context: ScanContextConfig,
 }
 
 impl Default for SlamConfig {
@@ -123,6 +137,8 @@ impl Default for SlamConfig {
             odom_angular_noise: 0.05,
             odom_linear_to_angular_noise: 0.02,
             odom_angular_to_linear_noise: 0.01,
+            imu: ImuPreintegrationConfig::default(),
+            scan_context: ScanContextConfig::default(),
         }
     }
 }
@@ -138,6 +154,8 @@ pub struct Keyframe {
     pub scan: Arc<PointCloud>,
     /// Timestamp when keyframe was created
     pub timestamp: Instant,
+    /// Scan context descriptor for fast loop closure retrieval
+    pub descriptor: Option<ScanContextDescriptor>,
 }
 
 /// An edge (constraint) in the pose graph.
@@ -311,6 +329,10 @@ pub struct SlamProcessor {
     last_scan_odom_pose: Transform2D,
     /// Total loop closures detected
     loop_closure_count: usize,
+    /// Pending pre-integrated IMU delta for next scan
+    pending_imu_delta: Option<PreintegratedDelta>,
+    /// Scan context database for efficient loop closure candidate retrieval
+    scan_context_db: ScanContextDatabase,
 }
 
 impl SlamProcessor {
@@ -328,6 +350,8 @@ impl SlamProcessor {
 
         let ekf = PoseEkf::new(&config);
 
+        let scan_context_db = ScanContextDatabase::new(config.scan_context.clone());
+
         Self {
             config,
             scan_matcher: CorrelativeScanMatcher::new(scan_config),
@@ -339,6 +363,8 @@ impl SlamProcessor {
             last_keyframe_pose: Transform2D::identity(),
             last_scan_odom_pose: Transform2D::identity(),
             loop_closure_count: 0,
+            pending_imu_delta: None,
+            scan_context_db,
         }
     }
 
@@ -357,6 +383,12 @@ impl SlamProcessor {
         self.ekf.predict(body_dx, body_dy, dtheta);
 
         self.last_odom_pose = odom_tf;
+    }
+
+    /// Set the pre-integrated IMU delta for the next scan.
+    /// Call this before `process_scan()` with the consumed delta from the preintegrator.
+    pub fn set_imu_delta(&mut self, delta: Option<PreintegratedDelta>) {
+        self.pending_imu_delta = delta;
     }
 
     /// Process a new LiDAR scan (lower frequency, ~10Hz).
@@ -384,13 +416,17 @@ impl SlamProcessor {
         // small per-frame errors that cause drift.
         let reference = self.keyframes.last().map(|kf| kf.scan.clone());
 
+        // Take the pending IMU delta (consumed once per scan)
+        let imu_delta = self.pending_imu_delta.take();
+
         let matched = if has_moved {
             if let Some(ref ref_scan) = reference {
-                // Use keyframe-relative pose as initial guess for GICP.
-                // This is the proper guess: where we think we are relative to
-                // the keyframe, not the raw odom delta which drifts.
+                // Build initial guess for GICP.
+                // Start with EKF-based keyframe-relative pose, then optionally
+                // override yaw with IMU pre-integrated delta for better turn handling.
                 let keyframe_pose = &self.keyframes.last().unwrap().pose;
-                let initial_guess = keyframe_pose.relative_to(&self.ekf.pose());
+                let ekf_guess = keyframe_pose.relative_to(&self.ekf.pose());
+                let initial_guess = compute_initial_guess(&ekf_guess, imu_delta.as_ref());
 
                 match self.scan_matcher.match_scans(ref_scan, &scan, initial_guess) {
                     Ok(result) => {
@@ -436,14 +472,21 @@ impl SlamProcessor {
             keyframe_added = true;
             let keyframe_id = self.keyframes.len();
 
-            // Create keyframe
+            // Create keyframe with scan context descriptor
             let current_pose = self.ekf.pose();
+            let descriptor = Some(self.compute_descriptor(&scan));
             let keyframe = Keyframe {
                 id: keyframe_id,
                 pose: current_pose,
                 scan: scan.clone(),
                 timestamp: Instant::now(),
+                descriptor: descriptor.clone(),
             };
+
+            // Insert descriptor into scan context database
+            if let Some(ref desc) = descriptor {
+                self.scan_context_db.insert(keyframe_id, desc.clone());
+            }
 
             // Add odometry edge from previous keyframe
             if let Some(prev) = self.keyframes.last() {
@@ -566,18 +609,40 @@ impl SlamProcessor {
         distance >= self.config.keyframe_distance || rotation >= self.config.keyframe_rotation
     }
 
-    /// Detect loop closure for a new keyframe.
+    /// Detect loop closure for a new keyframe using scan context descriptors.
+    ///
+    /// Uses the scan context database for fast top-K candidate retrieval,
+    /// then verifies each candidate with spatial proximity, GICP scan matching,
+    /// and odometry consistency checks.
     fn detect_loop_closure(&self, new_keyframe: &Keyframe) -> Option<PoseGraphEdge> {
+        let descriptor = new_keyframe.descriptor.as_ref()?;
         let current_pos = new_keyframe.pose.translation();
-
-        // Search through old keyframes (skip recent ones)
         let skip_recent = self.config.loop_closure_min_nodes;
 
-        for candidate in self.keyframes.iter().take(self.keyframes.len().saturating_sub(skip_recent)) {
+        // Query scan context database for top-K candidates
+        let candidates = self.scan_context_db.find_candidates(descriptor);
+        if candidates.is_empty() {
+            return None;
+        }
+
+        debug!(
+            num_candidates = candidates.len(),
+            "Scan context loop closure candidates"
+        );
+
+        for sc_candidate in &candidates {
+            let kid = sc_candidate.keyframe_id;
+
+            // Skip recent keyframes
+            if kid + skip_recent >= self.keyframes.len() {
+                continue;
+            }
+
+            let candidate = &self.keyframes[kid];
             let candidate_pos = candidate.pose.translation();
             let distance = (current_pos - candidate_pos).norm();
 
-            // Check if within search radius
+            // Spatial proximity check
             if distance > self.config.loop_closure_search_radius {
                 continue;
             }
@@ -585,17 +650,19 @@ impl SlamProcessor {
             // Compute initial guess for scan matching
             let initial_guess = candidate.pose.relative_to(&new_keyframe.pose);
 
-            // Try scan matching
-            match self.scan_matcher.match_scans(&candidate.scan, &new_keyframe.scan, initial_guess) {
+            // GICP verification
+            match self
+                .scan_matcher
+                .match_scans(&candidate.scan, &new_keyframe.scan, initial_guess)
+            {
                 Ok(result) => {
                     if result.score >= self.config.loop_closure_threshold {
-                        // Consistency check: compare scan match translation with
-                        // accumulated odometry distance between keyframes
+                        // Odometry consistency check
                         let match_translation = result.transform.translation().norm();
-                        let odom_distance = self.accumulated_odom_distance(candidate.id, new_keyframe.id);
-
-                        // Compute σ from scan match covariance (position block trace)
-                        let pos_sigma = (result.covariance[(0, 0)] + result.covariance[(1, 1)]).sqrt();
+                        let odom_distance =
+                            self.accumulated_odom_distance(candidate.id, new_keyframe.id);
+                        let pos_sigma =
+                            (result.covariance[(0, 0)] + result.covariance[(1, 1)]).sqrt();
                         let disagreement = (match_translation - odom_distance).abs();
                         let max_sigma = self.config.loop_closure_max_disagreement_sigma;
 
@@ -604,7 +671,8 @@ impl SlamProcessor {
                                 from = candidate.id,
                                 to = new_keyframe.id,
                                 score = result.score,
-                                disagreement = disagreement,
+                                sc_dist = sc_candidate.distance,
+                                disagreement,
                                 sigma = pos_sigma,
                                 "Loop closure rejected: inconsistent with odometry"
                             );
@@ -615,7 +683,8 @@ impl SlamProcessor {
                             from = candidate.id,
                             to = new_keyframe.id,
                             score = result.score,
-                            "Loop closure detected"
+                            sc_dist = sc_candidate.distance,
+                            "Loop closure detected (scan context)"
                         );
 
                         return Some(PoseGraphEdge {
@@ -632,6 +701,31 @@ impl SlamProcessor {
         }
 
         None
+    }
+
+    /// Compute a scan context descriptor from a point cloud.
+    ///
+    /// Uses voxel-downsampled points for consistency across scans
+    /// (matches the GICP voxel resolution).
+    fn compute_descriptor(&self, scan: &PointCloud) -> ScanContextDescriptor {
+        let points: Vec<Vector3<f64>> = scan
+            .points
+            .iter()
+            .filter_map(|p| {
+                let range_sq = p.x * p.x + p.y * p.y + p.z * p.z;
+                if range_sq.is_finite() && range_sq > 0.01 && range_sq < 2500.0 {
+                    Some(Vector3::new(p.x as f64, p.y as f64, p.z as f64))
+                } else {
+                    None
+                }
+            })
+            .collect();
+        ScanContextDescriptor::from_points(&points, &self.config.scan_context)
+    }
+
+    /// Get a reference to the scan context database.
+    pub fn scan_context_db(&self) -> &ScanContextDatabase {
+        &self.scan_context_db
     }
 
     /// Compute information matrix from scan match result.

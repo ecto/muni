@@ -1510,7 +1510,7 @@ async fn main() -> Result<()> {
     // Initialize SLAM processor as background task
     // This moves expensive scan matching (10-100ms) off the main control loop
     let (slam_scan_tx, slam_state_rx): (
-        Option<mpsc::Sender<(lidar::PointCloud, Pose)>>,
+        Option<mpsc::Sender<(lidar::PointCloud, Pose, Option<slam::PreintegratedDelta>)>>,
         Option<watch::Receiver<SlamState>>,
     ) = if file_config.slam.enabled && file_config.lidar.enabled {
         let slam_config = SlamConfig {
@@ -1528,14 +1528,14 @@ async fn main() -> Result<()> {
         };
 
         // Channel for sending scans to SLAM (bounded to prevent backpressure)
-        let (scan_tx, mut scan_rx) = mpsc::channel::<(lidar::PointCloud, Pose)>(4);
+        let (scan_tx, mut scan_rx) = mpsc::channel::<(lidar::PointCloud, Pose, Option<slam::PreintegratedDelta>)>(4);
         // Watch channel for receiving SLAM state updates
         let (state_tx, state_rx) = watch::channel(SlamState::default());
 
         // Spawn SLAM on a dedicated thread (NOT tokio::spawn) to avoid blocking the async runtime.
         // SLAM's process_scan() is CPU-intensive (10-100ms+) and would starve tokio worker threads.
         // Using std::sync::mpsc for thread-safe channel from async to sync.
-        let (slam_thread_tx, slam_thread_rx) = std::sync::mpsc::channel::<(lidar::PointCloud, Pose)>();
+        let (slam_thread_tx, slam_thread_rx) = std::sync::mpsc::channel::<(lidar::PointCloud, Pose, Option<slam::PreintegratedDelta>)>();
 
         // Bridge async mpsc to sync mpsc
         tokio::spawn(async move {
@@ -1546,16 +1546,57 @@ async fn main() -> Result<()> {
             }
         });
 
+        // Map persistence config
+        let map_path = std::path::PathBuf::from("/var/lib/bvr/slam_map.bin");
+        let auto_save_keyframes: usize = 50;
+        let load_prior_map = true;
+        let rover_id = file_config.identity.rover_id.clone();
+
         // Dedicated SLAM thread - completely isolated from tokio runtime
         std::thread::Builder::new()
             .name("slam".to_string())
             .spawn(move || {
-                let mut slam = SlamProcessor::new(slam_config);
+                let mut slam = SlamProcessor::new(slam_config.clone());
                 info!("SLAM thread started (dedicated, non-blocking)");
 
-                while let Ok((scan, odom_pose)) = slam_thread_rx.recv() {
+                // Load prior map if configured and available
+                if load_prior_map && map_path.exists() {
+                    match SlamProcessor::load_map(&map_path, &slam_config) {
+                        Ok((keyframes, edges, sc_db)) => {
+                            slam.restore_map(keyframes, edges, sc_db);
+                            info!("Loaded prior SLAM map from {}", map_path.display());
+                        }
+                        Err(e) => {
+                            warn!(?e, "Failed to load prior SLAM map, starting fresh");
+                        }
+                    }
+                }
+
+                let mut last_save_count: usize = slam.keyframe_count();
+                let mut first_scan = slam.keyframe_count() == 0;
+                let mut relocalized = !load_prior_map || slam.keyframe_count() == 0;
+
+                while let Ok((scan, odom_pose, imu_delta)) = slam_thread_rx.recv() {
                     // Update odometry before processing scan
                     slam.update_odometry(&odom_pose);
+
+                    // Attempt relocalization on first scan after loading a map
+                    if !relocalized && !first_scan {
+                        if let Some((_kf_id, pose)) = slam.relocalize(&scan, 0.5) {
+                            info!(
+                                x = pose.translation().x,
+                                y = pose.translation().y,
+                                "Relocalized against loaded map"
+                            );
+                        } else {
+                            info!("Relocalization failed, continuing with loaded map poses");
+                        }
+                        relocalized = true;
+                    }
+                    first_scan = false;
+
+                    // Set pre-integrated IMU delta for hybrid initial guess
+                    slam.set_imu_delta(imu_delta);
 
                     // Process scan (CPU-intensive: 10-100ms) - safe because we're on dedicated thread
                     if let Some(update) = slam.process_scan(&scan) {
@@ -1571,6 +1612,17 @@ async fn main() -> Result<()> {
                                 "SLAM loop closure detected"
                             );
                         }
+
+                        // Auto-save every N keyframes
+                        if auto_save_keyframes > 0
+                            && slam.keyframes_since(last_save_count) >= auto_save_keyframes
+                        {
+                            if let Err(e) = slam.save_map(&map_path, &rover_id) {
+                                warn!(?e, "Failed to auto-save SLAM map");
+                            } else {
+                                last_save_count = slam.keyframe_count();
+                            }
+                        }
                     }
 
                     // Send updated state to main loop
@@ -1582,6 +1634,13 @@ async fn main() -> Result<()> {
                         pose_covariance: slam.pose_covariance_array(),
                     };
                     let _ = state_tx.send(state);
+                }
+
+                // Save map on clean shutdown
+                if slam.keyframe_count() > 0 && slam.keyframes_since(last_save_count) > 0 {
+                    if let Err(e) = slam.save_map(&map_path, &rover_id) {
+                        warn!(?e, "Failed to save SLAM map on shutdown");
+                    }
                 }
 
                 info!("SLAM thread shutting down");
@@ -1728,6 +1787,9 @@ async fn main() -> Result<()> {
     // Pre-compute IMU mount transform (used for both attitude and yaw extraction)
     let mount_pitch_rad = file_config.lidar.mounting_pitch_deg.to_radians();
     let (sin_mount_pitch, cos_mount_pitch) = (mount_pitch_rad as f64).sin_cos();
+
+    // IMU pre-integrator for SLAM (accumulates gyro-Z between LiDAR scans)
+    let mut imu_preintegrator = slam::ImuPreintegrator::new(slam::ImuPreintegrationConfig::default());
 
     // Heartbeat thread for deadlock detection - runs on std::thread, not tokio
     // This helps diagnose if main loop is stuck vs tokio starvation
@@ -2519,6 +2581,11 @@ async fn main() -> Result<()> {
             (-imu.gyro_x as f64 * sin_mount_pitch + imu.gyro_z as f64 * cos_mount_pitch) as f32
         });
 
+        // Feed body-frame yaw rate into IMU pre-integrator for SLAM
+        if let Some(gz) = gyro_z_body {
+            imu_preintegrator.integrate(gz as f64, dt as f64);
+        }
+
         // Update EKF prediction with odometry + IMU yaw
         pose_estimator.predict(dx, dy, dtheta, gyro_z_body, dt);
 
@@ -2565,7 +2632,9 @@ async fn main() -> Result<()> {
         if let Some(ref scan) = lidar_scan_clone {
             // Send scan to SLAM background task (non-blocking)
             if let Some(ref tx) = slam_scan_tx {
-                let _ = tx.try_send((scan.clone(), pose_estimator.pose()));
+                // Consume pre-integrated IMU delta accumulated since last scan
+                let imu_delta = imu_preintegrator.consume();
+                let _ = tx.try_send((scan.clone(), pose_estimator.pose(), imu_delta));
             }
 
             // Update costmap for navigation controller

@@ -231,6 +231,32 @@ huber_threshold = 1.0
 # Maximum disagreement between loop closure and odometry (in σ)
 loop_closure_max_disagreement_sigma = 3.0
 
+[slam.imu]
+# Enable IMU pre-integration for hybrid GICP initial guess
+enabled = true
+# Gyro noise density (rad/s/sqrt(Hz)) — BMI088 typical: 0.014
+gyro_noise_density = 0.014
+
+[slam.persistence]
+# Path to save/load the SLAM map file
+map_path = "/var/lib/bvr/slam_map.bin"
+# Auto-save every N keyframes (0 = disabled)
+auto_save_keyframes = 50
+# Load prior map on startup for relocalization
+load_prior_map = true
+
+[slam.scan_context]
+# Number of radial rings for scan context descriptor
+num_rings = 20
+# Number of azimuthal sectors
+num_sectors = 60
+# Maximum range (meters)
+max_range = 40.0
+# Top-K candidates from descriptor search
+top_k = 5
+# Descriptor distance threshold (lower = stricter)
+descriptor_threshold = 0.3
+
 [costmap]
 # RANSAC ground plane distance threshold (meters)
 ground_distance_threshold = 0.15

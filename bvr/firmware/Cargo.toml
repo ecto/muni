@@ -41,6 +41,9 @@ clap = { version = "4", features = ["derive"] }
 # JSON
 serde_json = "1"
 
+# Binary serialization
+bincode = "1"
+
 # TypeScript type generation
 ts-rs = "10"
 

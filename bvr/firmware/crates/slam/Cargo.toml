@@ -11,6 +11,8 @@ nalgebra.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
 kiddo.workspace = true
+serde.workspace = true
+bincode.workspace = true
 types = { path = "../types" }
 transforms = { path = "../transforms" }
 lidar = { path = "../lidar" }
