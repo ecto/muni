@@ -15,10 +15,12 @@ import {
 } from "three";
 import { computeRenderPose, getInterpolationBuffer } from "@/lib/interpolation";
 import {
-  getVideoStream,
   getAllVideoStreams,
   getCameraCalibration,
   getFrameVersion,
+  getVideoElement,
+  setVideoElement,
+  removeVideoElement,
   type CameraCalibration,
 } from "@/lib/videoFrameStore";
 
@@ -88,16 +90,16 @@ function computeFrustumPlacement(cal: CameraCalibration) {
 
 /**
  * Single camera projection plane.
- * Uses a hidden <video> element + VideoTexture for H.264 WebRTC track rendering.
- * VideoTexture auto-updates each frame from the video element.
+ * Shares the sidebar's actively-decoding <video> element for VideoTexture.
+ * Safari won't decode frames for offscreen/hidden video elements, so we
+ * reuse the visible CameraFeed element registered in videoFrameStore.
  */
 function CameraProjection({ cameraId }: { cameraId: number }) {
   const materialRef = useRef<MeshBasicMaterial | null>(null);
   const textureRef = useRef<Texture | null>(null);
-  const videoRef = useRef<HTMLVideoElement | null>(null);
   const geometryRef = useRef<PlaneGeometry | null>(null);
   const [hasTexture, setHasTexture] = useState(false);
-  const attachedStreamRef = useRef<MediaStream | null>(null);
+  const boundVideoRef = useRef<HTMLVideoElement | null>(null);
 
   // Compute frustum placement from calibration (or fallback)
   const { planeW, planeH, planeCenter, mountQuat } = useMemo(() => {
@@ -115,46 +117,18 @@ function CameraProjection({ cameraId }: { cameraId: number }) {
     return geo;
   }, [planeW, planeH]);
 
-  // Create offscreen video element for VideoTexture.
-  // Must be in the DOM for Safari to decode frames.
-  useEffect(() => {
-    const video = document.createElement("video");
-    video.autoplay = true;
-    video.muted = true;
-    video.playsInline = true;
-    video.style.position = "fixed";
-    video.style.top = "-9999px";
-    video.style.width = "1px";
-    video.style.height = "1px";
-    document.body.appendChild(video);
-    videoRef.current = video;
+  // Poll for the sidebar's video element and create VideoTexture from it
+  useFrame(() => {
+    const video = getVideoElement(cameraId);
+    if (!video) return;
 
-    return () => {
-      video.pause();
-      video.srcObject = null;
-      document.body.removeChild(video);
-      videoRef.current = null;
-      attachedStreamRef.current = null;
+    // If the video element changed (e.g. remount), recreate texture
+    if (boundVideoRef.current !== video) {
       if (textureRef.current) {
         textureRef.current.dispose();
         textureRef.current = null;
       }
-    };
-  }, []);
-
-  // Attach stream and create VideoTexture when video has data
-  useFrame(() => {
-    const video = videoRef.current;
-    if (!video) return;
-
-    const stream = getVideoStream(cameraId);
-    if (!stream) return;
-
-    // Attach stream if new
-    if (attachedStreamRef.current !== stream) {
-      video.srcObject = stream;
-      video.play().catch(() => {});
-      attachedStreamRef.current = stream;
+      boundVideoRef.current = video;
     }
 
     // Create VideoTexture once video has data
@@ -170,8 +144,7 @@ function CameraProjection({ cameraId }: { cameraId: number }) {
       if (!hasTexture) setHasTexture(true);
     }
 
-    // Force texture re-upload each frame — requestVideoFrameCallback
-    // doesn't fire reliably on off-DOM video elements
+    // Force texture update every frame
     if (textureRef.current) {
       textureRef.current.needsUpdate = true;
     }
@@ -183,10 +156,6 @@ function CameraProjection({ cameraId }: { cameraId: number }) {
       if (textureRef.current) {
         textureRef.current.dispose();
         textureRef.current = null;
-      }
-      if (materialRef.current) {
-        materialRef.current.dispose();
-        materialRef.current = null;
       }
       if (geometryRef.current) {
         geometryRef.current.dispose();
@@ -301,6 +270,8 @@ export function VideoStatusBadge() {
 
 /**
  * Single camera feed display - renders video stream at native resolution, scaled down.
+ * Registers its <video> element in the store so CameraProjection can share it
+ * for VideoTexture (Safari won't decode offscreen video elements).
  */
 function CameraFeed({ cameraId, stream }: { cameraId: number; stream: MediaStream | null }) {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -310,6 +281,16 @@ function CameraFeed({ cameraId, stream }: { cameraId: number; stream: MediaStrea
       videoRef.current.srcObject = stream;
     }
   }, [stream]);
+
+  // Register video element for 3D projection sharing
+  useEffect(() => {
+    if (videoRef.current) {
+      setVideoElement(cameraId, videoRef.current);
+    }
+    return () => {
+      removeVideoElement(cameraId);
+    };
+  }, [cameraId]);
 
   return (
     <div className="relative bg-black">

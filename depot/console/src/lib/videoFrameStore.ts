@@ -245,3 +245,21 @@ export function getAllVideoStreams(): Map<number, MediaStream> {
 export function getVideoStreamCount(): number {
   return videoStreams.size;
 }
+
+/** Map of camera ID to the actively-decoding HTMLVideoElement (owned by sidebar). */
+const videoElements = new Map<number, HTMLVideoElement>();
+
+/** Register a visible video element (called by CameraFeed when mounted). */
+export function setVideoElement(cameraId: number, el: HTMLVideoElement): void {
+  videoElements.set(cameraId, el);
+}
+
+/** Unregister a video element (called by CameraFeed on unmount). */
+export function removeVideoElement(cameraId: number): void {
+  videoElements.delete(cameraId);
+}
+
+/** Get the actively-decoding video element for a camera. */
+export function getVideoElement(cameraId: number): HTMLVideoElement | undefined {
+  return videoElements.get(cameraId);
+}
