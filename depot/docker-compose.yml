@@ -19,7 +19,7 @@ services:
       - influxdb
       - discovery
     healthcheck:
-      test: ["CMD", "wget", "-q", "-O-", "http://localhost/health"]
+      test: ["CMD", "wget", "-q", "-O-", "http://127.0.0.1/health"]
       interval: 10s
       timeout: 3s
       retries: 3
@@ -37,7 +37,7 @@ services:
       - PORT=4860
       - RUST_LOG=discovery=info
     healthcheck:
-      test: ["CMD", "wget", "-q", "-O-", "http://localhost:4860/health"]
+      test: ["CMD", "wget", "-q", "-O-", "http://127.0.0.1:4860/health"]
       interval: 10s
       timeout: 3s
       retries: 3
@@ -126,7 +126,7 @@ services:
       - PORT=4895
       - RUST_LOG=mapper=info
     healthcheck:
-      test: ["CMD", "wget", "-q", "-O-", "http://localhost:4895/health"]
+      test: ["CMD", "wget", "-q", "-O-", "http://127.0.0.1:4895/health"]
       interval: 10s
       timeout: 3s
       retries: 3
@@ -182,7 +182,7 @@ services:
     profiles:
       - rtk
     healthcheck:
-      test: ["CMD", "wget", "-q", "-O-", "http://localhost:4880/health"]
+      test: ["CMD", "wget", "-q", "-O-", "http://127.0.0.1:4880/health"]
       interval: 10s
       timeout: 3s
       retries: 3
@@ -222,7 +222,7 @@ services:
       - PORT=4870
       - RUST_LOG=map_api=info
     healthcheck:
-      test: ["CMD", "wget", "-q", "-O-", "http://localhost:4870/health"]
+      test: ["CMD", "wget", "-q", "-O-", "http://127.0.0.1:4870/health"]
       interval: 10s
       timeout: 3s
       retries: 3
@@ -263,7 +263,7 @@ services:
       postgres:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "-q", "-O-", "http://localhost:4890/health"]
+      test: ["CMD", "wget", "-q", "-O-", "http://127.0.0.1:4890/health"]
       interval: 10s
       timeout: 3s
       retries: 3
