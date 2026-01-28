@@ -89,6 +89,8 @@ export function useRoverConnectionRtc() {
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
     null
   );
+  // Guard against overlapping connect() calls during async setup
+  const connectingLockRef = useRef(false);
   const lastSendTimeRef = useRef<number>(0);
   const connectRef = useRef<() => void>(() => {});
 
@@ -175,6 +177,19 @@ export function useRoverConnectionRtc() {
     }
   }, []);
 
+  // Safely schedule a single reconnect attempt, canceling any pending one.
+  // This prevents the cascade where multiple disconnect handlers each schedule
+  // their own reconnect, causing rapid connect/teardown/connect cycles.
+  const scheduleReconnect = useCallback(() => {
+    if (reconnectTimeoutRef.current) {
+      clearTimeout(reconnectTimeoutRef.current);
+    }
+    reconnectTimeoutRef.current = setTimeout(() => {
+      reconnectTimeoutRef.current = null;
+      connectRef.current();
+    }, RECONNECT_DELAY_MS);
+  }, []);
+
   const sendCommands = useCallback(() => {
     const channel = commandChannelRef.current;
     if (!channel || channel.readyState !== "open") return;
@@ -216,6 +231,21 @@ export function useRoverConnectionRtc() {
   }, []);
 
   const connect = useCallback(() => {
+    // Prevent overlapping connect attempts — if we're already mid-setup
+    // (WS handshake, SDP exchange, ICE negotiation), skip this call.
+    // The existing attempt will either succeed or fail and trigger a reconnect.
+    if (connectingLockRef.current) {
+      console.log("[WebRTC] connect() skipped — already connecting");
+      return;
+    }
+    connectingLockRef.current = true;
+
+    // Cancel any pending reconnect to avoid cascading connect() calls
+    if (reconnectTimeoutRef.current) {
+      clearTimeout(reconnectTimeoutRef.current);
+      reconnectTimeoutRef.current = null;
+    }
+
     // Clean up existing connection
     if (peerConnectionRef.current) {
       peerConnectionRef.current.close();
@@ -255,6 +285,7 @@ export function useRoverConnectionRtc() {
 
       commandChannel.onopen = () => {
         console.log("[WebRTC] Command channel opened");
+        connectingLockRef.current = false;
         setConnected(true);
         lastSendTimeRef.current = performance.now();
         lastTelemetryTimeRef.current = 0; // Reset throttle on reconnect
@@ -293,13 +324,12 @@ export function useRoverConnectionRtc() {
           if (lastRecv > 0 && performance.now() - lastRecv > TELEMETRY_TIMEOUT_MS) {
             console.warn("[WebRTC] Telemetry watchdog: no data for 5s, forcing reconnect");
             lastTelemetryReceivedRef.current = 0; // Prevent repeated triggers
+            connectingLockRef.current = false;
             peerConnectionRef.current?.close();
             signalingWsRef.current?.close();
             setConnected(false);
             clearIntervals();
-            reconnectTimeoutRef.current = setTimeout(() => {
-              connectRef.current();
-            }, RECONNECT_DELAY_MS);
+            scheduleReconnect();
           }
         }, HEARTBEAT_INTERVAL_MS);
 
@@ -385,12 +415,10 @@ export function useRoverConnectionRtc() {
 
       commandChannel.onclose = () => {
         console.log("[WebRTC] Command channel closed");
+        connectingLockRef.current = false;
         setConnected(false);
         clearIntervals();
-        // Reconnect after delay
-        reconnectTimeoutRef.current = setTimeout(() => {
-          connectRef.current();
-        }, RECONNECT_DELAY_MS);
+        scheduleReconnect();
       };
 
       // Handle incoming data channels (created by server)
@@ -698,11 +726,10 @@ export function useRoverConnectionRtc() {
           pc.connectionState === "failed" ||
           pc.connectionState === "disconnected"
         ) {
+          connectingLockRef.current = false;
           setConnected(false);
           clearIntervals();
-          reconnectTimeoutRef.current = setTimeout(() => {
-            connectRef.current();
-          }, RECONNECT_DELAY_MS);
+          scheduleReconnect();
         }
       };
 
@@ -756,17 +783,15 @@ export function useRoverConnectionRtc() {
 
       ws.onerror = () => {
         console.error("[WebRTC] Signaling WebSocket error - connection refused or unreachable");
+        connectingLockRef.current = false;
         setConnected(false);
-        reconnectTimeoutRef.current = setTimeout(() => {
-          connectRef.current();
-        }, RECONNECT_DELAY_MS);
+        scheduleReconnect();
       };
     } catch (err) {
       console.error("[WebRTC] Connection error:", err);
+      connectingLockRef.current = false;
       setConnected(false);
-      reconnectTimeoutRef.current = setTimeout(() => {
-        connectRef.current();
-      }, RECONNECT_DELAY_MS);
+      scheduleReconnect();
     }
   }, [
     rtcAddress,
@@ -779,6 +804,7 @@ export function useRoverConnectionRtc() {
     updateChannelMetrics,
     clearIntervals,
     sendCommands,
+    scheduleReconnect,
   ]);
 
   // Keep connectRef in sync (always points to latest connect function)
@@ -788,6 +814,7 @@ export function useRoverConnectionRtc() {
 
   const disconnect = useCallback(() => {
     clearIntervals();
+    connectingLockRef.current = false;
 
     // Release operator status on disconnect
     isOperatorRef.current = false;
