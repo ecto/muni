@@ -1,0 +1,58 @@
+# Grafana contact point provisioning for Muni depot.
+#
+# The default contact point uses a webhook receiver as a placeholder.
+# Replace the URL with your actual notification endpoint.
+#
+# To use other notification channels instead of (or in addition to) the
+# webhook, add receivers to the contactPoints list below. Examples:
+#
+#   Slack:
+#     - uid: muni-slack
+#       orgId: 1
+#       name: Muni Slack
+#       receivers:
+#         - uid: muni-slack-recv
+#           type: slack
+#           settings:
+#             url: https://hooks.slack.com/services/T.../B.../xxx
+#             channel: "#rover-alerts"
+#             title: '{{ template "default.title" . }}'
+#             text: '{{ template "default.message" . }}'
+#
+#   Email (requires Grafana SMTP configuration in grafana.ini):
+#     - uid: muni-email
+#       orgId: 1
+#       name: Muni Email
+#       receivers:
+#         - uid: muni-email-recv
+#           type: email
+#           settings:
+#             addresses: ops@example.com
+#             singleEmail: true
+#
+#   Discord:
+#     - uid: muni-discord
+#       orgId: 1
+#       name: Muni Discord
+#       receivers:
+#         - uid: muni-discord-recv
+#           type: discord
+#           settings:
+#             url: https://discord.com/api/webhooks/CHANNEL_ID/TOKEN
+#             message: '{{ template "default.message" . }}'
+
+apiVersion: 1
+
+contactPoints:
+  - orgId: 1
+    name: Muni Webhook
+    receivers:
+      - uid: muni-webhook-recv
+        type: webhook
+        settings:
+          # Replace with your actual webhook URL.
+          # This could be a Slack incoming webhook, Discord webhook, PagerDuty
+          # events endpoint, or any HTTP endpoint that accepts POST requests.
+          url: http://localhost:9095/webhook
+          httpMethod: POST
+        disableResolveMessage: false

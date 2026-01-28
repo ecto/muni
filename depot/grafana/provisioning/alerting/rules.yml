@@ -1,0 +1,307 @@
+# Grafana file-based alert rule provisioning for Muni depot.
+# Queries target the InfluxDB "muni" bucket using Flux.
+# Datasource UID "influxdb" must match provisioning/datasources/influxdb.yml.
+
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: Rover Health
+    folder: Muni Alerts
+    interval: 10s
+    rules:
+      # ---------------------------------------------------------------
+      # 1. Battery Low  (critical when < 42 V for any rover)
+      # ---------------------------------------------------------------
+      - uid: muni-battery-low
+        title: Battery Low
+        condition: threshold
+        for: 30s
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300 # 5 minutes
+              to: 0
+            datasourceUid: influxdb
+            model:
+              refId: A
+              intervalMs: 10000
+              maxDataPoints: 100
+              query: |
+                from(bucket: "muni")
+                  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)
+                  |> filter(fn: (r) => r._measurement == "rover_status" and r._field == "battery")
+                  |> last()
+          - refId: threshold
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: __expr__
+            model:
+              refId: threshold
+              type: threshold
+              conditions:
+                - evaluator:
+                    type: lt
+                    params: [42]
+                  operator:
+                    type: and
+                  query:
+                    params: [A]
+                  reducer:
+                    type: last
+                    params: []
+        labels:
+          severity: critical
+          team: fleet
+        annotations:
+          summary: "Battery voltage below 42 V"
+          description: "Rover {{ $labels.rover }} battery is at {{ $values.A }}V which is below the 42 V critical threshold. Return to depot for charging."
+
+      # ---------------------------------------------------------------
+      # 2a. Motor Overtemp Warning (> 70 C)
+      # ---------------------------------------------------------------
+      - uid: muni-motor-overtemp-warn
+        title: Motor Overtemp (Warning)
+        condition: threshold
+        for: 10s
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: influxdb
+            model:
+              refId: A
+              intervalMs: 10000
+              maxDataPoints: 100
+              query: |
+                from(bucket: "muni")
+                  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)
+                  |> filter(fn: (r) => r._measurement == "motors" and r._field == "temp")
+                  |> last()
+          - refId: threshold
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: __expr__
+            model:
+              refId: threshold
+              type: threshold
+              conditions:
+                - evaluator:
+                    type: gt
+                    params: [70]
+                  operator:
+                    type: and
+                  query:
+                    params: [A]
+                  reducer:
+                    type: last
+                    params: []
+        labels:
+          severity: warning
+          team: fleet
+        annotations:
+          summary: "Motor temperature above 70 C"
+          description: "Motor {{ $labels.motor }} on rover {{ $labels.rover }} is at {{ $values.A }} C. Reduce load or allow cooldown."
+
+      # ---------------------------------------------------------------
+      # 2b. Motor Overtemp Critical (> 85 C)
+      # ---------------------------------------------------------------
+      - uid: muni-motor-overtemp-crit
+        title: Motor Overtemp (Critical)
+        condition: threshold
+        for: 10s
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: influxdb
+            model:
+              refId: A
+              intervalMs: 10000
+              maxDataPoints: 100
+              query: |
+                from(bucket: "muni")
+                  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)
+                  |> filter(fn: (r) => r._measurement == "motors" and r._field == "temp")
+                  |> last()
+          - refId: threshold
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: __expr__
+            model:
+              refId: threshold
+              type: threshold
+              conditions:
+                - evaluator:
+                    type: gt
+                    params: [85]
+                  operator:
+                    type: and
+                  query:
+                    params: [A]
+                  reducer:
+                    type: last
+                    params: []
+        labels:
+          severity: critical
+          team: fleet
+        annotations:
+          summary: "Motor temperature above 85 C - CRITICAL"
+          description: "Motor {{ $labels.motor }} on rover {{ $labels.rover }} is at {{ $values.A }} C. Immediate shutdown recommended to prevent damage."
+
+      # ---------------------------------------------------------------
+      # 3. GPS Fix Lost (no gps measurement for > 60s)
+      # ---------------------------------------------------------------
+      - uid: muni-gps-fix-lost
+        title: GPS Fix Lost
+        condition: threshold
+        for: 60s
+        noDataState: Alerting
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: influxdb
+            model:
+              refId: A
+              intervalMs: 10000
+              maxDataPoints: 100
+              query: |
+                import "date"
+
+                from(bucket: "muni")
+                  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)
+                  |> filter(fn: (r) => r._measurement == "gps" and r._field == "latitude")
+                  |> last()
+                  |> map(fn: (r) => ({r with _value: int(v: date.sub(d: r._time, from: now())) / -1000000000}))
+          - refId: threshold
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: __expr__
+            model:
+              refId: threshold
+              type: threshold
+              conditions:
+                - evaluator:
+                    type: gt
+                    params: [60]
+                  operator:
+                    type: and
+                  query:
+                    params: [A]
+                  reducer:
+                    type: last
+                    params: []
+        labels:
+          severity: warning
+          team: fleet
+        annotations:
+          summary: "GPS fix lost for over 60 seconds"
+          description: "Rover {{ $labels.rover }} has not reported a GPS measurement for more than 60 seconds. Check antenna connection and sky visibility."
+
+      # ---------------------------------------------------------------
+      # 4. Disk Usage High (> 90%)
+      # ---------------------------------------------------------------
+      - uid: muni-disk-high
+        title: Disk Usage High
+        condition: threshold
+        for: 60s
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: influxdb
+            model:
+              refId: A
+              intervalMs: 10000
+              maxDataPoints: 100
+              query: |
+                from(bucket: "muni")
+                  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)
+                  |> filter(fn: (r) => r._measurement == "system" and r._field == "disk_pct")
+                  |> last()
+          - refId: threshold
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: __expr__
+            model:
+              refId: threshold
+              type: threshold
+              conditions:
+                - evaluator:
+                    type: gt
+                    params: [90]
+                  operator:
+                    type: and
+                  query:
+                    params: [A]
+                  reducer:
+                    type: last
+                    params: []
+        labels:
+          severity: warning
+          team: fleet
+        annotations:
+          summary: "Disk usage above 90%"
+          description: "Rover {{ $labels.rover }} disk usage is at {{ $values.A }}%. Clean up old session recordings or increase storage."
+
+      # ---------------------------------------------------------------
+      # 5. Rover Disconnected (no rover_status for > 30s)
+      # ---------------------------------------------------------------
+      - uid: muni-rover-disconnected
+        title: Rover Disconnected
+        condition: threshold
+        for: 30s
+        noDataState: Alerting
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: influxdb
+            model:
+              refId: A
+              intervalMs: 10000
+              maxDataPoints: 100
+              query: |
+                import "date"
+
+                from(bucket: "muni")
+                  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)
+                  |> filter(fn: (r) => r._measurement == "rover_status" and r._field == "battery")
+                  |> last()
+                  |> map(fn: (r) => ({r with _value: int(v: date.sub(d: r._time, from: now())) / -1000000000}))
+          - refId: threshold
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: __expr__
+            model:
+              refId: threshold
+              type: threshold
+              conditions:
+                - evaluator:
+                    type: gt
+                    params: [30]
+                  operator:
+                    type: and
+                  query:
+                    params: [A]
+                  reducer:
+                    type: last
+                    params: []
+        labels:
+          severity: critical
+          team: fleet
+        annotations:
+          summary: "Rover disconnected for over 30 seconds"
+          description: "Rover {{ $labels.rover }} has not sent a status update for more than 30 seconds. Check network connectivity and bvrd service status."

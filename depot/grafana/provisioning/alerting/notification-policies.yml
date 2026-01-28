@@ -1,0 +1,40 @@
+# Grafana notification policy provisioning for Muni depot.
+#
+# Routes alerts based on severity label:
+#   - critical: grouped tightly (30s wait), fast repeat (5m)
+#   - warning:  relaxed grouping (5m wait), slower repeat (30m)
+#
+# All alerts go to the default "Muni Webhook" contact point.
+# To split critical vs. warning to different channels, set the receiver
+# on each child route to a different contact point name.
+
+apiVersion: 1
+
+policies:
+  - orgId: 1
+    receiver: Muni Webhook
+    group_by:
+      - grafana_folder
+      - alertname
+      - rover
+    group_wait: 30s
+    group_interval: 1m
+    repeat_interval: 10m
+    routes:
+      # Critical alerts: notify quickly, repeat frequently
+      - receiver: Muni Webhook
+        matchers:
+          - severity = critical
+        group_wait: 10s
+        group_interval: 30s
+        repeat_interval: 5m
+        continue: false
+
+      # Warning alerts: batch together, repeat less often
+      - receiver: Muni Webhook
+        matchers:
+          - severity = warning
+        group_wait: 1m
+        group_interval: 5m
+        repeat_interval: 30m
+        continue: false

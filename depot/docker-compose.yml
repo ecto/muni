@@ -36,6 +36,7 @@ services:
     environment:
       - PORT=4860
       - RUST_LOG=discovery=info
+      # - RUST_LOG_FORMAT=json  # Enable for structured logging
     healthcheck:
       test: ["CMD", "wget", "-q", "-O-", "http://127.0.0.1:4860/health"]
       interval: 10s
@@ -85,6 +86,9 @@ services:
       # Serve from /grafana/ subpath behind console proxy
       - GF_SERVER_ROOT_URL=%(protocol)s://%(domain)s/grafana/
       - GF_SERVER_SERVE_FROM_SUB_PATH=true
+      # Unified alerting (Grafana 10+)
+      - GF_UNIFIED_ALERTING_ENABLED=true
+      - GF_ALERTING_ENABLED=false
       # InfluxDB connection for provisioning
       - INFLUXDB_URL=http://influxdb:8086
       - INFLUXDB_ORG=${INFLUXDB_ORG:-muni}
@@ -125,6 +129,7 @@ services:
       - JOBS_DIR=/data/jobs
       - PORT=4895
       - RUST_LOG=mapper=info
+      # - RUST_LOG_FORMAT=json  # Enable for structured logging
     healthcheck:
       test: ["CMD", "wget", "-q", "-O-", "http://127.0.0.1:4895/health"]
       interval: 10s
@@ -178,6 +183,7 @@ services:
       - GPS_SERIAL_PORT=/dev/ttyACM0
       - GPS_BAUD_RATE=115200
       - RUST_LOG=gps_status=info
+      # - RUST_LOG_FORMAT=json  # Enable for structured logging
     # Only start if base station hardware is connected
     profiles:
       - rtk
@@ -221,6 +227,7 @@ services:
       - MAPS_DIR=/data/maps
       - PORT=4870
       - RUST_LOG=map_api=info
+      # - RUST_LOG_FORMAT=json  # Enable for structured logging
     healthcheck:
       test: ["CMD", "wget", "-q", "-O-", "http://127.0.0.1:4870/health"]
       interval: 10s
