@@ -192,16 +192,37 @@ impl ObstacleTracker {
             track.velocity_x += (beta / dt) * residual_x;
             track.velocity_y += (beta / dt) * residual_y;
 
-            // Update shape data
-            track.bbox_min_x = det.bbox_min_x;
-            track.bbox_min_y = det.bbox_min_y;
-            track.bbox_max_x = det.bbox_max_x;
-            track.bbox_max_y = det.bbox_max_y;
-            track.cell_count = det.cell_count;
-            track.area = det.area;
-            track.min_z = det.min_z;
-            track.max_z = det.max_z;
-            track.rotation = det.rotation;
+            // EMA-smooth shape data (same alpha as position)
+            let a = alpha;
+            let b = 1.0 - a;
+            track.bbox_min_x = b * track.bbox_min_x + a * det.bbox_min_x;
+            track.bbox_min_y = b * track.bbox_min_y + a * det.bbox_min_y;
+            track.bbox_max_x = b * track.bbox_max_x + a * det.bbox_max_x;
+            track.bbox_max_y = b * track.bbox_max_y + a * det.bbox_max_y;
+            track.cell_count = ((b * track.cell_count as f32) + (a * det.cell_count as f32)) as u32;
+            track.area = b * track.area + a * det.area;
+            track.min_z = b * track.min_z + a * det.min_z;
+            track.max_z = b * track.max_z + a * det.max_z;
+
+            // Rotation: only update when elongation is meaningful (>1.5),
+            // otherwise the PCA axis is noise. Use angular smoothing with
+            // wrapping to handle the ±π/2 discontinuity.
+            if det.elongation > 1.5 {
+                let mut delta = det.rotation - track.rotation;
+                // PCA rotation is in [-π/2, π/2]; wrap delta to [-π/2, π/2]
+                if delta > std::f32::consts::FRAC_PI_2 {
+                    delta -= std::f32::consts::PI;
+                } else if delta < -std::f32::consts::FRAC_PI_2 {
+                    delta += std::f32::consts::PI;
+                }
+                track.rotation += a * delta;
+                // Re-normalize to [-π/2, π/2]
+                if track.rotation > std::f32::consts::FRAC_PI_2 {
+                    track.rotation -= std::f32::consts::PI;
+                } else if track.rotation < -std::f32::consts::FRAC_PI_2 {
+                    track.rotation += std::f32::consts::PI;
+                }
+            }
 
             // Classification hysteresis
             if det.class != track.pending_class {
