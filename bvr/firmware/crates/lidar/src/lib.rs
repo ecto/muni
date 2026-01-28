@@ -55,6 +55,9 @@ pub struct Config {
     /// Mounting pitch angle in degrees (positive = tilted down/forward)
     /// Used to transform points from LiDAR frame to rover body frame.
     pub mounting_pitch_deg: f32,
+    /// Mounting height above ground in meters.
+    /// Translates Z so ground ≈ 0 after pitch rotation.
+    pub mounting_height_m: f32,
     /// Detection sensitivity: 0=normal, 1=sensitive (better for dark surfaces).
     pub detect_mode: u8,
     /// Enable lens heating (prevents fog/ice in winter).
@@ -74,6 +77,7 @@ impl Default for Config {
             imu_port: 56401,
             cmd_port: 56101,
             mounting_pitch_deg: 0.0,
+            mounting_height_m: 0.0,
             detect_mode: 0,
             glass_heat: false,
             blind_spot_cm: 0,

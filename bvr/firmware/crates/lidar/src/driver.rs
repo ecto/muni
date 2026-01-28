@@ -11,23 +11,27 @@ use tokio::sync::{mpsc, watch};
 use tracing::{debug, error, info, trace, warn};
 
 /// Transform for rotating points from LiDAR frame to rover body frame.
-/// Precomputed sin/cos for efficiency.
+/// Applies pitch rotation then vertical translation so ground ≈ Z=0.
 struct MountingTransform {
     cos_pitch: f32,
     sin_pitch: f32,
+    /// Height of sensor above ground (meters). Added to Z after rotation
+    /// so ground-level points end up near Z=0 instead of Z=-height.
+    height_offset: f32,
 }
 
 impl MountingTransform {
-    fn new(pitch_deg: f32) -> Self {
+    fn new(pitch_deg: f32, height_m: f32) -> Self {
         let pitch_rad = pitch_deg.to_radians();
         Self {
             cos_pitch: pitch_rad.cos(),
             sin_pitch: pitch_rad.sin(),
+            height_offset: height_m,
         }
     }
 
-    /// Apply pitch rotation (around Y axis) to a point.
-    /// Transforms from LiDAR frame to rover body frame.
+    /// Apply pitch rotation (around Y axis) then height translation.
+    /// Transforms from LiDAR frame to rover body frame with ground at Z≈0.
     #[inline]
     fn apply(&self, point: &mut Point3D) {
         // Rotation matrix for pitch (around Y axis):
@@ -37,7 +41,8 @@ impl MountingTransform {
         let x = point.x * self.cos_pitch + point.z * self.sin_pitch;
         let z = -point.x * self.sin_pitch + point.z * self.cos_pitch;
         point.x = x;
-        point.z = z;
+        // Translate Z so ground ≈ 0 (sensor is height_offset above ground)
+        point.z = z + self.height_offset;
     }
 
     /// Apply transform to all points in a cloud.
@@ -471,8 +476,8 @@ pub async fn run_reader_with_imu(
     );
 
     // Create mounting transform (applied to all points)
-    let transform = MountingTransform::new(config.mounting_pitch_deg);
-    let has_transform = config.mounting_pitch_deg.abs() > 0.01;
+    let transform = MountingTransform::new(config.mounting_pitch_deg, config.mounting_height_m);
+    let has_transform = config.mounting_pitch_deg.abs() > 0.01 || config.mounting_height_m.abs() > 0.001;
     if has_transform {
         info!(
             pitch_deg = config.mounting_pitch_deg,
@@ -717,8 +722,9 @@ pub async fn run_reader_with_control(
     let control_addr: SocketAddr = (config.lidar_ip, LIVOX_CMD_PORT).into();
 
     // Create mounting transform — skip software transform if hardware handles it
-    let has_transform = !config.use_hardware_transform && config.mounting_pitch_deg.abs() > 0.01;
-    let transform = MountingTransform::new(config.mounting_pitch_deg);
+    let has_transform = !config.use_hardware_transform
+        && (config.mounting_pitch_deg.abs() > 0.01 || config.mounting_height_m.abs() > 0.001);
+    let transform = MountingTransform::new(config.mounting_pitch_deg, config.mounting_height_m);
 
     // Bind command socket for sending start/stop (SDK2 commands to port 56100)
     let cmd_socket = UdpSocket::bind((config.host_ip, 0))
