@@ -234,14 +234,23 @@ def extract_session(rrd_path: Path) -> tuple[np.ndarray, np.ndarray] | None:
     goal_offset = int(GOAL_HORIZON_S * SOURCE_HZ)
 
     # If the session has fewer samples than our expected rate implies,
-    # adapt: use all samples and compute goal offset from actual count.
-    # Typical bvrd logs at ~20Hz for pose data (not 100Hz), so adjust.
+    # the actual logging rate is lower than SOURCE_HZ (bvrd typically logs
+    # pose at ~20Hz, not 100Hz). Estimate the true rate from the log_time
+    # index column and recompute goal_offset so the pseudo-goal still
+    # looks ~GOAL_HORIZON_S seconds ahead.
     if goal_offset >= n:
-        # Estimate actual rate and recompute
-        actual_hz = n / max(1, n / SOURCE_HZ)
-        goal_offset = max(5, int(GOAL_HORIZON_S * n / max(1, n / SOURCE_HZ * GOAL_HORIZON_S)))
+        if "log_time" in col_names:
+            ts_all = table.column("log_time").to_numpy()
+            ts_valid = ts_all[valid_mask]
+            if len(ts_valid) >= 2:
+                duration_s = (ts_valid[-1] - ts_valid[0]) / 1e9  # ns → s
+                if duration_s > 0:
+                    actual_hz = n / duration_s
+                    goal_offset = max(5, int(GOAL_HORIZON_S * actual_hz))
+        # If we still don't have a usable offset (no timestamps or too short),
+        # fall back to a fraction of the session length.
         if goal_offset >= n:
-            goal_offset = n // 4  # fallback: use 25% of session as horizon
+            goal_offset = max(5, n // 4)
 
     # Check for mode column — in some sessions, mode is only logged once
     # (at session start). If it says "Teleop", we treat the whole session
