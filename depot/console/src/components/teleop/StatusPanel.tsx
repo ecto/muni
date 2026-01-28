@@ -13,8 +13,9 @@ import {
   Lightning,
 } from "@phosphor-icons/react";
 import { useConsoleStore } from "@/store";
-import { CameraMode } from "@/lib/types";
+import { CameraMode, Mode } from "@/lib/types";
 import { getBatteryPercent } from "@/lib/utils";
+import { getGuardState } from "@/lib/collisionGuardStore";
 
 const cameraModeLabels: Record<CameraMode, string> = {
   [CameraMode.ThirdPerson]: "3rd",
@@ -134,11 +135,13 @@ export function StatusPanel() {
   // Poll high-frequency data at 4Hz instead of subscribing
   const [telemetry, setTelemetry] = useState(useConsoleStore.getState().telemetry);
   const [displayPose, setDisplayPose] = useState({ x: 0, y: 0, theta: 0, roll: 0, pitch: 0 });
+  const [guard, setGuard] = useState({ distance: 0, active: false });
   useEffect(() => {
     const id = setInterval(() => {
       const state = useConsoleStore.getState();
       setTelemetry(state.telemetry);
       setDisplayPose(state.renderPose);
+      setGuard(getGuardState());
     }, 250);
     return () => clearInterval(id);
   }, []);
@@ -230,6 +233,39 @@ export function StatusPanel() {
             <TooltipContent side="right">Rotation rate in rad/s (positive = CCW)</TooltipContent>
           </Tooltip>
         </div>
+
+        {/* Proximity bar — collision guard clearance */}
+        {telemetry.mode === Mode.Teleop && guard.active && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="space-y-0.5 cursor-help">
+                <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                  <span>Clearance</span>
+                  <span className="font-mono text-stone-900 dark:text-stone-100">
+                    {guard.distance >= 1.0 ? "clear" : `${guard.distance.toFixed(2)}m`}
+                  </span>
+                </div>
+                <div className="relative h-1.5 w-full overflow-hidden rounded-full bg-primary/20">
+                  <div
+                    className="h-full rounded-full transition-all"
+                    style={{
+                      width: `${Math.min(100, (guard.distance / 1.0) * 100)}%`,
+                      backgroundColor:
+                        guard.distance >= 0.575
+                          ? "#22c55e"
+                          : guard.distance >= 0.15
+                            ? "#eab308"
+                            : "#ef4444",
+                    }}
+                  />
+                </div>
+              </div>
+            </TooltipTrigger>
+            <TooltipContent side="right">
+              Distance to nearest obstacle along trajectory. Green &gt;0.575m, Yellow &gt;0.15m, Red &lt;0.15m
+            </TooltipContent>
+          </Tooltip>
+        )}
 
         {/* Attitude indicator */}
         <AttitudeIndicator roll={displayPose.roll} pitch={displayPose.pitch} />

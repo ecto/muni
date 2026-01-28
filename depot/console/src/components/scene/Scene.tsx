@@ -13,6 +13,7 @@ import { PointCloud3D } from "./PointCloud3D";
 import { CostmapOverlay } from "./CostmapOverlay";
 import { ObstacleOverlay } from "./ObstacleOverlay";
 import { IntentionMarker } from "./IntentionMarker";
+import { CollisionGuardArc } from "./CollisionGuardArc";
 import { useConsoleStore } from "@/store";
 import { useMapData } from "@/hooks/useMapData";
 import type { Zone, Task } from "@/lib/types";
@@ -133,6 +134,7 @@ export function Scene({ mode = "teleop", zones: propZones, activeTasks, onZoneCl
           <RoverTrail />
           <RoverModel />
           <IntentionMarker />
+          <CollisionGuardArc />
           <PointCloud3D />
           <CostmapOverlay />
           <ObstacleOverlay />
