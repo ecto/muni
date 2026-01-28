@@ -120,6 +120,22 @@ struct CameraFileConfig {
     /// Hot-plug polling interval in seconds (0 = disabled).
     /// When enabled, bvrd periodically re-scans for new cameras and starts them.
     hot_plug_interval_secs: u64,
+    /// Capture width in pixels
+    width: Option<u32>,
+    /// Capture height in pixels
+    height: Option<u32>,
+    /// Capture FPS
+    fps: Option<u32>,
+    /// JPEG quality (1-100)
+    jpeg_quality: Option<u8>,
+    /// Camera mount position [forward, left, up] in meters
+    mount_position: Option<[f32; 3]>,
+    /// Camera mount rotation [roll, pitch, yaw] in radians
+    mount_rotation: Option<[f32; 3]>,
+    /// Horizontal field of view in radians
+    fov_h: Option<f32>,
+    /// Vertical field of view in radians
+    fov_v: Option<f32>,
 }
 
 impl Default for CameraFileConfig {
@@ -128,6 +144,14 @@ impl Default for CameraFileConfig {
             enabled: true,
             max_cameras: 1, // Default to 1 to avoid Jetson CSI init issues
             hot_plug_interval_secs: 3,
+            width: None,
+            height: None,
+            fps: None,
+            jpeg_quality: None,
+            mount_position: None,
+            mount_rotation: None,
+            fov_h: None,
+            fov_v: None,
         }
     }
 }
@@ -1379,6 +1403,15 @@ async fn main() -> Result<()> {
     // Object tracker for stable IDs and velocity estimation
     let mut obstacle_tracker = ObstacleTracker::new(TrackerConfig::default());
 
+    // Build camera mount from config (used by RTC server for camera info messages)
+    let mount_defaults = camera::CameraMount::default();
+    let camera_mount = camera::CameraMount {
+        position: file_config.camera.mount_position.unwrap_or(mount_defaults.position),
+        rotation: file_config.camera.mount_rotation.unwrap_or(mount_defaults.rotation),
+        fov_h: file_config.camera.fov_h.unwrap_or(mount_defaults.fov_h),
+        fov_v: file_config.camera.fov_v.unwrap_or(mount_defaults.fov_v),
+    };
+
     // Spawn teleop server (UDP)
     let teleop_config = TeleopConfig::default();
     let teleop = TeleopServer::new(teleop_config, cmd_tx.clone(), telemetry_rx.clone());
@@ -1413,6 +1446,8 @@ async fn main() -> Result<()> {
             rtc_server.set_costmap_rx(costmap_rx.clone());
             rtc_server.set_obstacles_rx(obstacles_rx.clone());
         }
+        // Provide camera mount info for MSG_CAMERA_INFO messages
+        rtc_server.set_camera_mount(camera_mount);
 
         // Get metrics handle before spawning (for InfluxDB push)
         rtc_metrics = Some(rtc_server.metrics());
@@ -1446,26 +1481,30 @@ async fn main() -> Result<()> {
     // Auto-detect and start cameras (unless disabled via CLI or config)
     let camera_enabled = !args.no_camera && file_config.camera.enabled;
     if camera_enabled {
-        // Parse resolution if provided
+        // Resolve resolution: CLI --camera_resolution > bvr.toml > CameraConfig::default()
+        let cam_defaults = CameraConfig::default();
         let (width, height) = if let Some(res) = &args.camera_resolution {
             let parts: Vec<&str> = res.split('x').collect();
             if parts.len() == 2 {
                 (
-                    parts[0].parse().unwrap_or(640),
-                    parts[1].parse().unwrap_or(480),
+                    parts[0].parse().unwrap_or(cam_defaults.width),
+                    parts[1].parse().unwrap_or(cam_defaults.height),
                 )
             } else {
-                (640, 480)
+                (cam_defaults.width, cam_defaults.height)
             }
         } else {
-            (640, 480)
+            (
+                file_config.camera.width.unwrap_or(cam_defaults.width),
+                file_config.camera.height.unwrap_or(cam_defaults.height),
+            )
         };
 
         let camera_config = CameraConfig {
             width,
             height,
-            fps: args.camera_fps,
-            jpeg_quality: 60,
+            fps: file_config.camera.fps.unwrap_or(args.camera_fps),
+            jpeg_quality: file_config.camera.jpeg_quality.unwrap_or(cam_defaults.jpeg_quality),
         };
 
         // Always spawn UDP video server so hot-plugged cameras have somewhere to send frames
@@ -2192,6 +2231,13 @@ async fn main() -> Result<()> {
                             Mode::Sleep => Event::Sleep,
                             _ => continue,
                         };
+                        // Cancel navigation when leaving Autonomous
+                        if current == Mode::Autonomous && !matches!(event, Event::AutonomousRequest) {
+                            if let Some(ref mut nav) = navigation_controller {
+                                info!("Cancelling navigation (leaving Autonomous)");
+                                nav.cancel();
+                            }
+                        }
                         state.state_machine.transition(event);
                     }
                     Command::Heartbeat => {

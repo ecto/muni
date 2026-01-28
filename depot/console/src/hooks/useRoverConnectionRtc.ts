@@ -927,6 +927,8 @@ export function useRoverConnectionRtc() {
       if (commandChannelRef.current?.readyState === "open") {
         commandChannelRef.current.send(encodeSetMode(Mode.Idle));
       }
+      // Clear goal marker immediately (also cleared by updateTelemetry on mode change)
+      useConsoleStore.getState().clearNavigationGoal();
     }, []),
     sendGoal: useCallback((x: number, y: number) => {
       const channel = commandChannelRef.current;
@@ -935,9 +937,10 @@ export function useRoverConnectionRtc() {
       isOperatorRef.current = false;
       pendingModeRef.current = Mode.Autonomous;
       channel.send(encodeSetGoal(x, y));
-      // Also send SetMode as backup in case SetGoal is lost
-      channel.send(encodeSetMode(Mode.Autonomous));
-      // Store goal in Zustand for marker rendering
+      // NOTE: Do NOT send SetMode(Autonomous) as backup — if firmware doesn't
+      // know SetGoal, the bare SetMode puts the rover in Autonomous with no goal,
+      // causing a watchdog fault. The firmware's SetGoal handler transitions
+      // the mode atomically.
       useConsoleStore.getState().setNavigationGoal(x, y);
     }, []),
   };
