@@ -15,6 +15,7 @@
 pub mod alerts;
 pub mod coverage;
 pub mod weather;
+pub mod webhook;
 
 use axum::{
     extract::{
@@ -33,7 +34,7 @@ use sqlx::{postgres::PgPoolOptions, FromRow, PgPool};
 use std::{collections::HashMap, net::SocketAddr, sync::Arc};
 use tokio::sync::{broadcast, RwLock};
 use tower_http::cors::CorsLayer;
-use tracing::{info, warn};
+use tracing::{info, info_span, warn};
 use uuid::Uuid;
 
 // =============================================================================
@@ -292,6 +293,8 @@ pub enum BroadcastMessage {
         rover_id: String,
         connected: bool,
         task_id: Option<Uuid>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        trace_id: Option<String>,
     },
     ZoneUpdate { zone: Zone },
     MissionUpdate { mission: Mission },
@@ -321,16 +324,19 @@ pub struct AppState {
     pub broadcast_tx: broadcast::Sender<BroadcastMessage>,
     /// Cached weather data
     pub weather_cache: Arc<weather::WeatherCache>,
+    /// Webhook notifier for critical alerts
+    pub webhook: webhook::WebhookNotifier,
 }
 
 impl AppState {
-    pub fn new(db: PgPool) -> Self {
+    pub fn new(db: PgPool, webhook: webhook::WebhookNotifier) -> Self {
         let (broadcast_tx, _) = broadcast::channel(256);
         Self {
             db,
             rovers: RwLock::new(HashMap::new()),
             broadcast_tx,
             weather_cache: weather::WeatherCache::new(),
+            webhook,
         }
     }
 
@@ -358,12 +364,23 @@ type SharedState = Arc<AppState>;
 
 #[tokio::main]
 async fn main() {
-    tracing_subscriber::fmt()
-        .with_env_filter(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "dispatch=info,sqlx=warn".into()),
-        )
-        .init();
+    let env_filter = tracing_subscriber::EnvFilter::try_from_default_env()
+        .unwrap_or_else(|_| "dispatch=info,sqlx=warn".into());
+
+    let use_json = std::env::var("RUST_LOG_FORMAT")
+        .map(|v| v.eq_ignore_ascii_case("json"))
+        .unwrap_or(false);
+
+    if use_json {
+        tracing_subscriber::fmt()
+            .json()
+            .with_env_filter(env_filter)
+            .init();
+    } else {
+        tracing_subscriber::fmt()
+            .with_env_filter(env_filter)
+            .init();
+    }
 
     let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
 
@@ -378,7 +395,14 @@ async fn main() {
     info!("Running migrations...");
     run_migrations(&pool).await;
 
-    let state = Arc::new(AppState::new(pool));
+    // Initialize webhook notifier (no-op when WEBHOOK_URL is not set)
+    let webhook_url = std::env::var("WEBHOOK_URL").ok();
+    if webhook_url.is_some() {
+        info!("Webhook notifications enabled");
+    }
+    let webhook = webhook::WebhookNotifier::new(webhook_url);
+
+    let state = Arc::new(AppState::new(pool, webhook));
 
     // Spawn background tasks
     let cleanup_state = state.clone();
@@ -1087,6 +1111,7 @@ async fn start_mission(
         rover_id: rover_id.clone(),
         connected: true,
         task_id: Some(task.id),
+        trace_id: None,
     });
 
     Ok((StatusCode::CREATED, Json(task)))
@@ -1281,6 +1306,7 @@ async fn cancel_task_internal(
         rover_id,
         connected: true,
         task_id: None,
+        trace_id: None,
     });
 
     Ok(Json(task))
@@ -1296,6 +1322,7 @@ async fn ws_handler(ws: WebSocketUpgrade, State(state): State<SharedState>) -> i
 }
 
 async fn handle_rover_ws(socket: WebSocket, state: SharedState) {
+    let session_id = Uuid::new_v4();
     let (mut sender, mut receiver) = socket.split();
     let (tx, mut rx) = tokio::sync::mpsc::channel::<DispatchToRover>(32);
 
@@ -1327,7 +1354,9 @@ async fn handle_rover_ws(socket: WebSocket, state: SharedState) {
         let parsed: Result<RoverToDispatch, _> = serde_json::from_str(&msg);
         match parsed {
             Ok(RoverToDispatch::Register { rover_id: id }) => {
-                info!(rover_id = %id, "Rover connected");
+                let span = info_span!("rover_session", rover_id = %id, session_id = %session_id);
+                let _guard = span.enter();
+                info!("Rover connected");
                 rover_id = Some(id.clone());
 
                 // Register rover
@@ -1342,11 +1371,12 @@ async fn handle_rover_ws(socket: WebSocket, state: SharedState) {
                 );
                 drop(rovers);
 
-                // Broadcast connection
+                // Broadcast connection with trace_id
                 state.broadcast(BroadcastMessage::RoverUpdate {
                     rover_id: id,
                     connected: true,
                     task_id: None,
+                    trace_id: Some(session_id.to_string()),
                 });
             }
             Ok(RoverToDispatch::Progress {
@@ -1407,6 +1437,7 @@ async fn handle_rover_ws(socket: WebSocket, state: SharedState) {
                         rover_id: rid,
                         connected: true,
                         task_id: None,
+                        trace_id: Some(session_id.to_string()),
                     });
                 }
             }
@@ -1442,6 +1473,7 @@ async fn handle_rover_ws(socket: WebSocket, state: SharedState) {
                         rover_id: rid,
                         connected: true,
                         task_id: None,
+                        trace_id: Some(session_id.to_string()),
                     });
                 }
             }
@@ -1482,6 +1514,7 @@ async fn handle_rover_ws(socket: WebSocket, state: SharedState) {
             rover_id: id,
             connected: false,
             task_id: None,
+            trace_id: Some(session_id.to_string()),
         });
     }
 
@@ -1509,6 +1542,7 @@ async fn handle_console_ws(socket: WebSocket, state: SharedState) {
             rover_id: rover_id.clone(),
             connected: true,
             task_id: rover.current_task,
+            trace_id: None,
         };
         if let Ok(json) = serde_json::to_string(&msg) {
             let _ = sender.send(Message::Text(json.into())).await;
@@ -1750,6 +1784,7 @@ async fn schedule_evaluator(state: SharedState) {
                 rover_id: rover_id.clone(),
                 connected: true,
                 task_id: Some(task.id),
+                trace_id: None,
             });
         }
     }

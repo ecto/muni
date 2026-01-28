@@ -988,12 +988,19 @@ async fn check_completed_splat_jobs(state: SharedState) -> Result<(), MapperErro
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize logging
-    tracing_subscriber::fmt()
-        .with_env_filter(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "mapper=info".into()),
-        )
-        .init();
+    let env_filter = tracing_subscriber::EnvFilter::try_from_default_env()
+        .unwrap_or_else(|_| "mapper=info".into());
+
+    if std::env::var("RUST_LOG_FORMAT").as_deref() == Ok("json") {
+        tracing_subscriber::fmt()
+            .json()
+            .with_env_filter(env_filter)
+            .init();
+    } else {
+        tracing_subscriber::fmt()
+            .with_env_filter(env_filter)
+            .init();
+    }
 
     let sessions_dir = PathBuf::from(
         std::env::var("SESSIONS_DIR").unwrap_or_else(|_| "/data/sessions".to_string()),

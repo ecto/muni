@@ -359,6 +359,7 @@ pub async fn alert_evaluator(state: SharedState) {
                         &state.db, "critical", "rover", rover_id,
                         "Connection lost", None,
                     ).await {
+                        state.webhook.notify(&alert);
                         broadcast_alert(&state, AlertBroadcast::AlertCreated { alert });
                     }
                 }
@@ -382,7 +383,7 @@ pub async fn alert_evaluator(state: SharedState) {
                     }
                 }
 
-                // Create info alert for connection
+                // Create info alert for connection (info-level, webhook skips it)
                 if let Ok(alert) = create_alert(
                     &state.db, "info", "rover", rover_id,
                     "Rover connected to dispatch", None,
@@ -419,6 +420,7 @@ pub async fn alert_evaluator(state: SharedState) {
                 &state.db, "warning", "dispatch", &task_id.to_string(),
                 &message, None,
             ).await {
+                state.webhook.notify(&alert);
                 broadcast_alert(&state, AlertBroadcast::AlertCreated { alert });
             }
         }
