@@ -104,6 +104,27 @@ pub struct MetricsSnapshot {
 
     /// LiDAR core temperature (°C, 0 if not available)
     pub lidar_core_temp: f32,
+
+    /// Control loop dt (ms) — last iteration time
+    pub control_dt_ms: f64,
+
+    /// Control loop max dt (ms) since last metrics push
+    pub control_dt_max_ms: f64,
+
+    /// Control loop jitter (ms) — max minus min dt since last push
+    pub control_dt_jitter_ms: f64,
+
+    /// Heartbeat stalled flag (true if control loop appears stuck)
+    pub heartbeat_stalled: bool,
+
+    /// CAN bus cumulative send error count (resets on recovery)
+    pub can_error_count: u64,
+
+    /// CAN bus consecutive errors (resets on successful send)
+    pub can_consecutive_errors: u32,
+
+    /// CAN bus in backoff mode (too many consecutive errors)
+    pub can_backoff: bool,
 }
 
 /// Mesh network health metrics for coverage analysis.
@@ -460,6 +481,29 @@ impl MetricsPusher {
                 rover, rover, snapshot.lidar_core_temp, timestamp_ns
             ));
         }
+
+        // Control loop timing
+        lines.push(format!(
+            "control_loop,rover={},host={} dt_ms={:.2},dt_max_ms={:.2},dt_jitter_ms={:.2},heartbeat_stalled={}i {}",
+            rover,
+            rover,
+            snapshot.control_dt_ms,
+            snapshot.control_dt_max_ms,
+            snapshot.control_dt_jitter_ms,
+            snapshot.heartbeat_stalled as i32,
+            timestamp_ns
+        ));
+
+        // CAN bus health
+        lines.push(format!(
+            "can_bus,rover={},host={} error_count={}i,consecutive_errors={}i,backoff={}i {}",
+            rover,
+            rover,
+            snapshot.can_error_count,
+            snapshot.can_consecutive_errors,
+            snapshot.can_backoff as i32,
+            timestamp_ns
+        ));
 
         // Send all lines as a single UDP packet (newline-separated)
         let payload = lines.join("\n");

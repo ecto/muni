@@ -128,12 +128,27 @@ pub(crate) struct DaemonContext {
     pub(crate) can_error_count: u64,
     pub(crate) consecutive_can_errors: u32,
     pub(crate) last_policy_action: Option<policy::PolicyAction>,
+    pub(crate) last_policy_action_time: Option<Instant>,
     pub(crate) dispatch_semaphore: Arc<Semaphore>,
     pub(crate) attitude_filter: AttitudeFilter,
     pub(crate) imu_preintegrator: slam::ImuPreintegrator,
     pub(crate) last_tick: Instant,
     pub(crate) control_period: Duration,
     pub(crate) hardware_estop_latched: bool,
+
+    // -- control loop timing metrics --
+    pub(crate) dt_min_ms: f64,
+    pub(crate) dt_max_ms: f64,
+
+    // -- subsystem liveness timestamps --
+    pub(crate) last_gps_update: Option<Instant>,
+    pub(crate) last_lidar_update: Option<Instant>,
+    pub(crate) last_slam_update: Option<Instant>,
+    pub(crate) last_subsystem_check: Instant,
+
+    // -- dispatch/discovery connection tracking --
+    pub(crate) dispatch_connected_live: bool,
+    pub(crate) heartbeat_stalled: std::sync::Arc<std::sync::atomic::AtomicBool>,
 }
 
 /// Run all initialization and return the context the control loop needs plus
@@ -1232,28 +1247,9 @@ pub(crate) async fn initialize(
     let imu_preintegrator =
         slam::ImuPreintegrator::new(slam::ImuPreintegrationConfig::default());
 
-    // Heartbeat thread for deadlock detection - runs on std::thread, not tokio
-    // This helps diagnose if main loop is stuck vs tokio starvation
+    // Heartbeat counter for deadlock detection (thread spawned in run_loop)
     let heartbeat_counter = std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0));
-    let heartbeat_counter_clone = heartbeat_counter.clone();
-    std::thread::spawn(move || {
-        let mut last_count = 0u64;
-        loop {
-            std::thread::sleep(Duration::from_secs(5));
-            let current =
-                heartbeat_counter_clone.load(std::sync::atomic::Ordering::Relaxed);
-            if current == last_count {
-                eprintln!("HEARTBEAT: Main loop STUCK at iteration {}", current);
-            } else {
-                eprintln!(
-                    "HEARTBEAT: Main loop running, iterations: {} (+{})",
-                    current,
-                    current - last_count
-                );
-            }
-            last_count = current;
-        }
-    });
+    let heartbeat_stalled = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
 
     // Print info logs that come right before the control loop spawn
     info!("Entering control loop");
@@ -1327,12 +1323,21 @@ pub(crate) async fn initialize(
         can_error_count,
         consecutive_can_errors,
         last_policy_action,
+        last_policy_action_time: None,
         dispatch_semaphore,
         attitude_filter,
         imu_preintegrator,
         last_tick,
         control_period,
         hardware_estop_latched,
+        dt_min_ms: f64::MAX,
+        dt_max_ms: 0.0,
+        last_gps_update: None,
+        last_lidar_update: None,
+        last_slam_update: None,
+        last_subsystem_check: Instant::now(),
+        dispatch_connected_live: false,
+        heartbeat_stalled,
     };
 
     Ok((ctx, log_guard))

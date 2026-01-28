@@ -84,12 +84,21 @@ pub(crate) fn run(ctx: DaemonContext) {
         mut can_error_count,
         mut consecutive_can_errors,
         mut last_policy_action,
+        mut last_policy_action_time,
         dispatch_semaphore,
         mut attitude_filter,
         mut imu_preintegrator,
         mut last_tick,
         control_period,
         mut hardware_estop_latched,
+        mut dt_min_ms,
+        mut dt_max_ms,
+        mut last_gps_update,
+        mut last_lidar_update,
+        mut last_slam_update,
+        mut last_subsystem_check,
+        mut dispatch_connected_live,
+        heartbeat_stalled,
     } = ctx;
 
     // Pre-compute IMU mount transform (used for both attitude and yaw extraction)
@@ -102,6 +111,10 @@ pub(crate) fn run(ctx: DaemonContext) {
     let mut lidar_rx_local = lidar_rx.clone();
     let mut slam_state_rx_local: Option<watch::Receiver<SlamState>> = slam_state_rx.clone();
 
+    // Control loop timing — overwritten every iteration, initial value unused
+    #[allow(unused_assignments)]
+    let mut dt_last_ms: f64 = 0.0;
+
     // Auto-sleep setup
     let sleep_timeout = Duration::from_secs(sleep_timeout_secs);
 
@@ -113,25 +126,32 @@ pub(crate) fn run(ctx: DaemonContext) {
     const POLICY_WARN_THRESHOLD: Duration = Duration::from_millis(20);
     const POLICY_ERROR_THRESHOLD: Duration = Duration::from_millis(50);
     const POLICY_TIMEOUT: Duration = Duration::from_millis(30);
+    const POLICY_ACTION_STALENESS: Duration = Duration::from_millis(200);
 
     // -----------------------------------------------------------------------
     // Heartbeat thread for deadlock detection — runs on std::thread, not tokio.
     // This helps diagnose if main loop is stuck vs tokio starvation.
     // -----------------------------------------------------------------------
     let heartbeat_counter_clone = heartbeat_counter.clone();
+    let heartbeat_stalled_clone = heartbeat_stalled.clone();
     std::thread::spawn(move || {
         let mut last_count = 0u64;
         loop {
             std::thread::sleep(Duration::from_secs(5));
             let current = heartbeat_counter_clone.load(Ordering::Relaxed);
             if current == last_count {
-                eprintln!("HEARTBEAT: Main loop STUCK at iteration {}", current);
-            } else {
-                eprintln!(
-                    "HEARTBEAT: Main loop running, iterations: {} (+{})",
-                    current,
-                    current - last_count
+                warn!(
+                    iteration = current,
+                    "Heartbeat: main loop STUCK"
                 );
+                heartbeat_stalled_clone.store(true, Ordering::Relaxed);
+            } else {
+                debug!(
+                    iteration = current,
+                    delta = current - last_count,
+                    "Heartbeat: main loop running"
+                );
+                heartbeat_stalled_clone.store(false, Ordering::Relaxed);
             }
             last_count = current;
         }
@@ -159,6 +179,16 @@ pub(crate) fn run(ctx: DaemonContext) {
         let dt = last_tick.elapsed().as_secs_f64();
         last_tick = Instant::now();
 
+        // Track control loop timing metrics
+        let dt_ms = dt * 1000.0;
+        dt_last_ms = dt_ms;
+        if dt_ms > dt_max_ms {
+            dt_max_ms = dt_ms;
+        }
+        if dt_ms < dt_min_ms {
+            dt_min_ms = dt_ms;
+        }
+
         // Debug: warn if control loop is running slow
         if dt > 0.1 {
             warn!(dt_ms = format!("{:.0}", dt * 1000.0), "Control loop slow iteration");
@@ -185,7 +215,7 @@ pub(crate) fn run(ctx: DaemonContext) {
 
         // Process all collected frames with a single mutex acquisition
         if !frames.is_empty() {
-            let mut state = shared.lock().unwrap();
+            let mut state = shared.lock().unwrap_or_else(|e| e.into_inner());
             for frame in &frames {
                 state.drivetrain.process_frame(frame);
                 state.tool_registry.process_frame(frame);
@@ -197,7 +227,7 @@ pub(crate) fn run(ctx: DaemonContext) {
             match event {
                 EStopEvent::Pressed => {
                     warn!("Hardware e-stop button PRESSED");
-                    let mut state = shared.lock().unwrap();
+                    let mut state = shared.lock().unwrap_or_else(|e| e.into_inner());
                     state.state_machine.transition(Event::EStop);
                     state.commanded_twist = Twist::default();
                     rate_limiter.reset();
@@ -219,7 +249,7 @@ pub(crate) fn run(ctx: DaemonContext) {
                     } else {
                         // Auto-release: button release clears e-stop immediately
                         info!("Hardware e-stop button released (auto-release enabled)");
-                        let mut state = shared.lock().unwrap();
+                        let mut state = shared.lock().unwrap_or_else(|e| e.into_inner());
                         state.state_machine.transition(Event::EStopRelease);
                         hardware_estop_latched = false;
 
@@ -235,7 +265,7 @@ pub(crate) fn run(ctx: DaemonContext) {
 
         // Log battery voltage every 10 seconds for diagnostics
         if loop_count % 1000 == 0 {
-            let state = shared.lock().unwrap();
+            let state = shared.lock().unwrap_or_else(|e| e.into_inner());
             let voltage = state.drivetrain.battery_voltage();
             if voltage > 0.0 {
                 info!(voltage = format!("{:.1}V", voltage), "Battery status");
@@ -264,7 +294,7 @@ pub(crate) fn run(ctx: DaemonContext) {
 
         // Process non-Twist commands (order matters for these)
         if !other_commands.is_empty() {
-            let mut state = shared.lock().unwrap();
+            let mut state = shared.lock().unwrap_or_else(|e| e.into_inner());
             for cmd in other_commands {
                 match cmd {
                     Command::EStop => {
@@ -367,7 +397,7 @@ pub(crate) fn run(ctx: DaemonContext) {
 
         // Apply latest Twist command only if in Teleop mode (requires explicit control takeover)
         if let Some(twist) = latest_twist {
-            let mut state = shared.lock().unwrap();
+            let mut state = shared.lock().unwrap_or_else(|e| e.into_inner());
             if state.state_machine.mode() == Mode::Teleop {
                 watchdog.feed();
                 state.commanded_twist = twist;
@@ -395,10 +425,10 @@ pub(crate) fn run(ctx: DaemonContext) {
 
                         // Also set on legacy dispatch task for policy fallback
                         let task = DispatchedTask::from_assignment(assignment);
-                        *dispatch_task_clone.lock().unwrap() = Some(task);
+                        *dispatch_task_clone.lock().unwrap_or_else(|e| e.into_inner()) = Some(task);
 
                         // Transition to autonomous mode to execute the task
-                        let mut state = shared.lock().unwrap();
+                        let mut state = shared.lock().unwrap_or_else(|e| e.into_inner());
                         match state.state_machine.mode() {
                             Mode::Idle => {
                                 state.state_machine.transition(Event::AutonomousRequest);
@@ -426,12 +456,12 @@ pub(crate) fn run(ctx: DaemonContext) {
                         }
 
                         // Also handle legacy dispatch task
-                        let mut task_guard = dispatch_task_clone.lock().unwrap();
+                        let mut task_guard = dispatch_task_clone.lock().unwrap_or_else(|e| e.into_inner());
                         if let Some(ref task) = *task_guard {
                             if task.task_id == task_id {
                                 *task_guard = None;
                                 // Return to idle if we were executing this task
-                                let mut state = shared.lock().unwrap();
+                                let mut state = shared.lock().unwrap_or_else(|e| e.into_inner());
                                 if state.state_machine.mode() == Mode::Autonomous {
                                     state.state_machine.transition(Event::CommandTimeout);
                                     info!("Returned to Idle after task cancellation");
@@ -441,9 +471,11 @@ pub(crate) fn run(ctx: DaemonContext) {
                     }
                     DispatchEvent::Connected(true) => {
                         info!("Connected to dispatch service");
+                        dispatch_connected_live = true;
                     }
                     DispatchEvent::Connected(false) => {
                         warn!("Disconnected from dispatch service");
+                        dispatch_connected_live = false;
                     }
                 }
             }
@@ -454,7 +486,7 @@ pub(crate) fn run(ctx: DaemonContext) {
             let is_timed_out;
             let current_mode;
             {
-                let state = shared.lock().unwrap();
+                let state = shared.lock().unwrap_or_else(|e| e.into_inner());
                 is_timed_out = watchdog.is_timed_out() && state.state_machine.is_driving();
                 current_mode = state.state_machine.mode();
             }
@@ -471,7 +503,7 @@ pub(crate) fn run(ctx: DaemonContext) {
                             heartbeat_count,
                             "Command watchdog timeout in teleop mode (no commands received)"
                         );
-                        let mut state = shared.lock().unwrap();
+                        let mut state = shared.lock().unwrap_or_else(|e| e.into_inner());
                         state.state_machine.transition(Event::CommandTimeout);
                         state.commanded_twist = Twist::default();
                     }
@@ -482,7 +514,7 @@ pub(crate) fn run(ctx: DaemonContext) {
                         error!("Watchdog timeout in autonomous mode - control loop or policy hung");
 
                         // Report failure if executing dispatch task
-                        if let Some(ref task) = *current_dispatch_task.lock().unwrap() {
+                        if let Some(ref task) = *current_dispatch_task.lock().unwrap_or_else(|e| e.into_inner()) {
                             if let Some(ref client) = dispatch_client {
                                 let task_id = task.task_id;
                                 let client_clone = client.clone();
@@ -498,7 +530,7 @@ pub(crate) fn run(ctx: DaemonContext) {
                         }
 
                         // Transition to Fault (more severe than Idle) for autonomous failures
-                        let mut state = shared.lock().unwrap();
+                        let mut state = shared.lock().unwrap_or_else(|e| e.into_inner());
                         state.fault_code = FaultCode::WatchdogTimeout;
                         state.state_machine.transition(Event::Fault);
                         state.commanded_twist = Twist::default();
@@ -506,7 +538,7 @@ pub(crate) fn run(ctx: DaemonContext) {
                     _ => {
                         // Shouldn't happen (is_driving only true for Teleop/Autonomous)
                         warn!("Unexpected watchdog timeout in mode {:?}", current_mode);
-                        let mut state = shared.lock().unwrap();
+                        let mut state = shared.lock().unwrap_or_else(|e| e.into_inner());
                         state.state_machine.transition(Event::CommandTimeout);
                         state.commanded_twist = Twist::default();
                     }
@@ -517,7 +549,7 @@ pub(crate) fn run(ctx: DaemonContext) {
 
         // Auto-sleep after idle/disabled timeout
         if sleep_timeout_secs > 0 {
-            let mode = shared.lock().unwrap().state_machine.mode();
+            let mode = shared.lock().unwrap_or_else(|e| e.into_inner()).state_machine.mode();
             if matches!(mode, Mode::Idle)
                 && idle_since.elapsed() > sleep_timeout
             {
@@ -526,14 +558,14 @@ pub(crate) fn run(ctx: DaemonContext) {
                     mode = ?mode,
                     "Auto-sleep timeout reached"
                 );
-                let mut state = shared.lock().unwrap();
+                let mut state = shared.lock().unwrap_or_else(|e| e.into_inner());
                 state.state_machine.transition(Event::Sleep);
             }
         }
 
         // Get current mode and commanded twist for control decisions
         let (current_mode, commanded_twist) = {
-            let state = shared.lock().unwrap();
+            let state = shared.lock().unwrap_or_else(|e| e.into_inner());
             (state.state_machine.mode(), state.commanded_twist)
         };
 
@@ -604,7 +636,7 @@ pub(crate) fn run(ctx: DaemonContext) {
                                     }
                                 }
 
-                                let mut state = shared.lock().unwrap();
+                                let mut state = shared.lock().unwrap_or_else(|e| e.into_inner());
                                 state.state_machine.transition(Event::CommandTimeout);
                             }
                         }
@@ -626,7 +658,7 @@ pub(crate) fn run(ctx: DaemonContext) {
                             }
 
                             nav.cancel();
-                            let mut state = shared.lock().unwrap();
+                            let mut state = shared.lock().unwrap_or_else(|e| e.into_inner());
                             state.state_machine.transition(Event::CommandTimeout);
                         }
                         NavigationState::ObstacleStopped => {
@@ -687,7 +719,7 @@ pub(crate) fn run(ctx: DaemonContext) {
                 } else {
                     // Fallback: Policy-based navigation
                     let goal = {
-                        let task_guard = current_dispatch_task.lock().unwrap();
+                        let task_guard = current_dispatch_task.lock().unwrap_or_else(|e| e.into_inner());
                         if let Some(ref task) = *task_guard {
                             task.current_goal()
                         } else {
@@ -722,6 +754,15 @@ pub(crate) fn run(ctx: DaemonContext) {
 
                         let inference_time = policy_start.elapsed();
 
+                        // Stale action check: only reuse last action if it's
+                        // recent enough. Otherwise zero the command for safety.
+                        let fresh_fallback = || -> Option<policy::PolicyAction> {
+                            last_policy_action.filter(|_| {
+                                last_policy_action_time
+                                    .map_or(false, |t| t.elapsed() < POLICY_ACTION_STALENESS)
+                            })
+                        };
+
                         let action = match inference_result {
                             Ok(Ok(Ok(action))) => {
                                 if inference_time > POLICY_ERROR_THRESHOLD {
@@ -730,11 +771,12 @@ pub(crate) fn run(ctx: DaemonContext) {
                                     warn!(duration_ms = inference_time.as_millis(), "Policy slow");
                                 }
                                 last_policy_action = Some(action);
+                                last_policy_action_time = Some(Instant::now());
                                 Some(action)
                             }
-                            Ok(Ok(Err(e))) => { warn!(?e, "Policy error"); last_policy_action }
-                            Ok(Err(e)) => { error!("Policy panic: {}", e); last_policy_action }
-                            Err(_) => { warn!("Policy timeout"); last_policy_action }
+                            Ok(Ok(Err(e))) => { warn!(?e, "Policy error"); fresh_fallback() }
+                            Ok(Err(e)) => { error!("Policy panic: {}", e); fresh_fallback() }
+                            Err(_) => { warn!("Policy timeout"); fresh_fallback() }
                         };
 
                         if let Some(action) = action {
@@ -752,7 +794,7 @@ pub(crate) fn run(ctx: DaemonContext) {
                             let dy = goal[1] - current_pose.y;
                             let dist = (dx * dx + dy * dy).sqrt();
                             if dist < 0.5 {
-                                let mut task_guard = current_dispatch_task.lock().unwrap();
+                                let mut task_guard = current_dispatch_task.lock().unwrap_or_else(|e| e.into_inner());
                                 if let Some(ref mut task) = *task_guard {
                                     info!(waypoint = task.current_waypoint, "Waypoint reached");
 
@@ -785,9 +827,9 @@ pub(crate) fn run(ctx: DaemonContext) {
                                         }
 
                                         drop(task_guard);
-                                        *current_dispatch_task.lock().unwrap() = None;
+                                        *current_dispatch_task.lock().unwrap_or_else(|e| e.into_inner()) = None;
 
-                                        let mut state = shared.lock().unwrap();
+                                        let mut state = shared.lock().unwrap_or_else(|e| e.into_inner());
                                         state.state_machine.transition(Event::CommandTimeout);
                                     }
                                 }
@@ -837,7 +879,7 @@ pub(crate) fn run(ctx: DaemonContext) {
         }
 
         // Lock state for motor commands and telemetry
-        let mut state = shared.lock().unwrap();
+        let mut state = shared.lock().unwrap_or_else(|e| e.into_inner());
 
         // Rate limit for safety (acceleration limits only)
         let mut twist = rate_limiter.limit(target_twist);
@@ -1000,6 +1042,7 @@ pub(crate) fn run(ctx: DaemonContext) {
                 let state = rx.borrow_and_update().clone();
                 // Feed SLAM correction into EKF as measurement update
                 pose_estimator.update_slam_from_array(&state.pose, &state.pose_covariance);
+                last_slam_update = Some(Instant::now());
                 Some(state)
             } else {
                 Some(rx.borrow().clone())
@@ -1013,6 +1056,7 @@ pub(crate) fn run(ctx: DaemonContext) {
             let gps_state = gps_rx.borrow_and_update().clone();
             pose_estimator.update_gps(&gps_state);
             if let Some(ref coord) = gps_state.coord {
+                last_gps_update = Some(Instant::now());
                 debug!(
                     lat = coord.lat,
                     lon = coord.lon,
@@ -1026,7 +1070,11 @@ pub(crate) fn run(ctx: DaemonContext) {
         // Check for LiDAR updates
         // Clone the scan OUTSIDE the shared lock to avoid blocking issues with rerun SDK
         let lidar_scan_clone = if lidar_rx_local.has_changed().unwrap_or(false) {
-            lidar_rx_local.borrow_and_update().clone()
+            let scan = lidar_rx_local.borrow_and_update().clone();
+            if scan.is_some() {
+                last_lidar_update = Some(Instant::now());
+            }
+            scan
         } else {
             None
         };
@@ -1101,17 +1149,34 @@ pub(crate) fn run(ctx: DaemonContext) {
         let has_gps_fix = gps_state.coord.is_some() && gps_state.fix_quality > 0;
         drop(gps_state);
 
-        let mut state = shared.lock().unwrap();
+        let mut state = shared.lock().unwrap_or_else(|e| e.into_inner());
 
         // Update health from available state
         state.health.can_healthy = state.drivetrain.battery_voltage() > 0.0;
         state.health.gps_fix = has_gps_fix;
-        state.health.slam_running = slam_scan_tx.is_some();
-        state.health.lidar_active = lidar_enabled;
         state.health.recording_active = recording_enabled;
-        state.health.discovery_connected = discovery_enabled;
-        state.health.dispatch_connected = dispatch_enabled;
         // Note: camera_active is set when camera starts successfully
+
+        // Dispatch/discovery: use live connection state instead of config-only flag
+        state.health.dispatch_connected = if dispatch_enabled { dispatch_connected_live } else { false };
+        state.health.discovery_connected = discovery_enabled;
+
+        // Subsystem liveness checks (every 1s to avoid per-tick overhead)
+        if last_subsystem_check.elapsed() >= Duration::from_secs(1) {
+            // GPS: stale if no update in 5s
+            state.health.gps_fix = has_gps_fix
+                && last_gps_update.map_or(false, |t| t.elapsed() < Duration::from_secs(5));
+
+            // LiDAR: stale if no scan in 3s
+            state.health.lidar_active = lidar_enabled
+                && last_lidar_update.map_or(false, |t| t.elapsed() < Duration::from_secs(3));
+
+            // SLAM: stale if no update in 10s
+            state.health.slam_running = slam_scan_tx.is_some()
+                && last_slam_update.map_or(false, |t| t.elapsed() < Duration::from_secs(10));
+
+            last_subsystem_check = Instant::now();
+        }
 
         // Wheel/VESC status
         state.health.wheel_status = wheel_status;
@@ -1243,10 +1308,30 @@ pub(crate) fn run(ctx: DaemonContext) {
             system: sys_metrics.metrics(),
             webrtc: webrtc_metrics,
             lidar_core_temp: lidar_core_temp_c.unwrap_or(0.0),
+            control_dt_ms: dt_last_ms,
+            control_dt_max_ms: dt_max_ms,
+            control_dt_jitter_ms: if dt_max_ms > dt_min_ms && dt_min_ms < f64::MAX {
+                dt_max_ms - dt_min_ms
+            } else {
+                0.0
+            },
+            heartbeat_stalled: heartbeat_stalled.load(Ordering::Relaxed),
+            can_error_count,
+            can_consecutive_errors: consecutive_can_errors,
+            can_backoff: can_backoff_active,
             ..Default::default()
         };
         drop(gps_state);
         let _ = metrics_tx.send(metrics_snapshot);
+
+        // Reset timing min/max after metrics are captured (roughly every push cycle)
+        // The metrics pusher reads at ~1Hz via watch channel; reset here at 100Hz
+        // means we track max/jitter within the ~1s window between consecutive reads.
+        // Reset only once per second to align with metrics push rate.
+        if loop_count % 100 == 0 {
+            dt_min_ms = f64::MAX;
+            dt_max_ms = 0.0;
+        }
 
         // Capture data needed for recording BEFORE releasing mutex
         // (rerun uses rayon internally, which deadlocks if called while holding a mutex)
