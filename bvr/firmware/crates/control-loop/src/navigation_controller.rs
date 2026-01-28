@@ -223,7 +223,7 @@ impl NavigationController {
             current_task: None,
             blocked_start: None,
             last_pose: Pose::default(),
-            accumulator: ScanAccumulator::new(4),
+            accumulator: ScanAccumulator::new(2),
         }
     }
 

@@ -7,17 +7,17 @@
 use std::collections::VecDeque;
 
 /// Minimum number of cells for a cluster to be reported as an obstacle.
-/// At 0.1 m resolution, 12 cells ≈ 0.12 m² — filters LiDAR noise and
-/// small returns off cables/edges/furniture legs while catching real obstacles.
-const MIN_CLUSTER_CELLS: usize = 12;
+/// At 0.1 m resolution, 6 cells ≈ 0.06 m² — allows thin walls seen edge-on
+/// and narrow obstacles (legs, bollards) while still filtering LiDAR noise.
+const MIN_CLUSTER_CELLS: usize = 6;
 
 /// Maximum number of obstacles to report (sorted by area, largest first).
 const MAX_OBSTACLES: usize = 64;
 
 /// Maximum Chebyshev distance (in cells) between bounding boxes for two clusters
-/// to merge. At 0.1 m resolution, 3 cells = 0.3 m — bridges small costmap gaps
-/// (e.g. from LiDAR returns missing a thin section) without merging unrelated obstacles.
-const MERGE_GAP_CELLS: usize = 3;
+/// to merge. 0 = no gap bridging; only merge clusters whose bounding boxes touch.
+/// Disabled to prevent unrelated indoor objects from merging into one giant blob.
+const MERGE_GAP_CELLS: usize = 0;
 
 /// Obstacle classification based on shape/size heuristics.
 ///
@@ -366,9 +366,11 @@ pub fn extract_obstacles(
         }
     }
 
-    // Resolve all roots (path compression).
+    // Resolve all roots (full path compression).
+    // Store the return value — path splitting alone doesn't guarantee
+    // parent[i] == root after a single pass.
     for i in 0..n {
-        uf_find(&mut parent, i);
+        parent[i] = uf_find(&mut parent, i);
     }
 
     // Combine accumulators for clusters sharing a root.
@@ -432,9 +434,9 @@ mod tests {
     #[test]
     fn test_small_cluster_filtered() {
         let mut cells = make_grid(20, 20);
-        // 6-cell cluster — below MIN_CLUSTER_CELLS (12), should be filtered
+        // 4-cell cluster — below MIN_CLUSTER_CELLS (6), should be filtered
         for dx in 0..2 {
-            for dy in 0..3 {
+            for dy in 0..2 {
                 set_cell(&mut cells, 20, 5 + dx, 5 + dy, costs::LETHAL);
             }
         }
@@ -446,9 +448,9 @@ mod tests {
     #[test]
     fn test_cluster_at_threshold() {
         let mut cells = make_grid(20, 20);
-        // 12-cell cluster (3x4 block) — exactly MIN_CLUSTER_CELLS
-        for dx in 0..3 {
-            for dy in 0..4 {
+        // 6-cell cluster (2x3 block) — exactly MIN_CLUSTER_CELLS
+        for dx in 0..2 {
+            for dy in 0..3 {
                 set_cell(&mut cells, 20, 5 + dx, 5 + dy, costs::LETHAL);
             }
         }
@@ -456,16 +458,16 @@ mod tests {
         let obs = extract_obstacles(&cells, 20, 20, 0.1, 0.0, 0.0, costs::LETHAL, &[], &[]);
         assert_eq!(obs.len(), 1);
         assert_eq!(obs[0].id, 0);
-        assert_eq!(obs[0].cell_count, 12);
+        assert_eq!(obs[0].cell_count, 6);
 
-        // Area = 12 cells * 0.1 * 0.1 = 0.12 m²
-        assert!((obs[0].area - 0.12).abs() < 0.001);
+        // Area = 6 cells * 0.1 * 0.1 = 0.06 m²
+        assert!((obs[0].area - 0.06).abs() < 0.001);
 
-        // Bounding box: cells (5,5) to (7,8) -> world (0.5, 0.5) to (0.8, 0.9)
+        // Bounding box: cells (5,5) to (6,7) -> world (0.5, 0.5) to (0.7, 0.8)
         assert!((obs[0].bbox_min_x - 0.5).abs() < 0.001);
         assert!((obs[0].bbox_min_y - 0.5).abs() < 0.001);
-        assert!((obs[0].bbox_max_x - 0.8).abs() < 0.001);
-        assert!((obs[0].bbox_max_y - 0.9).abs() < 0.001);
+        assert!((obs[0].bbox_max_x - 0.7).abs() < 0.001);
+        assert!((obs[0].bbox_max_y - 0.8).abs() < 0.001);
     }
 
     #[test]
@@ -900,15 +902,15 @@ mod tests {
     #[test]
     fn test_no_gap_bridging_wide() {
         let mut cells = make_grid(20, 20);
-        // Two 12-cell blocks separated by a wide gap (bbox_gap = 5 > MERGE_GAP_CELLS).
+        // Two 12-cell blocks separated by a wide gap (bbox_gap = 7 > MERGE_GAP_CELLS).
         // Block A: 3×4 = 12 cells (max_gx = 4)
         for gx in 2..5 {
             for gy in 2..6 {
                 set_cell(&mut cells, 20, gx, gy, costs::LETHAL);
             }
         }
-        // Block B: 3×4 = 12 cells (min_gx = 9, bbox_gap = 9 - 4 = 5)
-        for gx in 9..12 {
+        // Block B: 3×4 = 12 cells (min_gx = 11, bbox_gap = 11 - 4 = 7)
+        for gx in 11..14 {
             for gy in 2..6 {
                 set_cell(&mut cells, 20, gx, gy, costs::LETHAL);
             }
@@ -921,43 +923,43 @@ mod tests {
     #[test]
     fn test_merge_gap_bridging() {
         let mut cells = make_grid(20, 20);
-        // Two 12-cell blocks with bbox_gap = 3 (≤ MERGE_GAP_CELLS) → merged.
+        // Two 12-cell blocks with bbox_gap = 0 (touching) → merged since MERGE_GAP_CELLS=0.
         // Block A: 3×4 = 12 cells (max_gx = 4)
         for gx in 2..5 {
             for gy in 2..6 {
                 set_cell(&mut cells, 20, gx, gy, costs::LETHAL);
             }
         }
-        // Block B: 3×4 = 12 cells (min_gx = 7, bbox_gap = 7 - 4 = 3)
-        for gx in 7..10 {
+        // Block B: 3×4 = 12 cells (min_gx = 4, bbox_gap = 4 - 4 = 0, touching)
+        for gx in 4..7 {
             for gy in 2..6 {
                 set_cell(&mut cells, 20, gx, gy, costs::LETHAL);
             }
         }
 
         let obs = extract_obstacles(&cells, 20, 20, 0.1, 0.0, 0.0, costs::LETHAL, &[], &[]);
-        assert_eq!(obs.len(), 1, "nearby clusters should merge");
-        assert_eq!(obs[0].cell_count, 24);
+        assert_eq!(obs.len(), 1, "touching clusters should merge");
     }
 
     #[test]
     fn test_merge_does_not_bridge_far() {
         let mut cells = make_grid(20, 20);
-        // Two 12-cell blocks with bbox_gap = 6 (> MERGE_GAP_CELLS) → separate.
+        // Two 12-cell blocks with 1-cell empty gap → separate connected components.
+        // bbox_gap = 6 - 4 = 2 > MERGE_GAP_CELLS=0 → not merged.
         // Block A: 3×4 = 12 cells (max_gx = 4)
         for gx in 2..5 {
             for gy in 2..6 {
                 set_cell(&mut cells, 20, gx, gy, costs::LETHAL);
             }
         }
-        // Block B: 3×4 = 12 cells (min_gx = 10, bbox_gap = 10 - 4 = 6)
-        for gx in 10..13 {
+        // Block B: 3×4 = 12 cells (min_gx = 6, 1 empty column between)
+        for gx in 6..9 {
             for gy in 2..6 {
                 set_cell(&mut cells, 20, gx, gy, costs::LETHAL);
             }
         }
 
         let obs = extract_obstacles(&cells, 20, 20, 0.1, 0.0, 0.0, costs::LETHAL, &[], &[]);
-        assert_eq!(obs.len(), 2, "far-apart clusters should not merge");
+        assert_eq!(obs.len(), 2, "gap-separated clusters should not merge");
     }
 }

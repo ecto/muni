@@ -281,7 +281,7 @@ cost_threshold = 253        # costmap cost = blocked (253 = INSCRIBED)
 
 [costmap]
 # RANSAC ground plane distance threshold (meters)
-ground_distance_threshold = 0.15
+ground_distance_threshold = 0.25
 # Minimum ground plane inlier fraction for RANSAC
 ground_min_inlier_ratio = 0.3
 # RANSAC iterations for ground plane fitting

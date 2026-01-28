@@ -17,7 +17,7 @@ use rand::seq::SliceRandom;
 use rand::SeedableRng;
 use std::collections::VecDeque;
 use thiserror::Error;
-use tracing::debug;
+use tracing::{debug, warn};
 use transforms::Transform2D;
 
 pub use clustering::{Obstacle, ObstacleClass};
@@ -54,9 +54,9 @@ pub struct GroundSegmenterConfig {
 impl Default for GroundSegmenterConfig {
     fn default() -> Self {
         Self {
-            distance_threshold: 0.15,
+            distance_threshold: 0.25,
             min_inlier_ratio: 0.3,
-            max_iterations: 25,
+            max_iterations: 150,
         }
     }
 }
@@ -98,19 +98,22 @@ impl GroundSegmenter {
         robot_pose: &Transform2D,
     ) -> (Vec<Vector3<f64>>, Vec<Vector3<f64>>) {
         const MAX_RANGE: f32 = 50.0;
-        const GROUND_CANDIDATE_MAX_Z: f32 = 0.5;
+        const GROUND_CANDIDATE_MAX_Z: f32 = 0.4;
         const OBSTACLE_MIN_ABOVE_GROUND: f64 = 0.1;
-        const OBSTACLE_MAX_ABOVE_GROUND: f64 = 2.0;
+        const OBSTACLE_MAX_ABOVE_GROUND: f64 = 1.0;
+        // Max 2D range for obstacle points (meters). Distant walls aren't navigation-relevant.
+        const OBSTACLE_MAX_RANGE_SQ: f32 = 64.0; // 8m
         // Maximum angle from vertical for a valid ground normal (30 degrees)
         const MAX_NORMAL_ANGLE_COS: f64 = 0.866; // cos(30°)
 
         // Filter valid points and separate ground candidates
         let mut candidates_3d: Vec<Vector3<f64>> = Vec::new();
-        let mut all_valid: Vec<(Vector3<f64>, Vector2<f64>)> = Vec::new();
+        let mut all_valid: Vec<(Vector3<f64>, Vector2<f64>, f32)> = Vec::new();
 
         for point in &cloud.points {
             let range_sq = point.x * point.x + point.y * point.y;
-            if !range_sq.is_finite() || range_sq < 0.01 || range_sq > MAX_RANGE * MAX_RANGE {
+            // Min range 0.8m excludes rover self-returns (chassis/wheels extend ~0.7m from sensor)
+            if !range_sq.is_finite() || range_sq < 0.64 || range_sq > MAX_RANGE * MAX_RANGE {
                 continue;
             }
 
@@ -118,7 +121,7 @@ impl GroundSegmenter {
                 robot_pose.transform_point(Vector2::new(point.x as f64, point.y as f64));
             let p3 = Vector3::new(world_2d.x, world_2d.y, point.z as f64);
 
-            all_valid.push((p3, world_2d));
+            all_valid.push((p3, world_2d, range_sq));
 
             if point.z < GROUND_CANDIDATE_MAX_Z {
                 candidates_3d.push(p3);
@@ -129,8 +132,8 @@ impl GroundSegmenter {
             // Not enough data for RANSAC — fall back: everything is obstacle
             let obstacles = all_valid
                 .iter()
-                .filter(|(p3, _)| p3.z > -0.3 && p3.z < 1.5)
-                .map(|(p3, _)| *p3)
+                .filter(|(p3, _, rsq)| p3.z > -0.3 && p3.z < 1.0 && *rsq <= OBSTACLE_MAX_RANGE_SQ)
+                .map(|(p3, _, _)| *p3)
                 .collect();
             return (Vec::new(), obstacles);
         }
@@ -196,7 +199,7 @@ impl GroundSegmenter {
                 let mut ground = Vec::new();
                 let mut obstacles = Vec::new();
 
-                for (p3, _p2) in &all_valid {
+                for (p3, _p2, rsq) in &all_valid {
                     let dist_to_plane = normal.dot(p3) + d;
 
                     if dist_to_plane.abs() < self.config.distance_threshold {
@@ -204,11 +207,12 @@ impl GroundSegmenter {
                         ground.push(*p3);
                     } else if dist_to_plane > OBSTACLE_MIN_ABOVE_GROUND
                         && dist_to_plane < OBSTACLE_MAX_ABOVE_GROUND
+                        && *rsq <= OBSTACLE_MAX_RANGE_SQ
                     {
-                        // Above ground plane — obstacle
+                        // Above ground plane, within nav range — obstacle
                         obstacles.push(*p3);
                     }
-                    // Below ground or too high — ignore
+                    // Below ground, too high, or too far — ignore
                 }
 
                 (ground, obstacles)
@@ -226,15 +230,17 @@ impl GroundSegmenter {
     /// Fallback segmentation using simple z-threshold when RANSAC fails.
     fn fallback_segment(
         &self,
-        points: &[(Vector3<f64>, Vector2<f64>)],
+        points: &[(Vector3<f64>, Vector2<f64>, f32)],
     ) -> (Vec<Vector3<f64>>, Vec<Vector3<f64>>) {
+        // 8m max obstacle range
+        const OBSTACLE_MAX_RANGE_SQ: f32 = 64.0;
         let mut ground = Vec::new();
         let mut obstacles = Vec::new();
 
-        for (p3, _p2) in points {
+        for (p3, _p2, rsq) in points {
             if p3.z < 0.1 && p3.z > -0.3 {
                 ground.push(*p3);
-            } else if p3.z >= 0.1 && p3.z < 1.5 {
+            } else if p3.z >= 0.1 && p3.z < 1.0 && *rsq <= OBSTACLE_MAX_RANGE_SQ {
                 obstacles.push(*p3);
             }
         }
@@ -419,7 +425,8 @@ impl OccupancyGrid {
             let range = (point.x * point.x + point.y * point.y).sqrt();
 
             // Skip invalid ranges
-            if !range.is_finite() || range < 0.1 || range > MAX_RANGE {
+            // Min range 0.8m excludes rover self-returns (chassis/wheels extend ~0.7m from sensor)
+            if !range.is_finite() || range < 0.8 || range > MAX_RANGE {
                 continue;
             }
 
@@ -484,9 +491,10 @@ impl OccupancyGrid {
         self.raytrace_inner(start, end, hit_obstacle, Some(z));
     }
 
-    /// Shared Bresenham raytrace. Marks intermediate cells as free and marks
-    /// the endpoint as occupied when `hit_obstacle` is true. When `height`
-    /// is `Some`, the endpoint's height envelope is updated.
+    /// Shared Bresenham raytrace. Marks intermediate cells as free (skipping
+    /// high-confidence cells) and marks the endpoint as occupied when
+    /// `hit_obstacle` is true. When `height` is `Some`, the endpoint's
+    /// height envelope is updated.
     fn raytrace_inner(
         &mut self,
         start: Vector2<f64>,
@@ -516,10 +524,17 @@ impl OccupancyGrid {
         let mut err = dx - dy;
 
         loop {
-            // Mark current cell as free (except endpoint)
+            // Mark current cell as free (except endpoint),
+            // but skip cells with high confidence (log-odds > 50) to avoid
+            // erasing well-established obstacles with a single miss.
             if x != x1 || y != y1 {
-                if x >= 0 && y >= 0 {
-                    self.update_cell(x as usize, y as usize, false);
+                let ux = x as usize;
+                let uy = y as usize;
+                if x >= 0 && y >= 0 && ux < self.width && uy < self.height {
+                    let idx = uy * self.width + ux;
+                    if self.data[idx] <= 50 {
+                        self.update_cell(ux, uy, false);
+                    }
                 }
             }
 
@@ -707,7 +722,7 @@ impl Costmap {
             inflation_radius,
             inscribed_radius,
             ground_segmenter: GroundSegmenter::new(GroundSegmenterConfig::default()),
-            decay_step: 3,
+            decay_step: 2,
         }
     }
 
@@ -1111,7 +1126,7 @@ mod tests {
         // Create a flat ground plane at z=0 with some obstacles at z=1
         let mut points = Vec::new();
 
-        // Ground points
+        // Ground points (tag=1: valid confidence)
         for ix in -10..=10 {
             for iy in -10..=10 {
                 points.push(Point3D {
@@ -1119,7 +1134,7 @@ mod tests {
                     y: iy as f32 * 0.5,
                     z: 0.0,
                     reflectivity: 128,
-                    tag: 0,
+                    tag: 1,
                 });
             }
         }
@@ -1132,7 +1147,7 @@ mod tests {
                     y: iy as f32 * 0.5,
                     z: iz as f32 * 0.25,
                     reflectivity: 128,
-                    tag: 0,
+                    tag: 1,
                 });
             }
         }
@@ -1179,7 +1194,7 @@ mod tests {
                 y: 0.0,
                 z: 2.0, // Too high for ground candidates
                 reflectivity: 128,
-                tag: 0,
+                tag: 1,
             })
             .collect();
 
@@ -1296,4 +1311,70 @@ mod tests {
         assert_eq!(h_min[idx], f32::INFINITY);
         assert_eq!(h_max[idx], f32::NEG_INFINITY);
     }
+
+    #[test]
+    fn test_confidence_gated_clearing() {
+        // A cell with log-odds > 50 should NOT be cleared by a free-space raytrace.
+        let mut grid = OccupancyGrid::new(20, 20, 1.0, Vector2::new(0.0, 0.0));
+
+        // Build high-confidence obstacle at (10, 10) — log-odds well above 50
+        for _ in 0..4 {
+            grid.update_cell(10, 10, true); // +30 each → 100 (clamped)
+        }
+        let before = grid.get_log_odds(10, 10).unwrap();
+        assert!(before > 50, "setup: cell should exceed threshold, got {before}");
+
+        // Raytrace a free-space ray through (10,10): sensor at (5,10), endpoint at (15,10)
+        grid.raytrace(
+            Vector2::new(5.5, 10.5),
+            Vector2::new(15.5, 10.5),
+            false,
+        );
+
+        let after = grid.get_log_odds(10, 10).unwrap();
+        assert_eq!(after, before, "high-confidence cell should be unchanged by free-space ray");
+    }
+
+    #[test]
+    fn test_low_confidence_cell_cleared_by_raytrace() {
+        // A cell with log-odds <= 50 SHOULD be cleared by a free-space raytrace.
+        let mut grid = OccupancyGrid::new(20, 20, 1.0, Vector2::new(0.0, 0.0));
+
+        // Set cell to moderate occupancy (30 log-odds, one hit)
+        grid.update_cell(10, 10, true);
+        let before = grid.get_log_odds(10, 10).unwrap();
+        assert!(before > 0 && before <= 50, "setup: cell should be low confidence, got {before}");
+
+        // Raytrace through it
+        grid.raytrace(
+            Vector2::new(5.5, 10.5),
+            Vector2::new(15.5, 10.5),
+            false,
+        );
+
+        let after = grid.get_log_odds(10, 10).unwrap();
+        assert!(after < before, "low-confidence cell should be cleared, before={before} after={after}");
+    }
+
+    #[test]
+    fn test_decay_step_one() {
+        // With decay_step=1, a cell at log-odds 30 should take 30 decay cycles to reach 0
+        let mut grid = OccupancyGrid::new(10, 10, 1.0, Vector2::new(0.0, 0.0));
+
+        grid.update_cell(5, 5, true); // +30
+        assert_eq!(grid.get_log_odds(5, 5).unwrap(), 30);
+
+        // After 10 decays at step=1, should be 20
+        for _ in 0..10 {
+            grid.decay(1);
+        }
+        assert_eq!(grid.get_log_odds(5, 5).unwrap(), 20);
+
+        // After 20 more decays at step=1, should reach 0
+        for _ in 0..20 {
+            grid.decay(1);
+        }
+        assert_eq!(grid.get_log_odds(5, 5).unwrap(), 0);
+    }
+
 }
