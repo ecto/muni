@@ -30,7 +30,7 @@ use costmap::CostmapSnapshot;
 use costmap::TrackedObstacle;
 use lidar::PointCloud;
 use futures_util::{SinkExt, StreamExt};
-use std::sync::atomic::{AtomicU8, AtomicU16, AtomicU32, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU8, AtomicU16, AtomicU32, AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::net::{TcpListener, TcpStream};
@@ -245,6 +245,7 @@ pub struct RtcServer {
     command_tx: mpsc::Sender<Command>,
     telemetry_rx: watch::Receiver<Telemetry>,
     video_rx: Option<Arc<Mutex<tokio_mpsc::Receiver<H264Frame>>>>,
+    keyframe_requestor: Option<Arc<AtomicBool>>,
     lidar_rx: Option<watch::Receiver<Option<PointCloud>>>,
     costmap_rx: Option<watch::Receiver<Option<CostmapSnapshot>>>,
     obstacles_rx: Option<watch::Receiver<Option<Vec<TrackedObstacle>>>>,
@@ -265,6 +266,7 @@ impl RtcServer {
             command_tx,
             telemetry_rx,
             video_rx: None,
+            keyframe_requestor: None,
             lidar_rx: None,
             costmap_rx: None,
             obstacles_rx: None,
@@ -287,6 +289,7 @@ impl RtcServer {
             command_tx,
             telemetry_rx,
             video_rx: Some(Arc::new(Mutex::new(video_rx))),
+            keyframe_requestor: None,
             lidar_rx: None,
             costmap_rx: None,
             obstacles_rx: None,
@@ -310,6 +313,7 @@ impl RtcServer {
             command_tx,
             telemetry_rx,
             video_rx: Some(Arc::new(Mutex::new(video_rx))),
+            keyframe_requestor: None,
             lidar_rx: Some(lidar_rx),
             costmap_rx: None,
             obstacles_rx: None,
@@ -318,6 +322,14 @@ impl RtcServer {
             operator_state: Arc::new(OperatorState::new()),
             metrics: RtcMetrics::new(),
         }
+    }
+
+    /// Set the keyframe requestor for PLI handling.
+    /// Set the keyframe request flag for PLI handling.
+    /// When set to `true` by the RTCP reader, the camera capture loop
+    /// sends a ForceKeyUnit event to the GStreamer encoder.
+    pub fn set_keyframe_requestor(&mut self, flag: Arc<AtomicBool>) {
+        self.keyframe_requestor = Some(flag);
     }
 
     /// Set the costmap receiver for streaming costmap data to the console.
@@ -360,6 +372,7 @@ impl RtcServer {
         let command_tx = Arc::new(self.command_tx);
         let telemetry_rx = self.telemetry_rx;
         let video_rx = self.video_rx;
+        let keyframe_requestor = self.keyframe_requestor;
         let lidar_rx = self.lidar_rx;
         let costmap_rx = self.costmap_rx;
         let obstacles_rx = self.obstacles_rx;
@@ -379,6 +392,7 @@ impl RtcServer {
                     let cmd_tx = command_tx.clone();
                     let telem_rx = telemetry_rx.clone();
                     let vid_rx = video_rx.clone();
+                    let kf_req = keyframe_requestor.clone();
                     let lid_rx = lidar_rx.clone();
                     let cm_rx = costmap_rx.clone();
                     let obs_rx = obstacles_rx.clone();
@@ -390,7 +404,7 @@ impl RtcServer {
 
                     tokio::spawn(async move {
                         if let Err(e) =
-                            handle_signaling(stream, cmd_tx, telem_rx, vid_rx, lid_rx, cm_rx, obs_rx, path_rx_clone, cam_info, cfg, conn_id, op_state.clone(), rtc_metrics)
+                            handle_signaling(stream, cmd_tx, telem_rx, vid_rx, kf_req, lid_rx, cm_rx, obs_rx, path_rx_clone, cam_info, cfg, conn_id, op_state.clone(), rtc_metrics)
                                 .await
                         {
                             error!(?e, conn_id, "WebRTC connection error");
@@ -434,6 +448,7 @@ async fn handle_signaling(
     command_tx: Arc<mpsc::Sender<Command>>,
     telemetry_rx: watch::Receiver<Telemetry>,
     video_rx: Option<Arc<Mutex<tokio_mpsc::Receiver<H264Frame>>>>,
+    keyframe_requestor: Option<Arc<AtomicBool>>,
     lidar_rx: Option<watch::Receiver<Option<PointCloud>>>,
     costmap_rx: Option<watch::Receiver<Option<CostmapSnapshot>>>,
     obstacles_rx: Option<watch::Receiver<Option<Vec<TrackedObstacle>>>>,
@@ -679,7 +694,7 @@ async fn handle_signaling(
             "rover-video".to_owned(),
         ));
 
-        peer_connection
+        let rtp_sender = peer_connection
             .add_track(video_track.clone() as Arc<dyn TrackLocal + Send + Sync>)
             .await
             .map_err(|e| {
@@ -690,6 +705,31 @@ async fn handle_signaling(
             })?;
 
         info!("H.264 video track added to peer connection");
+
+        // Spawn RTCP reader to handle PLI (Picture Loss Indication) requests.
+        // When the browser detects missing packets, it sends PLI asking for a keyframe.
+        if let Some(kf_req) = keyframe_requestor.clone() {
+            tokio::spawn(async move {
+                loop {
+                    match rtp_sender.read_rtcp().await {
+                        Ok((packets, _)) => {
+                            for packet in &packets {
+                                // Check if this is a PLI packet
+                                if packet
+                                    .as_any()
+                                    .downcast_ref::<webrtc::rtcp::payload_feedbacks::picture_loss_indication::PictureLossIndication>()
+                                    .is_some()
+                                {
+                                    debug!("PLI received, requesting keyframe");
+                                    kf_req.store(true, Ordering::Relaxed);
+                                }
+                            }
+                        }
+                        Err(_) => break,
+                    }
+                }
+            });
+        }
 
         // Spawn task to feed H.264 frames to the video track
         let track = video_track.clone();

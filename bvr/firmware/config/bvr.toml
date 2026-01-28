@@ -303,7 +303,7 @@ height = 1080
 fps = 30
 # H.264 encoding settings
 h264_bitrate_kbps = 4000
-h264_keyframe_interval = 30
+h264_keyframe_interval = 15
 # Camera mount transform (uncomment to override defaults)
 # mount_position = [0.25, 0.0, 0.25]    # [forward, left, up] in meters
 # mount_rotation = [0.0, -0.175, 0.0]   # [roll, pitch, yaw] in radians

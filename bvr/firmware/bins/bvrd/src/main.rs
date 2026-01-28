@@ -941,11 +941,12 @@ fn start_camera(
     active_cameras: &Arc<Mutex<HashSet<String>>>,
     video_tx_rtc: &tokio::sync::mpsc::Sender<H264Frame>,
     shared: &Arc<Mutex<SharedState>>,
+    keyframe_flag: &Arc<std::sync::atomic::AtomicBool>,
 ) -> bool {
     let stable_id = cam.stable_id();
     let camera_id = next_camera_id.fetch_add(1, Ordering::Relaxed);
 
-    match camera::spawn_h264_capture(cam, config) {
+    match camera::spawn_h264_capture(cam, config, keyframe_flag.clone()) {
         Ok((frame_rx, _camera_handle)) => {
             info!(
                 camera_id,
@@ -1442,6 +1443,9 @@ async fn main() -> Result<()> {
         }
     });
 
+    // Shared flag for PLI-triggered keyframe requests (camera ← RTC server)
+    let keyframe_flag = Arc::new(std::sync::atomic::AtomicBool::new(false));
+
     // Spawn WebRTC teleop server (primary browser teleop with video)
     let mut rtc_metrics: Option<std::sync::Arc<RtcMetrics>> = None;
     if args.rtc_port > 0 {
@@ -1461,6 +1465,8 @@ async fn main() -> Result<()> {
             video_rx_rtc,
             lidar_rx.clone(),
         );
+        // Wire keyframe flag for PLI handling (camera reads this to force IDR frames)
+        rtc_server.set_keyframe_requestor(keyframe_flag.clone());
         // Enable costmap and obstacle streaming if navigation is enabled
         if navigation_enabled {
             rtc_server.set_costmap_rx(costmap_rx.clone());
@@ -1555,6 +1561,7 @@ async fn main() -> Result<()> {
         let active_cameras: Arc<Mutex<HashSet<String>>> = Arc::new(Mutex::new(HashSet::new()));
         // Monotonically increasing camera_id counter (informational only)
         let next_camera_id: Arc<AtomicU8> = Arc::new(AtomicU8::new(0));
+        let keyframe_requestor = keyframe_flag.clone();
 
         let max_cameras = file_config.camera.max_cameras;
 
@@ -1584,6 +1591,7 @@ async fn main() -> Result<()> {
                     &active_cameras,
                     &video_tx_rtc,
                     &shared,
+                    &keyframe_requestor,
                 ) {
                     cameras_started += 1;
                 }
@@ -1604,6 +1612,7 @@ async fn main() -> Result<()> {
             let monitor_config = camera_config.clone();
             let monitor_rtc_tx = video_tx_rtc.clone();
             let monitor_shared = shared.clone();
+            let monitor_kf_req = keyframe_requestor.clone();
             let monitor_interval = Duration::from_secs(hot_plug_secs);
 
             tokio::spawn(async move {
@@ -1633,6 +1642,7 @@ async fn main() -> Result<()> {
                             &monitor_active,
                             &monitor_rtc_tx,
                             &monitor_shared,
+                            &monitor_kf_req,
                         );
                     }
 

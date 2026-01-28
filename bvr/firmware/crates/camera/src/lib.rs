@@ -11,6 +11,7 @@ use gstreamer::prelude::*;
 use gstreamer_app as gst_app;
 use image::codecs::jpeg::JpegEncoder;
 use std::io::Cursor;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc;
 use std::sync::Arc;
 use thiserror::Error;
@@ -876,11 +877,16 @@ fn build_h264_pipeline_string(camera: &DetectedCamera, config: &H264Config) -> S
 
 /// Spawn an H.264 camera capture thread that sends frames to a channel.
 ///
-/// Returns a receiver for H.264 frames and a handle to the capture thread.
+/// Returns a receiver for H.264 frames and a thread handle.
 /// Uses a bounded channel (capacity 4) to prevent memory accumulation.
+///
+/// The `keyframe_flag` is shared with the WebRTC server: when the browser
+/// sends a PLI (Picture Loss Indication), the flag is set to `true` and
+/// the capture loop sends a GStreamer ForceKeyUnit event to the encoder.
 pub fn spawn_h264_capture(
     camera: &DetectedCamera,
     config: H264Config,
+    keyframe_flag: Arc<AtomicBool>,
 ) -> Result<(mpsc::Receiver<H264Frame>, std::thread::JoinHandle<()>), CameraError> {
     ensure_gst_init()?;
 
@@ -888,7 +894,7 @@ pub fn spawn_h264_capture(
     let camera = camera.clone();
 
     let handle = std::thread::spawn(move || {
-        if let Err(e) = h264_capture_loop(camera, config, tx) {
+        if let Err(e) = h264_capture_loop(camera, config, tx, keyframe_flag) {
             error!(?e, "H.264 camera capture failed");
         }
     });
@@ -901,6 +907,7 @@ fn h264_capture_loop(
     camera: DetectedCamera,
     config: H264Config,
     tx: mpsc::SyncSender<H264Frame>,
+    keyframe_flag: Arc<AtomicBool>,
 ) -> Result<(), CameraError> {
     let pipeline_str = build_h264_pipeline_string(&camera, &config);
     info!(pipeline = %pipeline_str, "Starting H.264 capture pipeline");
@@ -929,6 +936,21 @@ fn h264_capture_loop(
     let default_duration_ns = 1_000_000_000u64 / config.fps as u64;
 
     loop {
+        // Check for keyframe request (PLI from WebRTC peer)
+        if keyframe_flag.swap(false, Ordering::Relaxed) {
+            let event = gst::event::CustomUpstream::builder(
+                gst::Structure::builder("GstForceKeyUnit")
+                    .field("all-headers", true)
+                    .build(),
+            )
+            .build();
+            if appsink.send_event(event) {
+                debug!("Forced keyframe via PLI request");
+            } else {
+                warn!("Failed to send ForceKeyUnit event");
+            }
+        }
+
         match appsink.pull_sample() {
             Ok(sample) => {
                 let buffer = match sample.buffer() {
