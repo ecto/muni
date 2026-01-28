@@ -86,6 +86,7 @@ impl TelemetryBuilder {
             lidar_work_state: 0,
             mode_changed_at: 0,
             policy_intention: None,
+            fault_code: 0,
         };
 
         self.last_telemetry = Some(telemetry.clone());

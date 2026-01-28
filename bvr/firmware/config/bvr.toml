@@ -297,6 +297,16 @@ max_cameras = 1
 # Hot-plug polling interval in seconds (0 = disabled)
 # Periodically re-scans for new cameras and starts them automatically
 hot_plug_interval_secs = 3
+# Capture resolution and quality
+width = 1920
+height = 1080
+fps = 30
+jpeg_quality = 60
+# Camera mount transform (uncomment to override defaults)
+# mount_position = [0.25, 0.0, 0.25]    # [forward, left, up] in meters
+# mount_rotation = [0.0, -0.175, 0.0]   # [roll, pitch, yaw] in radians
+# fov_h = 1.745                          # Horizontal FOV (radians, 100°)
+# fov_v = 1.18                           # Vertical FOV (radians, ~68°)
 
 [blower]
 # Enable blower subsystem (90mm EDF)

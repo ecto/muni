@@ -7,6 +7,9 @@ import {
   CanvasTexture,
   SRGBColorSpace,
   DoubleSide,
+  Euler,
+  Quaternion,
+  Vector3,
   type Texture,
   type Group,
 } from "three";
@@ -14,51 +17,120 @@ import { computeRenderPose, getInterpolationBuffer } from "@/lib/interpolation";
 import {
   getAllCameraFrames,
   getCameraFrame,
+  getCameraCalibration,
   getFrameVersion,
   type CameraFrame,
+  type CameraCalibration,
 } from "@/lib/videoFrameStore";
 
-// Shared geometry for all camera projections (4:3 aspect ratio, 2m tall)
-const CAMERA_PLANE_GEOMETRY = new PlaneGeometry(2 * (640 / 480), 2);
+// ============================================================================
+// Frustum Projection Math
+// ============================================================================
+
+/** Default calibration matching old CameraMount::default() (pre-1080p rovers). */
+const DEFAULT_CALIBRATION: CameraCalibration = {
+  width: 640,
+  height: 480,
+  position: [0.25, 0.0, 0.25],   // [forward, left, up]
+  rotation: [0.0, -0.175, 0.0],  // [roll, pitch, yaw]
+  fovH: 1.05,                     // ~60 degrees
+  fovV: 0.79,                     // ~45 degrees
+};
+
+/** Projection distance from camera to frustum plane (meters). */
+const PROJECTION_DISTANCE = 3.0;
+
+/**
+ * Compute frustum plane dimensions and placement from camera calibration.
+ *
+ * Coordinate mapping (physics -> Three.js):
+ *   Physics: X=forward, Y=left, Z=up
+ *   Three.js: X=right, Y=up, Z=backward
+ *
+ *   Three.js x = -physics_y  (left -> right)
+ *   Three.js y =  physics_z  (up -> up)
+ *   Three.js z = -physics_x  (forward -> into screen)
+ */
+function computeFrustumPlacement(cal: CameraCalibration) {
+  const d = PROJECTION_DISTANCE;
+
+  // Frustum plane size at projection distance
+  const planeW = 2 * d * Math.tan(cal.fovH / 2);
+  const planeH = 2 * d * Math.tan(cal.fovV / 2);
+
+  // Mount position in Three.js coordinates
+  const mountPos = new Vector3(
+    -cal.position[1],  // -left = right
+    cal.position[2],   // up
+    -cal.position[0],  // -forward = backward
+  );
+
+  // Mount rotation: physics Euler [roll, pitch, yaw] -> Three.js Euler('YXZ')
+  const mountEuler = new Euler(
+    -cal.rotation[1],  // -pitch (physics Y-left axis -> Three.js -X axis)
+    cal.rotation[2],   //  yaw   (physics Z-up axis -> Three.js Y axis)
+    -cal.rotation[0],  // -roll  (physics X-fwd axis -> Three.js -Z axis)
+    "YXZ",
+  );
+  const mountQuat = new Quaternion().setFromEuler(mountEuler);
+
+  // Forward offset in camera frame (looking into -Z in Three.js)
+  const forwardOffset = new Vector3(0, 0, -d).applyQuaternion(mountQuat);
+
+  // Plane center = mount position + forward offset
+  const planeCenter = mountPos.clone().add(forwardOffset);
+
+  return { planeW, planeH, planeCenter, mountQuat };
+}
+
+// ============================================================================
+// CameraProjection Component
+// ============================================================================
 
 /**
  * Single camera projection plane.
  * Reads frame URL directly from the mutable store to avoid React re-renders.
+ * Computes its own geometry and position from camera calibration.
  */
-function CameraProjection({
-  cameraId,
-  position
-}: {
-  cameraId: number;
-  position: [number, number, number];
-}) {
+function CameraProjection({ cameraId }: { cameraId: number }) {
   const materialRef = useRef<MeshBasicMaterial | null>(null);
   const textureRef = useRef<Texture | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const geometryRef = useRef<PlaneGeometry | null>(null);
   const [hasTexture, setHasTexture] = useState(false);
-  // Track last loaded URL to avoid reloading same frame
   const lastLoadedUrlRef = useRef<string | null>(null);
-  // Track pending image load to avoid race conditions
   const pendingLoadRef = useRef<string | null>(null);
+
+  // Compute frustum placement from calibration (or fallback)
+  const { planeW, planeH, planeCenter, mountQuat } = useMemo(() => {
+    const cal = getCameraCalibration(cameraId) ?? DEFAULT_CALIBRATION;
+    return computeFrustumPlacement(cal);
+  }, [cameraId]);
+
+  // Create geometry matching frustum size
+  const geometry = useMemo(() => {
+    if (geometryRef.current) {
+      geometryRef.current.dispose();
+    }
+    const geo = new PlaneGeometry(planeW, planeH);
+    geometryRef.current = geo;
+    return geo;
+  }, [planeW, planeH]);
 
   // Poll store for new frames in useFrame (runs at 60fps, no React re-renders)
   useFrame(() => {
     const frame = getCameraFrame(cameraId);
     const frameUrl = frame?.url ?? null;
 
-    // Skip if no URL, already loaded, or load in progress
     if (!frameUrl || frameUrl === lastLoadedUrlRef.current || frameUrl === pendingLoadRef.current) {
       return;
     }
 
-    // Start loading new frame
     pendingLoadRef.current = frameUrl;
     const img = new Image();
     img.onload = () => {
-      // Verify this is still the frame we want (not stale)
       if (pendingLoadRef.current !== frameUrl) return;
 
-      // Create or reuse canvas
       if (!canvasRef.current) {
         canvasRef.current = document.createElement("canvas");
       }
@@ -69,7 +141,6 @@ function CameraProjection({
       if (!ctx) return;
       ctx.drawImage(img, 0, 0);
 
-      // Create or update texture
       if (!textureRef.current) {
         const newTexture = new CanvasTexture(canvas);
         newTexture.colorSpace = SRGBColorSpace;
@@ -77,7 +148,6 @@ function CameraProjection({
       }
       textureRef.current.needsUpdate = true;
 
-      // Update material
       if (materialRef.current) {
         materialRef.current.map = textureRef.current;
         materialRef.current.needsUpdate = true;
@@ -93,7 +163,7 @@ function CameraProjection({
     img.src = frameUrl;
   });
 
-  // Cleanup on unmount - dispose texture, material, and canvas
+  // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (textureRef.current) {
@@ -104,7 +174,10 @@ function CameraProjection({
         materialRef.current.dispose();
         materialRef.current = null;
       }
-      // Clear canvas to free memory
+      if (geometryRef.current) {
+        geometryRef.current.dispose();
+        geometryRef.current = null;
+      }
       if (canvasRef.current) {
         const ctx = canvasRef.current.getContext("2d");
         if (ctx) {
@@ -118,7 +191,11 @@ function CameraProjection({
   }, []);
 
   return (
-    <mesh geometry={CAMERA_PLANE_GEOMETRY} position={position}>
+    <mesh
+      geometry={geometry}
+      position={[planeCenter.x, planeCenter.y, planeCenter.z]}
+      quaternion={mountQuat}
+    >
       <meshBasicMaterial
         ref={materialRef}
         color={hasTexture ? 0xffffff : 0xff0000}
@@ -130,8 +207,12 @@ function CameraProjection({
   );
 }
 
+// ============================================================================
+// EquirectangularSky (Camera Feed Container)
+// ============================================================================
+
 /**
- * Renders camera feeds as video planes positioned in front of the rover.
+ * Renders camera feeds as frustum-projected planes in front of the rover.
  * Creates a separate projection for each camera to avoid flickering.
  * The group follows the rover's position so planes are always in front.
  *
@@ -142,39 +223,18 @@ export function EquirectangularSky() {
   const videoConnected = useConsoleStore((state) => state.videoConnected);
   const groupRef = useRef<Group>(null);
 
-  // Track frame version to detect changes from mutable store
   const lastFrameVersionRef = useRef(0);
-  // Only track camera IDs - frames are read directly from store by CameraProjection
   const [cameraIds, setCameraIds] = useState<number[]>([]);
-  // Track previous camera IDs to avoid unnecessary state updates
   const prevCameraIdsRef = useRef<string>("");
 
-  // Memoize camera positions to prevent unnecessary remounts
-  // Each camera gets a stable position tuple based on its index and total count
-  const positions = useMemo(() => {
-    const total = cameraIds.length;
-    if (total === 0) return [];
-    return cameraIds.map((_, index) => {
-      if (total === 1) return [0, 1.5, -3] as [number, number, number];
-      // Spread cameras horizontally in front of rover (planes are ~2.67m wide)
-      const spacing = 3;
-      const offset = ((total - 1) / 2) * spacing;
-      const x = index * spacing - offset;
-      return [x, 1.5, -3] as [number, number, number];
-    });
-  }, [cameraIds]);
-
-  // Check for new cameras from mutable store (runs even when not rendering)
-  // Only triggers re-render when the set of camera IDs changes, not on every frame
+  // Check for new cameras from mutable store
   useFrame(() => {
     const currentVersion = getFrameVersion();
     if (currentVersion !== lastFrameVersionRef.current) {
       lastFrameVersionRef.current = currentVersion;
-      // Get current camera IDs from store
       const frames = getAllCameraFrames();
       const ids = Array.from(frames.keys()).sort((a, b) => a - b);
       const idsKey = ids.join(",");
-      // Only update state if camera set changed (not on every frame)
       if (idsKey !== prevCameraIdsRef.current) {
         if (ids.length > 0 && cameraIds.length === 0) {
           console.log(`[EquirectangularSky] First frames received: ${ids.length} cameras`);
@@ -184,12 +244,10 @@ export function EquirectangularSky() {
       }
     }
 
-    // Update group position if we have a ref
     if (!groupRef.current) return;
 
     const result = computeRenderPose(getInterpolationBuffer(), performance.now(), 0);
 
-    // Apply pose to group (same coordinate mapping as RoverModel)
     // Physics: X=forward, Y=left; Three.js: -Z=forward, -X=left
     groupRef.current.position.z = -result.pose.x;
     groupRef.current.position.x = -result.pose.y;
@@ -202,16 +260,16 @@ export function EquirectangularSky() {
 
   return (
     <group ref={groupRef}>
-      {cameraIds.map((cameraId, index) => (
-        <CameraProjection
-          key={cameraId}
-          cameraId={cameraId}
-          position={positions[index]}
-        />
+      {cameraIds.map((cameraId) => (
+        <CameraProjection key={cameraId} cameraId={cameraId} />
       ))}
     </group>
   );
 }
+
+// ============================================================================
+// UI Components
+// ============================================================================
 
 /**
  * Video status indicator overlay.

@@ -113,6 +113,8 @@ export interface Telemetry {
   lidar?: LidarTelemetry;
   /** Policy intention point in world coordinates (meters), null when inactive */
   policyIntention: { x: number; y: number } | null;
+  /** Fault code (0 = no fault, 1 = watchdog timeout). Set when mode is Fault. */
+  faultCode: number;
 }
 
 export interface GamepadInput {

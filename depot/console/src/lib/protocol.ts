@@ -16,7 +16,7 @@
  *   [timestamp_us:u64] [cmd_vel:8B] [meas_vel:8B] [accel:8B] [temps:16B] [currents:16B]
  *   [health:2B] [odom_quality:2B] [dt_ms:f32] [ack_seq:u16] [ack_bits:u16]
  *   [roll:f32] [pitch:f32] [mode_changed_at:u32] [lidar_temp:f32] [lidar_state:u8]
- *   [reserved:3B] [crc32:u32]
+ *   [policy:9B] [fault_code:u8] [reserved:1B] [crc32:u32]
  */
 
 import {
@@ -42,6 +42,7 @@ export const MSG_VIDEO_FRAME = 0x20;
 export const MSG_POINT_CLOUD = 0x21;
 export const MSG_COSTMAP = 0x22;
 export const MSG_OBSTACLES = 0x23;
+export const MSG_CAMERA_INFO = 0x24;
 
 // Command flags
 export const CMD_FLAG_MUST_ACK = 0x01;
@@ -210,6 +211,8 @@ export interface DecodedTelemetry {
   intention_x: number;
   /** Policy intention Y in world meters */
   intention_y: number;
+  /** Fault code (0 = no fault, 1 = watchdog timeout) */
+  fault_code: number;
 }
 
 /**
@@ -340,10 +343,12 @@ export function decodeTelemetry(data: ArrayBuffer): DecodedTelemetry | null {
   let policy_active = false;
   let intention_x = 0;
   let intention_y = 0;
+  let fault_code = 0;
   if (data.byteLength >= 148) {
     policy_active = view.getUint8(133) !== 0;
     intention_x = view.getFloat32(134, true);
     intention_y = view.getFloat32(138, true);
+    fault_code = view.getUint8(142);
   }
 
   return {
@@ -371,6 +376,7 @@ export function decodeTelemetry(data: ArrayBuffer): DecodedTelemetry | null {
     policy_active,
     intention_x,
     intention_y,
+    fault_code,
   };
 }
 
@@ -402,6 +408,7 @@ export function telemetryFromDecoded(decoded: DecodedTelemetry): Telemetry {
     policyIntention: decoded.policy_active
       ? { x: decoded.intention_x, y: decoded.intention_y }
       : null,
+    faultCode: decoded.fault_code,
   };
 }
 
@@ -468,6 +475,60 @@ export function videoFrameToBlobUrl(frame: DecodedVideoFrame): string {
   // Use type assertion since TypeScript 5.7+ is overly strict about ArrayBufferLike vs ArrayBuffer
   const blob = new Blob([frame.jpegData as BlobPart], { type: "image/jpeg" });
   return URL.createObjectURL(blob);
+}
+
+// ============================================================================
+// Camera Info Decoding (Rover -> Operator)
+// ============================================================================
+
+export interface DecodedCameraInfo {
+  cameraId: number;
+  width: number;
+  height: number;
+  /** Mount position [forward, left, up] in meters */
+  position: [number, number, number];
+  /** Mount rotation [roll, pitch, yaw] in radians */
+  rotation: [number, number, number];
+  /** Horizontal field of view (radians) */
+  fovH: number;
+  /** Vertical field of view (radians) */
+  fovV: number;
+}
+
+/**
+ * Decode a camera info message (38 bytes).
+ * Format: [type:u8] [camera_id:u8] [width:u16 LE] [height:u16 LE]
+ *         [pos_fwd:f32] [pos_left:f32] [pos_up:f32]
+ *         [rot_roll:f32] [rot_pitch:f32] [rot_yaw:f32]
+ *         [fov_h:f32] [fov_v:f32]
+ */
+export function decodeCameraInfo(data: ArrayBuffer): DecodedCameraInfo | null {
+  if (data.byteLength < 38) {
+    return null;
+  }
+
+  const view = new DataView(data);
+  if (view.getUint8(0) !== MSG_CAMERA_INFO) {
+    return null;
+  }
+
+  return {
+    cameraId: view.getUint8(1),
+    width: view.getUint16(2, true),
+    height: view.getUint16(4, true),
+    position: [
+      view.getFloat32(6, true),
+      view.getFloat32(10, true),
+      view.getFloat32(14, true),
+    ],
+    rotation: [
+      view.getFloat32(18, true),
+      view.getFloat32(22, true),
+      view.getFloat32(26, true),
+    ],
+    fovH: view.getFloat32(30, true),
+    fovV: view.getFloat32(34, true),
+  };
 }
 
 // ============================================================================

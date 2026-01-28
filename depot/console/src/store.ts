@@ -180,6 +180,7 @@ const defaultTelemetry: Telemetry = {
   disk_percent: 0,
   modeChangedAt: Date.now(),
   policyIntention: null,
+  faultCode: 0,
 };
 
 const defaultInput: GamepadInput = {

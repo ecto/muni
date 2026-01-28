@@ -242,6 +242,7 @@ pub struct RtcServer {
     lidar_rx: Option<watch::Receiver<Option<PointCloud>>>,
     costmap_rx: Option<watch::Receiver<Option<CostmapSnapshot>>>,
     obstacles_rx: Option<watch::Receiver<Option<Vec<TrackedObstacle>>>>,
+    camera_info: Option<crate::CameraInfo>,
     operator_state: Arc<OperatorState>,
     metrics: Arc<RtcMetrics>,
 }
@@ -260,6 +261,7 @@ impl RtcServer {
             lidar_rx: None,
             costmap_rx: None,
             obstacles_rx: None,
+            camera_info: None,
             operator_state: Arc::new(OperatorState::new()),
             metrics: RtcMetrics::new(),
         }
@@ -280,6 +282,7 @@ impl RtcServer {
             lidar_rx: None,
             costmap_rx: None,
             obstacles_rx: None,
+            camera_info: None,
             operator_state: Arc::new(OperatorState::new()),
             metrics: RtcMetrics::new(),
         }
@@ -301,6 +304,7 @@ impl RtcServer {
             lidar_rx: Some(lidar_rx),
             costmap_rx: None,
             obstacles_rx: None,
+            camera_info: None,
             operator_state: Arc::new(OperatorState::new()),
             metrics: RtcMetrics::new(),
         }
@@ -314,6 +318,12 @@ impl RtcServer {
     /// Set the obstacles receiver for streaming obstacle data to the console.
     pub fn set_obstacles_rx(&mut self, rx: watch::Receiver<Option<Vec<TrackedObstacle>>>) {
         self.obstacles_rx = Some(rx);
+    }
+
+    /// Set camera info (sent once per connection on the video channel).
+    /// The camera_id, width, and height will be filled from the first video frame.
+    pub fn set_camera_info(&mut self, info: crate::CameraInfo) {
+        self.camera_info = Some(info);
     }
 
     /// Get a reference to the operator state (for external monitoring).
@@ -338,6 +348,7 @@ impl RtcServer {
         let lidar_rx = self.lidar_rx;
         let costmap_rx = self.costmap_rx;
         let obstacles_rx = self.obstacles_rx;
+        let camera_info = self.camera_info.map(Arc::new);
         let config = Arc::new(self.config);
         let operator_state = self.operator_state;
         let metrics = self.metrics;
@@ -355,13 +366,14 @@ impl RtcServer {
                     let lid_rx = lidar_rx.clone();
                     let cm_rx = costmap_rx.clone();
                     let obs_rx = obstacles_rx.clone();
+                    let cam_info = camera_info.clone();
                     let cfg = config.clone();
                     let op_state = operator_state.clone();
                     let rtc_metrics = metrics.clone();
 
                     tokio::spawn(async move {
                         if let Err(e) =
-                            handle_signaling(stream, cmd_tx, telem_rx, vid_rx, lid_rx, cm_rx, obs_rx, cfg, conn_id, op_state.clone(), rtc_metrics)
+                            handle_signaling(stream, cmd_tx, telem_rx, vid_rx, lid_rx, cm_rx, obs_rx, cam_info, cfg, conn_id, op_state.clone(), rtc_metrics)
                                 .await
                         {
                             error!(?e, conn_id, "WebRTC connection error");
@@ -408,6 +420,7 @@ async fn handle_signaling(
     lidar_rx: Option<watch::Receiver<Option<PointCloud>>>,
     costmap_rx: Option<watch::Receiver<Option<CostmapSnapshot>>>,
     obstacles_rx: Option<watch::Receiver<Option<Vec<TrackedObstacle>>>>,
+    camera_info: Option<Arc<crate::CameraInfo>>,
     config: Arc<RtcConfig>,
     conn_id: u64,
     operator_state: Arc<OperatorState>,
@@ -631,14 +644,17 @@ async fn handle_signaling(
         let video_channel = Arc::new(video_channel);
         let video_channel_clone = video_channel.clone();
         let video_metrics = metrics.clone();
+        let video_cam_info = camera_info.clone();
 
         video_channel.on_open(Box::new(move || {
             let channel = video_channel_clone.clone();
             let rx = vid_rx.clone();
             let stats = video_metrics.clone();
+            let cam_info = video_cam_info.clone();
             Box::pin(async move {
                 info!("WebRTC video channel opened, waiting for camera frames");
                 let mut frame_count: u64 = 0;
+                let mut camera_info_sent = false;
                 let mut last_warning = std::time::Instant::now();
                 loop {
                     if channel.ready_state()
@@ -691,6 +707,30 @@ async fn handle_signaling(
                     stats.video.record_send(send_us);
 
                     frame_count += 1;
+
+                    // Send camera info once after first frame (so we know dimensions)
+                    if !camera_info_sent {
+                        if let Some(info) = cam_info.as_ref() {
+                            let mut ci = **info;
+                            ci.camera_id = frame.camera_id;
+                            ci.width = frame.width as u16;
+                            ci.height = frame.height as u16;
+                            let msg = crate::serialize_camera_info(&ci);
+                            if let Err(e) = channel.send(&bytes::Bytes::from(msg)).await {
+                                debug!(?e, "Failed to send camera info");
+                            } else {
+                                info!(
+                                    camera_id = ci.camera_id,
+                                    width = ci.width,
+                                    height = ci.height,
+                                    fov_h = ci.fov_h,
+                                    fov_v = ci.fov_v,
+                                    "Camera info sent via WebRTC"
+                                );
+                            }
+                        }
+                        camera_info_sent = true;
+                    }
 
                     // Log every 100th frame for performance tracking
                     if frame_count % 100 == 0 {

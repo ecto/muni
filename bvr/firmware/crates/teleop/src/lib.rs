@@ -56,6 +56,9 @@ pub const MSG_COSTMAP: u8 = 0x22;
 /// Obstacles message type
 pub const MSG_OBSTACLES: u8 = 0x23;
 
+/// Camera info message type (rover → console, sent once per camera on video channel open)
+pub const MSG_CAMERA_INFO: u8 = 0x24;
+
 /// Command flags
 pub mod cmd_flags {
     /// Require firmware ACK (SetMode, EStop, EStopRelease)
@@ -249,6 +252,61 @@ impl Default for Config {
     }
 }
 
+// =============================================================================
+// Camera Info Serialization
+// =============================================================================
+
+/// Camera mount info for serialization (avoids camera crate dependency).
+#[derive(Debug, Clone, Copy)]
+pub struct CameraInfo {
+    pub camera_id: u8,
+    pub width: u16,
+    pub height: u16,
+    /// Position offset from rover center: [forward, left, up] (meters)
+    pub position: [f32; 3],
+    /// Rotation from rover frame: [roll, pitch, yaw] (radians)
+    pub rotation: [f32; 3],
+    /// Horizontal field of view (radians)
+    pub fov_h: f32,
+    /// Vertical field of view (radians)
+    pub fov_v: f32,
+}
+
+/// Serialize a MSG_CAMERA_INFO message (38 bytes).
+///
+/// Format:
+/// ```text
+/// [0]      u8      type (0x24)
+/// [1]      u8      camera_id
+/// [2-3]    u16 LE  width
+/// [4-5]    u16 LE  height
+/// [6-9]    f32 LE  position_forward
+/// [10-13]  f32 LE  position_left
+/// [14-17]  f32 LE  position_up
+/// [18-21]  f32 LE  rotation_roll
+/// [22-25]  f32 LE  rotation_pitch
+/// [26-29]  f32 LE  rotation_yaw
+/// [30-33]  f32 LE  fov_h
+/// [34-37]  f32 LE  fov_v
+/// ```
+pub fn serialize_camera_info(info: &CameraInfo) -> Vec<u8> {
+    let mut buf = Vec::with_capacity(38);
+    buf.push(MSG_CAMERA_INFO);
+    buf.push(info.camera_id);
+    buf.extend_from_slice(&info.width.to_le_bytes());
+    buf.extend_from_slice(&info.height.to_le_bytes());
+    buf.extend_from_slice(&info.position[0].to_le_bytes()); // forward
+    buf.extend_from_slice(&info.position[1].to_le_bytes()); // left
+    buf.extend_from_slice(&info.position[2].to_le_bytes()); // up
+    buf.extend_from_slice(&info.rotation[0].to_le_bytes()); // roll
+    buf.extend_from_slice(&info.rotation[1].to_le_bytes()); // pitch
+    buf.extend_from_slice(&info.rotation[2].to_le_bytes()); // yaw
+    buf.extend_from_slice(&info.fov_h.to_le_bytes());
+    buf.extend_from_slice(&info.fov_v.to_le_bytes());
+    debug_assert_eq!(buf.len(), 38);
+    buf
+}
+
 /// Telemetry sent from rover to operator (120 bytes binary).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Telemetry {
@@ -306,6 +364,9 @@ pub struct Telemetry {
     /// Set when the BC policy is actively driving; None otherwise.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub policy_intention: Option<(f32, f32)>,
+    /// Fault code (0 = no fault). Set when mode is Fault, describes the cause.
+    /// 1 = watchdog timeout (control loop or policy hung during autonomous).
+    pub fault_code: u8,
 }
 
 impl Default for Telemetry {
@@ -338,6 +399,7 @@ impl Default for Telemetry {
             lidar_work_state: 0,
             mode_changed_at: 0,
             policy_intention: None,
+            fault_code: 0,
         }
     }
 }
@@ -538,7 +600,8 @@ impl Server {
 /// [133]     u8      policy_active (0=inactive, 1=policy driving)
 /// [134-137] f32 LE  intention_x (world meters)
 /// [138-141] f32 LE  intention_y (world meters)
-/// [142-143] u8×2    reserved (padding)
+/// [142]     u8      fault_code (0=none, 1=watchdog_timeout)
+/// [143]     u8      reserved
 /// [144-147] u32     crc32
 /// ```
 pub fn serialize_telemetry(telemetry: &Telemetry) -> Option<Vec<u8>> {
@@ -620,8 +683,8 @@ pub fn serialize_telemetry(telemetry: &Telemetry) -> Option<Vec<u8>> {
     buf.extend_from_slice(&ix.to_le_bytes()); // [134-137]
     buf.extend_from_slice(&iy.to_le_bytes()); // [138-141]
 
-    // Reserved [142-143]
-    buf.push(0);
+    // Fault code [142] + reserved [143]
+    buf.push(telemetry.fault_code);
     buf.push(0);
 
     // CRC32 [144-147]
@@ -853,6 +916,7 @@ mod tests {
             lidar_work_state: 0,
             mode_changed_at: 1706000000,
             policy_intention: None,
+            fault_code: 0,
         };
 
         let data = serialize_telemetry(&telemetry);
@@ -937,6 +1001,40 @@ mod tests {
         assert_eq!(config.listen_port, 4840);
         assert_eq!(config.heartbeat_interval.as_millis(), 20);
         assert_eq!(config.connection_timeout.as_secs(), 1);
+    }
+
+    #[test]
+    fn test_serialize_camera_info() {
+        let info = CameraInfo {
+            camera_id: 0,
+            width: 1920,
+            height: 1080,
+            position: [0.25, 0.0, 0.25],
+            rotation: [0.0, -0.175, 0.0],
+            fov_h: 1.745,
+            fov_v: 1.18,
+        };
+        let buf = serialize_camera_info(&info);
+        assert_eq!(buf.len(), 38);
+        assert_eq!(buf[0], MSG_CAMERA_INFO);
+        assert_eq!(buf[1], 0); // camera_id
+
+        // width = 1920 = 0x0780 LE
+        assert_eq!(u16::from_le_bytes([buf[2], buf[3]]), 1920);
+        // height = 1080 = 0x0438 LE
+        assert_eq!(u16::from_le_bytes([buf[4], buf[5]]), 1080);
+
+        // position forward
+        let fwd = f32::from_le_bytes([buf[6], buf[7], buf[8], buf[9]]);
+        assert!((fwd - 0.25).abs() < 0.001);
+
+        // fov_h
+        let fov_h = f32::from_le_bytes([buf[30], buf[31], buf[32], buf[33]]);
+        assert!((fov_h - 1.745).abs() < 0.001);
+
+        // fov_v
+        let fov_v = f32::from_le_bytes([buf[34], buf[35], buf[36], buf[37]]);
+        assert!((fov_v - 1.18).abs() < 0.001);
     }
 }
 

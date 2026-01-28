@@ -151,6 +151,47 @@ export function getLatestFrame(): { url: string | null; timestamp: number } {
   };
 }
 
+// ============================================================================
+// Camera Calibration Store
+// ============================================================================
+
+/** Camera calibration data received from MSG_CAMERA_INFO. */
+export interface CameraCalibration {
+  width: number;
+  height: number;
+  /** Mount position [forward, left, up] in meters */
+  position: [number, number, number];
+  /** Mount rotation [roll, pitch, yaw] in radians */
+  rotation: [number, number, number];
+  /** Horizontal field of view (radians) */
+  fovH: number;
+  /** Vertical field of view (radians) */
+  fovV: number;
+}
+
+/** Map of camera ID to calibration data. */
+const calibrations = new Map<number, CameraCalibration>();
+
+/** Store calibration for a camera. */
+export function setCameraCalibration(
+  cameraId: number,
+  calibration: CameraCalibration,
+): void {
+  calibrations.set(cameraId, calibration);
+}
+
+/** Get calibration for a camera. */
+export function getCameraCalibration(
+  cameraId: number,
+): CameraCalibration | undefined {
+  return calibrations.get(cameraId);
+}
+
+/** Clear all calibrations (on disconnect). */
+export function clearCalibrations(): void {
+  calibrations.clear();
+}
+
 /**
  * Clear all frames from the store.
  * Used on disconnect to clean up resources.

@@ -28,10 +28,12 @@ import {
   decodePointCloud,
   decodeCostmap,
   decodeObstacles,
+  decodeCameraInfo,
+  MSG_CAMERA_INFO,
 } from "@/lib/protocol";
 import { pushSnapshotDirect } from "@/lib/interpolation";
 import { Mode } from "@/lib/types";
-import { setCameraFrame as setMutableCameraFrame, getCameraCount } from "@/lib/videoFrameStore";
+import { setCameraFrame as setMutableCameraFrame, getCameraCount, setCameraCalibration, clearCalibrations } from "@/lib/videoFrameStore";
 import { setPointCloudData, clearPointCloudData } from "@/lib/pointCloudStore";
 import { setCostmapData, clearCostmapData } from "@/lib/costmapStore";
 import { setObstacleData, clearObstacleData } from "@/lib/obstacleStore";
@@ -498,6 +500,24 @@ export function useRoverConnectionRtc() {
               return;
             }
 
+            // Check for camera info message (0x24) before video frame
+            const msgType = new DataView(msgEvent.data).getUint8(0);
+            if (msgType === MSG_CAMERA_INFO) {
+              const info = decodeCameraInfo(msgEvent.data);
+              if (info) {
+                console.log(`[WebRTC] Camera calibration received: camera=${info.cameraId}, ${info.width}x${info.height}, fov=${(info.fovH * 180 / Math.PI).toFixed(0)}°x${(info.fovV * 180 / Math.PI).toFixed(0)}°`);
+                setCameraCalibration(info.cameraId, {
+                  width: info.width,
+                  height: info.height,
+                  position: info.position,
+                  rotation: info.rotation,
+                  fovH: info.fovH,
+                  fovV: info.fovV,
+                });
+              }
+              return;
+            }
+
             // Track channel metrics
             const stats = channelStatsRef.current.get("video");
             if (stats) {
@@ -802,6 +822,7 @@ export function useRoverConnectionRtc() {
     clearPointCloudData();
     clearCostmapData();
     clearObstacleData();
+    clearCalibrations();
   }, [clearIntervals, setConnected, setVideoConnected, setVideoFrame, setVideoFps, resetChannelMetrics]);
 
   // Stable disconnect ref for cleanup
@@ -929,6 +950,12 @@ export function useRoverConnectionRtc() {
       }
       // Clear goal marker immediately (also cleared by updateTelemetry on mode change)
       useConsoleStore.getState().clearNavigationGoal();
+    }, []),
+    sendClearFault: useCallback(() => {
+      pendingModeRef.current = Mode.Idle;
+      if (commandChannelRef.current?.readyState === "open") {
+        commandChannelRef.current.send(encodeSetMode(Mode.Idle));
+      }
     }, []),
     sendGoal: useCallback((x: number, y: number) => {
       const channel = commandChannelRef.current;

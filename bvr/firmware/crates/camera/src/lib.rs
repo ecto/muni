@@ -84,8 +84,8 @@ pub struct Config {
 impl Default for Config {
     fn default() -> Self {
         Self {
-            width: 640,
-            height: 480,
+            width: 1920,
+            height: 1080,
             fps: 30,
             jpeg_quality: 60, // Lower quality = faster encoding + less bandwidth
         }
@@ -134,9 +134,9 @@ impl Default for CameraMount {
             position: [0.25, 0.0, 0.25],
             // Looking slightly down (-10 degrees pitch)
             rotation: [0.0, -0.175, 0.0],
-            // Typical webcam FOV (~60 degrees)
-            fov_h: 1.05,
-            fov_v: 0.79,
+            // Arducam B0497: 100° horizontal, ~68° vertical (16:9 at 1080p)
+            fov_h: 1.745,
+            fov_v: 1.18,
         }
     }
 }
@@ -457,7 +457,7 @@ fn has_nvjpegenc() -> bool {
 }
 
 /// Build GStreamer pipeline string for a camera.
-/// Returns (pipeline_string, uses_hw_jpeg) tuple.
+/// Returns (pipeline_string, pipeline_outputs_jpeg) tuple.
 fn build_pipeline_string(camera: &DetectedCamera, config: &Config) -> (String, bool) {
     match &camera.camera_type {
         CameraType::Csi { sensor_id } => {
@@ -488,37 +488,38 @@ fn build_pipeline_string(camera: &DetectedCamera, config: &Config) -> (String, b
             }
         }
         CameraType::Usb { device } => {
-            // USB/V4L2 camera pipeline (Linux) - software JPEG encoding
+            // USB/V4L2 camera pipeline (Linux) - JPEG encoding in GStreamer
             // Don't constrain v4l2src caps — let it negotiate the camera's native
             // format, then videoconvert + videoscale to the desired output.
             let pipeline = format!(
                 "v4l2src device={} do-timestamp=true ! \
                  videoconvert ! \
                  videoscale ! \
-                 video/x-raw,format=RGB,width={},height={} ! \
+                 video/x-raw,width={},height={} ! \
+                 jpegenc quality={} ! \
                  appsink name=sink emit-signals=true max-buffers=1 drop=true sync=false",
-                device, config.width, config.height
+                device, config.width, config.height, config.jpeg_quality
             );
-            (pipeline, false)
+            (pipeline, true)
         }
         CameraType::Avf { device_index } => {
-            // AVFoundation camera pipeline (macOS) - software JPEG encoding
-            // Force landscape orientation and reasonable resolution
+            // AVFoundation camera pipeline (macOS) - JPEG encoding in GStreamer
             let pipeline = format!(
                 "avfvideosrc device-index={} do-timestamp=true ! \
-                 video/x-raw,width=1280,height=720 ! \
                  videoconvert ! \
-                 video/x-raw,format=RGB ! \
+                 videoscale ! \
+                 video/x-raw,width={},height={} ! \
+                 jpegenc quality={} ! \
                  appsink name=sink emit-signals=true max-buffers=1 drop=true sync=false",
-                device_index
+                device_index, config.width, config.height, config.jpeg_quality
             );
-            (pipeline, false)
+            (pipeline, true)
         }
     }
 }
 
 /// Build a fallback pipeline that's more flexible with formats.
-/// Returns (pipeline_string, uses_hw_jpeg) tuple.
+/// Returns (pipeline_string, pipeline_outputs_jpeg) tuple.
 fn build_fallback_pipeline_string(camera: &DetectedCamera, config: &Config) -> (String, bool) {
     match &camera.camera_type {
         CameraType::Csi { sensor_id } => {
@@ -548,28 +549,30 @@ fn build_fallback_pipeline_string(camera: &DetectedCamera, config: &Config) -> (
             }
         }
         CameraType::Usb { device } => {
-            // USB camera with flexible format negotiation (Linux)
+            // USB camera fallback - JPEG encoding in GStreamer
             let pipeline = format!(
                 "v4l2src device={} do-timestamp=true ! \
                  videoconvert ! \
                  videoscale ! \
-                 video/x-raw,format=RGB,width={},height={} ! \
+                 video/x-raw,width={},height={} ! \
+                 jpegenc quality={} ! \
                  appsink name=sink emit-signals=true max-buffers=1 drop=true sync=false",
-                device, config.width, config.height
+                device, config.width, config.height, config.jpeg_quality
             );
-            (pipeline, false)
+            (pipeline, true)
         }
         CameraType::Avf { device_index } => {
-            // AVFoundation camera fallback - more flexible caps (macOS)
+            // AVFoundation camera fallback - JPEG encoding in GStreamer
             let pipeline = format!(
                 "avfvideosrc device-index={} do-timestamp=true ! \
                  videoconvert ! \
                  videoscale add-borders=false ! \
-                 video/x-raw,format=RGB,width={},height={} ! \
+                 video/x-raw,width={},height={} ! \
+                 jpegenc quality={} ! \
                  appsink name=sink emit-signals=true max-buffers=1 drop=true sync=false",
-                device_index, config.width, config.height
+                device_index, config.width, config.height, config.jpeg_quality
             );
-            (pipeline, false)
+            (pipeline, true)
         }
     }
 }
@@ -607,17 +610,17 @@ fn capture_loop(
     tx: mpsc::SyncSender<Frame>,
 ) -> Result<(), CameraError> {
     // Try primary pipeline first, then fallback
-    let (pipeline_str, hw_jpeg) = build_pipeline_string(&camera, &config);
-    debug!(pipeline = %pipeline_str, hw_jpeg, "Trying primary pipeline");
+    let (pipeline_str, primary_jpeg) = build_pipeline_string(&camera, &config);
+    debug!(pipeline = %pipeline_str, pipeline_outputs_jpeg = primary_jpeg, "Trying primary pipeline");
 
-    let (pipeline, uses_hw_jpeg) = match gst::parse::launch(&pipeline_str) {
-        Ok(p) => (p, hw_jpeg),
+    let (pipeline, pipeline_outputs_jpeg) = match gst::parse::launch(&pipeline_str) {
+        Ok(p) => (p, primary_jpeg),
         Err(e) => {
             warn!(?e, "Primary pipeline failed, trying fallback");
-            let (fallback, fallback_hw_jpeg) = build_fallback_pipeline_string(&camera, &config);
-            debug!(pipeline = %fallback, hw_jpeg = fallback_hw_jpeg, "Trying fallback pipeline");
+            let (fallback, fallback_jpeg) = build_fallback_pipeline_string(&camera, &config);
+            debug!(pipeline = %fallback, pipeline_outputs_jpeg = fallback_jpeg, "Trying fallback pipeline");
             let p = gst::parse::launch(&fallback).map_err(|e| CameraError::GStreamer(e.to_string()))?;
-            (p, fallback_hw_jpeg)
+            (p, fallback_jpeg)
         }
     };
 
@@ -637,8 +640,8 @@ fn capture_loop(
         .set_state(gst::State::Playing)
         .map_err(|e| CameraError::GStreamer(format!("Failed to start pipeline: {:?}", e)))?;
 
-    if uses_hw_jpeg {
-        info!(camera = ?camera.name, "Camera capture started (hardware JPEG encoding)");
+    if pipeline_outputs_jpeg {
+        info!(camera = ?camera.name, "Camera capture started (pipeline JPEG encoding)");
     } else {
         info!(camera = ?camera.name, "Camera capture started (software JPEG encoding)");
     }
@@ -679,8 +682,8 @@ fn capture_loop(
                 };
 
                 let encode_start = std::time::Instant::now();
-                let jpeg_buf = if uses_hw_jpeg {
-                    // Hardware JPEG: buffer already contains JPEG data
+                let jpeg_buf = if pipeline_outputs_jpeg {
+                    // Pipeline JPEG: buffer already contains JPEG data
                     map.as_slice().to_vec()
                 } else {
                     // Software JPEG: encode RGB data
@@ -772,13 +775,28 @@ mod tests {
     #[test]
     fn test_camera_mount_intrinsics() {
         let mount = CameraMount::default();
-        let k = mount.intrinsics(640, 480);
+        let k = mount.intrinsics(1920, 1080);
 
         // Principal point should be at image center
-        assert!((k[0][2] - 320.0).abs() < 0.1);
-        assert!((k[1][2] - 240.0).abs() < 0.1);
+        assert!((k[0][2] - 960.0).abs() < 0.1);
+        assert!((k[1][2] - 540.0).abs() < 0.1);
 
         // Focal lengths should be positive
+        assert!(k[0][0] > 0.0);
+        assert!(k[1][1] > 0.0);
+    }
+
+    #[test]
+    fn test_camera_mount_intrinsics_legacy_640() {
+        // Verify intrinsics also work at legacy 640x480
+        let mount = CameraMount {
+            fov_h: 1.05,
+            fov_v: 0.79,
+            ..CameraMount::default()
+        };
+        let k = mount.intrinsics(640, 480);
+        assert!((k[0][2] - 320.0).abs() < 0.1);
+        assert!((k[1][2] - 240.0).abs() < 0.1);
         assert!(k[0][0] > 0.0);
         assert!(k[1][1] > 0.0);
     }

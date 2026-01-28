@@ -6,7 +6,7 @@ import {
   TooltipTrigger,
   TooltipContent,
 } from "@/components/ui/tooltip";
-import { Play, Stop, CircleNotch, Robot, Moon, Sun } from "@phosphor-icons/react";
+import { Play, Stop, CircleNotch, Robot, Moon, Sun, ArrowCounterClockwise } from "@phosphor-icons/react";
 import { useConsoleStore } from "@/store";
 import { Mode, ModeLabels } from "@/lib/types";
 
@@ -37,6 +37,11 @@ const modeTooltips: Record<Mode, string> = {
   [Mode.Sleep]: "Sensors powered down",
 };
 
+/** Map fault code to human-readable description. */
+const faultDescriptions: Record<number, string> = {
+  1: "Watchdog timeout — control loop or policy hung",
+};
+
 interface ModeBarProps {
   sendSleep: () => void;
   sendWake: () => void;
@@ -44,6 +49,7 @@ interface ModeBarProps {
   sendDisable: () => void;
   sendAutonomous: () => void;
   sendStopAutonomy: () => void;
+  sendClearFault: () => void;
 }
 
 export function ModeBar({
@@ -53,15 +59,18 @@ export function ModeBar({
   sendDisable,
   sendAutonomous,
   sendStopAutonomy,
+  sendClearFault,
 }: ModeBarProps) {
   const telemetryMode = useConsoleStore((s) => s.telemetry.mode);
   const connected = useConsoleStore((s) => s.connected);
   const modeChangedAt = useConsoleStore((s) => s.telemetry.modeChangedAt);
+  const faultCode = useConsoleStore((s) => s.telemetry.faultCode);
 
   const isDisabled = telemetryMode === Mode.Disabled || telemetryMode === Mode.Idle;
   const isTeleop = telemetryMode === Mode.Teleop;
   const isAutonomous = telemetryMode === Mode.Autonomous;
   const isSleep = telemetryMode === Mode.Sleep;
+  const isFault = telemetryMode === Mode.Fault;
 
   // Pending transition: store the label and the mode it was set in.
   // When mode changes, the pending label is automatically cleared.
@@ -244,6 +253,32 @@ export function ModeBar({
               </TooltipTrigger>
               <TooltipContent side="bottom">Wake rover and start sensors</TooltipContent>
             </Tooltip>
+          )}
+
+          {/* Fault: reason + Clear Fault */}
+          {isFault && (
+            <>
+              {faultCode > 0 && (
+                <span className="text-xs text-red-400 max-w-48 truncate">
+                  {faultDescriptions[faultCode] ?? `Unknown fault (${faultCode})`}
+                </span>
+              )}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="default"
+                    size="sm"
+                    disabled={!connected}
+                    onClick={() => { setPending({ label: "Clearing fault", mode: telemetryMode }); sendClearFault(); }}
+                    className="gap-1.5 h-7 bg-red-600 hover:bg-red-500"
+                  >
+                    <ArrowCounterClockwise className="h-3.5 w-3.5" weight="bold" />
+                    Clear Fault
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">Clear fault and return to Idle</TooltipContent>
+              </Tooltip>
+            </>
           )}
         </>
       )}

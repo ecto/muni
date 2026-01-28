@@ -901,6 +901,17 @@ impl DispatchedTask {
     }
 }
 
+/// Fault code indicating why the rover entered Fault mode.
+/// Sent in telemetry so the console can display a reason.
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+enum FaultCode {
+    #[default]
+    None = 0,
+    /// Watchdog timeout during autonomous mode (control loop or policy hung)
+    WatchdogTimeout = 1,
+}
+
 /// Shared state between threads.
 struct SharedState {
     state_machine: StateMachine,
@@ -909,6 +920,8 @@ struct SharedState {
     tool_registry: ToolRegistry,
     /// Subsystem health status (updated by various components)
     health: SubsystemHealth,
+    /// Fault code — set when entering Fault, cleared on FaultClear
+    fault_code: FaultCode,
 }
 
 /// Start a single camera: spawn_capture + sync→async bridge + forwarder task.
@@ -1350,6 +1363,7 @@ async fn main() -> Result<()> {
         drivetrain,
         tool_registry,
         health: SubsystemHealth::default(),
+        fault_code: FaultCode::None,
     }));
 
     // Channels
@@ -1386,6 +1400,7 @@ async fn main() -> Result<()> {
         lidar_work_state: 0,
         mode_changed_at: 0,
         policy_intention: None,
+        fault_code: 0,
     };
     let (telemetry_tx, telemetry_rx) = watch::channel(initial_telemetry);
 
@@ -1447,7 +1462,15 @@ async fn main() -> Result<()> {
             rtc_server.set_obstacles_rx(obstacles_rx.clone());
         }
         // Provide camera mount info for MSG_CAMERA_INFO messages
-        rtc_server.set_camera_mount(camera_mount);
+        rtc_server.set_camera_info(teleop::CameraInfo {
+            camera_id: 0,  // Filled per-frame
+            width: 0,      // Filled per-frame
+            height: 0,     // Filled per-frame
+            position: camera_mount.position,
+            rotation: camera_mount.rotation,
+            fov_h: camera_mount.fov_h,
+            fov_v: camera_mount.fov_v,
+        });
 
         // Get metrics handle before spawning (for InfluxDB push)
         rtc_metrics = Some(rtc_server.metrics());
@@ -2208,11 +2231,14 @@ async fn main() -> Result<()> {
                         let event = match mode {
                             Mode::Disabled => Event::Disable, // old consoles send byte 0 → maps to Idle now
                             Mode::Idle => {
-                                // Wake from Sleep, otherwise no-op (already Idle or Disable returns to Idle)
                                 if current == Mode::Sleep {
                                     // Reset auto-sleep timer so we don't immediately re-sleep
                                     idle_since = Instant::now();
                                     Event::Wake
+                                } else if current == Mode::Fault {
+                                    info!("Clearing fault via SetMode(Idle)");
+                                    state.fault_code = FaultCode::None;
+                                    Event::FaultClear
                                 } else {
                                     Event::Disable // Disable is a no-op when already Idle
                                 }
@@ -2412,6 +2438,7 @@ async fn main() -> Result<()> {
 
                         // Transition to Fault (more severe than Idle) for autonomous failures
                         let mut state = shared.lock().unwrap();
+                        state.fault_code = FaultCode::WatchdogTimeout;
                         state.state_machine.transition(Event::Fault);
                         state.commanded_twist = Twist::default();
                     }
@@ -3075,6 +3102,7 @@ async fn main() -> Result<()> {
             lidar_work_state: lidar_status.work_state,
             mode_changed_at: state.state_machine.mode_changed_at_epoch_secs(),
             policy_intention,
+            fault_code: state.fault_code as u8,
         };
 
         let _ = telemetry_tx.send(telemetry.clone());
