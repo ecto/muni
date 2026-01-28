@@ -20,6 +20,7 @@ import {
   createInterpolationState,
   pushSnapshot,
 } from "@/lib/interpolation";
+import { errorTracker } from "@/lib/errorTracking";
 
 export type Theme = "light" | "dark" | "system";
 
@@ -32,6 +33,9 @@ export interface ChannelMetrics {
 }
 
 interface ConsoleState {
+  // Error tracking session ID (read-only, set once at startup)
+  sessionId: string;
+
   // Fleet management
   rovers: RoverInfo[];
   selectedRoverId: string | null;
@@ -204,6 +208,9 @@ const defaultInput: GamepadInput = {
 export const useConsoleStore = create<ConsoleState>()(
   persist(
     (set) => ({
+  // Error tracking session ID
+  sessionId: errorTracker.getSessionId(),
+
   // Fleet management
   rovers: [],
   selectedRoverId: null,

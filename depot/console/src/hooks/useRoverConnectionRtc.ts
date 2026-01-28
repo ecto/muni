@@ -12,6 +12,7 @@
 
 import { useEffect, useRef, useCallback } from "react";
 import { useConsoleStore } from "@/store";
+import { errorTracker } from "@/lib/errorTracking";
 import {
   encodeTwist,
   encodeEStop,
@@ -262,8 +263,9 @@ export function useRoverConnectionRtc() {
     console.log(`[WebRTC] Connecting to signaling server: ${rtcAddress}`);
 
     try {
-      // Create signaling WebSocket
-      const ws = new WebSocket(rtcAddress);
+      // Create signaling WebSocket with session correlation ID
+      const separator = rtcAddress.includes("?") ? "&" : "?";
+      const ws = new WebSocket(`${rtcAddress}${separator}session_id=${errorTracker.getSessionId()}`);
       signalingWsRef.current = ws;
 
       // Create peer connection with STUN server
@@ -321,6 +323,10 @@ export function useRoverConnectionRtc() {
           const lastRecv = lastTelemetryReceivedRef.current;
           if (lastRecv > 0 && performance.now() - lastRecv > TELEMETRY_TIMEOUT_MS) {
             console.warn("[WebRTC] Telemetry watchdog: no data for 5s, forcing reconnect");
+            errorTracker.capture(
+              new Error("Telemetry watchdog timeout: no data for 5s"),
+              { source: "webrtc", type: "watchdog", rtcAddress },
+            );
             lastTelemetryReceivedRef.current = 0; // Prevent repeated triggers
             connectingLockRef.current = false;
             peerConnectionRef.current?.close();
@@ -518,6 +524,10 @@ export function useRoverConnectionRtc() {
                 }
               } else {
                 console.warn("[WebRTC] Failed to decode telemetry, size:", msgEvent.data.byteLength);
+                errorTracker.capture(
+                  new Error("Failed to decode telemetry"),
+                  { source: "webrtc", type: "decode", byteLength: msgEvent.data.byteLength },
+                );
               }
             }
           };
@@ -709,6 +719,10 @@ export function useRoverConnectionRtc() {
           pc.connectionState === "failed" ||
           pc.connectionState === "disconnected"
         ) {
+          errorTracker.capture(
+            new Error(`WebRTC connection ${pc.connectionState}`),
+            { source: "webrtc", type: "connectionState", state: pc.connectionState, rtcAddress },
+          );
           connectingLockRef.current = false;
           setConnected(false);
           clearIntervals();
@@ -733,6 +747,9 @@ export function useRoverConnectionRtc() {
           ws.send(JSON.stringify(msg));
         } catch (err) {
           console.error("[WebRTC] Failed to create offer:", err);
+          if (err instanceof Error) {
+            errorTracker.capture(err, { source: "webrtc", type: "offer" });
+          }
         }
       };
 
@@ -760,6 +777,9 @@ export function useRoverConnectionRtc() {
           }
         } catch (err) {
           console.error("[WebRTC] Signaling message error:", err);
+          if (err instanceof Error) {
+            errorTracker.capture(err, { source: "webrtc", type: "signaling" });
+          }
         }
       };
 
@@ -769,12 +789,19 @@ export function useRoverConnectionRtc() {
 
       ws.onerror = () => {
         console.error("[WebRTC] Signaling WebSocket error - connection refused or unreachable");
+        errorTracker.capture(
+          new Error("Signaling WebSocket error - connection refused or unreachable"),
+          { source: "webrtc", type: "signalingSocket", rtcAddress },
+        );
         connectingLockRef.current = false;
         setConnected(false);
         scheduleReconnect();
       };
     } catch (err) {
       console.error("[WebRTC] Connection error:", err);
+      if (err instanceof Error) {
+        errorTracker.capture(err, { source: "webrtc", type: "connection", rtcAddress });
+      }
       connectingLockRef.current = false;
       setConnected(false);
       scheduleReconnect();

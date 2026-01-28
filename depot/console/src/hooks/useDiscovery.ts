@@ -1,5 +1,6 @@
 import { useEffect, useRef, useCallback } from "react";
 import { useConsoleStore } from "@/store";
+import { errorTracker } from "@/lib/errorTracking";
 import type { RoverInfo } from "@/lib/types";
 
 const RECONNECT_DELAY_MS = 3000;
@@ -17,15 +18,16 @@ export function useDiscovery() {
   const intentionalCloseRef = useRef(false);
 
   const getDiscoveryUrl = useCallback(() => {
+    const sid = errorTracker.getSessionId();
     if (window.location.hostname === "localhost") {
       // Dev mode: use VITE_DEPOT_HOST env var, or fall back to depot hostname
       // Note: browsers can't resolve Tailscale MagicDNS, so use IP if needed
       // Set VITE_DEPOT_HOST=100.71.209.42 in .env.local for Tailscale
       const depotHost = import.meta.env.VITE_DEPOT_HOST || "depot";
-      return `ws://${depotHost}:4860/ws`;
+      return `ws://${depotHost}:4860/ws?session_id=${sid}`;
     }
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    return `${protocol}//${window.location.hostname}:4860/ws`;
+    return `${protocol}//${window.location.hostname}:4860/ws?session_id=${sid}`;
   }, []);
 
   const connect = useCallback(() => {
@@ -76,6 +78,9 @@ export function useDiscovery() {
           }
         } catch (e) {
           console.error("[discovery] Failed to parse message:", e);
+          if (e instanceof Error) {
+            errorTracker.capture(e, { source: "discovery", type: "parse" });
+          }
         }
       };
 
@@ -98,11 +103,18 @@ export function useDiscovery() {
         // Ignore errors from stale connections
         if (wsRef.current !== ws) return;
         console.error("[discovery] WebSocket error:", e);
+        errorTracker.capture(new Error("Discovery WebSocket error"), {
+          source: "discovery",
+          url,
+        });
       };
 
       wsRef.current = ws;
     } catch (e) {
       console.error("[discovery] Connection error:", e);
+      if (e instanceof Error) {
+        errorTracker.capture(e, { source: "discovery", type: "connection" });
+      }
       reconnectTimeoutRef.current = setTimeout(() => {
         connectRef.current();
       }, RECONNECT_DELAY_MS);
