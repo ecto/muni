@@ -40,7 +40,7 @@ use heapless::String;
 use ssd1306::{prelude::*, I2CDisplayInterface, Ssd1306};
 
 use ui::{render, DeviceState, UiState};
-use can_protocol::{msg_id, Command, AckResult, AttachmentState};
+use can_protocol::{msg_id, Command, AckResult, AttachmentState, ErrorCode, ErrorSeverity};
 use slcan::{CanFrame, SlcanResult};
 
 #[cfg(feature = "addressable-leds")]
@@ -64,6 +64,8 @@ const NUM_LEDS: usize = 4;
 const FRAME_DELAY_MS: u32 = 33; // ~30 fps
 const PAGE_CYCLE_FRAMES: u32 = 90; // ~3 seconds per page
 const HEARTBEAT_INTERVAL_FRAMES: u32 = 30; // ~1 second at 30fps
+/// Watchdog timeout in frames (~5 seconds at 30fps)
+const WATCHDOG_TIMEOUT_FRAMES: u32 = 150;
 
 /// SLCAN channel state
 struct SlcanState {
@@ -202,15 +204,38 @@ fn make_ack(cmd: u8, result: AckResult) -> CanFrame {
     }
 }
 
-/// Create a heartbeat frame
-fn make_heartbeat(state: AttachmentState, uptime_sec: u32) -> CanFrame {
+/// Heartbeat flags
+const HEARTBEAT_FLAG_FAULT: u8 = 0x01;
+
+/// Create a heartbeat frame with optional fault flag
+fn make_heartbeat(state: AttachmentState, uptime_sec: u32, fault: bool) -> CanFrame {
     let mut data = heapless::Vec::<u8, 8>::new();
     let _ = data.push(state as u8);
     let _ = data.push((uptime_sec & 0xFF) as u8);
     let _ = data.push(((uptime_sec >> 8) & 0xFF) as u8);
-    let _ = data.push(0); // flags
+    let flags = if fault { HEARTBEAT_FLAG_FAULT } else { 0 };
+    let _ = data.push(flags);
     CanFrame {
         id: msg_id::HEARTBEAT as u32,
+        extended: false,
+        rtr: false,
+        data,
+    }
+}
+
+/// Create a CAN error frame (ID = BASE_ID + 0x07)
+fn make_error_frame(code: ErrorCode, severity: ErrorSeverity, detail: u8) -> CanFrame {
+    let mut data = heapless::Vec::<u8, 8>::new();
+    let _ = data.push(code as u8);
+    let _ = data.push(severity as u8);
+    let _ = data.push(detail);
+    let _ = data.push(0);
+    let _ = data.push(0);
+    let _ = data.push(0);
+    let _ = data.push(0);
+    let _ = data.push(0);
+    CanFrame {
+        id: msg_id::ERROR as u32,
         extended: false,
         rtr: false,
         data,
@@ -562,11 +587,52 @@ fn main() -> ! {
     let mut last_second: u32 = 0;
     let mut last_heartbeat_frame: u32 = 0;
 
+    // Software watchdog: tracks last frame with activity
+    let mut watchdog_last_activity: u32 = 0;
+    let mut watchdog_triggered: bool = false;
+
     // Force initial render
     render(&mut display, &ui_state);
     let _ = display.flush();
 
     loop {
+        // --- Software watchdog check ---
+        let watchdog_elapsed = frame_counter.wrapping_sub(watchdog_last_activity);
+        if watchdog_elapsed >= WATCHDOG_TIMEOUT_FRAMES {
+            if !watchdog_triggered {
+                // First detection of timeout
+                watchdog_triggered = true;
+                println!("[ERROR] Watchdog timeout, no activity for ~5s");
+                ui_state.state = DeviceState::Error;
+                attachment_state = AttachmentState::Error;
+                #[cfg(feature = "status-led")]
+                { status_pattern = StatusPattern::RapidFlash; }
+                #[cfg(feature = "status-bar")]
+                { bar_state = BarState::Error; }
+
+                // Send CAN error frame if SLCAN channel is open
+                if slcan_state.open {
+                    let err_frame = make_error_frame(
+                        ErrorCode::WatchdogTimeout,
+                        ErrorSeverity::Error,
+                        (watchdog_elapsed / 30) as u8, // seconds since last activity
+                    );
+                    let mut writer = SerialWriter;
+                    slcan::send_frame(&mut writer, &err_frame);
+                }
+            }
+        } else if watchdog_triggered {
+            // Activity resumed -- clear fault
+            watchdog_triggered = false;
+            println!("[INFO] Watchdog recovered, activity resumed");
+            ui_state.state = DeviceState::Idle;
+            attachment_state = AttachmentState::Idle;
+            #[cfg(feature = "status-led")]
+            { status_pattern = StatusPattern::SlowPulse; }
+            #[cfg(feature = "status-bar")]
+            { bar_state = BarState::Idle; }
+        }
+
         // Check for serial input (non-blocking)
         if uart0.read_ready().unwrap_or(false) {
             let mut byte_buf = [0u8; 1];
@@ -575,6 +641,9 @@ fn main() -> ! {
                     let ch = byte_buf[0] as char;
                     if ch == '\n' || ch == '\r' {
                         if !cmd_buf.is_empty() {
+                            // Feed watchdog on any serial command
+                            watchdog_last_activity = frame_counter;
+
                             // Check if this is an SLCAN command (starts with specific chars)
                             let first_char = cmd_buf.chars().next().unwrap_or(' ');
                             let is_slcan = matches!(first_char, 't' | 'T' | 'r' | 'R' | 'O' | 'C' | 'S' | 'V' | 'v' | 'N' | 'n' | 'Z');
@@ -600,8 +669,25 @@ fn main() -> ! {
                                             #[cfg(feature = "addressable-leds")]
                                             &mut force_update,
                                         ) {
+                                            // Send error frame if command failed with Error result
+                                            if response.id == msg_id::ACK as u32 {
+                                                if let Some(&result_byte) = response.data.get(1) {
+                                                    if result_byte == AckResult::Error as u8 {
+                                                        let cmd_byte = response.data.get(0).copied().unwrap_or(0);
+                                                        let err_frame = make_error_frame(
+                                                            ErrorCode::CommandFailed,
+                                                            ErrorSeverity::Warning,
+                                                            cmd_byte,
+                                                        );
+                                                        slcan::send_frame(&mut writer, &err_frame);
+                                                        println!("[WARN] Command {:#04X} failed", cmd_byte);
+                                                    }
+                                                }
+                                            }
                                             slcan::send_frame(&mut writer, &response);
                                         }
+                                        // Feed watchdog on successful CAN frame processing
+                                        watchdog_last_activity = frame_counter;
                                         slcan::send_ok(&mut writer);
                                     }
                                     SlcanResult::Open => {
@@ -653,7 +739,20 @@ fn main() -> ! {
                             cmd_buf.clear();
                         }
                     } else if ch.is_ascii() && !ch.is_control() {
-                        let _ = cmd_buf.push(ch);
+                        if cmd_buf.push(ch).is_err() {
+                            println!("[WARN] SLCAN buffer overflow, discarding input");
+                            // Send error frame for buffer overflow
+                            if slcan_state.open {
+                                let err_frame = make_error_frame(
+                                    ErrorCode::SlcanOverflow,
+                                    ErrorSeverity::Warning,
+                                    cmd_buf.capacity() as u8,
+                                );
+                                let mut writer = SerialWriter;
+                                slcan::send_frame(&mut writer, &err_frame);
+                            }
+                            cmd_buf.clear();
+                        }
                     }
                 }
             }
@@ -672,10 +771,12 @@ fn main() -> ! {
 
         // Send SLCAN heartbeat (~1Hz when channel is open)
         if slcan_state.open && frame_counter.wrapping_sub(last_heartbeat_frame) >= HEARTBEAT_INTERVAL_FRAMES {
-            let heartbeat = make_heartbeat(attachment_state, slcan_state.uptime_sec);
+            let heartbeat = make_heartbeat(attachment_state, slcan_state.uptime_sec, watchdog_triggered);
             let mut writer = SerialWriter;
             slcan::send_frame(&mut writer, &heartbeat);
             last_heartbeat_frame = frame_counter;
+            // Feed watchdog on heartbeat send
+            watchdog_last_activity = frame_counter;
         }
 
         // Cycle bottom bar page

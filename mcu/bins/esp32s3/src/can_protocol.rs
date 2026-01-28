@@ -165,6 +165,20 @@ pub enum ErrorSeverity {
     Critical = 0x03,
 }
 
+/// Error codes for CAN error frames
+#[repr(u8)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ErrorCode {
+    /// Software watchdog detected no activity within timeout
+    WatchdogTimeout = 0x01,
+    /// SLCAN serial buffer overflow
+    SlcanOverflow = 0x02,
+    /// Command execution failed
+    CommandFailed = 0x03,
+    /// Internal firmware fault
+    InternalFault = 0x04,
+}
+
 /// This attachment's configuration
 pub const ATTACHMENT_TYPE: AttachmentType = AttachmentType::LedStrip;
 pub const HW_REV: u8 = 0x01;
