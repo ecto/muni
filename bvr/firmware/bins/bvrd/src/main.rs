@@ -1415,6 +1415,8 @@ async fn main() -> Result<()> {
     let (costmap_tx, costmap_rx) = watch::channel::<Option<CostmapSnapshot>>(None);
     // watch for obstacle streaming (tracked obstacles with stable IDs and velocity)
     let (obstacles_tx, obstacles_rx) = watch::channel::<Option<Vec<costmap::TrackedObstacle>>>(None);
+    // watch for navigation path streaming (planned A* path + nav state)
+    let (path_tx, path_rx) = watch::channel::<Option<teleop::path_stream::PathSnapshot>>(None);
     // Object tracker for stable IDs and velocity estimation
     let mut obstacle_tracker = ObstacleTracker::new(TrackerConfig::default());
 
@@ -1460,6 +1462,7 @@ async fn main() -> Result<()> {
         if navigation_enabled {
             rtc_server.set_costmap_rx(costmap_rx.clone());
             rtc_server.set_obstacles_rx(obstacles_rx.clone());
+            rtc_server.set_path_rx(path_rx.clone());
         }
         // Provide camera mount info for MSG_CAMERA_INFO messages
         rtc_server.set_camera_info(teleop::CameraInfo {
@@ -2587,6 +2590,39 @@ async fn main() -> Result<()> {
                             watchdog.feed();
                         }
                         _ => {}
+                    }
+
+                    // Publish navigation path for console visualization
+                    {
+                        use control_loop::NavigationState;
+                        use teleop::path_stream::{nav_state, PathSnapshot};
+                        let nav_state_wire = match nav.state() {
+                            NavigationState::Idle => nav_state::IDLE,
+                            NavigationState::Planning => nav_state::PLANNING,
+                            NavigationState::Following => nav_state::FOLLOWING,
+                            NavigationState::ObstacleStopped => nav_state::OBSTACLE_STOPPED,
+                            NavigationState::Replanning => nav_state::REPLANNING,
+                            NavigationState::Recovering(_) => nav_state::RECOVERING,
+                            NavigationState::GoalReached => nav_state::GOAL_REACHED,
+                            NavigationState::Failed => nav_state::FAILED,
+                        };
+                        let (waypoints, current_wp) = if let Some(path) = nav.planned_path() {
+                            let wps: Vec<(f32, f32)> = path.waypoints.iter()
+                                .map(|w| (w.x as f32, w.y as f32))
+                                .collect();
+                            let idx = nav.current_task()
+                                .map(|t| t.current_waypoint as u16)
+                                .unwrap_or(0);
+                            (wps, idx)
+                        } else {
+                            (vec![], 0)
+                        };
+                        let _ = path_tx.send(Some(PathSnapshot {
+                            state: nav_state_wire,
+                            waypoints,
+                            current_waypoint: current_wp,
+                            distance_to_goal: nav_output.distance_to_goal as f32,
+                        }));
                     }
 
                     (nav_output.twist, false)

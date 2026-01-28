@@ -19,6 +19,7 @@
 use crate::pointcloud;
 use crate::costmap_stream;
 use crate::obstacle_stream;
+use crate::path_stream;
 use crate::video::VideoFrame;
 use crate::{
     serialize_telemetry, CommandHeader, Telemetry, TeleopError, CMD_HEADER_SIZE, MSG_ESTOP,
@@ -101,6 +102,7 @@ pub struct RtcMetrics {
     pub pointcloud: ChannelStats,
     pub costmap: ChannelStats,
     pub obstacles: ChannelStats,
+    pub path: ChannelStats,
 }
 
 impl RtcMetrics {
@@ -242,6 +244,7 @@ pub struct RtcServer {
     lidar_rx: Option<watch::Receiver<Option<PointCloud>>>,
     costmap_rx: Option<watch::Receiver<Option<CostmapSnapshot>>>,
     obstacles_rx: Option<watch::Receiver<Option<Vec<TrackedObstacle>>>>,
+    path_rx: Option<watch::Receiver<Option<path_stream::PathSnapshot>>>,
     camera_info: Option<crate::CameraInfo>,
     operator_state: Arc<OperatorState>,
     metrics: Arc<RtcMetrics>,
@@ -261,6 +264,7 @@ impl RtcServer {
             lidar_rx: None,
             costmap_rx: None,
             obstacles_rx: None,
+            path_rx: None,
             camera_info: None,
             operator_state: Arc::new(OperatorState::new()),
             metrics: RtcMetrics::new(),
@@ -282,6 +286,7 @@ impl RtcServer {
             lidar_rx: None,
             costmap_rx: None,
             obstacles_rx: None,
+            path_rx: None,
             camera_info: None,
             operator_state: Arc::new(OperatorState::new()),
             metrics: RtcMetrics::new(),
@@ -304,6 +309,7 @@ impl RtcServer {
             lidar_rx: Some(lidar_rx),
             costmap_rx: None,
             obstacles_rx: None,
+            path_rx: None,
             camera_info: None,
             operator_state: Arc::new(OperatorState::new()),
             metrics: RtcMetrics::new(),
@@ -318,6 +324,11 @@ impl RtcServer {
     /// Set the obstacles receiver for streaming obstacle data to the console.
     pub fn set_obstacles_rx(&mut self, rx: watch::Receiver<Option<Vec<TrackedObstacle>>>) {
         self.obstacles_rx = Some(rx);
+    }
+
+    /// Set the path receiver for streaming navigation path data to the console.
+    pub fn set_path_rx(&mut self, rx: watch::Receiver<Option<path_stream::PathSnapshot>>) {
+        self.path_rx = Some(rx);
     }
 
     /// Set camera info (sent once per connection on the video channel).
@@ -348,6 +359,7 @@ impl RtcServer {
         let lidar_rx = self.lidar_rx;
         let costmap_rx = self.costmap_rx;
         let obstacles_rx = self.obstacles_rx;
+        let path_rx = self.path_rx;
         let camera_info = self.camera_info.map(Arc::new);
         let config = Arc::new(self.config);
         let operator_state = self.operator_state;
@@ -366,6 +378,7 @@ impl RtcServer {
                     let lid_rx = lidar_rx.clone();
                     let cm_rx = costmap_rx.clone();
                     let obs_rx = obstacles_rx.clone();
+                    let path_rx_clone = path_rx.clone();
                     let cam_info = camera_info.clone();
                     let cfg = config.clone();
                     let op_state = operator_state.clone();
@@ -373,7 +386,7 @@ impl RtcServer {
 
                     tokio::spawn(async move {
                         if let Err(e) =
-                            handle_signaling(stream, cmd_tx, telem_rx, vid_rx, lid_rx, cm_rx, obs_rx, cam_info, cfg, conn_id, op_state.clone(), rtc_metrics)
+                            handle_signaling(stream, cmd_tx, telem_rx, vid_rx, lid_rx, cm_rx, obs_rx, path_rx_clone, cam_info, cfg, conn_id, op_state.clone(), rtc_metrics)
                                 .await
                         {
                             error!(?e, conn_id, "WebRTC connection error");
@@ -420,6 +433,7 @@ async fn handle_signaling(
     lidar_rx: Option<watch::Receiver<Option<PointCloud>>>,
     costmap_rx: Option<watch::Receiver<Option<CostmapSnapshot>>>,
     obstacles_rx: Option<watch::Receiver<Option<Vec<TrackedObstacle>>>>,
+    path_rx: Option<watch::Receiver<Option<path_stream::PathSnapshot>>>,
     camera_info: Option<Arc<crate::CameraInfo>>,
     config: Arc<RtcConfig>,
     conn_id: u64,
@@ -1016,6 +1030,78 @@ async fn handle_signaling(
                     }
                 }
                 info!(frames_sent = frame_count, "WebRTC obstacles channel closed");
+            })
+        }));
+    }
+
+    // Create path DataChannel if path streaming is available
+    if let Some(path_rx) = path_rx {
+        let path_dc_config = RTCDataChannelInit {
+            ordered: Some(false),
+            max_retransmits: Some(0),
+            ..Default::default()
+        };
+
+        let path_channel = peer_connection
+            .create_data_channel("path", Some(path_dc_config))
+            .await
+            .map_err(|e| {
+                TeleopError::Network(std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    e.to_string(),
+                ))
+            })?;
+
+        let path_channel = Arc::new(path_channel);
+        let path_channel_clone = path_channel.clone();
+        let path_metrics = metrics.clone();
+
+        path_channel.on_open(Box::new(move || {
+            let channel = path_channel_clone.clone();
+            let mut rx = path_rx.clone();
+            let stats = path_metrics.clone();
+            Box::pin(async move {
+                info!("WebRTC path channel opened");
+                // Stream at 2Hz — path changes infrequently
+                let mut interval = tokio::time::interval(Duration::from_millis(500));
+                let mut frame_count: u64 = 0;
+
+                loop {
+                    interval.tick().await;
+
+                    if channel.ready_state()
+                        != webrtc::data_channel::data_channel_state::RTCDataChannelState::Open
+                    {
+                        info!("WebRTC path channel no longer open, stopping");
+                        break;
+                    }
+
+                    // Get latest path snapshot
+                    let snapshot = rx.borrow_and_update().clone();
+                    if let Some(snapshot) = snapshot {
+                        let data = path_stream::serialize(&snapshot);
+                        let start = std::time::Instant::now();
+                        if let Err(e) = channel.send(&bytes::Bytes::from(data)).await {
+                            debug!(?e, "Failed to send path (channel closing?)");
+                            break;
+                        }
+                        let latency_us = start.elapsed().as_micros() as u32;
+                        stats.path.record_send(latency_us);
+
+                        frame_count += 1;
+                        if frame_count == 1 {
+                            info!(
+                                waypoints = snapshot.waypoints.len(),
+                                state = snapshot.state,
+                                "First path sent via WebRTC"
+                            );
+                        }
+                        if frame_count % 20 == 0 {
+                            trace!(frame_count, "path.streaming");
+                        }
+                    }
+                }
+                info!(frames_sent = frame_count, "WebRTC path channel closed");
             })
         }));
     }

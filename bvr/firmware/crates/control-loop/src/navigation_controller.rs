@@ -758,6 +758,14 @@ impl NavigationController {
         }
     }
 
+    /// Get the current planned path waypoints (from A* planner).
+    ///
+    /// Returns the path waypoints if a path is currently planned, along with
+    /// the waypoint index being pursued. Used for streaming to the console.
+    pub fn planned_path(&self) -> Option<&planner::Path> {
+        self.planner.path()
+    }
+
     /// Get task progress for reporting.
     pub fn task_progress(&self) -> Option<(Uuid, i32, i32, i32)> {
         self.current_task.as_ref().map(|task| {

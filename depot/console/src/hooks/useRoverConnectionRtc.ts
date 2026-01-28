@@ -28,6 +28,7 @@ import {
   decodePointCloud,
   decodeCostmap,
   decodeObstacles,
+  decodePath,
   decodeCameraInfo,
   MSG_CAMERA_INFO,
 } from "@/lib/protocol";
@@ -38,6 +39,7 @@ import { setPointCloudData, clearPointCloudData } from "@/lib/pointCloudStore";
 import { ingestFrame, clearAccumulatedCloud } from "@/lib/accumulatedCloudStore";
 import { setCostmapData, clearCostmapData } from "@/lib/costmapStore";
 import { setObstacleData, clearObstacleData } from "@/lib/obstacleStore";
+import { setPathData, clearPathData } from "@/lib/pathStore";
 
 const RECONNECT_DELAY_MS = 2000;
 const COMMAND_INTERVAL_MS = 10; // 100Hz - matches rover control loop
@@ -123,6 +125,7 @@ export function useRoverConnectionRtc() {
       ["pointcloud", { count: 0, lastTime: 0 }],
       ["costmap", { count: 0, lastTime: 0 }],
       ["obstacles", { count: 0, lastTime: 0 }],
+      ["path", { count: 0, lastTime: 0 }],
     ])
   );
   const metricsIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -707,6 +710,42 @@ export function useRoverConnectionRtc() {
           channel.onclose = () => {
             console.log("[WebRTC] Obstacles channel closed");
             clearObstacleData();
+          };
+        } else if (channel.label === "path") {
+          console.log("[WebRTC] Path channel received");
+          channel.binaryType = "arraybuffer";
+
+          channel.onopen = () => {
+            console.log("[WebRTC] Path channel opened");
+          };
+
+          channel.onmessage = (msgEvent) => {
+            if (!(msgEvent.data instanceof ArrayBuffer)) {
+              console.warn("[WebRTC] Path message not ArrayBuffer");
+              return;
+            }
+
+            // Track channel metrics
+            const stats = channelStatsRef.current.get("path");
+            if (stats) {
+              stats.count++;
+              stats.lastTime = performance.now();
+            }
+
+            const path = decodePath(msgEvent.data);
+            if (path) {
+              setPathData(
+                path.state,
+                path.waypoints,
+                path.currentWaypoint,
+                path.distanceToGoal,
+              );
+            }
+          };
+
+          channel.onclose = () => {
+            console.log("[WebRTC] Path channel closed");
+            clearPathData();
           };
         }
       };

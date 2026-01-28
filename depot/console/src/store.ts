@@ -450,6 +450,7 @@ export const useConsoleStore = create<ConsoleState>()(
     ["pointcloud", { name: "pointcloud", messagesPerSec: 0, lastMessageTime: 0, history: [] }],
     ["costmap", { name: "costmap", messagesPerSec: 0, lastMessageTime: 0, history: [] }],
     ["obstacles", { name: "obstacles", messagesPerSec: 0, lastMessageTime: 0, history: [] }],
+    ["path", { name: "path", messagesPerSec: 0, lastMessageTime: 0, history: [] }],
   ]),
   updateChannelMetrics: (name, metrics) =>
     set((state) => {
@@ -475,6 +476,7 @@ export const useConsoleStore = create<ConsoleState>()(
         ["pointcloud", { name: "pointcloud", messagesPerSec: 0, lastMessageTime: 0, history: [] }],
         ["costmap", { name: "costmap", messagesPerSec: 0, lastMessageTime: 0, history: [] }],
         ["obstacles", { name: "obstacles", messagesPerSec: 0, lastMessageTime: 0, history: [] }],
+        ["path", { name: "path", messagesPerSec: 0, lastMessageTime: 0, history: [] }],
       ]),
     }),
     }),

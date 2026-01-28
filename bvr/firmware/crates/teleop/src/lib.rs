@@ -16,6 +16,7 @@
 
 pub mod costmap_stream;
 pub mod obstacle_stream;
+pub mod path_stream;
 pub mod pointcloud;
 pub mod rtc;
 pub mod video;
@@ -58,6 +59,9 @@ pub const MSG_OBSTACLES: u8 = 0x23;
 
 /// Camera info message type (rover → console, sent once per camera on video channel open)
 pub const MSG_CAMERA_INFO: u8 = 0x24;
+
+/// Navigation path message type (rover → console)
+pub const MSG_PATH: u8 = 0x25;
 
 /// Command flags
 pub mod cmd_flags {

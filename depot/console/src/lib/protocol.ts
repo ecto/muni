@@ -43,6 +43,7 @@ export const MSG_POINT_CLOUD = 0x21;
 export const MSG_COSTMAP = 0x22;
 export const MSG_OBSTACLES = 0x23;
 export const MSG_CAMERA_INFO = 0x24;
+export const MSG_PATH = 0x25;
 
 // Command flags
 export const CMD_FLAG_MUST_ACK = 0x01;
@@ -841,4 +842,90 @@ export function decodeObstacles(data: ArrayBuffer): DecodedObstacle[] | null {
   }
 
   return obstacles;
+}
+
+// ============================================================================
+// Navigation Path Decoding (MSG_PATH = 0x25)
+// ============================================================================
+
+/** Navigation state wire values. */
+export const NavState = {
+  Idle: 0,
+  Planning: 1,
+  Following: 2,
+  ObstacleStopped: 3,
+  Replanning: 4,
+  Recovering: 5,
+  GoalReached: 6,
+  Failed: 7,
+} as const;
+
+/** Header size for path message. */
+const PATH_HEADER_SIZE = 12;
+/** Bytes per waypoint. */
+const BYTES_PER_WAYPOINT = 8;
+
+/** A waypoint in the planned path. */
+export interface DecodedPathWaypoint {
+  x: number;
+  y: number;
+}
+
+/** Decoded navigation path message. */
+export interface DecodedPath {
+  /** Navigation state (see NavState). */
+  state: number;
+  /** Path waypoints in world meters. */
+  waypoints: DecodedPathWaypoint[];
+  /** Index of the current target waypoint. */
+  currentWaypoint: number;
+  /** Distance to current goal (meters). */
+  distanceToGoal: number;
+}
+
+/**
+ * Decode a navigation path message from binary format.
+ *
+ * Header (12 bytes):
+ *   [0]      u8    MSG_PATH (0x25)
+ *   [1]      u8    navigation_state
+ *   [2-3]    u16   waypoint_count (LE)
+ *   [4-5]    u16   current_waypoint_index (LE)
+ *   [6-9]    f32   distance_to_goal (LE)
+ *   [10-11]  u16   reserved
+ *
+ * Per waypoint (8 bytes):
+ *   [0-3]    f32   x (LE)
+ *   [4-7]    f32   y (LE)
+ */
+export function decodePath(data: ArrayBuffer): DecodedPath | null {
+  if (data.byteLength < PATH_HEADER_SIZE) {
+    return null;
+  }
+
+  const view = new DataView(data);
+  if (view.getUint8(0) !== MSG_PATH) {
+    return null;
+  }
+
+  const state = view.getUint8(1);
+  const waypointCount = view.getUint16(2, true);
+  const currentWaypoint = view.getUint16(4, true);
+  const distanceToGoal = view.getFloat32(6, true);
+
+  const expectedSize = PATH_HEADER_SIZE + waypointCount * BYTES_PER_WAYPOINT;
+  if (data.byteLength < expectedSize) {
+    return null;
+  }
+
+  const waypoints: DecodedPathWaypoint[] = [];
+  for (let i = 0; i < waypointCount; i++) {
+    const offset = PATH_HEADER_SIZE + i * BYTES_PER_WAYPOINT;
+    waypoints.push({
+      x: view.getFloat32(offset, true),
+      y: view.getFloat32(offset + 4, true),
+    });
+  }
+
+  return { state, waypoints, currentWaypoint, distanceToGoal };
 }
