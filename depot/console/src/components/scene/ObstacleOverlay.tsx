@@ -139,7 +139,7 @@ function createLabelSprite(text: string, color: number): THREE.Sprite {
 
   const hex = "#" + color.toString(16).padStart(6, "0");
   ctx.fillStyle = hex;
-  ctx.font = "bold 18px monospace";
+  ctx.font = 'bold 18px "Berkeley Mono", monospace';
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   ctx.fillText(text, 64, 16);
@@ -170,7 +170,7 @@ function updateLabelSprite(sprite: THREE.Sprite, text: string, color: number) {
 
   const hex = "#" + color.toString(16).padStart(6, "0");
   ctx.fillStyle = hex;
-  ctx.font = "bold 18px monospace";
+  ctx.font = 'bold 18px "Berkeley Mono", monospace';
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   ctx.fillText(text, 64, 16);

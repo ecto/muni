@@ -127,6 +127,7 @@ const CONE_GEOMETRY = new THREE.ConeGeometry(0.05, 0.1, 8);
 
 // Constant position tuples
 const LABEL_POSITION: [number, number, number] = [0, 0.35, 0];
+const LABEL_FONT = "/BerkeleyMono-Regular.woff2";
 
 function WaypointMarker({
   waypoint,
@@ -184,6 +185,7 @@ function WaypointMarker({
       {showLabel && (
         <Billboard position={LABEL_POSITION}>
           <Text
+            font={LABEL_FONT}
             fontSize={isActive ? 0.2 : 0.15}
             color={displayColor}
             anchorX="center"
@@ -249,6 +251,7 @@ function ZoneLabel({ zone, color, isActive = false }: { zone: Zone; color: strin
   return (
     <Billboard position={centroid}>
       <Text
+        font={LABEL_FONT}
         fontSize={isActive ? 0.3 : 0.25}
         color={color}
         anchorX="center"
