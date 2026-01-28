@@ -1731,17 +1731,21 @@ async fn main() -> Result<()> {
                                 last_save_count = slam.keyframe_count();
                             }
                         }
-                    }
 
-                    // Send updated state to main loop
-                    let state = SlamState {
-                        pose: slam.pose(),
-                        keyframe_count: slam.keyframe_count() as u32,
-                        loop_closure_count: slam.loop_closure_count() as u32,
-                        keyframe_poses: slam.keyframe_poses(),
-                        pose_covariance: slam.pose_covariance_array(),
-                    };
-                    let _ = state_tx.send(state);
+                        // Only broadcast SLAM state when scan matching produced
+                        // a real correction. When process_scan returns None (scan
+                        // match failed), the EKF pose may be drifted beyond the
+                        // convergence basin — broadcasting it would reinforce
+                        // drift in the main control loop's EKF.
+                        let state = SlamState {
+                            pose: slam.pose(),
+                            keyframe_count: slam.keyframe_count() as u32,
+                            loop_closure_count: slam.loop_closure_count() as u32,
+                            keyframe_poses: slam.keyframe_poses(),
+                            pose_covariance: slam.pose_covariance_array(),
+                        };
+                        let _ = state_tx.send(state);
+                    }
                 }
 
                 // Save map on clean shutdown

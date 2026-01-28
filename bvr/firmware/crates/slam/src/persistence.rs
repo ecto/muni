@@ -12,7 +12,7 @@ use std::time::Instant;
 
 use nalgebra::Matrix3;
 use serde::{Deserialize, Serialize};
-use tracing::{debug, info, warn};
+use tracing::info;
 
 use lidar::{Point3D, PointCloud};
 use transforms::Transform2D;
@@ -352,6 +352,11 @@ impl SlamProcessor {
 
     /// Attempt to relocalize against a loaded map using scan context + GICP.
     ///
+    /// Uses the wide-tolerance relocalization scan matcher (5m convergence basin)
+    /// and the scan context `best_shift` as a rotation hint for the GICP initial
+    /// guess. If GICP fails for all candidates, falls back to a coarse "snap"
+    /// using the best candidate's keyframe pose + rotation from `best_shift`.
+    ///
     /// Returns the index of the best matching keyframe and the estimated pose,
     /// or `None` if no good match is found.
     pub fn relocalize(
@@ -365,13 +370,15 @@ impl SlamProcessor {
         // Find candidates in the loaded map's scan context DB
         let candidates = self.scan_context_db.find_candidates(&query_desc);
         if candidates.is_empty() {
-            debug!("Relocalization: no scan context candidates");
+            info!("Relocalization: no scan context candidates found");
             return None;
         }
 
-        debug!(
+        let num_sectors = self.config().scan_context.num_sectors;
+
+        info!(
             num_candidates = candidates.len(),
-            "Relocalization: testing candidates"
+            "Relocalization: testing candidates with wide-tolerance matcher"
         );
 
         let scan_arc = Arc::new(scan.clone());
@@ -380,10 +387,29 @@ impl SlamProcessor {
 
         for candidate in &candidates {
             let kf = &self.keyframes()[candidate.keyframe_id];
-            let initial_guess = Transform2D::identity(); // No prior pose knowledge
 
-            match self.scan_matcher().match_scans(&kf.scan, &scan_arc, initial_guess) {
+            // Convert scan context best_shift to a yaw rotation hint.
+            // Each column shift corresponds to one sector of azimuthal rotation.
+            let rotation_hint = candidate.best_shift as f64
+                * std::f64::consts::TAU
+                / num_sectors as f64;
+            let initial_guess = Transform2D::new(0.0, 0.0, rotation_hint);
+
+            info!(
+                keyframe_id = candidate.keyframe_id,
+                sc_distance = candidate.distance,
+                best_shift = candidate.best_shift,
+                rotation_hint_deg = rotation_hint.to_degrees(),
+                "Relocalization: trying candidate"
+            );
+
+            match self.reloc_scan_matcher().match_scans(&kf.scan, &scan_arc, initial_guess) {
                 Ok(result) => {
+                    info!(
+                        keyframe_id = candidate.keyframe_id,
+                        score = result.score,
+                        "Relocalization: GICP result"
+                    );
                     if result.score >= min_score {
                         let is_better = best_match.as_ref().is_none_or(
                             |(_, _, best_score)| result.score > *best_score,
@@ -395,7 +421,14 @@ impl SlamProcessor {
                         }
                     }
                 }
-                Err(_) => continue,
+                Err(e) => {
+                    info!(
+                        keyframe_id = candidate.keyframe_id,
+                        error = %e,
+                        "Relocalization: GICP failed for candidate"
+                    );
+                    continue;
+                }
             }
         }
 
@@ -405,12 +438,33 @@ impl SlamProcessor {
                 score,
                 x = pose.translation().x,
                 y = pose.translation().y,
-                "Relocalized against loaded map"
+                "Relocalized via GICP against loaded map"
             );
             Some((kf_id, pose))
         } else {
-            warn!("Relocalization failed: no candidates above score threshold");
-            None
+            // Coarse fallback: snap to the best scan context candidate's pose
+            // with rotation from best_shift. This gets us back into the
+            // convergence basin for subsequent incremental GICP to refine.
+            let best_candidate = &candidates[0]; // already sorted by distance
+            let kf = &self.keyframes()[best_candidate.keyframe_id];
+            let rotation = best_candidate.best_shift as f64
+                * std::f64::consts::TAU
+                / num_sectors as f64;
+            let coarse_pose = Transform2D::new(
+                kf.pose.translation().x,
+                kf.pose.translation().y,
+                kf.pose.rotation() + rotation,
+            );
+
+            info!(
+                keyframe_id = best_candidate.keyframe_id,
+                sc_distance = best_candidate.distance,
+                x = coarse_pose.translation().x,
+                y = coarse_pose.translation().y,
+                rotation_deg = rotation.to_degrees(),
+                "Relocalized via coarse snap fallback (GICP failed for all candidates)"
+            );
+            Some((best_candidate.keyframe_id, coarse_pose))
         }
     }
 
@@ -431,6 +485,7 @@ impl SlamProcessor {
             self.last_odom_pose = last.pose;
             self.last_scan_odom_pose = last.pose;
             self.ekf.reset_pose(&last.pose);
+            self.reference_keyframe_idx = Some(last.id);
         }
 
         self.keyframes = keyframes;
@@ -451,9 +506,9 @@ impl SlamProcessor {
         &self.config
     }
 
-    /// Get a reference to the scan matcher (for relocalization).
-    fn scan_matcher(&self) -> &crate::CorrelativeScanMatcher {
-        &self.scan_matcher
+    /// Get a reference to the wide-tolerance relocalization scan matcher.
+    fn reloc_scan_matcher(&self) -> &crate::CorrelativeScanMatcher {
+        &self.reloc_scan_matcher
     }
 
     /// Get the number of keyframes since last save (for auto-save logic).
@@ -469,18 +524,43 @@ mod tests {
     use lidar::Point3D;
     use std::path::PathBuf;
 
-    fn make_test_scan(offset_x: f32) -> PointCloud {
+    /// Viewpoint-dependent room scan: walls at x=±5, y=±5, with 3D structure.
+    fn make_test_scan(sensor_x: f32, sensor_y: f32) -> PointCloud {
         let mut points = Vec::new();
-        for i in 0..360 {
-            let angle = (i as f32) * std::f32::consts::TAU / 360.0;
-            let range = 5.0 + offset_x;
-            points.push(Point3D {
-                x: range * angle.cos(),
-                y: range * angle.sin(),
-                z: 0.5,
-                reflectivity: 128,
-                tag: 0,
-            });
+        let n = 360;
+        let elevations = [-0.15_f32, -0.05, 0.0, 0.05, 0.15];
+
+        for i in 0..n {
+            let azimuth = (i as f32) * std::f32::consts::TAU / n as f32;
+            let dir_x = azimuth.cos();
+            let dir_y = azimuth.sin();
+
+            let range_x = if dir_x > 0.001 {
+                (5.0 - sensor_x) / dir_x
+            } else if dir_x < -0.001 {
+                (-5.0 - sensor_x) / dir_x
+            } else {
+                f32::MAX
+            };
+            let range_y = if dir_y > 0.001 {
+                (5.0 - sensor_y) / dir_y
+            } else if dir_y < -0.001 {
+                (-5.0 - sensor_y) / dir_y
+            } else {
+                f32::MAX
+            };
+            let range = range_x.min(range_y).max(0.1).min(50.0);
+
+            for &elev in &elevations {
+                let r_horiz = range * elev.cos();
+                points.push(Point3D {
+                    x: r_horiz * dir_x,
+                    y: r_horiz * dir_y,
+                    z: range * elev.sin() + 0.5,
+                    reflectivity: 128,
+                    tag: 0,
+                });
+            }
         }
         PointCloud {
             points,
@@ -500,24 +580,24 @@ mod tests {
         config.keyframe_distance = 0.5;
         let mut processor = SlamProcessor::new(config.clone());
 
-        // Add some keyframes by driving forward
-        let scan1 = make_test_scan(0.0);
+        // Add keyframes by driving forward with viewpoint-dependent scans
+        let scan1 = make_test_scan(0.0, 0.0);
         processor.process_scan(&scan1);
 
         processor.update_odometry(&types::Pose {
-            x: 2.0,
+            x: 0.7,
             y: 0.0,
             theta: 0.0,
         });
-        let scan2 = make_test_scan(0.1);
+        let scan2 = make_test_scan(0.7, 0.0);
         processor.process_scan(&scan2);
 
         processor.update_odometry(&types::Pose {
-            x: 4.0,
+            x: 1.4,
             y: 0.0,
             theta: 0.0,
         });
-        let scan3 = make_test_scan(0.2);
+        let scan3 = make_test_scan(1.4, 0.0);
         processor.process_scan(&scan3);
 
         assert!(processor.keyframes().len() >= 2);
@@ -562,7 +642,7 @@ mod tests {
     fn test_atomic_write_no_temp_left() {
         let config = SlamConfig::default();
         let mut processor = SlamProcessor::new(config.clone());
-        let scan = make_test_scan(0.0);
+        let scan = make_test_scan(0.0, 0.0);
         processor.process_scan(&scan);
 
         let path = temp_map_path();
@@ -592,15 +672,15 @@ mod tests {
         let config = SlamConfig::default();
         let mut processor = SlamProcessor::new(config.clone());
 
-        // Create some keyframes
-        let scan = make_test_scan(0.0);
+        // Create some keyframes with viewpoint-dependent scans
+        let scan = make_test_scan(0.0, 0.0);
         processor.process_scan(&scan);
         processor.update_odometry(&types::Pose {
-            x: 2.0,
+            x: 0.7,
             y: 0.0,
             theta: 0.0,
         });
-        let scan2 = make_test_scan(0.1);
+        let scan2 = make_test_scan(0.7, 0.0);
         processor.process_scan(&scan2);
 
         // Save and load

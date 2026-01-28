@@ -11,7 +11,7 @@
 use lidar::PointCloud;
 use nalgebra::{DMatrix, DVector, Matrix3, Vector3};
 use std::sync::Arc;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 use thiserror::Error;
 use tracing::{debug, info, warn};
 use transforms::Transform2D;
@@ -313,6 +313,10 @@ impl PoseEkf {
 pub struct SlamProcessor {
     config: SlamConfig,
     scan_matcher: CorrelativeScanMatcher,
+    /// Wider-tolerance scan matcher used only for relocalization.
+    /// Has larger convergence basin (5m correspondence dist, 10% min overlap)
+    /// to recover from large EKF drift (e.g., wheel slip).
+    reloc_scan_matcher: CorrelativeScanMatcher,
     /// All keyframes
     keyframes: Vec<Keyframe>,
     /// Pose graph edges
@@ -333,6 +337,13 @@ pub struct SlamProcessor {
     pending_imu_delta: Option<PreintegratedDelta>,
     /// Scan context database for efficient loop closure candidate retrieval
     scan_context_db: ScanContextDatabase,
+    /// Index of the keyframe used as GICP reference scan.
+    /// Updated when keyframes are added or after relocalization.
+    reference_keyframe_idx: Option<usize>,
+    /// Consecutive scan match failures (for triggering relocalization)
+    consecutive_match_failures: u32,
+    /// Last relocalization attempt time (rate-limiting)
+    last_relocalization_attempt: Option<Instant>,
 }
 
 impl SlamProcessor {
@@ -348,6 +359,18 @@ impl SlamProcessor {
             min_overlap: config.min_overlap,
         };
 
+        // Wider-tolerance matcher for relocalization recovery.
+        // 5x correspondence distance, lower overlap, more iterations.
+        let reloc_scan_config = ScanMatchConfig {
+            resolution: config.voxel_size,
+            linear_range: 0.5,
+            angular_range: 0.26,
+            max_iterations: 50,
+            convergence_threshold: config.convergence_threshold,
+            max_correspondence_dist: 5.0,
+            min_overlap: 0.1,
+        };
+
         let ekf = PoseEkf::new(&config);
 
         let scan_context_db = ScanContextDatabase::new(config.scan_context.clone());
@@ -355,6 +378,7 @@ impl SlamProcessor {
         Self {
             config,
             scan_matcher: CorrelativeScanMatcher::new(scan_config),
+            reloc_scan_matcher: CorrelativeScanMatcher::new(reloc_scan_config),
             keyframes: Vec::new(),
             edges: Vec::new(),
             ekf,
@@ -365,6 +389,9 @@ impl SlamProcessor {
             loop_closure_count: 0,
             pending_imu_delta: None,
             scan_context_db,
+            reference_keyframe_idx: None,
+            consecutive_match_failures: 0,
+            last_relocalization_attempt: None,
         }
     }
 
@@ -396,9 +423,6 @@ impl SlamProcessor {
     pub fn process_scan(&mut self, scan: &PointCloud) -> Option<SlamUpdate> {
         let scan = Arc::new(scan.clone());
 
-        // Check if we should add a keyframe
-        let should_add_keyframe = self.should_add_keyframe();
-
         // Compute odometry delta since last processed scan
         let odom_delta = self.last_scan_odom_pose.relative_to(&self.last_odom_pose);
         self.last_scan_odom_pose = self.last_odom_pose;
@@ -411,20 +435,24 @@ impl SlamProcessor {
         let has_moved = odom_distance >= self.config.min_scan_match_distance
             || odom_rotation >= self.config.min_scan_match_rotation;
 
-        // Match against the latest keyframe scan (scan-to-map) instead of
-        // the previous scan (scan-to-scan). This prevents accumulation of
-        // small per-frame errors that cause drift.
-        let reference = self.keyframes.last().map(|kf| kf.scan.clone());
+        // Use the tracked reference keyframe (normally the latest, but may
+        // point to an earlier keyframe after relocalization).
+        let ref_idx = self
+            .reference_keyframe_idx
+            .or_else(|| self.keyframes.len().checked_sub(1));
+        let reference = ref_idx.map(|i| &self.keyframes[i]);
 
         // Take the pending IMU delta (consumed once per scan)
         let imu_delta = self.pending_imu_delta.take();
 
         let matched = if has_moved {
-            if let Some(ref ref_scan) = reference {
+            if let Some(ref_kf) = reference {
+                let ref_scan = &ref_kf.scan;
+                let keyframe_pose = ref_kf.pose;
+
                 // Build initial guess for GICP.
                 // Start with EKF-based keyframe-relative pose, then optionally
                 // override yaw with IMU pre-integrated delta for better turn handling.
-                let keyframe_pose = &self.keyframes.last().unwrap().pose;
                 let ekf_guess = keyframe_pose.relative_to(&self.ekf.pose());
                 let initial_guess = compute_initial_guess(&ekf_guess, imu_delta.as_ref());
 
@@ -432,7 +460,7 @@ impl SlamProcessor {
                     Ok(result) => {
                         if result.score > 0.5 {
                             // Compute absolute measurement: keyframe_pose * scan_match_result
-                            let measurement_tf = keyframe_pose * &result.transform;
+                            let measurement_tf = &keyframe_pose * &result.transform;
                             let measurement = Vector3::new(
                                 measurement_tf.translation().x,
                                 measurement_tf.translation().y,
@@ -441,14 +469,17 @@ impl SlamProcessor {
 
                             // EKF update with scan match measurement and covariance
                             self.ekf.update(&measurement, &result.covariance);
+                            self.consecutive_match_failures = 0;
                             true
                         } else {
                             debug!(score = result.score, "Scan match score too low, skipping correction");
+                            self.consecutive_match_failures += 1;
                             false
                         }
                     }
                     Err(e) => {
                         warn!(?e, "Scan matching failed");
+                        self.consecutive_match_failures += 1;
                         false
                     }
                 }
@@ -465,8 +496,61 @@ impl SlamProcessor {
             false
         };
 
+        // Attempt relocalization when scan matching keeps failing.
+        // This handles scenarios like wheel slip where the EKF drifts
+        // beyond GICP's convergence basin (~1m).
+        const RELOC_FAILURE_THRESHOLD: u32 = 10;
+        const RELOC_COOLDOWN: Duration = Duration::from_secs(2);
+
+        if !matched
+            && has_moved
+            && self.consecutive_match_failures >= RELOC_FAILURE_THRESHOLD
+            && self.keyframes.len() >= 2
+        {
+            let should_try = self
+                .last_relocalization_attempt
+                .map_or(true, |t| t.elapsed() >= RELOC_COOLDOWN);
+
+            if should_try {
+                self.last_relocalization_attempt = Some(Instant::now());
+                info!(
+                    failures = self.consecutive_match_failures,
+                    "Attempting relocalization against map"
+                );
+
+                if let Some((kf_id, pose)) = self.relocalize(&scan, 0.5) {
+                    // Reset EKF to relocalized pose
+                    self.ekf.reset_pose(&pose);
+                    self.reference_keyframe_idx = Some(kf_id);
+                    self.last_keyframe_pose = pose;
+                    self.consecutive_match_failures = 0;
+                    info!(
+                        keyframe_id = kf_id,
+                        x = pose.translation().x,
+                        y = pose.translation().y,
+                        "Relocalized successfully — tracking resumed"
+                    );
+                }
+            }
+        }
+
         let mut keyframe_added = false;
         let mut loop_closure_detected = false;
+
+        // Evaluate keyframe insertion AFTER scan matching so we use the
+        // corrected EKF pose, not the raw odometry-drifted pose.
+        // Only add keyframes when:
+        //  - First keyframe (no reference to match against), OR
+        //  - Scan match confirmed our position AND we've moved enough.
+        // This prevents committing bad keyframes during wheel slip or
+        // other odometry faults where GICP can't confirm position.
+        let should_add_keyframe = if self.keyframes.is_empty() {
+            true
+        } else if matched {
+            self.should_add_keyframe()
+        } else {
+            false
+        };
 
         if should_add_keyframe {
             keyframe_added = true;
@@ -517,6 +601,7 @@ impl SlamProcessor {
 
             self.keyframes.push(keyframe);
             self.last_keyframe_pose = current_pose;
+            self.reference_keyframe_idx = Some(keyframe_id);
 
             info!(
                 id = keyframe_id,
@@ -913,33 +998,51 @@ fn huber_weight(residual_norm: f64, threshold: f64) -> f64 {
 mod tests {
     use super::*;
 
-    fn make_test_scan(angle_offset: f32) -> PointCloud {
-        // Create a simple point cloud simulating a box-like environment
+    /// Create a scan simulating a box room viewed from a given sensor position.
+    ///
+    /// Room walls at x=±5, y=±5. Points include floor (z≈0) and multiple
+    /// elevation rings for 3D structure. Scans from different positions
+    /// produce genuinely different point clouds (viewpoint-dependent).
+    fn make_room_scan(sensor_x: f32, sensor_y: f32) -> PointCloud {
         use lidar::Point3D;
 
-        let angle_increment = std::f32::consts::PI * 2.0 / 360.0;
-        let points: Vec<Point3D> = (0..360)
-            .map(|i| {
-                let angle = (i as f32) * angle_increment + angle_offset;
-                // Simple box-like environment at z=0
-                let dir_x = angle.cos();
-                let dir_y = angle.sin();
-                let range = if dir_x.abs() > dir_y.abs() {
-                    5.0 / dir_x.abs()
-                } else {
-                    5.0 / dir_y.abs()
-                }
-                .min(50.0);
+        let mut points = Vec::new();
+        let n_azimuth = 360;
+        let elevations = [-0.15_f32, -0.05, 0.0, 0.05, 0.15];
 
-                Point3D {
-                    x: range * dir_x,
-                    y: range * dir_y,
-                    z: 0.5, // Mid-height
+        for i in 0..n_azimuth {
+            let azimuth = (i as f32) * std::f32::consts::TAU / n_azimuth as f32;
+            let dir_x = azimuth.cos();
+            let dir_y = azimuth.sin();
+
+            // Range to nearest wall from sensor position
+            let range_x = if dir_x > 0.001 {
+                (5.0 - sensor_x) / dir_x
+            } else if dir_x < -0.001 {
+                (-5.0 - sensor_x) / dir_x
+            } else {
+                f32::MAX
+            };
+            let range_y = if dir_y > 0.001 {
+                (5.0 - sensor_y) / dir_y
+            } else if dir_y < -0.001 {
+                (-5.0 - sensor_y) / dir_y
+            } else {
+                f32::MAX
+            };
+            let range = range_x.min(range_y).max(0.1).min(50.0);
+
+            for &elev in &elevations {
+                let r_horiz = range * elev.cos();
+                points.push(Point3D {
+                    x: r_horiz * dir_x,
+                    y: r_horiz * dir_y,
+                    z: range * elev.sin() + 0.5,
                     reflectivity: 128,
                     tag: 0,
-                }
-            })
-            .collect();
+                });
+            }
+        }
 
         PointCloud {
             points,
@@ -978,25 +1081,61 @@ mod tests {
         config.keyframe_distance = 0.5; // Lower threshold for testing
         let mut processor = SlamProcessor::new(config);
 
-        // First scan should create a keyframe
-        let scan1 = make_test_scan(0.0);
+        // First scan should create a keyframe (no match needed)
+        let scan1 = make_room_scan(0.0, 0.0);
         let result = processor.process_scan(&scan1);
         assert!(result.is_some());
         assert!(result.unwrap().keyframe_added);
         assert_eq!(processor.keyframes.len(), 1);
 
-        // Move robot and process another scan
+        // Move robot and process scan from new position.
+        // Viewpoint-dependent scans let GICP find the actual displacement.
         processor.update_odometry(&Pose {
-            x: 1.0,
+            x: 0.7,
             y: 0.0,
             theta: 0.0,
         });
-        let scan2 = make_test_scan(0.0);
+        let scan2 = make_room_scan(0.7, 0.0);
         let result = processor.process_scan(&scan2);
         assert!(result.is_some());
-        assert!(result.unwrap().keyframe_added);
+        let update = result.unwrap();
+        // Scan match confirmed position → keyframe added at validated pose
+        assert!(update.keyframe_added);
         assert_eq!(processor.keyframes.len(), 2);
         assert_eq!(processor.edges.len(), 1); // One odometry edge
+    }
+
+    #[test]
+    fn test_no_keyframe_on_wheel_slip() {
+        let mut config = SlamConfig::default();
+        config.keyframe_distance = 0.5;
+        let mut processor = SlamProcessor::new(config);
+
+        // First keyframe
+        let scan = make_room_scan(0.0, 0.0);
+        processor.process_scan(&scan);
+        assert_eq!(processor.keyframes.len(), 1);
+
+        // Simulate wheel slip: odometry says moved 2m, but LiDAR scan
+        // is identical (rover didn't actually move — e.g., wheels elevated).
+        processor.update_odometry(&Pose {
+            x: 2.0,
+            y: 0.0,
+            theta: 0.0,
+        });
+        // Same scan from same position (rover hasn't actually moved)
+        let scan_same = make_room_scan(0.0, 0.0);
+        let result = processor.process_scan(&scan_same);
+
+        // Should NOT add a keyframe at the wrong (drifted) position.
+        // GICP either corrects EKF back to origin (no new keyframe needed)
+        // or fails to match (keyframe gated on match success).
+        let added = result.map_or(false, |u| u.keyframe_added);
+        assert!(
+            !added,
+            "Should not add keyframe during wheel slip (identical scans)"
+        );
+        assert_eq!(processor.keyframes.len(), 1);
     }
 
     #[test]
