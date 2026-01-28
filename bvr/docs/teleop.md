@@ -159,6 +159,95 @@ gst-launch-1.0 \
 
 ## Safety Considerations
 
+### Collision Guard
+
+The collision guard automatically scales down teleop linear velocity when
+obstacles are detected along the projected trajectory. It acts as a safety
+layer between the operator's commands and the motors — the operator can always
+steer, but the system prevents driving into walls.
+
+#### How It Works
+
+```
+Operator command ──► Collision Guard ──► Motor mixer
+                         │
+                    Costmap lookup
+                    (from LiDAR)
+```
+
+1. **Project trajectory** — the current commanded velocity (linear + angular) is
+   forward-simulated as a differential-drive arc over the lookahead window
+2. **Sample costmap** — 10 points along the arc are checked against the 2D
+   costmap built from LiDAR
+3. **Find nearest obstacle** — the closest sample with cost ≥ 253 (INSCRIBED)
+   determines the obstacle distance
+4. **Scale linear velocity** — linearly interpolated between full speed and zero
+   based on obstacle distance within the scaling zone
+
+#### Parameters
+
+| Parameter              | Default | Description                               |
+| ---------------------- | ------- | ----------------------------------------- |
+| `enabled`              | `true`  | Enable/disable the guard                  |
+| `lookahead_time`       | 1.0 s   | How far ahead to project the arc          |
+| `num_samples`          | 10      | Sample points along the arc               |
+| `full_speed_distance`  | 1.0 m   | No scaling beyond this distance           |
+| `stop_distance`        | 0.15 m  | Full stop below this distance             |
+| `cost_threshold`       | 253     | Costmap cost that counts as blocked       |
+
+Configured in `bvr.toml` under `[collision_guard]`.
+
+#### Scaling Curve
+
+```
+Linear velocity scale
+  1.0 ┤ ████████████████████
+      │                     ╲
+      │                      ╲  scaling zone
+      │                       ╲
+  0.0 ┤────────────────────────╳─────────
+      0m    stop         full_speed    ∞
+           0.15m          1.0m
+           ◄─── obstacle distance ───►
+```
+
+- **> 1.0 m**: Full speed (scale = 1.0)
+- **0.15 – 1.0 m**: Linear ramp from 1.0 → 0.0
+- **< 0.15 m**: Full stop (scale = 0.0)
+
+Angular velocity is **never** scaled — the operator can always steer away from
+obstacles. Only forward/backward motion is limited.
+
+#### Console Visualization
+
+The console replicates the collision guard algorithm client-side using the same
+costmap data and commanded velocity, providing two visual indicators:
+
+**3D Arc Overlay** — a solid line on the ground plane showing the projected
+trajectory, colored per-segment:
+- **Green** — clear, no scaling applied
+- **Yellow** — within scaling zone, velocity being reduced
+- **Red** — obstacle hit, arc truncated at this point
+
+The arc is only visible in Teleop mode when the costmap is active and the rover
+is moving.
+
+**Proximity Bar** — a thin horizontal bar in the StatusPanel showing clearance
+along the current trajectory:
+- Full width = `full_speed_distance` (1.0 m)
+- Fill color matches the arc (green → yellow → red)
+- Label shows distance in meters or "clear"
+
+#### Implementation
+
+| Component | Location |
+| --------- | -------- |
+| Firmware guard | `bvr/firmware/crates/control/src/lib.rs` — `CollisionGuard::scale()` |
+| Configuration | `bvr/firmware/config/bvr.toml` — `[collision_guard]` |
+| 3D arc overlay | `depot/console/src/components/scene/CollisionGuardArc.tsx` |
+| Guard state store | `depot/console/src/lib/collisionGuardStore.ts` |
+| Proximity bar | `depot/console/src/components/teleop/StatusPanel.tsx` |
+
 ### Tab Visibility (Web Operator)
 
 When the browser tab loses focus (Alt+Tab, switch tabs, minimize):
