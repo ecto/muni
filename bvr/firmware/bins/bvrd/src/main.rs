@@ -6,7 +6,7 @@ use dispatch::{DispatchClient, DispatchEvent, TaskAssignment, Waypoint as Dispat
 use can::vesc::Drivetrain;
 use can::Bus;
 use clap::Parser;
-use control::{ChassisParams, DiffDriveMixer, Limits, RateLimiter, Watchdog};
+use control::{ChassisParams, CollisionGuard, CollisionGuardConfig, DiffDriveMixer, Limits, RateLimiter, Watchdog};
 use gps::{Config as GpsConfig, GpsReader, GpsState};
 use hal::EStopEvent;
 use lidar::{Config as LidarConfig, LidarCommand, LidarReader, LidarStatus};
@@ -58,6 +58,7 @@ struct FileConfig {
     estop: EStopFileConfig,
     camera: CameraFileConfig,
     blower: BlowerConfig,
+    collision_guard: CollisionGuardFileConfig,
 }
 
 /// Control loop configuration.
@@ -72,6 +73,31 @@ impl Default for ControlFileConfig {
     fn default() -> Self {
         Self {
             sleep_timeout_secs: 0, // disabled by default
+        }
+    }
+}
+
+/// Collision guard configuration (teleop velocity scaling near obstacles).
+#[derive(Debug, Deserialize)]
+#[serde(default)]
+struct CollisionGuardFileConfig {
+    enabled: bool,
+    lookahead_time: f64,
+    num_samples: usize,
+    full_speed_distance: f64,
+    stop_distance: f64,
+    cost_threshold: u8,
+}
+
+impl Default for CollisionGuardFileConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            lookahead_time: 1.0,
+            num_samples: 10,
+            full_speed_distance: 1.0,
+            stop_distance: 0.15,
+            cost_threshold: 253,
         }
     }
 }
@@ -1796,6 +1822,17 @@ async fn main() -> Result<()> {
     // Control loop setup
     let mixer = DiffDriveMixer::new(chassis);
     let mut rate_limiter = RateLimiter::new(limits);
+    let collision_guard = CollisionGuard::new(CollisionGuardConfig {
+        enabled: file_config.collision_guard.enabled,
+        lookahead_time: file_config.collision_guard.lookahead_time,
+        num_samples: file_config.collision_guard.num_samples,
+        full_speed_distance: file_config.collision_guard.full_speed_distance,
+        stop_distance: file_config.collision_guard.stop_distance,
+        cost_threshold: file_config.collision_guard.cost_threshold,
+    });
+    if file_config.collision_guard.enabled {
+        info!("Collision guard enabled (teleop velocity scaling)");
+    }
     let mut watchdog = Watchdog::new(Duration::from_millis(500)); // Allow for network jitter over Tailscale
 
     // Feed watchdog immediately if starting in autonomous mode
@@ -2288,7 +2325,7 @@ async fn main() -> Result<()> {
         let mut policy_intention: Option<(f32, f32)> = None;
 
         // Compute motor outputs based on mode
-        let (target_twist, boost_active) = match current_mode {
+        let (mut target_twist, boost_active) = match current_mode {
             Mode::Autonomous => {
                 // Autonomous mode: use classical navigation (A* + pursuit) or policy
                 let current_pose = if is_sim {
@@ -2523,6 +2560,19 @@ async fn main() -> Result<()> {
                 (Twist::default(), false)
             }
         };
+
+        // Collision guard: scale teleop linear velocity near obstacles
+        if current_mode == Mode::Teleop {
+            if let Some(ref nav) = navigation_controller {
+                let pose = pose_estimator.pose();
+                let costmap = nav.costmap();
+                target_twist = collision_guard.scale(
+                    target_twist,
+                    pose.x, pose.y, pose.theta,
+                    |x, y| costmap.get_cost(x, y),
+                );
+            }
+        }
 
         // Lock state for motor commands and telemetry
         let mut state = shared.lock().unwrap();

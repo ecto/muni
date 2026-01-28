@@ -159,6 +159,112 @@ impl RateLimiter {
     }
 }
 
+/// Configuration for the teleop collision guard.
+#[derive(Debug, Clone)]
+pub struct CollisionGuardConfig {
+    /// Whether the collision guard is active.
+    pub enabled: bool,
+    /// How far ahead to project the arc (seconds).
+    pub lookahead_time: f64,
+    /// Number of sample points along the projected arc.
+    pub num_samples: usize,
+    /// Distance beyond which no scaling is applied (meters).
+    pub full_speed_distance: f64,
+    /// Distance below which linear velocity is zeroed (meters).
+    pub stop_distance: f64,
+    /// Costmap cost that counts as blocked (253 = INSCRIBED).
+    pub cost_threshold: u8,
+}
+
+impl Default for CollisionGuardConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            lookahead_time: 1.0,
+            num_samples: 10,
+            full_speed_distance: 1.0,
+            stop_distance: 0.15,
+            cost_threshold: 253,
+        }
+    }
+}
+
+/// Scales teleop linear velocity based on obstacle proximity along the
+/// commanded arc. Angular velocity is never modified — the operator can
+/// always steer away.
+pub struct CollisionGuard {
+    config: CollisionGuardConfig,
+}
+
+impl CollisionGuard {
+    pub fn new(config: CollisionGuardConfig) -> Self {
+        Self { config }
+    }
+
+    /// Scale `twist.linear` down when obstacles lie on the projected arc.
+    /// `cost_at` returns the costmap cost at a world-frame (x, y).
+    pub fn scale(
+        &self,
+        twist: Twist,
+        robot_x: f64,
+        robot_y: f64,
+        robot_theta: f64,
+        cost_at: impl Fn(f64, f64) -> u8,
+    ) -> Twist {
+        if !self.config.enabled || twist.linear.abs() < 1e-4 {
+            return twist;
+        }
+
+        let v = twist.linear;
+        let w = twist.angular;
+        let dt = self.config.lookahead_time / self.config.num_samples as f64;
+        let cos_th = robot_theta.cos();
+        let sin_th = robot_theta.sin();
+
+        for i in 1..=self.config.num_samples {
+            let t = dt * i as f64;
+
+            // Body-frame position along the arc
+            let (bx, by) = if w.abs() < 1e-3 {
+                // Straight line
+                (v * t, 0.0)
+            } else {
+                // Circular arc: R = v/w
+                let r = v / w;
+                (r * (w * t).sin(), r * (1.0 - (w * t).cos()))
+            };
+
+            // Transform to world frame
+            let wx = robot_x + cos_th * bx - sin_th * by;
+            let wy = robot_y + sin_th * bx + cos_th * by;
+
+            // Arc distance from robot center to this sample
+            let arc_dist = if w.abs() < 1e-3 {
+                (v * t).abs()
+            } else {
+                let r = (v / w).abs();
+                r * (w * t).abs()
+            };
+
+            if cost_at(wx, wy) >= self.config.cost_threshold {
+                // Obstacle hit — compute linear scale
+                let range = self.config.full_speed_distance - self.config.stop_distance;
+                if range <= 0.0 {
+                    return Twist { linear: 0.0, ..twist };
+                }
+                let scale = ((arc_dist - self.config.stop_distance) / range).clamp(0.0, 1.0);
+                return Twist {
+                    linear: v * scale,
+                    ..twist
+                };
+            }
+        }
+
+        // No obstacle detected along arc — pass through
+        twist
+    }
+}
+
 /// Command watchdog — triggers safe stop if commands stop arriving.
 pub struct Watchdog {
     timeout: Duration,
@@ -244,6 +350,92 @@ mod tests {
 
         std::thread::sleep(Duration::from_millis(150));
         assert!(wd.is_timed_out());
+    }
+
+    fn guard() -> CollisionGuard {
+        CollisionGuard::new(CollisionGuardConfig {
+            enabled: true,
+            lookahead_time: 1.0,
+            num_samples: 10,
+            full_speed_distance: 1.0,
+            stop_distance: 0.15,
+            cost_threshold: 253,
+        })
+    }
+
+    fn fwd(v: f64) -> Twist {
+        Twist { linear: v, angular: 0.0, boost: false }
+    }
+
+    #[test]
+    fn collision_guard_no_obstacle() {
+        let g = guard();
+        let t = fwd(1.0);
+        let out = g.scale(t, 0.0, 0.0, 0.0, |_, _| 0);
+        assert!((out.linear - 1.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn collision_guard_obstacle_at_stop_distance() {
+        let g = guard();
+        let t = fwd(1.0);
+        // Everything is blocked
+        let out = g.scale(t, 0.0, 0.0, 0.0, |_, _| 253);
+        // First sample is at ~0.1m (v*dt = 1.0*0.1), which is < stop_distance (0.15)
+        assert!(out.linear.abs() < 1e-6, "expected ~0, got {}", out.linear);
+    }
+
+    #[test]
+    fn collision_guard_obstacle_at_midpoint() {
+        let g = guard();
+        let t = fwd(1.0);
+        // Block at ~0.5m (sample 5 at t=0.5s, dist=0.5m for v=1.0)
+        let out = g.scale(t, 0.0, 0.0, 0.0, |x, _| {
+            if x >= 0.45 { 253 } else { 0 }
+        });
+        // scale = (0.5 - 0.15) / (1.0 - 0.15) ≈ 0.41
+        assert!(out.linear > 0.3 && out.linear < 0.55,
+            "expected ~0.41, got {}", out.linear);
+    }
+
+    #[test]
+    fn collision_guard_near_zero_linear() {
+        let g = guard();
+        let t = Twist { linear: 0.00005, angular: 1.0, boost: false };
+        let out = g.scale(t, 0.0, 0.0, 0.0, |_, _| 253);
+        // Near-zero linear is passed through (below 1e-4 threshold)
+        assert!((out.linear - 0.00005).abs() < 1e-8);
+    }
+
+    #[test]
+    fn collision_guard_reverse() {
+        let g = guard();
+        let t = fwd(-1.0);
+        // Block behind at x <= -0.45
+        let out = g.scale(t, 0.0, 0.0, 0.0, |x, _| {
+            if x <= -0.45 { 253 } else { 0 }
+        });
+        // Should scale reverse velocity (negative)
+        assert!(out.linear > -1.0 && out.linear < 0.0,
+            "expected scaled reverse, got {}", out.linear);
+    }
+
+    #[test]
+    fn collision_guard_disabled() {
+        let mut cfg = CollisionGuardConfig::default();
+        cfg.enabled = false;
+        let g = CollisionGuard::new(cfg);
+        let t = fwd(1.0);
+        let out = g.scale(t, 0.0, 0.0, 0.0, |_, _| 253);
+        assert!((out.linear - 1.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn collision_guard_preserves_angular() {
+        let g = guard();
+        let t = Twist { linear: 1.0, angular: 0.5, boost: false };
+        let out = g.scale(t, 0.0, 0.0, 0.0, |_, _| 253);
+        assert!((out.angular - 0.5).abs() < 1e-6, "angular must not be modified");
     }
 }
 

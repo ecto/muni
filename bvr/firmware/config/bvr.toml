@@ -270,6 +270,15 @@ enabled = true
 # Dispatch service WebSocket endpoint
 endpoint = "ws://depot:4890/ws"
 
+[collision_guard]
+# Scale teleop linear velocity when obstacles are nearby
+enabled = true
+lookahead_time = 1.0        # seconds to project arc forward
+num_samples = 10            # sample points along arc
+full_speed_distance = 1.0   # meters: no scaling beyond this
+stop_distance = 0.15        # meters: full stop below this
+cost_threshold = 253        # costmap cost = blocked (253 = INSCRIBED)
+
 [costmap]
 # RANSAC ground plane distance threshold (meters)
 ground_distance_threshold = 0.15
