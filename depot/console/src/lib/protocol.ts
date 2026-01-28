@@ -36,6 +36,7 @@ export const MSG_SET_MODE = 0x04;
 export const MSG_TOOL = 0x05;
 export const MSG_ESTOP_RELEASE = 0x06;
 export const MSG_LIDAR_TOGGLE = 0x07;
+export const MSG_SET_GOAL = 0x08;
 export const MSG_TELEMETRY = 0x11;
 export const MSG_VIDEO_FRAME = 0x20;
 export const MSG_POINT_CLOUD = 0x21;
@@ -127,6 +128,16 @@ export function encodeSetMode(mode: Mode): ArrayBuffer {
   const view = new DataView(buf);
   buildHeader(view, MSG_SET_MODE, CMD_FLAG_MUST_ACK);
   view.setUint8(8, mode);
+  return buf;
+}
+
+export function encodeSetGoal(x: number, y: number): ArrayBuffer {
+  // 8 (header) + 8 (x: f64 LE) + 8 (y: f64 LE) = 24 bytes
+  const buf = new ArrayBuffer(24);
+  const view = new DataView(buf);
+  buildHeader(view, MSG_SET_GOAL, CMD_FLAG_MUST_ACK);
+  view.setFloat64(8, x, true);
+  view.setFloat64(16, y, true);
   return buf;
 }
 

@@ -255,6 +255,8 @@ pub enum Command {
     Tool(ToolCommand),
     /// Toggle LiDAR streaming (true = enable, false = disable)
     LidarToggle(bool),
+    /// Set navigation goal (click-to-navigate from console)
+    SetGoal { x: f64, y: f64 },
 }
 
 /// Command for the active tool.

@@ -154,6 +154,11 @@ interface ConsoleState {
   theme: Theme;
   setTheme: (theme: Theme) => void;
 
+  // Navigation goal (click-to-navigate)
+  navigationGoal: { x: number; y: number } | null;
+  setNavigationGoal: (x: number, y: number) => void;
+  clearNavigationGoal: () => void;
+
   // Channel metrics (WebRTC diagnostics)
   channelMetrics: Map<string, ChannelMetrics>;
   updateChannelMetrics: (name: string, metrics: Partial<ChannelMetrics>) => void;
@@ -278,6 +283,12 @@ export const useConsoleStore = create<ConsoleState>()(
       const prevMode = state.telemetry.mode;
       const nextMode = next.mode;
 
+      // Clear navigation goal when rover leaves Autonomous mode
+      const clearGoal =
+        prevMode === Mode.Autonomous &&
+        nextMode !== Mode.Autonomous &&
+        state.navigationGoal !== null;
+
       // Disable overlays when entering sleep (sensors are powered down)
       if (nextMode === Mode.Sleep && prevMode !== Mode.Sleep) {
         return {
@@ -285,6 +296,7 @@ export const useConsoleStore = create<ConsoleState>()(
           pointCloudEnabled: false,
           costmapEnabled: false,
           obstaclesEnabled: false,
+          ...(clearGoal ? { navigationGoal: null } : {}),
         };
       }
 
@@ -298,7 +310,7 @@ export const useConsoleStore = create<ConsoleState>()(
         };
       }
 
-      return { telemetry: next };
+      return { telemetry: next, ...(clearGoal ? { navigationGoal: null } : {}) };
     }),
 
   // Render pose and interpolation
@@ -416,6 +428,11 @@ export const useConsoleStore = create<ConsoleState>()(
   // Theme
   theme: "system",
   setTheme: (theme) => set({ theme }),
+
+  // Navigation goal
+  navigationGoal: null,
+  setNavigationGoal: (x, y) => set({ navigationGoal: { x, y } }),
+  clearNavigationGoal: () => set({ navigationGoal: null }),
 
   // Channel metrics
   channelMetrics: new Map([

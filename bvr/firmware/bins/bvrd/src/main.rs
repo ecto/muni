@@ -6,7 +6,8 @@ use dispatch::{DispatchClient, DispatchEvent, TaskAssignment, Waypoint as Dispat
 use can::vesc::Drivetrain;
 use can::Bus;
 use clap::Parser;
-use control::{ChassisParams, CollisionGuard, CollisionGuardConfig, DiffDriveMixer, Limits, RateLimiter, Watchdog};
+use control::{ChassisParams, DiffDriveMixer, Limits, RateLimiter, Watchdog};
+use collision_monitor::{CollisionMonitor, CollisionMonitorConfig};
 use gps::{Config as GpsConfig, GpsReader, GpsState};
 use hal::EStopEvent;
 use lidar::{Config as LidarConfig, LidarCommand, LidarReader, LidarStatus};
@@ -14,7 +15,7 @@ use localization::{AttitudeFilter, EkfConfig, EkfPoseEstimator, WheelOdometry};
 use slam::{SlamConfig, SlamProcessor, SlamState};
 use planner::PlannerConfig;
 use pursuit::PursuitConfig;
-use control_loop::{NavigationConfig, NavigationController, NavigationState};
+use control_loop::{ControllerType, NavigationConfig, NavigationController, NavigationState, RecoveryConfig};
 use costmap::{CostmapSnapshot, ObstacleTracker, TrackerConfig};
 use transforms::Transform2D;
 use metrics::{Config as MetricsConfig, DiscoveryClient, DiscoveryConfig, MetricsPusher, MetricsSnapshot, SystemMetricsCollector};
@@ -77,7 +78,7 @@ impl Default for ControlFileConfig {
     }
 }
 
-/// Collision guard configuration (teleop velocity scaling near obstacles).
+/// Collision monitor configuration (velocity scaling near obstacles, all modes).
 #[derive(Debug, Deserialize)]
 #[serde(default)]
 struct CollisionGuardFileConfig {
@@ -87,6 +88,8 @@ struct CollisionGuardFileConfig {
     full_speed_distance: f64,
     stop_distance: f64,
     cost_threshold: u8,
+    min_zone_scale: f64,
+    max_linear_velocity: f64,
 }
 
 impl Default for CollisionGuardFileConfig {
@@ -98,6 +101,8 @@ impl Default for CollisionGuardFileConfig {
             full_speed_distance: 1.0,
             stop_distance: 0.15,
             cost_threshold: 253,
+            min_zone_scale: 0.5,
+            max_linear_velocity: 1.0,
         }
     }
 }
@@ -335,8 +340,28 @@ struct NavigationFileConfig {
     max_linear_vel: f64,
     /// Maximum angular velocity (rad/s)
     max_angular_vel: f64,
-    /// Blocked timeout before giving up (seconds)
+    /// Blocked timeout before starting recovery (seconds)
     blocked_timeout: f64,
+    /// Recovery: distance to back up (meters)
+    recovery_backup_distance: f64,
+    /// Recovery: backup speed (m/s)
+    recovery_backup_speed: f64,
+    /// Recovery: spin angular velocity (rad/s)
+    recovery_spin_speed: f64,
+    /// Recovery: wait duration between cycles (seconds)
+    recovery_wait_duration: f64,
+    /// Recovery: max cycles before failure
+    max_recovery_cycles: u32,
+    /// Controller type: "pure_pursuit" (default) or "mppi"
+    controller_type: String,
+    /// MPPI: number of candidate trajectories
+    mppi_num_samples: usize,
+    /// MPPI: prediction horizon steps
+    mppi_horizon_steps: usize,
+    /// MPPI: time step per horizon step (seconds)
+    mppi_dt: f64,
+    /// MPPI: temperature for soft-max weighting
+    mppi_temperature: f64,
 }
 
 impl Default for NavigationFileConfig {
@@ -353,6 +378,16 @@ impl Default for NavigationFileConfig {
             max_linear_vel: 1.0,
             max_angular_vel: 0.5, // Note: gets 2.5x boost for skid steering, so effective is ~1.25 rad/s
             blocked_timeout: 30.0,
+            recovery_backup_distance: 0.3,
+            recovery_backup_speed: 0.2,
+            recovery_spin_speed: 0.5,
+            recovery_wait_duration: 10.0,
+            max_recovery_cycles: 3,
+            controller_type: "pure_pursuit".to_string(),
+            mppi_num_samples: 512,
+            mppi_horizon_steps: 30,
+            mppi_dt: 0.1,
+            mppi_temperature: 0.5,
         }
     }
 }
@@ -1141,6 +1176,10 @@ async fn main() -> Result<()> {
     // Initialize classical navigation controller (planner + pursuit)
     let navigation_enabled = file_config.navigation.enabled && file_config.lidar.enabled;
     let mut navigation_controller: Option<NavigationController> = if navigation_enabled {
+        let controller_type = match file_config.navigation.controller_type.as_str() {
+            "mppi" => ControllerType::Mppi,
+            _ => ControllerType::PurePursuit,
+        };
         let nav_config = NavigationConfig {
             costmap_width: file_config.navigation.costmap_width,
             costmap_height: file_config.navigation.costmap_height,
@@ -1155,12 +1194,35 @@ async fn main() -> Result<()> {
                 max_angular_velocity: file_config.navigation.max_angular_vel,
                 ..PursuitConfig::default()
             },
+            mppi: mppi::MppiConfig {
+                num_samples: file_config.navigation.mppi_num_samples,
+                horizon_steps: file_config.navigation.mppi_horizon_steps,
+                dt: file_config.navigation.mppi_dt,
+                temperature: file_config.navigation.mppi_temperature,
+                max_linear_velocity: file_config.navigation.max_linear_vel,
+                max_angular_velocity: file_config.navigation.max_angular_vel,
+                ..mppi::MppiConfig::default()
+            },
+            controller_type,
             replan_distance: 0.5,
             blocked_timeout: file_config.navigation.blocked_timeout,
+            smoother: Some(planner::SmootherConfig::default()),
+            recovery: RecoveryConfig {
+                backup_distance: file_config.navigation.recovery_backup_distance,
+                backup_speed: file_config.navigation.recovery_backup_speed,
+                spin_speed: file_config.navigation.recovery_spin_speed,
+                wait_duration: file_config.navigation.recovery_wait_duration,
+                max_recovery_cycles: file_config.navigation.max_recovery_cycles,
+            },
+        };
+        let ctrl_name = match controller_type {
+            ControllerType::PurePursuit => "pure pursuit",
+            ControllerType::Mppi => "MPPI",
         };
         info!(
             costmap = format!("{}x{}m @ {}m", nav_config.costmap_width, nav_config.costmap_height, nav_config.costmap_resolution),
-            "Classical navigation stack enabled (A* + pure pursuit)"
+            controller = ctrl_name,
+            "Classical navigation stack enabled (A* + {})", ctrl_name
         );
         let mut nav = NavigationController::new(nav_config);
 
@@ -1826,16 +1888,18 @@ async fn main() -> Result<()> {
     // Control loop setup
     let mixer = DiffDriveMixer::new(chassis);
     let mut rate_limiter = RateLimiter::new(limits);
-    let collision_guard = CollisionGuard::new(CollisionGuardConfig {
+    let collision_monitor = CollisionMonitor::new(CollisionMonitorConfig {
         enabled: file_config.collision_guard.enabled,
         lookahead_time: file_config.collision_guard.lookahead_time,
         num_samples: file_config.collision_guard.num_samples,
         full_speed_distance: file_config.collision_guard.full_speed_distance,
         stop_distance: file_config.collision_guard.stop_distance,
         cost_threshold: file_config.collision_guard.cost_threshold,
+        min_zone_scale: file_config.collision_guard.min_zone_scale,
+        max_linear_velocity: file_config.collision_guard.max_linear_velocity,
     });
     if file_config.collision_guard.enabled {
-        info!("Collision guard enabled (teleop velocity scaling)");
+        info!("Collision monitor enabled (velocity scaling for all modes)");
     }
     let mut watchdog = Watchdog::new(Duration::from_millis(500)); // Allow for network jitter over Tailscale
 
@@ -2150,6 +2214,20 @@ async fn main() -> Result<()> {
                     }
                     Command::Twist(_) => unreachable!(), // Already handled above
                     Command::LidarToggle(_) => {} // Handled per-connection in WebRTC
+                    Command::SetGoal { x, y } => {
+                        if let Some(ref mut nav) = navigation_controller {
+                            info!(x, y, "SetGoal command received");
+                            nav.set_goal(planner::Waypoint::new(x, y));
+                            // Auto-transition to Autonomous if not already
+                            let current_mode = state.state_machine.mode();
+                            if current_mode != Mode::Autonomous {
+                                watchdog.feed();
+                                state.state_machine.transition(Event::AutonomousRequest);
+                            }
+                        } else {
+                            warn!("SetGoal received but navigation controller disabled");
+                        }
+                    }
                 }
             }
         }
@@ -2420,6 +2498,9 @@ async fn main() -> Result<()> {
                         NavigationState::ObstacleStopped => {
                             debug!("Stopped for obstacle");
                         }
+                        NavigationState::Recovering(_) => {
+                            debug!("Executing recovery behavior");
+                        }
                         _ => {}
                     }
 
@@ -2428,7 +2509,8 @@ async fn main() -> Result<()> {
                         NavigationState::Planning
                         | NavigationState::Replanning
                         | NavigationState::Following
-                        | NavigationState::ObstacleStopped => {
+                        | NavigationState::ObstacleStopped
+                        | NavigationState::Recovering(_) => {
                             watchdog.feed();
                         }
                         _ => {}
@@ -2565,16 +2647,25 @@ async fn main() -> Result<()> {
             }
         };
 
-        // Collision guard: scale teleop linear velocity near obstacles
-        if current_mode == Mode::Teleop {
-            if let Some(ref nav) = navigation_controller {
-                let pose = pose_estimator.pose();
-                let costmap = nav.costmap();
-                target_twist = collision_guard.scale(
-                    target_twist,
-                    pose.x, pose.y, pose.theta,
-                    |x, y| costmap.get_cost(x, y),
-                );
+        // Collision monitor: scale linear velocity near obstacles (all modes)
+        if let Some(ref mut nav) = navigation_controller {
+            let pose = if is_sim {
+                can_interface.pose()
+            } else {
+                pose_estimator.pose()
+            };
+            let costmap = nav.costmap();
+            let monitor_output = collision_monitor.filter(
+                target_twist,
+                pose.x, pose.y, pose.theta,
+                |x, y| costmap.get_cost(x, y),
+            );
+            target_twist = monitor_output.twist;
+
+            // Notify navigation controller about collision status
+            if current_mode == Mode::Autonomous {
+                let is_stopped = monitor_output.is_limited && monitor_output.twist.linear.abs() < 1e-3;
+                nav.notify_collision_status(is_stopped);
             }
         }
 

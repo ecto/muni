@@ -13,9 +13,11 @@ import { PointCloud3D } from "./PointCloud3D";
 import { CostmapOverlay } from "./CostmapOverlay";
 import { ObstacleOverlay } from "./ObstacleOverlay";
 import { IntentionMarker } from "./IntentionMarker";
+import { GoalMarker } from "./GoalMarker";
 import { CollisionGuardArc } from "./CollisionGuardArc";
 import { useConsoleStore } from "@/store";
 import { useMapData } from "@/hooks/useMapData";
+import { threeToEnu } from "@/lib/coordinates";
 import type { Zone, Task } from "@/lib/types";
 
 export type SceneMode = "teleop" | "dispatch";
@@ -29,9 +31,11 @@ interface SceneProps {
   activeTasks?: Task[];
   /** Callback when a zone is clicked */
   onZoneClick?: (zoneId: string) => void;
+  /** Callback when the ground is right-clicked to set a navigation goal (ENU x, y) */
+  onGoalClick?: (x: number, y: number) => void;
 }
 
-export function Scene({ mode = "teleop", zones: propZones, activeTasks, onZoneClick }: SceneProps) {
+export function Scene({ mode = "teleop", zones: propZones, activeTasks, onZoneClick, onGoalClick }: SceneProps) {
   const videoConnected = useConsoleStore((s) => s.videoConnected);
   const selectedRoverId = useConsoleStore((s) => s.selectedRoverId);
   const splatEnabled = useConsoleStore((s) => s.splatEnabled);
@@ -104,6 +108,7 @@ export function Scene({ mode = "teleop", zones: propZones, activeTasks, onZoneCl
       dpr={[1, 2]}
       onCreated={handleCreated}
       className="absolute inset-0"
+      onContextMenu={(e) => e.preventDefault()}
     >
       {/* 360 video skybox (when connected) - only in teleop mode */}
       {showSingleRover && <EquirectangularSky />}
@@ -122,6 +127,22 @@ export function Scene({ mode = "teleop", zones: propZones, activeTasks, onZoneCl
         shadow-camera-bottom={-20}
       />
 
+      {/* Invisible ground plane for click-to-navigate (right-click) */}
+      {showSingleRover && onGoalClick && (
+        <mesh
+          rotation={[-Math.PI / 2, 0, 0]}
+          position={[0, 0, 0]}
+          onContextMenu={(e) => {
+            e.stopPropagation();
+            const enu = threeToEnu({ x: e.point.x, y: e.point.y, z: e.point.z });
+            onGoalClick(enu.x, enu.y);
+          }}
+        >
+          <planeGeometry args={[200, 200]} />
+          <meshBasicMaterial visible={false} />
+        </mesh>
+      )}
+
       {/* Scene elements */}
       <Ground />
       {/* Gaussian splat 3D map - can be toggled off for performance */}
@@ -134,6 +155,7 @@ export function Scene({ mode = "teleop", zones: propZones, activeTasks, onZoneCl
           <RoverTrail />
           <RoverModel />
           <IntentionMarker />
+          <GoalMarker />
           <CollisionGuardArc />
           <PointCloud3D />
           <CostmapOverlay />

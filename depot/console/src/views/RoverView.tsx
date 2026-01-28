@@ -32,7 +32,7 @@ export function RoverView() {
   useKeyboard();
   useGamepad();
   // WebRTC handles both commands and video streaming
-  const { disconnect, sendEStopRelease, sendEnable, sendDisable, sendSleep, sendWake, sendAutonomous, sendStopAutonomy, toggleLidar } = useRoverConnectionRtc();
+  const { disconnect, sendEStopRelease, sendEnable, sendDisable, sendSleep, sendWake, sendAutonomous, sendStopAutonomy, toggleLidar, sendGoal } = useRoverConnectionRtc();
 
   // Get selected rover info
   const selectedRover = rovers.find((r) => r.id === roverId);
@@ -87,7 +87,7 @@ export function RoverView() {
   return (
     <div className="h-full w-full overflow-hidden bg-background relative">
       {/* 3D Scene (full area) */}
-      <Scene />
+      <Scene onGoalClick={sendGoal} />
 
       {/* E-Stop Overlay */}
       {isEStop && (

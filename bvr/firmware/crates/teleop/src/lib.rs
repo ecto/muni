@@ -42,6 +42,7 @@ pub const MSG_SET_MODE: u8 = 0x04;
 pub const MSG_TOOL: u8 = 0x05;
 pub const MSG_ESTOP_RELEASE: u8 = 0x06;
 pub const MSG_LIDAR_TOGGLE: u8 = 0x07;
+pub const MSG_SET_GOAL: u8 = 0x08;
 
 /// Telemetry message type
 pub const MSG_TELEMETRY: u8 = 0x11;
@@ -491,6 +492,11 @@ impl Server {
                     action_a,
                     action_b,
                 }))
+            }
+            MSG_SET_GOAL if payload.len() >= 16 => {
+                let x = f64::from_le_bytes(payload[0..8].try_into().ok()?);
+                let y = f64::from_le_bytes(payload[8..16].try_into().ok()?);
+                Some(Command::SetGoal { x, y })
             }
             _ => None,
         }

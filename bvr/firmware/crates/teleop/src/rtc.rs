@@ -22,7 +22,8 @@ use crate::obstacle_stream;
 use crate::video::VideoFrame;
 use crate::{
     serialize_telemetry, CommandHeader, Telemetry, TeleopError, CMD_HEADER_SIZE, MSG_ESTOP,
-    MSG_ESTOP_RELEASE, MSG_HEARTBEAT, MSG_LIDAR_TOGGLE, MSG_SET_MODE, MSG_TOOL, MSG_TWIST,
+    MSG_ESTOP_RELEASE, MSG_HEARTBEAT, MSG_LIDAR_TOGGLE, MSG_SET_GOAL, MSG_SET_MODE, MSG_TOOL,
+    MSG_TWIST,
 };
 use costmap::CostmapSnapshot;
 use costmap::TrackedObstacle;
@@ -1196,6 +1197,9 @@ fn filter_command(cmd: &Command, conn_id: u64, op_state: &OperatorState) -> Comm
             }
         }
 
+        // SetGoal: anyone can set a goal (like Autonomous mode request)
+        Command::SetGoal { .. } => CommandFilter::Allow,
+
         // LidarToggle is handled per-connection, not forwarded through command channel
         // This case should never be reached since it's intercepted in on_message
         Command::LidarToggle(_) => CommandFilter::Reject("handled separately"),
@@ -1257,6 +1261,11 @@ fn parse_command(data: &[u8]) -> Option<Command> {
                 action_a,
                 action_b,
             }))
+        }
+        MSG_SET_GOAL if payload.len() >= 16 => {
+            let x = f64::from_le_bytes(payload[0..8].try_into().ok()?);
+            let y = f64::from_le_bytes(payload[8..16].try_into().ok()?);
+            Some(Command::SetGoal { x, y })
         }
         _ => None,
     }

@@ -20,6 +20,7 @@ import {
   encodeTool,
   encodeSetMode,
   encodeLidarToggle,
+  encodeSetGoal,
   decodeTelemetry,
   telemetryFromDecoded,
   decodeVideoFrame,
@@ -926,6 +927,18 @@ export function useRoverConnectionRtc() {
       if (commandChannelRef.current?.readyState === "open") {
         commandChannelRef.current.send(encodeSetMode(Mode.Idle));
       }
+    }, []),
+    sendGoal: useCallback((x: number, y: number) => {
+      const channel = commandChannelRef.current;
+      if (channel?.readyState !== "open") return;
+      // Release operator — autonomous drives itself
+      isOperatorRef.current = false;
+      pendingModeRef.current = Mode.Autonomous;
+      channel.send(encodeSetGoal(x, y));
+      // Also send SetMode as backup in case SetGoal is lost
+      channel.send(encodeSetMode(Mode.Autonomous));
+      // Store goal in Zustand for marker rendering
+      useConsoleStore.getState().setNavigationGoal(x, y);
     }, []),
   };
 }
