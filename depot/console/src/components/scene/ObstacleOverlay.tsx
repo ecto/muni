@@ -263,19 +263,21 @@ export function ObstacleOverlay() {
   // Create shared resources on mount, dispose everything on unmount
   useEffect(() => {
     sharedRef.current = createSharedResources();
+    const pool = poolRef.current;
+    const trackPool = trackPoolRef.current;
     return () => {
       if (sharedRef.current) {
         disposeSharedResources(sharedRef.current);
         sharedRef.current = null;
       }
-      for (const entry of poolRef.current) {
+      for (const entry of pool) {
         entry.solidMat.dispose();
         entry.edgeMat.dispose();
         (entry.label.material as THREE.SpriteMaterial).map?.dispose();
         (entry.label.material as THREE.SpriteMaterial).dispose();
       }
       poolRef.current = [];
-      trackPoolRef.current.clear();
+      trackPool.clear();
     };
   }, []);
 
