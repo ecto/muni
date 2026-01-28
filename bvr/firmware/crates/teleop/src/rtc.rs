@@ -654,8 +654,27 @@ async fn handle_signaling(
             Box::pin(async move {
                 info!("WebRTC video channel opened, waiting for camera frames");
                 let mut frame_count: u64 = 0;
+                let mut send_errors: u32 = 0;
                 let mut camera_info_sent = false;
                 let mut last_warning = std::time::Instant::now();
+
+                // Drain stale buffered frames before streaming live ones.
+                // The mpsc channel may contain old frames from before this
+                // connection was established. Consuming them without sending
+                // ensures the first sent frame is recent.
+                {
+                    let mut drained = 0u32;
+                    let mut guard = rx.lock().await;
+                    while let Ok(f) = guard.try_recv() {
+                        drained += 1;
+                        drop(f);
+                    }
+                    drop(guard);
+                    if drained > 0 {
+                        info!(drained, "Drained stale video frames from buffer");
+                    }
+                }
+
                 loop {
                     if channel.ready_state()
                         != webrtc::data_channel::data_channel_state::RTCDataChannelState::Open
@@ -700,9 +719,16 @@ async fn handle_signaling(
 
                     let send_start = std::time::Instant::now();
                     if let Err(e) = channel.send(&bytes::Bytes::from(buf)).await {
-                        debug!(?e, "Failed to send video frame (channel closing?)");
+                        send_errors += 1;
+                        if send_errors <= 3 {
+                            warn!(?e, send_errors, frame_size, "Failed to send video frame, retrying");
+                            tokio::time::sleep(Duration::from_millis(100)).await;
+                            continue;
+                        }
+                        warn!(?e, send_errors, "Video send failed repeatedly, giving up");
                         break;
                     }
+                    send_errors = 0; // Reset on success
                     let send_us = send_start.elapsed().as_micros() as u32;
                     stats.video.record_send(send_us);
 

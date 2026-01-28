@@ -14,6 +14,7 @@ import {
   Warning,
 } from "@phosphor-icons/react";
 import { useConsoleStore, type ChannelMetrics } from "@/store";
+import { clearAccumulatedCloud } from "@/lib/accumulatedCloudStore";
 import { WheelStatus } from "@/lib/types";
 import { useShallow } from "zustand/react/shallow";
 
@@ -138,6 +139,8 @@ export function DiagnosticsPanel({ onToggleLidar }: DiagnosticsPanelProps) {
   const setCostmapEnabled = useConsoleStore((s) => s.setCostmapEnabled);
   const obstaclesEnabled = useConsoleStore((s) => s.obstaclesEnabled);
   const setObstaclesEnabled = useConsoleStore((s) => s.setObstaclesEnabled);
+  const accumulatedCloudEnabled = useConsoleStore((s) => s.accumulatedCloudEnabled);
+  const setAccumulatedCloudEnabled = useConsoleStore((s) => s.setAccumulatedCloudEnabled);
   const channelMetricsData = useConsoleStore(
     useShallow((s): (ChannelMetrics | undefined)[] =>
       CHANNEL_CONFIG.map(({ key }) => s.channelMetrics.get(key))
@@ -189,6 +192,14 @@ export function DiagnosticsPanel({ onToggleLidar }: DiagnosticsPanelProps) {
   const handleToggleObstacles = useCallback(() => {
     setObstaclesEnabled(!obstaclesEnabled);
   }, [obstaclesEnabled, setObstaclesEnabled]);
+
+  const handleToggleAccumulatedCloud = useCallback(() => {
+    setAccumulatedCloudEnabled(!accumulatedCloudEnabled);
+  }, [accumulatedCloudEnabled, setAccumulatedCloudEnabled]);
+
+  const handleClearAccumulatedCloud = useCallback(() => {
+    clearAccumulatedCloud();
+  }, []);
 
   return (
     <div className="p-2 space-y-2">
@@ -301,6 +312,28 @@ export function DiagnosticsPanel({ onToggleLidar }: DiagnosticsPanelProps) {
             </div>
           </TooltipTrigger>
           <TooltipContent side="right">Click to toggle obstacle overlay</TooltipContent>
+        </Tooltip>
+        {/* Map Cloud toggle + clear */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div
+              className="flex items-center justify-between text-xs cursor-pointer hover:bg-muted/50 rounded px-0.5 -mx-0.5"
+              onClick={handleToggleAccumulatedCloud}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                handleClearAccumulatedCloud();
+              }}
+            >
+              <span className="text-muted-foreground">Map</span>
+              <Badge
+                variant={accumulatedCloudEnabled ? "default" : "secondary"}
+                className="text-[10px] h-4 px-1.5 text-foreground"
+              >
+                {accumulatedCloudEnabled ? "ON" : "OFF"}
+              </Badge>
+            </div>
+          </TooltipTrigger>
+          <TooltipContent side="right">Accumulated LiDAR map cloud (right-click to clear)</TooltipContent>
         </Tooltip>
       </div>
 

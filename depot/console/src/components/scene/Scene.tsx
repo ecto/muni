@@ -9,6 +9,7 @@ import { FleetMarkers } from "./FleetMarkers";
 import { CameraController } from "./CameraController";
 import { EquirectangularSky } from "./EquirectangularSky";
 import { World3D } from "./World3D";
+import { AccumulatedCloud3D } from "./AccumulatedCloud3D";
 import { PointCloud3D } from "./PointCloud3D";
 import { CostmapOverlay } from "./CostmapOverlay";
 import { ObstacleOverlay } from "./ObstacleOverlay";
@@ -152,6 +153,7 @@ export function Scene({ mode = "teleop", zones: propZones, activeTasks, onZoneCl
       {/* Rover visualization depends on mode */}
       {showSingleRover && (
         <>
+          <AccumulatedCloud3D />
           <RoverTrail />
           <RoverModel />
           <IntentionMarker />

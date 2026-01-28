@@ -121,6 +121,10 @@ interface ConsoleState {
   obstaclesEnabled: boolean;
   setObstaclesEnabled: (enabled: boolean) => void;
 
+  // Accumulated point cloud (bootstrap map)
+  accumulatedCloudEnabled: boolean;
+  setAccumulatedCloudEnabled: (enabled: boolean) => void;
+
   // Gaussian splat (3D map)
   splatEnabled: boolean;
   setSplatEnabled: (enabled: boolean) => void;
@@ -383,6 +387,10 @@ export const useConsoleStore = create<ConsoleState>()(
   // Obstacle overlay
   obstaclesEnabled: false,
   setObstaclesEnabled: (enabled) => set({ obstaclesEnabled: enabled }),
+
+  // Accumulated point cloud (bootstrap map)
+  accumulatedCloudEnabled: true,
+  setAccumulatedCloudEnabled: (enabled) => set({ accumulatedCloudEnabled: enabled }),
 
   // Gaussian splat
   splatEnabled: false,

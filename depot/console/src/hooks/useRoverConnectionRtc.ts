@@ -35,6 +35,7 @@ import { pushSnapshotDirect } from "@/lib/interpolation";
 import { Mode } from "@/lib/types";
 import { setCameraFrame as setMutableCameraFrame, getCameraCount, setCameraCalibration, clearCalibrations } from "@/lib/videoFrameStore";
 import { setPointCloudData, clearPointCloudData } from "@/lib/pointCloudStore";
+import { ingestFrame, clearAccumulatedCloud } from "@/lib/accumulatedCloudStore";
 import { setCostmapData, clearCostmapData } from "@/lib/costmapStore";
 import { setObstacleData, clearObstacleData } from "@/lib/obstacleStore";
 
@@ -627,6 +628,11 @@ export function useRoverConnectionRtc() {
             const cloud = decodePointCloud(msgEvent.data);
             if (cloud) {
               setPointCloudData(cloud.points, cloud.reflectivity, cloud.tag);
+
+              // Feed accumulated cloud (always, regardless of toggle —
+              // toggling the overlay just hides it, doesn't lose data)
+              const pose = useConsoleStore.getState().renderPose;
+              if (pose) ingestFrame(cloud.points, pose);
             }
           };
 
@@ -847,6 +853,7 @@ export function useRoverConnectionRtc() {
     setVideoFrame(null, 0);
     setVideoFps(0);
     clearPointCloudData();
+    clearAccumulatedCloud();
     clearCostmapData();
     clearObstacleData();
     clearCalibrations();
