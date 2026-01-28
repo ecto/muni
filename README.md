@@ -74,9 +74,8 @@ Console at http://localhost. See [depot/README.md](depot/README.md).
 ### BVR Firmware
 
 ```bash
-cd bvr/firmware
-cargo build --release
-./deploy.sh <rover-hostname>
+cargo install --path bvr/firmware/bins/cli
+muni deploy rover <rover-hostname>
 ```
 
 See [bvr/firmware/README.md](bvr/firmware/README.md).
@@ -85,8 +84,8 @@ See [bvr/firmware/README.md](bvr/firmware/README.md).
 
 ```bash
 cd mcu
-cargo build --release -p rover-leds
-picotool load target/thumbv8m.main-none-eabihf/release/rover-leds -t elf -f
+cargo build --release -p mcu-rp2350
+picotool load target/thumbv8m.main-none-eabihf/release/mcu-rp2350 -t elf -f
 ```
 
 See [mcu/README.md](mcu/README.md).

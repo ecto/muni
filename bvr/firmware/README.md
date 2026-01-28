@@ -69,17 +69,20 @@ cargo build --release --target aarch64-unknown-linux-gnu
 Deploy to the rover over Tailscale:
 
 ```bash
+# Install muni CLI (one-time)
+cargo install --path bins/cli
+
 # Deploy bvrd only
-./deploy.sh frog-0
+muni deploy rover frog-0
 
-# Deploy bvrd + bvr CLI
-./deploy.sh frog-0 --cli
+# Deploy bvrd + muni CLI
+muni deploy rover frog-0 --cli
 
-# Deploy and restart service
-./deploy.sh frog-0 --cli --restart
+# Full deploy: bvrd + CLI + config
+muni deploy rover frog-0 --all
 
-# Deploy with config file
-./deploy.sh frog-0 --config --restart
+# Deploy without restarting service
+muni deploy rover frog-0 --no-restart
 ```
 
 ### First-time Rover Setup
@@ -119,7 +122,7 @@ ssh frog-0 'sudo tailscale set --hostname=frog-0'
 
 ### Cross-Compilation
 
-The deploy script uses `cross` for ARM64 cross-compilation with GStreamer support:
+The `muni deploy` command uses `cross` for ARM64 cross-compilation with GStreamer support:
 
 ```bash
 # Install cross (one-time)
@@ -128,7 +131,7 @@ cargo install cross --git https://github.com/cross-rs/cross
 # Ensure Docker is running
 open -a Docker
 
-# Build manually (deploy.sh does this automatically)
+# Build manually (muni deploy does this automatically)
 cross build --release --target aarch64-unknown-linux-gnu --bin bvrd
 ```
 

@@ -40,7 +40,6 @@ muni/
 ├── mcu/                    # Embedded firmware (RP2350, ESP32-S3)
 │   ├── bins/               # Target-specific binaries
 │   └── crates/             # Shared embedded crates
-├── firmware/               # (Legacy) Older firmware workspace
 ├── paper/                  # Technical documents (Typst)
 └── web/                    # Static website (GitHub Pages)
 ```
@@ -201,8 +200,8 @@ docker compose --profile rtk up -d
 ```bash
 cd mcu
 rustup target add thumbv8m.main-none-eabihf
-cargo build --release -p rover-leds
-picotool load target/thumbv8m.main-none-eabihf/release/rover-leds -t elf -f
+cargo build --release -p mcu-rp2350
+picotool load target/thumbv8m.main-none-eabihf/release/mcu-rp2350 -t elf -f
 ```
 
 **ESP32-S3 (Heltec):**
@@ -211,7 +210,7 @@ cd mcu/bins/esp32s3
 cargo install espup && espup install
 source ~/export-esp.sh
 cargo build --release
-espflash flash --monitor target/xtensa-esp32s3-none-elf/release/heltec-attachment
+espflash flash --monitor target/xtensa-esp32s3-none-elf/release/mcu-esp32s3
 ```
 
 ### Behavioral Cloning Training (bvr/training)

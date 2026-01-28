@@ -16,7 +16,7 @@ mcu/
 
 ## Hardware
 
-### LED Controller (rover-leds)
+### LED Controller (mcu-rp2350)
 
 - **MCU**: Raspberry Pi Pico 2 W (RP2350)
 - **LEDs**: WS2811 12V addressable strip (ALITOVE RGB, 4 addressable units)
@@ -45,7 +45,7 @@ DIN (green)   -->  GP0 (data output)
 
 **Important**: The data wire (green) must connect to the **input** end of the strip (marked with arrow or "DIN"). Data flows in one direction only.
 
-### Attachment Controller (heltec-attachment)
+### Attachment Controller (mcu-esp32s3)
 
 - **MCU**: Heltec WiFi LoRa 32 V3 (ESP32-S3FN8)
 - **Display**: Onboard 0.96" 128x64 OLED (SSD1306, I2C)
@@ -133,7 +133,7 @@ brew install picotool  # macOS
 
 ```bash
 cd mcu
-cargo build --release -p rover-leds
+cargo build --release -p mcu-rp2350
 ```
 
 ### Flash
@@ -142,7 +142,7 @@ cargo build --release -p rover-leds
 2. **Flash with picotool**:
 
 ```bash
-picotool load target/thumbv8m.main-none-eabihf/release/rover-leds -t elf -f
+picotool load target/thumbv8m.main-none-eabihf/release/mcu-rp2350 -t elf -f
 picotool reboot
 ```
 
@@ -153,7 +153,7 @@ picotool reboot
 Uses `defmt` for logging. With a debug probe (Picoprobe, etc.):
 
 ```bash
-probe-rs run --chip RP235x target/thumbv8m.main-none-eabihf/release/rover-leds
+probe-rs run --chip RP235x target/thumbv8m.main-none-eabihf/release/mcu-rp2350
 ```
 
 Without a debug probe, add USB serial logging (see embassy-usb-logger).
@@ -271,7 +271,7 @@ cargo install espflash
 ### Build
 
 ```bash
-cd mcu/bins/heltec-attachment
+cd mcu/bins/esp32s3
 cargo build --release
 ```
 
@@ -279,10 +279,10 @@ cargo build --release
 
 ```bash
 # Flash and open serial monitor
-espflash flash --monitor target/xtensa-esp32s3-none-elf/release/heltec-attachment
+espflash flash --monitor target/xtensa-esp32s3-none-elf/release/mcu-esp32s3
 
 # Or just flash
-espflash flash target/xtensa-esp32s3-none-elf/release/heltec-attachment
+espflash flash target/xtensa-esp32s3-none-elf/release/mcu-esp32s3
 ```
 
 The board will automatically reset and start running after flashing.
@@ -292,7 +292,7 @@ The board will automatically reset and start running after flashing.
 Serial output uses `defmt` via `esp-println`. The `--monitor` flag with espflash shows logs:
 
 ```bash
-espflash flash --monitor target/xtensa-esp32s3-none-elf/release/heltec-attachment
+espflash flash --monitor target/xtensa-esp32s3-none-elf/release/mcu-esp32s3
 ```
 
 ### Troubleshooting
