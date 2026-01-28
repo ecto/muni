@@ -278,6 +278,9 @@ num_samples = 10            # sample points along arc
 full_speed_distance = 1.0   # meters: no scaling beyond this
 stop_distance = 0.15        # meters: full stop below this
 cost_threshold = 253        # costmap cost = blocked (253 = INSCRIBED)
+num_angular_samples = 5     # angular velocity candidates (1 = legacy mode)
+angular_spread = 0.5        # rad/s spread around commanded omega
+angular_cost_weight = 0.3   # penalty for deviating from operator's steering
 
 [costmap]
 # RANSAC ground plane distance threshold (meters)

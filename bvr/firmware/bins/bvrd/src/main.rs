@@ -89,6 +89,9 @@ struct CollisionGuardFileConfig {
     cost_threshold: u8,
     min_zone_scale: f64,
     max_linear_velocity: f64,
+    num_angular_samples: usize,
+    angular_spread: f64,
+    angular_cost_weight: f64,
 }
 
 impl Default for CollisionGuardFileConfig {
@@ -102,6 +105,9 @@ impl Default for CollisionGuardFileConfig {
             cost_threshold: 253,
             min_zone_scale: 0.5,
             max_linear_velocity: 1.0,
+            num_angular_samples: 5,
+            angular_spread: 0.5,
+            angular_cost_weight: 0.3,
         }
     }
 }
@@ -1977,6 +1983,9 @@ async fn main() -> Result<()> {
         cost_threshold: file_config.collision_guard.cost_threshold,
         min_zone_scale: file_config.collision_guard.min_zone_scale,
         max_linear_velocity: file_config.collision_guard.max_linear_velocity,
+        num_angular_samples: file_config.collision_guard.num_angular_samples,
+        angular_spread: file_config.collision_guard.angular_spread,
+        angular_cost_weight: file_config.collision_guard.angular_cost_weight,
     });
     if file_config.collision_guard.enabled {
         info!("Collision monitor enabled (velocity scaling for all modes)");
