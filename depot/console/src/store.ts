@@ -381,7 +381,7 @@ export const useConsoleStore = create<ConsoleState>()(
   setCostmapEnabled: (enabled) => set({ costmapEnabled: enabled }),
 
   // Obstacle overlay
-  obstaclesEnabled: true,
+  obstaclesEnabled: false,
   setObstaclesEnabled: (enabled) => set({ obstaclesEnabled: enabled }),
 
   // Gaussian splat
