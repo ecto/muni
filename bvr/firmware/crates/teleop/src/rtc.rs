@@ -28,7 +28,7 @@ use costmap::CostmapSnapshot;
 use costmap::TrackedObstacle;
 use lidar::PointCloud;
 use futures_util::{SinkExt, StreamExt};
-use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicU8, AtomicU16, AtomicU32, AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::net::{TcpListener, TcpStream};
@@ -466,9 +466,11 @@ async fn handle_signaling(
         ))
     })?);
 
-    // Per-connection LiDAR streaming state (shared with command handler)
-    // Declared early so it can be used by the negotiated command channel
-    let lidar_streaming_enabled = Arc::new(AtomicBool::new(false));
+    // Per-connection LiDAR streaming config (shared with command handler)
+    // rate: 0 = disabled, 1-10 = streaming rate in Hz
+    // max_points: max points per frame (default from config)
+    let lidar_streaming_rate = Arc::new(AtomicU8::new(0));
+    let lidar_streaming_max_points = Arc::new(AtomicU16::new(config.pointcloud.max_points as u16));
 
     // Create command DataChannel as NEGOTIATED for Safari/webrtc-rs compatibility
     // Both sides create the channel with the same ID (0)
@@ -510,7 +512,8 @@ async fn handle_signaling(
     // Set up negotiated command channel handler
     let cmd_tx_negotiated = command_tx.clone();
     let op_state_negotiated = operator_state.clone();
-    let lidar_enabled_negotiated = lidar_streaming_enabled.clone();
+    let lidar_rate_negotiated = lidar_streaming_rate.clone();
+    let lidar_max_pts_negotiated = lidar_streaming_max_points.clone();
 
     command_channel.on_open(Box::new(move || {
         info!(conn_id, "WebRTC negotiated command channel opened");
@@ -523,13 +526,28 @@ async fn handle_signaling(
 
         let cmd_tx = cmd_tx_negotiated.clone();
         let op_state = op_state_negotiated.clone();
-        let lidar_enabled = lidar_enabled_negotiated.clone();
+        let lidar_rate = lidar_rate_negotiated.clone();
+        let lidar_max_pts = lidar_max_pts_negotiated.clone();
         Box::pin(async move {
             // Check for LiDAR toggle command first
             if msg.data.len() >= CMD_HEADER_SIZE + 1 && msg.data[0] == MSG_LIDAR_TOGGLE {
                 let enabled = msg.data[CMD_HEADER_SIZE] != 0;
-                lidar_enabled.store(enabled, Ordering::Relaxed);
-                info!(enabled, conn_id, "LiDAR streaming toggled");
+                // rate_hz in second payload byte; default 5Hz for old 1-byte messages
+                let rate_hz = if msg.data.len() >= CMD_HEADER_SIZE + 2 {
+                    msg.data[CMD_HEADER_SIZE + 1].clamp(1, 10)
+                } else {
+                    5
+                };
+                // max_points as u16 LE in bytes 3-4; default 1000 for old messages
+                if msg.data.len() >= CMD_HEADER_SIZE + 4 {
+                    let max_pts = u16::from_le_bytes([
+                        msg.data[CMD_HEADER_SIZE + 2],
+                        msg.data[CMD_HEADER_SIZE + 3],
+                    ]).clamp(100, 10000);
+                    lidar_max_pts.store(max_pts, Ordering::Relaxed);
+                }
+                lidar_rate.store(if enabled { rate_hz } else { 0 }, Ordering::Relaxed);
+                info!(enabled, rate_hz, max_points = lidar_max_pts.load(Ordering::Relaxed), conn_id, "LiDAR streaming toggled");
                 return;
             }
 
@@ -719,14 +737,16 @@ async fn handle_signaling(
 
         let pointcloud_channel = Arc::new(pointcloud_channel);
         let pointcloud_channel_clone = pointcloud_channel.clone();
-        let lidar_enabled = lidar_streaming_enabled.clone();
+        let lidar_rate = lidar_streaming_rate.clone();
+        let lidar_max_pts = lidar_streaming_max_points.clone();
         let pc_config = config.pointcloud.clone();
         let pc_metrics = metrics.clone();
 
         pointcloud_channel.on_open(Box::new(move || {
             let channel = pointcloud_channel_clone.clone();
             let mut rx = lid_rx.clone();
-            let enabled = lidar_enabled.clone();
+            let rate = lidar_rate.clone();
+            let max_pts = lidar_max_pts.clone();
             let stream_config = pc_config.clone();
             let stats = pc_metrics.clone();
             Box::pin(async move {
@@ -735,12 +755,13 @@ async fn handle_signaling(
                     max_points = stream_config.max_points,
                     "WebRTC pointcloud channel opened"
                 );
-                // Stream at 5Hz (200ms interval)
-                let mut interval = tokio::time::interval(Duration::from_millis(200));
                 let mut frame_count: u64 = 0;
 
                 loop {
-                    interval.tick().await;
+                    // Rate 0 = disabled; poll at 10Hz while waiting for enable
+                    let rate_hz = rate.load(Ordering::Relaxed);
+                    let sleep_ms = if rate_hz > 0 { 1000 / rate_hz as u64 } else { 100 };
+                    tokio::time::sleep(Duration::from_millis(sleep_ms)).await;
 
                     if channel.ready_state()
                         != webrtc::data_channel::data_channel_state::RTCDataChannelState::Open
@@ -749,15 +770,18 @@ async fn handle_signaling(
                         break;
                     }
 
-                    // Only stream when enabled
-                    if !enabled.load(Ordering::Relaxed) {
+                    // Only stream when enabled (rate > 0)
+                    if rate_hz == 0 {
                         continue;
                     }
 
                     // Get latest point cloud
                     let cloud = rx.borrow_and_update().clone();
                     if let Some(cloud) = cloud {
-                        let data = pointcloud::prepare_for_streaming_with_config(&cloud, &stream_config);
+                        // Build config with dynamic max_points from operator
+                        let mut cfg = stream_config.clone();
+                        cfg.max_points = max_pts.load(Ordering::Relaxed) as usize;
+                        let data = pointcloud::prepare_for_streaming_with_config(&cloud, &cfg);
                         let start = std::time::Instant::now();
                         if let Err(e) = channel.send(&bytes::Bytes::from(data)).await {
                             debug!(?e, "Failed to send pointcloud (channel closing?)");
@@ -932,11 +956,13 @@ async fn handle_signaling(
     // Handle incoming DataChannels from browser (browser creates "commands" channel)
     let cmd_tx_clone = command_tx.clone();
     let op_state_clone = operator_state.clone();
-    let lidar_enabled_clone = lidar_streaming_enabled.clone();
+    let lidar_rate_clone = lidar_streaming_rate.clone();
+    let lidar_max_pts_clone = lidar_streaming_max_points.clone();
     peer_connection.on_data_channel(Box::new(move |channel| {
         let cmd_tx = cmd_tx_clone.clone();
         let op_state = op_state_clone.clone();
-        let lidar_enabled = lidar_enabled_clone.clone();
+        let lidar_rate = lidar_rate_clone.clone();
+        let lidar_max_pts = lidar_max_pts_clone.clone();
         let label = channel.label().to_string();
 
         // Commands channel is negotiated (both sides create it), so it won't appear here
@@ -948,7 +974,7 @@ async fn handle_signaling(
         }
 
         // Suppress unused variable warnings for cloned values
-        let _ = (&cmd_tx, &op_state, &lidar_enabled);
+        let _ = (&cmd_tx, &op_state, &lidar_rate, &lidar_max_pts);
 
         Box::pin(async {})
     }));
