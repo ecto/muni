@@ -115,17 +115,24 @@ function CameraProjection({ cameraId }: { cameraId: number }) {
     return geo;
   }, [planeW, planeH]);
 
-  // Create hidden video element for VideoTexture
+  // Create offscreen video element for VideoTexture.
+  // Must be in the DOM for Safari to decode frames.
   useEffect(() => {
     const video = document.createElement("video");
     video.autoplay = true;
     video.muted = true;
     video.playsInline = true;
+    video.style.position = "fixed";
+    video.style.top = "-9999px";
+    video.style.width = "1px";
+    video.style.height = "1px";
+    document.body.appendChild(video);
     videoRef.current = video;
 
     return () => {
       video.pause();
       video.srcObject = null;
+      document.body.removeChild(video);
       videoRef.current = null;
       attachedStreamRef.current = null;
       if (textureRef.current) {
@@ -146,6 +153,7 @@ function CameraProjection({ cameraId }: { cameraId: number }) {
     // Attach stream if new
     if (attachedStreamRef.current !== stream) {
       video.srcObject = stream;
+      video.play().catch(() => {});
       attachedStreamRef.current = stream;
     }
 
@@ -160,6 +168,12 @@ function CameraProjection({ cameraId }: { cameraId: number }) {
         materialRef.current.needsUpdate = true;
       }
       if (!hasTexture) setHasTexture(true);
+    }
+
+    // Force texture re-upload each frame — requestVideoFrameCallback
+    // doesn't fire reliably on off-DOM video elements
+    if (textureRef.current) {
+      textureRef.current.needsUpdate = true;
     }
   });
 
