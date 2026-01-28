@@ -1,7 +1,6 @@
 //! bvrd — main daemon for the Base Vectoring Rover.
 
 use anyhow::Result;
-use camera::Config as CameraConfig;
 use dispatch::{DispatchClient, DispatchEvent, TaskAssignment, Waypoint as DispatchWaypoint};
 use can::vesc::Drivetrain;
 use can::Bus;
@@ -29,7 +28,7 @@ use std::path::PathBuf;
 use std::sync::atomic::{AtomicU8, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
-use teleop::video::{VideoConfig, VideoFrame, VideoServer};
+use teleop::video::{H264Frame, VideoConfig, VideoServer};
 use teleop::rtc::{RtcConfig, RtcMetrics, RtcServer};
 use teleop::{Config as TeleopConfig, Server as TeleopServer, Telemetry};
 use tokio::sync::{mpsc, watch, Semaphore};
@@ -128,6 +127,10 @@ struct CameraFileConfig {
     fps: Option<u32>,
     /// JPEG quality (1-100)
     jpeg_quality: Option<u8>,
+    /// H.264 encoding bitrate in kbit/sec (default: 4000 = 4 Mbps)
+    h264_bitrate_kbps: Option<u32>,
+    /// H.264 keyframe interval in frames (default: 30 = 1 keyframe/sec at 30fps)
+    h264_keyframe_interval: Option<u32>,
     /// Camera mount position [forward, left, up] in meters
     mount_position: Option<[f32; 3]>,
     /// Camera mount rotation [roll, pitch, yaw] in radians
@@ -148,6 +151,8 @@ impl Default for CameraFileConfig {
             height: None,
             fps: None,
             jpeg_quality: None,
+            h264_bitrate_kbps: None,
+            h264_keyframe_interval: None,
             mount_position: None,
             mount_rotation: None,
             fov_h: None,
@@ -924,30 +929,29 @@ struct SharedState {
     fault_code: FaultCode,
 }
 
-/// Start a single camera: spawn_capture + sync→async bridge + forwarder task.
+/// Start a single camera with H.264 encoding: spawn_h264_capture + sync→async bridge + forwarder.
 ///
 /// Returns `true` if the camera started successfully. The forwarder task removes
 /// the camera's stable ID from `active_cameras` when it exits, enabling the
 /// hot-plug monitor to re-detect and restart it.
 fn start_camera(
     cam: &camera::DetectedCamera,
-    config: CameraConfig,
+    config: camera::H264Config,
     next_camera_id: &Arc<AtomicU8>,
     active_cameras: &Arc<Mutex<HashSet<String>>>,
-    video_tx_rtc: &tokio::sync::mpsc::Sender<VideoFrame>,
-    video_tx_udp: &watch::Sender<Option<VideoFrame>>,
+    video_tx_rtc: &tokio::sync::mpsc::Sender<H264Frame>,
     shared: &Arc<Mutex<SharedState>>,
 ) -> bool {
     let stable_id = cam.stable_id();
     let camera_id = next_camera_id.fetch_add(1, Ordering::Relaxed);
 
-    match camera::spawn_capture(cam, config) {
+    match camera::spawn_h264_capture(cam, config) {
         Ok((frame_rx, _camera_handle)) => {
             info!(
                 camera_id,
                 stable_id = %stable_id,
                 camera = %cam.name,
-                "Camera {camera_id} started (GStreamer)",
+                "Camera {camera_id} started (H.264 GStreamer)",
             );
 
             // Register in active set
@@ -955,11 +959,10 @@ fn start_camera(
             shared.lock().unwrap().health.camera_active = true;
 
             let video_tx_rtc = video_tx_rtc.clone();
-            let video_tx_udp = video_tx_udp.clone();
             let active_cameras = active_cameras.clone();
 
             // Bridge sync channel → async channel
-            let (async_tx, mut async_rx) = mpsc::channel::<camera::Frame>(4);
+            let (async_tx, mut async_rx) = mpsc::channel::<camera::H264Frame>(4);
 
             tokio::task::spawn_blocking(move || {
                 loop {
@@ -974,7 +977,7 @@ fn start_camera(
                 }
             });
 
-            // Forwarder task: forwards frames and removes ID from active set on exit
+            // Forwarder task: converts camera::H264Frame → teleop H264Frame and sends to RTC
             tokio::spawn(async move {
                 let mut frame_count: u64 = 0;
                 let mut total_bytes: u64 = 0;
@@ -982,22 +985,22 @@ fn start_camera(
 
                 while let Some(frame) = async_rx.recv().await {
                     let frame_size = frame.data.len();
-                    let video_frame = VideoFrame {
+                    let h264_frame = H264Frame {
                         camera_id,
                         data: frame.data,
+                        is_keyframe: frame.is_keyframe,
                         width: frame.width,
                         height: frame.height,
+                        pts_ns: frame.pts_ns,
+                        duration_ns: frame.duration_ns,
                         sequence: frame.sequence,
-                        timestamp_ms: frame.timestamp_ms,
                     };
 
-                    match video_tx_rtc.try_send(video_frame.clone()) {
+                    match video_tx_rtc.try_send(h264_frame) {
                         Ok(_) => {}
                         Err(mpsc::error::TrySendError::Full(_)) => {}
                         Err(mpsc::error::TrySendError::Closed(_)) => break,
                     }
-
-                    let _ = video_tx_udp.send(Some(video_frame));
 
                     frame_count += 1;
                     total_bytes += frame_size as u64;
@@ -1011,7 +1014,7 @@ fn start_camera(
                             frame_count,
                             fps = format!("{:.1}", fps),
                             mbps = format!("{:.2}", mbps),
-                            "camera.async_stats"
+                            "camera.h264_stats"
                         );
                         frame_count = 0;
                         total_bytes = 0;
@@ -1021,7 +1024,7 @@ fn start_camera(
 
                 // Camera died — remove from active set so monitor can restart it
                 active_cameras.lock().unwrap().remove(&stable_id);
-                info!(camera_id, stable_id = %stable_id, "Camera forwarder stopped, removed from active set");
+                info!(camera_id, stable_id = %stable_id, "H.264 camera forwarder stopped, removed from active set");
             });
 
             true
@@ -1405,10 +1408,10 @@ async fn main() -> Result<()> {
     let (telemetry_tx, telemetry_rx) = watch::channel(initial_telemetry);
 
     // Video frame channels
-    // mpsc for WebRTC: queues frames from all cameras without overwriting
-    let (video_tx_rtc, video_rx_rtc) = tokio::sync::mpsc::channel::<teleop::video::VideoFrame>(32);
-    // watch for UDP: backward compatibility for native CLI (shows latest frame only)
-    let (video_tx_udp, video_rx_udp) = watch::channel::<Option<teleop::video::VideoFrame>>(None);
+    // mpsc for WebRTC: H.264 frames queued from all cameras
+    let (video_tx_rtc, video_rx_rtc) = tokio::sync::mpsc::channel::<H264Frame>(32);
+    // watch for UDP: backward compatibility for native CLI (shows latest JPEG frame only)
+    let (_video_tx_udp, video_rx_udp) = watch::channel::<Option<teleop::video::VideoFrame>>(None);
     // watch for LiDAR point cloud streaming (created early for RtcServer, populated later)
     let (lidar_tx, lidar_rx) = watch::channel::<Option<lidar::PointCloud>>(None);
     // watch for costmap streaming (created early for RtcServer, populated from control loop)
@@ -1465,10 +1468,14 @@ async fn main() -> Result<()> {
             rtc_server.set_path_rx(path_rx.clone());
         }
         // Provide camera mount info for MSG_CAMERA_INFO messages
+        // Width/height are known from config (H.264 pipeline uses fixed resolution)
+        let cam_defaults = camera::H264Config::default();
+        let cam_w = file_config.camera.width.unwrap_or(cam_defaults.width);
+        let cam_h = file_config.camera.height.unwrap_or(cam_defaults.height);
         rtc_server.set_camera_info(teleop::CameraInfo {
-            camera_id: 0,  // Filled per-frame
-            width: 0,      // Filled per-frame
-            height: 0,     // Filled per-frame
+            camera_id: 0,
+            width: cam_w as u16,
+            height: cam_h as u16,
             position: camera_mount.position,
             rotation: camera_mount.rotation,
             fov_h: camera_mount.fov_h,
@@ -1507,30 +1514,31 @@ async fn main() -> Result<()> {
     // Auto-detect and start cameras (unless disabled via CLI or config)
     let camera_enabled = !args.no_camera && file_config.camera.enabled;
     if camera_enabled {
-        // Resolve resolution: CLI --camera_resolution > bvr.toml > CameraConfig::default()
-        let cam_defaults = CameraConfig::default();
+        // Resolve resolution: CLI --camera_resolution > bvr.toml > H264Config::default()
+        let h264_defaults = camera::H264Config::default();
         let (width, height) = if let Some(res) = &args.camera_resolution {
             let parts: Vec<&str> = res.split('x').collect();
             if parts.len() == 2 {
                 (
-                    parts[0].parse().unwrap_or(cam_defaults.width),
-                    parts[1].parse().unwrap_or(cam_defaults.height),
+                    parts[0].parse().unwrap_or(h264_defaults.width),
+                    parts[1].parse().unwrap_or(h264_defaults.height),
                 )
             } else {
-                (cam_defaults.width, cam_defaults.height)
+                (h264_defaults.width, h264_defaults.height)
             }
         } else {
             (
-                file_config.camera.width.unwrap_or(cam_defaults.width),
-                file_config.camera.height.unwrap_or(cam_defaults.height),
+                file_config.camera.width.unwrap_or(h264_defaults.width),
+                file_config.camera.height.unwrap_or(h264_defaults.height),
             )
         };
 
-        let camera_config = CameraConfig {
+        let camera_config = camera::H264Config {
             width,
             height,
             fps: file_config.camera.fps.unwrap_or(args.camera_fps),
-            jpeg_quality: file_config.camera.jpeg_quality.unwrap_or(cam_defaults.jpeg_quality),
+            bitrate_kbps: file_config.camera.h264_bitrate_kbps.unwrap_or(h264_defaults.bitrate_kbps),
+            keyframe_interval: file_config.camera.h264_keyframe_interval.unwrap_or(h264_defaults.keyframe_interval),
         };
 
         // Always spawn UDP video server so hot-plugged cameras have somewhere to send frames
@@ -1575,7 +1583,6 @@ async fn main() -> Result<()> {
                     &next_camera_id,
                     &active_cameras,
                     &video_tx_rtc,
-                    &video_tx_udp,
                     &shared,
                 ) {
                     cameras_started += 1;
@@ -1596,7 +1603,6 @@ async fn main() -> Result<()> {
             let monitor_next_id = next_camera_id.clone();
             let monitor_config = camera_config.clone();
             let monitor_rtc_tx = video_tx_rtc.clone();
-            let monitor_udp_tx = video_tx_udp.clone();
             let monitor_shared = shared.clone();
             let monitor_interval = Duration::from_secs(hot_plug_secs);
 
@@ -1626,7 +1632,6 @@ async fn main() -> Result<()> {
                             &monitor_next_id,
                             &monitor_active,
                             &monitor_rtc_tx,
-                            &monitor_udp_tx,
                             &monitor_shared,
                         );
                     }

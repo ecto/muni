@@ -23,8 +23,6 @@ import {
   encodeSetGoal,
   decodeTelemetry,
   telemetryFromDecoded,
-  decodeVideoFrame,
-  videoFrameToBlobUrl,
   decodePointCloud,
   decodeCostmap,
   decodeObstacles,
@@ -34,7 +32,7 @@ import {
 } from "@/lib/protocol";
 import { pushSnapshotDirect } from "@/lib/interpolation";
 import { Mode } from "@/lib/types";
-import { setCameraFrame as setMutableCameraFrame, getCameraCount, setCameraCalibration, clearCalibrations } from "@/lib/videoFrameStore";
+import { setVideoStream, removeVideoStream, getVideoStreamCount, setCameraCalibration, clearCalibrations } from "@/lib/videoFrameStore";
 import { setPointCloudData, clearPointCloudData } from "@/lib/pointCloudStore";
 import { ingestFrame, clearAccumulatedCloud } from "@/lib/accumulatedCloudStore";
 import { setCostmapData, clearCostmapData } from "@/lib/costmapStore";
@@ -97,10 +95,7 @@ export function useRoverConnectionRtc() {
   const lastSendTimeRef = useRef<number>(0);
   const connectRef = useRef<() => void>(() => {});
 
-  // Video frame tracking (per-camera)
-  const videoFrameCountRef = useRef(0);
-  const lastVideoFpsUpdateRef = useRef(0);
-  const cameraBlobUrlsRef = useRef<Map<number, string>>(new Map());
+  // Video track logging
   const firstFrameLoggedRef = useRef(false);
 
   // Telemetry throttling - drop messages that arrive faster than expected rate
@@ -121,7 +116,6 @@ export function useRoverConnectionRtc() {
   const channelStatsRef = useRef<Map<string, { count: number; lastTime: number }>>(
     new Map([
       ["telemetry", { count: 0, lastTime: 0 }],
-      ["video", { count: 0, lastTime: 0 }],
       ["pointcloud", { count: 0, lastTime: 0 }],
       ["costmap", { count: 0, lastTime: 0 }],
       ["obstacles", { count: 0, lastTime: 0 }],
@@ -434,6 +428,24 @@ export function useRoverConnectionRtc() {
           channel.binaryType = "arraybuffer";
           channel.onmessage = (msgEvent) => {
             if (msgEvent.data instanceof ArrayBuffer) {
+              // Camera info arrives on telemetry channel (sent once per camera on connect)
+              const msgType = new DataView(msgEvent.data).getUint8(0);
+              if (msgType === MSG_CAMERA_INFO) {
+                const info = decodeCameraInfo(msgEvent.data);
+                if (info) {
+                  console.log(`[WebRTC] Camera calibration: camera=${info.cameraId}, ${info.width}x${info.height}, fov=${(info.fovH * 180 / Math.PI).toFixed(0)}°x${(info.fovV * 180 / Math.PI).toFixed(0)}°`);
+                  setCameraCalibration(info.cameraId, {
+                    width: info.width,
+                    height: info.height,
+                    position: info.position,
+                    rotation: info.rotation,
+                    fovH: info.fovH,
+                    fovV: info.fovV,
+                  });
+                }
+                return;
+              }
+
               const now = performance.now();
 
               // Throttle: only process if enough time has passed since last message
@@ -508,104 +520,6 @@ export function useRoverConnectionRtc() {
                 console.warn("[WebRTC] Failed to decode telemetry, size:", msgEvent.data.byteLength);
               }
             }
-          };
-        } else if (channel.label === "video") {
-          channel.binaryType = "arraybuffer";
-
-          const setupVideoChannel = () => {
-            setVideoConnected(true);
-            videoFrameCountRef.current = 0;
-            lastVideoFpsUpdateRef.current = performance.now();
-            firstFrameLoggedRef.current = false;
-          };
-
-          // Channel might already be open or need to wait for open event
-          if (channel.readyState === "open") {
-            setupVideoChannel();
-          } else {
-            channel.onopen = () => setupVideoChannel();
-          }
-
-          channel.onmessage = (msgEvent) => {
-            if (!(msgEvent.data instanceof ArrayBuffer)) {
-              console.warn("[WebRTC] Video message not ArrayBuffer:", typeof msgEvent.data);
-              return;
-            }
-
-            // Check for camera info message (0x24) before video frame
-            const msgType = new DataView(msgEvent.data).getUint8(0);
-            if (msgType === MSG_CAMERA_INFO) {
-              const info = decodeCameraInfo(msgEvent.data);
-              if (info) {
-                console.log(`[WebRTC] Camera calibration received: camera=${info.cameraId}, ${info.width}x${info.height}, fov=${(info.fovH * 180 / Math.PI).toFixed(0)}°x${(info.fovV * 180 / Math.PI).toFixed(0)}°`);
-                setCameraCalibration(info.cameraId, {
-                  width: info.width,
-                  height: info.height,
-                  position: info.position,
-                  rotation: info.rotation,
-                  fovH: info.fovH,
-                  fovV: info.fovV,
-                });
-              }
-              return;
-            }
-
-            // Track channel metrics
-            const stats = channelStatsRef.current.get("video");
-            if (stats) {
-              stats.count++;
-              stats.lastTime = performance.now();
-            }
-
-            const frame = decodeVideoFrame(msgEvent.data);
-            if (!frame) {
-              console.warn("[WebRTC] Failed to decode video frame, size:", msgEvent.data.byteLength);
-              return;
-            }
-
-            // Create new blob URL
-            const blobUrl = videoFrameToBlobUrl(frame);
-
-            // Revoke previous blob URL for this camera after a delay
-            // (Image loading is asynchronous)
-            const oldUrl = cameraBlobUrlsRef.current.get(frame.cameraId);
-            if (oldUrl) {
-              setTimeout(() => URL.revokeObjectURL(oldUrl), 200);
-            }
-
-            cameraBlobUrlsRef.current.set(frame.cameraId, blobUrl);
-
-            // Store in mutable store (bypasses React for performance)
-            setMutableCameraFrame(frame.cameraId, blobUrl, frame.timestamp_ms);
-
-            // Log first frame received for debugging (only once per connection)
-            if (!firstFrameLoggedRef.current) {
-              console.log(`[WebRTC] First video frame received: camera=${frame.cameraId}, ${frame.width}x${frame.height}, ${frame.jpegData.length} bytes`);
-              firstFrameLoggedRef.current = true;
-            }
-
-            // Update camera count in Zustand store (for UI badge) - infrequent, only on change
-            const currentCount = getCameraCount();
-            if (useConsoleStore.getState().cameraCount !== currentCount) {
-              useConsoleStore.getState().setCameraCount(currentCount);
-            }
-
-            // Update FPS counter (total across all cameras)
-            videoFrameCountRef.current++;
-            const now = performance.now();
-            const elapsed = now - lastVideoFpsUpdateRef.current;
-
-            if (elapsed >= 1000) {
-              const fps = (videoFrameCountRef.current / elapsed) * 1000;
-              setVideoFps(Math.round(fps));
-              videoFrameCountRef.current = 0;
-              lastVideoFpsUpdateRef.current = now;
-            }
-          };
-
-          channel.onclose = () => {
-            setVideoConnected(false);
-            setVideoFps(0);
           };
         } else if (channel.label === "pointcloud") {
           console.log("[WebRTC] Pointcloud channel received");
@@ -750,6 +664,30 @@ export function useRoverConnectionRtc() {
         }
       };
 
+      // Handle incoming H.264 video track
+      pc.ontrack = (event) => {
+        if (event.track.kind === "video") {
+          const stream = event.streams[0] ?? new MediaStream([event.track]);
+          console.log("[WebRTC] Video track received");
+          setVideoConnected(true);
+          firstFrameLoggedRef.current = false;
+          setVideoStream(0, stream);
+
+          // Update camera count
+          const count = getVideoStreamCount();
+          if (useConsoleStore.getState().cameraCount !== count) {
+            useConsoleStore.getState().setCameraCount(count);
+          }
+
+          event.track.onended = () => {
+            console.log("[WebRTC] Video track ended");
+            setVideoConnected(false);
+            setVideoFps(0);
+            removeVideoStream(0);
+          };
+        }
+      };
+
       // Handle ICE candidates
       pc.onicecandidate = (event) => {
         if (event.candidate && ws.readyState === WebSocket.OPEN) {
@@ -781,6 +719,9 @@ export function useRoverConnectionRtc() {
       // WebSocket signaling handlers
       ws.onopen = async () => {
         try {
+          // Request H.264 video track from rover
+          pc.addTransceiver("video", { direction: "recvonly" });
+
           // Create and send offer
           const offer = await pc.createOffer();
           await pc.setLocalDescription(offer);
@@ -891,6 +832,7 @@ export function useRoverConnectionRtc() {
     setVideoConnected(false);
     setVideoFrame(null, 0);
     setVideoFps(0);
+    removeVideoStream(0);
     clearPointCloudData();
     clearAccumulatedCloud();
     clearCostmapData();

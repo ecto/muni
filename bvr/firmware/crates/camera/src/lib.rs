@@ -110,6 +110,55 @@ pub struct Frame {
     pub sequence: u32,
 }
 
+/// An H.264 access unit (complete frame) for WebRTC video track streaming.
+///
+/// Contains Annex B byte-stream formatted H.264 data suitable for
+/// `TrackLocalStaticSample::write_sample()`.
+#[derive(Debug, Clone)]
+pub struct H264Frame {
+    /// Annex B H.264 access unit data (Arc for zero-copy sharing)
+    pub data: Arc<Vec<u8>>,
+    /// Whether this frame is an IDR (keyframe)
+    pub is_keyframe: bool,
+    /// Frame width
+    pub width: u32,
+    /// Frame height
+    pub height: u32,
+    /// Presentation timestamp in nanoseconds (from GStreamer buffer PTS)
+    pub pts_ns: u64,
+    /// Frame duration in nanoseconds (from GStreamer buffer duration)
+    pub duration_ns: u64,
+    /// Sequence number
+    pub sequence: u32,
+}
+
+/// H.264 encoding configuration.
+#[derive(Debug, Clone)]
+pub struct H264Config {
+    /// Capture width
+    pub width: u32,
+    /// Capture height
+    pub height: u32,
+    /// Target framerate
+    pub fps: u32,
+    /// Target bitrate in kbit/sec
+    pub bitrate_kbps: u32,
+    /// Keyframe interval in frames (e.g., 30 = one keyframe per second at 30fps)
+    pub keyframe_interval: u32,
+}
+
+impl Default for H264Config {
+    fn default() -> Self {
+        Self {
+            width: 1920,
+            height: 1080,
+            fps: 30,
+            bitrate_kbps: 4000,
+            keyframe_interval: 30,
+        }
+    }
+}
+
 /// Camera mount transform (fixed position on rover).
 ///
 /// The camera is mounted at a known position relative to the rover's center.
@@ -747,6 +796,243 @@ fn capture_loop(
     Ok(())
 }
 
+// =============================================================================
+// H.264 Capture (for WebRTC video tracks)
+// =============================================================================
+
+/// Check if nvv4l2h264enc (Jetson hardware H.264 encoder) is available.
+fn has_nvv4l2h264enc() -> bool {
+    gst::ElementFactory::find("nvv4l2h264enc").is_some()
+}
+
+/// Build GStreamer pipeline string for H.264 encoding.
+fn build_h264_pipeline_string(camera: &DetectedCamera, config: &H264Config) -> String {
+    match &camera.camera_type {
+        CameraType::Csi { sensor_id } => {
+            if has_nvv4l2h264enc() {
+                // Jetson hardware H.264 encoder (bitrate in bits/sec)
+                format!(
+                    "nvarguscamerasrc sensor-id={sensor_id} ! \
+                     video/x-raw(memory:NVMM),width={w},height={h},framerate={fps}/1 ! \
+                     nvv4l2h264enc bitrate={bitrate} iframeinterval={kfi} preset-level=1 ! \
+                     h264parse ! \
+                     video/x-h264,stream-format=byte-stream,alignment=au ! \
+                     appsink name=sink emit-signals=true max-buffers=2 drop=true sync=false",
+                    w = config.width,
+                    h = config.height,
+                    fps = config.fps,
+                    bitrate = config.bitrate_kbps as u64 * 1000,
+                    kfi = config.keyframe_interval,
+                )
+            } else {
+                // Jetson fallback: nvvidconv to CPU then x264enc
+                format!(
+                    "nvarguscamerasrc sensor-id={sensor_id} ! \
+                     video/x-raw(memory:NVMM),width={w},height={h},framerate={fps}/1 ! \
+                     nvvidconv ! video/x-raw,format=I420 ! \
+                     x264enc bitrate={bitrate} key-int-max={kfi} tune=zerolatency \
+                     speed-preset=ultrafast bframes=0 byte-stream=true ! \
+                     appsink name=sink emit-signals=true max-buffers=2 drop=true sync=false",
+                    w = config.width,
+                    h = config.height,
+                    fps = config.fps,
+                    bitrate = config.bitrate_kbps,
+                    kfi = config.keyframe_interval,
+                )
+            }
+        }
+        CameraType::Usb { device } => {
+            format!(
+                "v4l2src device={device} do-timestamp=true ! \
+                 videoconvert ! videoscale ! \
+                 video/x-raw,width={w},height={h} ! \
+                 x264enc bitrate={bitrate} key-int-max={kfi} tune=zerolatency \
+                 speed-preset=ultrafast bframes=0 byte-stream=true ! \
+                 appsink name=sink emit-signals=true max-buffers=2 drop=true sync=false",
+                w = config.width,
+                h = config.height,
+                bitrate = config.bitrate_kbps,
+                kfi = config.keyframe_interval,
+            )
+        }
+        CameraType::Avf { device_index } => {
+            format!(
+                "avfvideosrc device-index={device_index} do-timestamp=true ! \
+                 videoconvert ! videoscale ! \
+                 video/x-raw,width={w},height={h} ! \
+                 vtenc_h264 bitrate={bitrate} max-keyframe-interval={kfi} \
+                 realtime=true allow-frame-reordering=false ! \
+                 h264parse ! \
+                 video/x-h264,stream-format=byte-stream,alignment=au ! \
+                 appsink name=sink emit-signals=true max-buffers=2 drop=true sync=false",
+                w = config.width,
+                h = config.height,
+                bitrate = config.bitrate_kbps,
+                kfi = config.keyframe_interval,
+            )
+        }
+    }
+}
+
+/// Spawn an H.264 camera capture thread that sends frames to a channel.
+///
+/// Returns a receiver for H.264 frames and a handle to the capture thread.
+/// Uses a bounded channel (capacity 4) to prevent memory accumulation.
+pub fn spawn_h264_capture(
+    camera: &DetectedCamera,
+    config: H264Config,
+) -> Result<(mpsc::Receiver<H264Frame>, std::thread::JoinHandle<()>), CameraError> {
+    ensure_gst_init()?;
+
+    let (tx, rx) = mpsc::sync_channel(4);
+    let camera = camera.clone();
+
+    let handle = std::thread::spawn(move || {
+        if let Err(e) = h264_capture_loop(camera, config, tx) {
+            error!(?e, "H.264 camera capture failed");
+        }
+    });
+
+    Ok((rx, handle))
+}
+
+/// Internal H.264 capture loop.
+fn h264_capture_loop(
+    camera: DetectedCamera,
+    config: H264Config,
+    tx: mpsc::SyncSender<H264Frame>,
+) -> Result<(), CameraError> {
+    let pipeline_str = build_h264_pipeline_string(&camera, &config);
+    info!(pipeline = %pipeline_str, "Starting H.264 capture pipeline");
+
+    let pipeline = gst::parse::launch(&pipeline_str)
+        .map_err(|e| CameraError::GStreamer(format!("Failed to parse H.264 pipeline: {e}")))?;
+
+    let pipeline = pipeline
+        .downcast::<gst::Pipeline>()
+        .map_err(|_| CameraError::GStreamer("Failed to downcast H.264 pipeline".into()))?;
+
+    let appsink = pipeline
+        .by_name("sink")
+        .ok_or_else(|| CameraError::GStreamer("No appsink in H.264 pipeline".into()))?
+        .downcast::<gst_app::AppSink>()
+        .map_err(|_| CameraError::GStreamer("Failed to downcast H.264 appsink".into()))?;
+
+    pipeline
+        .set_state(gst::State::Playing)
+        .map_err(|e| CameraError::GStreamer(format!("Failed to start H.264 pipeline: {e:?}")))?;
+
+    info!(camera = ?camera.name, width = config.width, height = config.height,
+          bitrate_kbps = config.bitrate_kbps, "H.264 capture started");
+
+    let mut sequence: u32 = 0;
+    let default_duration_ns = 1_000_000_000u64 / config.fps as u64;
+
+    loop {
+        match appsink.pull_sample() {
+            Ok(sample) => {
+                let buffer = match sample.buffer() {
+                    Some(b) => b,
+                    None => continue,
+                };
+
+                let map = match buffer.map_readable() {
+                    Ok(m) => m,
+                    Err(e) => {
+                        warn!(?e, "Failed to map H.264 buffer");
+                        continue;
+                    }
+                };
+
+                let data = map.as_slice().to_vec();
+
+                // Detect keyframe: prefer GStreamer buffer flags, fall back to NAL scan
+                let is_keyframe = if buffer.flags().contains(gst::BufferFlags::DELTA_UNIT) {
+                    false
+                } else if !buffer.flags().intersects(gst::BufferFlags::DELTA_UNIT) {
+                    // No DELTA_UNIT flag — could be keyframe or flag not set.
+                    // Scan NAL units to confirm.
+                    is_h264_idr(&data)
+                } else {
+                    false
+                };
+
+                let pts_ns = buffer
+                    .pts()
+                    .map(|t| t.nseconds())
+                    .unwrap_or(0);
+                let duration_ns = buffer
+                    .duration()
+                    .map(|t| t.nseconds())
+                    .unwrap_or(default_duration_ns);
+
+                sequence = sequence.wrapping_add(1);
+
+                trace!(
+                    seq = sequence,
+                    size = data.len(),
+                    is_keyframe,
+                    "h264.frame_captured"
+                );
+
+                let frame = H264Frame {
+                    data: Arc::new(data),
+                    is_keyframe,
+                    width: config.width,
+                    height: config.height,
+                    pts_ns,
+                    duration_ns,
+                    sequence,
+                };
+
+                if tx.send(frame).is_err() {
+                    break;
+                }
+            }
+            Err(_) => {
+                let (_, state, _) = pipeline.state(Some(gst::ClockTime::from_mseconds(10)));
+                if state != gst::State::Playing {
+                    warn!("H.264 pipeline stopped playing");
+                    break;
+                }
+            }
+        }
+    }
+
+    let _ = pipeline.set_state(gst::State::Null);
+    info!("H.264 capture loop exiting");
+    Ok(())
+}
+
+/// Scan Annex B byte stream for IDR NAL units (type 5).
+fn is_h264_idr(data: &[u8]) -> bool {
+    let len = data.len();
+    let mut i = 0;
+    while i + 3 < len {
+        // Look for 3-byte (0x000001) or 4-byte (0x00000001) start code
+        if data[i] == 0 && data[i + 1] == 0 {
+            let nal_byte_offset = if data[i + 2] == 1 {
+                Some(i + 3)
+            } else if i + 4 < len && data[i + 2] == 0 && data[i + 3] == 1 {
+                Some(i + 4)
+            } else {
+                None
+            };
+
+            if let Some(offset) = nal_byte_offset {
+                if offset < len {
+                    let nal_type = data[offset] & 0x1F;
+                    if nal_type == 5 {
+                        return true; // IDR slice
+                    }
+                }
+            }
+        }
+        i += 1;
+    }
+    false
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -799,6 +1085,56 @@ mod tests {
         assert!((k[1][2] - 240.0).abs() < 0.1);
         assert!(k[0][0] > 0.0);
         assert!(k[1][1] > 0.0);
+    }
+
+    #[test]
+    fn test_h264_config_default() {
+        let config = H264Config::default();
+        assert_eq!(config.width, 1920);
+        assert_eq!(config.height, 1080);
+        assert_eq!(config.fps, 30);
+        assert_eq!(config.bitrate_kbps, 4000);
+        assert_eq!(config.keyframe_interval, 30);
+    }
+
+    #[test]
+    fn test_is_h264_idr_with_idr_nal() {
+        // 4-byte start code + IDR NAL (type 5 = 0x65)
+        let data = vec![0x00, 0x00, 0x00, 0x01, 0x65, 0xAB, 0xCD];
+        assert!(is_h264_idr(&data));
+    }
+
+    #[test]
+    fn test_is_h264_idr_with_non_idr_nal() {
+        // 4-byte start code + non-IDR NAL (type 1 = 0x41)
+        let data = vec![0x00, 0x00, 0x00, 0x01, 0x41, 0xAB, 0xCD];
+        assert!(!is_h264_idr(&data));
+    }
+
+    #[test]
+    fn test_is_h264_idr_with_3byte_start_code() {
+        // 3-byte start code + IDR NAL
+        let data = vec![0x00, 0x00, 0x01, 0x65, 0xAB, 0xCD];
+        assert!(is_h264_idr(&data));
+    }
+
+    #[test]
+    fn test_is_h264_idr_empty_data() {
+        assert!(!is_h264_idr(&[]));
+        assert!(!is_h264_idr(&[0x00, 0x00]));
+    }
+
+    #[test]
+    fn test_is_h264_idr_sps_pps_then_idr() {
+        // Typical keyframe: SPS (type 7) + PPS (type 8) + IDR (type 5)
+        let mut data = Vec::new();
+        // SPS
+        data.extend_from_slice(&[0x00, 0x00, 0x00, 0x01, 0x67, 0x42, 0x00]);
+        // PPS
+        data.extend_from_slice(&[0x00, 0x00, 0x00, 0x01, 0x68, 0xCE, 0x38]);
+        // IDR
+        data.extend_from_slice(&[0x00, 0x00, 0x00, 0x01, 0x65, 0x88, 0x84]);
+        assert!(is_h264_idr(&data));
     }
 }
 

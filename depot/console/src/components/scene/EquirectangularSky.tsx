@@ -4,7 +4,7 @@ import { useConsoleStore } from "@/store";
 import {
   PlaneGeometry,
   MeshBasicMaterial,
-  CanvasTexture,
+  VideoTexture,
   SRGBColorSpace,
   DoubleSide,
   Euler,
@@ -15,11 +15,10 @@ import {
 } from "three";
 import { computeRenderPose, getInterpolationBuffer } from "@/lib/interpolation";
 import {
-  getAllCameraFrames,
-  getCameraFrame,
+  getVideoStream,
+  getAllVideoStreams,
   getCameraCalibration,
   getFrameVersion,
-  type CameraFrame,
   type CameraCalibration,
 } from "@/lib/videoFrameStore";
 
@@ -89,17 +88,16 @@ function computeFrustumPlacement(cal: CameraCalibration) {
 
 /**
  * Single camera projection plane.
- * Reads frame URL directly from the mutable store to avoid React re-renders.
- * Computes its own geometry and position from camera calibration.
+ * Uses a hidden <video> element + VideoTexture for H.264 WebRTC track rendering.
+ * VideoTexture auto-updates each frame from the video element.
  */
 function CameraProjection({ cameraId }: { cameraId: number }) {
   const materialRef = useRef<MeshBasicMaterial | null>(null);
   const textureRef = useRef<Texture | null>(null);
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
   const geometryRef = useRef<PlaneGeometry | null>(null);
   const [hasTexture, setHasTexture] = useState(false);
-  const lastLoadedUrlRef = useRef<string | null>(null);
-  const pendingLoadRef = useRef<string | null>(null);
+  const attachedStreamRef = useRef<MediaStream | null>(null);
 
   // Compute frustum placement from calibration (or fallback)
   const { planeW, planeH, planeCenter, mountQuat } = useMemo(() => {
@@ -117,50 +115,52 @@ function CameraProjection({ cameraId }: { cameraId: number }) {
     return geo;
   }, [planeW, planeH]);
 
-  // Poll store for new frames in useFrame (runs at 60fps, no React re-renders)
-  useFrame(() => {
-    const frame = getCameraFrame(cameraId);
-    const frameUrl = frame?.url ?? null;
+  // Create hidden video element for VideoTexture
+  useEffect(() => {
+    const video = document.createElement("video");
+    video.autoplay = true;
+    video.muted = true;
+    video.playsInline = true;
+    videoRef.current = video;
 
-    if (!frameUrl || frameUrl === lastLoadedUrlRef.current || frameUrl === pendingLoadRef.current) {
-      return;
+    return () => {
+      video.pause();
+      video.srcObject = null;
+      videoRef.current = null;
+      attachedStreamRef.current = null;
+      if (textureRef.current) {
+        textureRef.current.dispose();
+        textureRef.current = null;
+      }
+    };
+  }, []);
+
+  // Attach stream and create VideoTexture when video has data
+  useFrame(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    const stream = getVideoStream(cameraId);
+    if (!stream) return;
+
+    // Attach stream if new
+    if (attachedStreamRef.current !== stream) {
+      video.srcObject = stream;
+      attachedStreamRef.current = stream;
     }
 
-    pendingLoadRef.current = frameUrl;
-    const img = new Image();
-    img.onload = () => {
-      if (pendingLoadRef.current !== frameUrl) return;
-
-      if (!canvasRef.current) {
-        canvasRef.current = document.createElement("canvas");
-      }
-      const canvas = canvasRef.current;
-      canvas.width = img.width;
-      canvas.height = img.height;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return;
-      ctx.drawImage(img, 0, 0);
-
-      if (!textureRef.current) {
-        const newTexture = new CanvasTexture(canvas);
-        newTexture.colorSpace = SRGBColorSpace;
-        textureRef.current = newTexture;
-      }
-      textureRef.current.needsUpdate = true;
+    // Create VideoTexture once video has data
+    if (video.readyState >= video.HAVE_CURRENT_DATA && !textureRef.current) {
+      const tex = new VideoTexture(video);
+      tex.colorSpace = SRGBColorSpace;
+      textureRef.current = tex;
 
       if (materialRef.current) {
-        materialRef.current.map = textureRef.current;
+        materialRef.current.map = tex;
         materialRef.current.needsUpdate = true;
       }
-
-      lastLoadedUrlRef.current = frameUrl;
-      pendingLoadRef.current = null;
       if (!hasTexture) setHasTexture(true);
-    };
-    img.onerror = () => {
-      pendingLoadRef.current = null;
-    };
-    img.src = frameUrl;
+    }
   });
 
   // Cleanup on unmount
@@ -177,15 +177,6 @@ function CameraProjection({ cameraId }: { cameraId: number }) {
       if (geometryRef.current) {
         geometryRef.current.dispose();
         geometryRef.current = null;
-      }
-      if (canvasRef.current) {
-        const ctx = canvasRef.current.getContext("2d");
-        if (ctx) {
-          ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
-        }
-        canvasRef.current.width = 0;
-        canvasRef.current.height = 0;
-        canvasRef.current = null;
       }
     };
   }, []);
@@ -227,17 +218,17 @@ export function EquirectangularSky() {
   const [cameraIds, setCameraIds] = useState<number[]>([]);
   const prevCameraIdsRef = useRef<string>("");
 
-  // Check for new cameras from mutable store
+  // Check for new cameras from video stream store
   useFrame(() => {
     const currentVersion = getFrameVersion();
     if (currentVersion !== lastFrameVersionRef.current) {
       lastFrameVersionRef.current = currentVersion;
-      const frames = getAllCameraFrames();
-      const ids = Array.from(frames.keys()).sort((a, b) => a - b);
+      const streams = getAllVideoStreams();
+      const ids = Array.from(streams.keys()).sort((a, b) => a - b);
       const idsKey = ids.join(",");
       if (idsKey !== prevCameraIdsRef.current) {
         if (ids.length > 0 && cameraIds.length === 0) {
-          console.log(`[EquirectangularSky] First frames received: ${ids.length} cameras`);
+          console.log(`[EquirectangularSky] Video streams received: ${ids.length} cameras`);
         }
         prevCameraIdsRef.current = idsKey;
         setCameraIds(ids);
@@ -295,17 +286,26 @@ export function VideoStatusBadge() {
 }
 
 /**
- * Single camera feed display - renders at native resolution, scaled down.
+ * Single camera feed display - renders video stream at native resolution, scaled down.
  */
-function CameraFeed({ cameraId, url }: { cameraId: number; url: string | null }) {
+function CameraFeed({ cameraId, stream }: { cameraId: number; stream: MediaStream | null }) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    if (videoRef.current && stream) {
+      videoRef.current.srcObject = stream;
+    }
+  }, [stream]);
+
   return (
     <div className="relative bg-black">
-      {url ? (
-        <img
-          src={url}
-          alt={`Camera ${cameraId}`}
+      {stream ? (
+        <video
+          ref={videoRef}
+          autoPlay
+          muted
+          playsInline
           className="block max-h-24"
-          style={{ imageRendering: "pixelated" }}
         />
       ) : (
         <div className="w-20 h-24 flex items-center justify-center text-muted-foreground text-xs">
@@ -331,17 +331,17 @@ export function CameraFeedSection() {
   const videoConnected = useConsoleStore((s) => s.videoConnected);
   const videoFps = useConsoleStore((s) => s.videoFps);
   const cameraCount = useConsoleStore((s) => s.cameraCount);
-  const [cameras, setCameras] = useState<Array<[number, CameraFrame]>>([]);
+  const [cameras, setCameras] = useState<Array<[number, MediaStream]>>([]);
   const lastFrameVersionRef = useRef(0);
 
-  // Poll the mutable store at 15Hz
+  // Poll the video stream store at 15Hz
   useEffect(() => {
     const interval = setInterval(() => {
       const currentVersion = getFrameVersion();
       if (currentVersion !== lastFrameVersionRef.current) {
         lastFrameVersionRef.current = currentVersion;
-        const frames = getAllCameraFrames();
-        const sorted = Array.from(frames.entries()).sort((a, b) => a[0] - b[0]);
+        const streams = getAllVideoStreams();
+        const sorted = Array.from(streams.entries()).sort((a, b) => a[0] - b[0]);
         setCameras(sorted);
       }
     }, 67); // ~15Hz polling
@@ -362,8 +362,8 @@ export function CameraFeedSection() {
       {/* Camera feeds - vertical stack */}
       <div className="flex flex-col gap-1">
         {cameras.length > 0 ? (
-          cameras.map(([cameraId, frame]) => (
-            <CameraFeed key={cameraId} cameraId={cameraId} url={frame.url} />
+          cameras.map(([cameraId, stream]) => (
+            <CameraFeed key={cameraId} cameraId={cameraId} stream={stream} />
           ))
         ) : (
           <div className="w-full h-24 flex items-center justify-center text-muted-foreground text-xs bg-black rounded">

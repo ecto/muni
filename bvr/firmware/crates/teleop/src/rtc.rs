@@ -20,11 +20,11 @@ use crate::pointcloud;
 use crate::costmap_stream;
 use crate::obstacle_stream;
 use crate::path_stream;
-use crate::video::VideoFrame;
+use crate::video::H264Frame;
 use crate::{
-    serialize_telemetry, CommandHeader, Telemetry, TeleopError, CMD_HEADER_SIZE, MSG_ESTOP,
-    MSG_ESTOP_RELEASE, MSG_HEARTBEAT, MSG_LIDAR_TOGGLE, MSG_SET_GOAL, MSG_SET_MODE, MSG_TOOL,
-    MSG_TWIST,
+    serialize_camera_info, serialize_telemetry, CommandHeader, Telemetry, TeleopError,
+    CMD_HEADER_SIZE, MSG_ESTOP, MSG_ESTOP_RELEASE, MSG_HEARTBEAT, MSG_LIDAR_TOGGLE, MSG_SET_GOAL,
+    MSG_SET_MODE, MSG_TOOL, MSG_TWIST,
 };
 use costmap::CostmapSnapshot;
 use costmap::TrackedObstacle;
@@ -40,14 +40,18 @@ use tokio_tungstenite::{accept_async, tungstenite::Message};
 use tracing::{debug, error, info, trace, warn};
 use types::{Command, Mode, ToolCommand, Twist};
 use webrtc::api::interceptor_registry::register_default_interceptors;
-use webrtc::api::media_engine::MediaEngine;
+use webrtc::api::media_engine::{MediaEngine, MIME_TYPE_H264};
 use webrtc::api::APIBuilder;
 use webrtc::data_channel::data_channel_init::RTCDataChannelInit;
 use webrtc::ice_transport::ice_server::RTCIceServer;
 use webrtc::interceptor::registry::Registry;
+use webrtc::media::Sample;
 use webrtc::peer_connection::configuration::RTCConfiguration;
 use webrtc::peer_connection::peer_connection_state::RTCPeerConnectionState;
 use webrtc::peer_connection::sdp::session_description::RTCSessionDescription;
+use webrtc::rtp_transceiver::rtp_codec::RTCRtpCodecCapability;
+use webrtc::track::track_local::track_local_static_sample::TrackLocalStaticSample;
+use webrtc::track::track_local::TrackLocal;
 
 /// Per-channel send statistics (updated atomically by channel loops).
 #[derive(Debug, Default)]
@@ -240,7 +244,7 @@ pub struct RtcServer {
     config: RtcConfig,
     command_tx: mpsc::Sender<Command>,
     telemetry_rx: watch::Receiver<Telemetry>,
-    video_rx: Option<Arc<Mutex<tokio_mpsc::Receiver<VideoFrame>>>>,
+    video_rx: Option<Arc<Mutex<tokio_mpsc::Receiver<H264Frame>>>>,
     lidar_rx: Option<watch::Receiver<Option<PointCloud>>>,
     costmap_rx: Option<watch::Receiver<Option<CostmapSnapshot>>>,
     obstacles_rx: Option<watch::Receiver<Option<Vec<TrackedObstacle>>>>,
@@ -271,12 +275,12 @@ impl RtcServer {
         }
     }
 
-    /// Create a new RTC server with video streaming support.
+    /// Create a new RTC server with H.264 video streaming support.
     pub fn with_video(
         config: RtcConfig,
         command_tx: mpsc::Sender<Command>,
         telemetry_rx: watch::Receiver<Telemetry>,
-        video_rx: tokio_mpsc::Receiver<VideoFrame>,
+        video_rx: tokio_mpsc::Receiver<H264Frame>,
     ) -> Self {
         Self {
             config,
@@ -293,12 +297,12 @@ impl RtcServer {
         }
     }
 
-    /// Create a new RTC server with video and LiDAR streaming support.
+    /// Create a new RTC server with H.264 video and LiDAR streaming support.
     pub fn with_video_and_lidar(
         config: RtcConfig,
         command_tx: mpsc::Sender<Command>,
         telemetry_rx: watch::Receiver<Telemetry>,
-        video_rx: tokio_mpsc::Receiver<VideoFrame>,
+        video_rx: tokio_mpsc::Receiver<H264Frame>,
         lidar_rx: watch::Receiver<Option<PointCloud>>,
     ) -> Self {
         Self {
@@ -429,7 +433,7 @@ async fn handle_signaling(
     stream: TcpStream,
     command_tx: Arc<mpsc::Sender<Command>>,
     telemetry_rx: watch::Receiver<Telemetry>,
-    video_rx: Option<Arc<Mutex<tokio_mpsc::Receiver<VideoFrame>>>>,
+    video_rx: Option<Arc<Mutex<tokio_mpsc::Receiver<H264Frame>>>>,
     lidar_rx: Option<watch::Receiver<Option<PointCloud>>>,
     costmap_rx: Option<watch::Receiver<Option<CostmapSnapshot>>>,
     obstacles_rx: Option<watch::Receiver<Option<Vec<TrackedObstacle>>>>,
@@ -608,19 +612,37 @@ async fn handle_signaling(
         })
     }));
 
-    // Set up telemetry sender
+    // Set up telemetry sender (also sends camera info once on open)
     let telem_rx_clone = telemetry_rx.clone();
     let telem_interval = config.telemetry_interval;
     let telem_channel = Arc::new(telemetry_channel);
     let telem_channel_clone = telem_channel.clone();
     let telem_metrics = metrics.clone();
+    let telem_cam_info = camera_info.clone();
 
     telem_channel.on_open(Box::new(move || {
         let channel = telem_channel_clone.clone();
         let mut rx = telem_rx_clone.clone();
         let stats = telem_metrics.clone();
+        let cam_info = telem_cam_info.clone();
         Box::pin(async move {
             info!("WebRTC telemetry channel opened");
+
+            // Send camera info once at channel open (moved from video DataChannel)
+            if let Some(info) = cam_info.as_ref() {
+                let msg = serialize_camera_info(info);
+                if let Err(e) = channel.send(&bytes::Bytes::from(msg)).await {
+                    debug!(?e, "Failed to send camera info on telemetry channel");
+                } else {
+                    info!(
+                        camera_id = info.camera_id,
+                        width = info.width,
+                        height = info.height,
+                        "Camera info sent via telemetry channel"
+                    );
+                }
+            }
+
             let mut interval = tokio::time::interval(telem_interval);
             loop {
                 interval.tick().await;
@@ -643,159 +665,97 @@ async fn handle_signaling(
         })
     }));
 
-    // Create video DataChannel if video streaming is enabled
+    // Create H.264 video track if video streaming is enabled
     if let Some(vid_rx) = video_rx {
-        let video_channel = peer_connection
-            .create_data_channel("video", Some(dc_config))
+        let video_track = Arc::new(TrackLocalStaticSample::new(
+            RTCRtpCodecCapability {
+                mime_type: MIME_TYPE_H264.to_owned(),
+                clock_rate: 90000,
+                channels: 0,
+                sdp_fmtp_line: "level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f".to_owned(),
+                rtcp_feedback: vec![],
+            },
+            "camera-0".to_owned(),
+            "rover-video".to_owned(),
+        ));
+
+        peer_connection
+            .add_track(video_track.clone() as Arc<dyn TrackLocal + Send + Sync>)
             .await
             .map_err(|e| {
                 TeleopError::Network(std::io::Error::new(
                     std::io::ErrorKind::Other,
-                    e.to_string(),
+                    format!("Failed to add video track: {}", e),
                 ))
             })?;
 
-        let video_channel = Arc::new(video_channel);
-        let video_channel_clone = video_channel.clone();
+        info!("H.264 video track added to peer connection");
+
+        // Spawn task to feed H.264 frames to the video track
+        let track = video_track.clone();
         let video_metrics = metrics.clone();
-        let video_cam_info = camera_info.clone();
+        tokio::spawn(async move {
+            let mut frame_count: u64 = 0;
 
-        video_channel.on_open(Box::new(move || {
-            let channel = video_channel_clone.clone();
-            let rx = vid_rx.clone();
-            let stats = video_metrics.clone();
-            let cam_info = video_cam_info.clone();
-            Box::pin(async move {
-                info!("WebRTC video channel opened, waiting for camera frames");
-                let mut frame_count: u64 = 0;
-                let mut send_errors: u32 = 0;
-                let mut camera_info_sent = false;
-                let mut last_warning = std::time::Instant::now();
-
-                // Drain stale buffered frames before streaming live ones.
-                // The mpsc channel may contain old frames from before this
-                // connection was established. Consuming them without sending
-                // ensures the first sent frame is recent.
-                {
-                    let mut drained = 0u32;
-                    let mut guard = rx.lock().await;
-                    while let Ok(f) = guard.try_recv() {
-                        drained += 1;
-                        drop(f);
-                    }
-                    drop(guard);
-                    if drained > 0 {
-                        info!(drained, "Drained stale video frames from buffer");
-                    }
+            // Drain stale buffered frames before streaming live ones
+            {
+                let mut drained = 0u32;
+                let mut guard = vid_rx.lock().await;
+                while guard.try_recv().is_ok() {
+                    drained += 1;
                 }
+                drop(guard);
+                if drained > 0 {
+                    info!(drained, "Drained stale H.264 frames from buffer");
+                }
+            }
 
-                loop {
-                    if channel.ready_state()
-                        != webrtc::data_channel::data_channel_state::RTCDataChannelState::Open
-                    {
-                        info!("WebRTC video channel no longer open, stopping");
+            loop {
+                let frame = {
+                    let mut guard = vid_rx.lock().await;
+                    guard.recv().await
+                };
+
+                let frame = match frame {
+                    Some(f) => f,
+                    None => {
+                        info!("H.264 frame sender dropped, stopping video track feed");
                         break;
                     }
+                };
 
-                    // Wait for next frame from mpsc channel with timeout
-                    let frame = tokio::select! {
-                        result = async {
-                            rx.lock().await.recv().await
-                        } => {
-                            match result {
-                                Some(f) => f,
-                                None => {
-                                    info!("Video frame sender dropped, stopping");
-                                    break;
-                                }
-                            }
-                        }
-                        _ = tokio::time::sleep(Duration::from_secs(5)) => {
-                            if frame_count == 0 && last_warning.elapsed() > Duration::from_secs(5) {
-                                warn!("No video frames received after 5s - is camera connected?");
-                                last_warning = std::time::Instant::now();
-                            }
-                            continue;
-                        }
-                    };
+                let sample = Sample {
+                    data: bytes::Bytes::from((*frame.data).clone()),
+                    duration: Duration::from_nanos(frame.duration_ns),
+                    ..Default::default()
+                };
 
-                    // Encode frame: [0x20] [camera_id:u8] [timestamp:u64] [width:u16] [height:u16] [jpeg...]
-                    let encode_start = std::time::Instant::now();
-                    let frame_size = frame.data.len();
-                    let mut buf = Vec::with_capacity(14 + frame_size);
-                    buf.push(0x20); // Video frame marker
-                    buf.push(frame.camera_id);
-                    buf.extend_from_slice(&frame.timestamp_ms.to_le_bytes());
-                    buf.extend_from_slice(&(frame.width as u16).to_le_bytes());
-                    buf.extend_from_slice(&(frame.height as u16).to_le_bytes());
-                    buf.extend_from_slice(&frame.data);
-                    let encode_us = encode_start.elapsed().as_micros();
-
-                    let send_start = std::time::Instant::now();
-                    if let Err(e) = channel.send(&bytes::Bytes::from(buf)).await {
-                        send_errors += 1;
-                        if send_errors <= 3 {
-                            warn!(?e, send_errors, frame_size, "Failed to send video frame, retrying");
-                            tokio::time::sleep(Duration::from_millis(100)).await;
-                            continue;
-                        }
-                        warn!(?e, send_errors, "Video send failed repeatedly, giving up");
-                        break;
-                    }
-                    send_errors = 0; // Reset on success
-                    let send_us = send_start.elapsed().as_micros() as u32;
-                    stats.video.record_send(send_us);
-
-                    frame_count += 1;
-
-                    // Send camera info once after first frame (so we know dimensions)
-                    if !camera_info_sent {
-                        if let Some(info) = cam_info.as_ref() {
-                            let mut ci = **info;
-                            ci.camera_id = frame.camera_id;
-                            ci.width = frame.width as u16;
-                            ci.height = frame.height as u16;
-                            let msg = crate::serialize_camera_info(&ci);
-                            if let Err(e) = channel.send(&bytes::Bytes::from(msg)).await {
-                                debug!(?e, "Failed to send camera info");
-                            } else {
-                                info!(
-                                    camera_id = ci.camera_id,
-                                    width = ci.width,
-                                    height = ci.height,
-                                    fov_h = ci.fov_h,
-                                    fov_v = ci.fov_v,
-                                    "Camera info sent via WebRTC"
-                                );
-                            }
-                        }
-                        camera_info_sent = true;
-                    }
-
-                    // Log every 100th frame for performance tracking
-                    if frame_count % 100 == 0 {
-                        trace!(
-                            frame_count,
-                            frame_size,
-                            encode_us,
-                            send_us,
-                            camera_id = frame.camera_id,
-                            "rtc.video_frame_sent"
-                        );
-                    }
-                    if frame_count == 1 {
-                        info!(
-                            camera_id = frame.camera_id,
-                            width = frame.width,
-                            height = frame.height,
-                            size = frame.data.len(),
-                            "First video frame sent via WebRTC"
-                        );
-                    }
+                let start = std::time::Instant::now();
+                if let Err(e) = track.write_sample(&sample).await {
+                    debug!(?e, "Failed to write H.264 sample to track");
+                    break;
                 }
-                info!(frames_sent = frame_count, "WebRTC video channel closed");
-            })
-        }));
+                let send_us = start.elapsed().as_micros() as u32;
+                video_metrics.video.record_send(send_us);
+
+                frame_count += 1;
+
+                if frame_count == 1 {
+                    info!(
+                        camera_id = frame.camera_id,
+                        width = frame.width,
+                        height = frame.height,
+                        size = frame.data.len(),
+                        keyframe = frame.is_keyframe,
+                        "First H.264 frame written to track"
+                    );
+                }
+                if frame_count % 300 == 0 {
+                    trace!(frame_count, "h264.track_feeding");
+                }
+            }
+            info!(frames_sent = frame_count, "H.264 video track feed stopped");
+        });
     }
 
     // Create pointcloud DataChannel if LiDAR streaming is available

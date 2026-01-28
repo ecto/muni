@@ -59,6 +59,30 @@ pub struct VideoFrame {
     pub timestamp_ms: u64,
 }
 
+/// An H.264 access unit for WebRTC video track streaming.
+///
+/// Contains Annex B byte-stream formatted H.264 data suitable for
+/// `TrackLocalStaticSample::write_sample()`.
+#[derive(Debug, Clone)]
+pub struct H264Frame {
+    /// Camera ID (0, 1, etc.)
+    pub camera_id: u8,
+    /// Annex B H.264 access unit data (Arc for zero-copy sharing)
+    pub data: Arc<Vec<u8>>,
+    /// Whether this frame is an IDR (keyframe)
+    pub is_keyframe: bool,
+    /// Frame width
+    pub width: u32,
+    /// Frame height
+    pub height: u32,
+    /// Presentation timestamp in nanoseconds
+    pub pts_ns: u64,
+    /// Frame duration in nanoseconds
+    pub duration_ns: u64,
+    /// Sequence number
+    pub sequence: u32,
+}
+
 /// Encodes a frame into UDP packets.
 pub fn encode_frame(frame: &VideoFrame) -> Vec<Vec<u8>> {
     let total_chunks = (frame.data.len() + MAX_CHUNK_SIZE - 1) / MAX_CHUNK_SIZE;

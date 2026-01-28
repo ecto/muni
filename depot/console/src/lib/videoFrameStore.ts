@@ -202,9 +202,46 @@ export function clearAllFrames(): void {
     URL.revokeObjectURL(frame.url);
   }
   globalStore.frames.clear();
+  videoStreams.clear();
   globalStore.version++;
   globalStore.lastUpdateTime = performance.now();
 
   // Clear pending revocations (URLs are already revoked)
   pendingRevocations.length = 0;
+}
+
+// ============================================================================
+// MediaStream Storage (for H.264 WebRTC video tracks)
+// ============================================================================
+
+/** Map of camera ID to MediaStream from WebRTC video tracks. */
+const videoStreams = new Map<number, MediaStream>();
+
+/** Store a video stream for a camera. */
+export function setVideoStream(cameraId: number, stream: MediaStream): void {
+  videoStreams.set(cameraId, stream);
+  globalStore.version++;
+  globalStore.lastUpdateTime = performance.now();
+}
+
+/** Get a video stream for a camera. */
+export function getVideoStream(cameraId: number): MediaStream | undefined {
+  return videoStreams.get(cameraId);
+}
+
+/** Remove a video stream. */
+export function removeVideoStream(cameraId: number): void {
+  videoStreams.delete(cameraId);
+  globalStore.version++;
+  globalStore.lastUpdateTime = performance.now();
+}
+
+/** Get all video streams. */
+export function getAllVideoStreams(): Map<number, MediaStream> {
+  return new Map(videoStreams);
+}
+
+/** Get the number of active video streams. */
+export function getVideoStreamCount(): number {
+  return videoStreams.size;
 }

@@ -38,7 +38,6 @@ export const MSG_ESTOP_RELEASE = 0x06;
 export const MSG_LIDAR_TOGGLE = 0x07;
 export const MSG_SET_GOAL = 0x08;
 export const MSG_TELEMETRY = 0x11;
-export const MSG_VIDEO_FRAME = 0x20;
 export const MSG_POINT_CLOUD = 0x21;
 export const MSG_COSTMAP = 0x22;
 export const MSG_OBSTACLES = 0x23;
@@ -411,71 +410,6 @@ export function telemetryFromDecoded(decoded: DecodedTelemetry): Telemetry {
       : null,
     faultCode: decoded.fault_code,
   };
-}
-
-// ============================================================================
-// Video Frame Decoding (Rover -> Operator)
-// ============================================================================
-
-export interface DecodedVideoFrame {
-  cameraId: number;
-  timestamp_ms: number;
-  width: number;
-  height: number;
-  jpegData: Uint8Array;
-}
-
-/**
- * Decode a video frame message.
- * Format: [type:u8] [camera_id:u8] [timestamp:u64 LE] [width:u16 LE] [height:u16 LE] [jpeg_data:...]
- */
-export function decodeVideoFrame(data: ArrayBuffer): DecodedVideoFrame | null {
-  const view = new DataView(data);
-
-  // Minimum size: 1 (type) + 1 (camera_id) + 8 (timestamp) + 2 (width) + 2 (height) + some data
-  if (data.byteLength < 15) {
-    return null;
-  }
-
-  const msgType = view.getUint8(0);
-  if (msgType !== MSG_VIDEO_FRAME) {
-    return null;
-  }
-
-  // Camera ID
-  const cameraId = view.getUint8(1);
-
-  // Timestamp (u64 LE)
-  const timestampLow = view.getUint32(2, true);
-  const timestampHigh = view.getUint32(6, true);
-  const timestamp_ms = timestampLow + timestampHigh * 0x100000000;
-
-  // Dimensions
-  const width = view.getUint16(10, true);
-  const height = view.getUint16(12, true);
-
-  // JPEG data (rest of buffer)
-  const jpegData = new Uint8Array(data, 14);
-
-  return {
-    cameraId,
-    timestamp_ms,
-    width,
-    height,
-    jpegData,
-  };
-}
-
-/**
- * Convert JPEG data to a blob URL for use in textures.
- * We use blob URLs but the caller should NOT revoke them - the texture
- * loader needs time to load them asynchronously.
- */
-export function videoFrameToBlobUrl(frame: DecodedVideoFrame): string {
-  // Create blob directly from the Uint8Array
-  // Use type assertion since TypeScript 5.7+ is overly strict about ArrayBufferLike vs ArrayBuffer
-  const blob = new Blob([frame.jpegData as BlobPart], { type: "image/jpeg" });
-  return URL.createObjectURL(blob);
 }
 
 // ============================================================================
