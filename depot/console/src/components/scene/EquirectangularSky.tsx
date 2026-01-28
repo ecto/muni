@@ -275,6 +275,7 @@ export function VideoStatusBadge() {
  */
 function CameraFeed({ cameraId, stream }: { cameraId: number; stream: MediaStream | null }) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const setVideoFps = useConsoleStore((s) => s.setVideoFps);
 
   useEffect(() => {
     if (videoRef.current && stream) {
@@ -291,6 +292,33 @@ function CameraFeed({ cameraId, stream }: { cameraId: number; stream: MediaStrea
       removeVideoElement(cameraId);
     };
   }, [cameraId]);
+
+  // FPS counting via requestVideoFrameCallback
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !("requestVideoFrameCallback" in video)) return;
+
+    let frameCount = 0;
+    let lastFpsTime = performance.now();
+    let callbackId: number;
+
+    const onFrame = () => {
+      frameCount++;
+      const now = performance.now();
+      if (now - lastFpsTime >= 1000) {
+        const fps = Math.round((frameCount / (now - lastFpsTime)) * 1000);
+        setVideoFps(fps);
+        frameCount = 0;
+        lastFpsTime = now;
+      }
+      callbackId = video.requestVideoFrameCallback(onFrame);
+    };
+    callbackId = video.requestVideoFrameCallback(onFrame);
+
+    return () => {
+      video.cancelVideoFrameCallback(callbackId);
+    };
+  }, [stream, setVideoFps]);
 
   return (
     <div className="relative bg-black">
