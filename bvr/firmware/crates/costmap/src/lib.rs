@@ -470,56 +470,7 @@ impl OccupancyGrid {
 
     /// Raytrace a line, marking cells as free and the endpoint as occupied.
     fn raytrace(&mut self, start: Vector2<f64>, end: Vector2<f64>, hit_obstacle: bool) {
-        let start_cell = match self.world_to_grid(start.x, start.y) {
-            Some(c) => c,
-            None => return,
-        };
-        let end_cell = match self.world_to_grid(end.x, end.y) {
-            Some(c) => c,
-            None => return,
-        };
-
-        // Bresenham's line algorithm
-        let mut x = start_cell.0 as i32;
-        let mut y = start_cell.1 as i32;
-        let x1 = end_cell.0 as i32;
-        let y1 = end_cell.1 as i32;
-
-        let dx = (x1 - x).abs();
-        let dy = (y1 - y).abs();
-        let sx = if x < x1 { 1 } else { -1 };
-        let sy = if y < y1 { 1 } else { -1 };
-        let mut err = dx - dy;
-
-        loop {
-            // Mark current cell as free (except endpoint)
-            if x != x1 || y != y1 {
-                if x >= 0 && y >= 0 {
-                    self.update_cell(x as usize, y as usize, false);
-                }
-            }
-
-            if x == x1 && y == y1 {
-                break;
-            }
-
-            let e2 = 2 * err;
-            if e2 > -dy {
-                err -= dy;
-                x += sx;
-            }
-            if e2 < dx {
-                err += dx;
-                y += sy;
-            }
-        }
-
-        // Mark endpoint as occupied (if we hit something)
-        if hit_obstacle {
-            if end_cell.0 < self.width && end_cell.1 < self.height {
-                self.update_cell(end_cell.0, end_cell.1, true);
-            }
-        }
+        self.raytrace_inner(start, end, hit_obstacle, None);
     }
 
     /// Raytrace with height tracking at the endpoint.
@@ -529,6 +480,19 @@ impl OccupancyGrid {
         end: Vector2<f64>,
         hit_obstacle: bool,
         z: f32,
+    ) {
+        self.raytrace_inner(start, end, hit_obstacle, Some(z));
+    }
+
+    /// Shared Bresenham raytrace. Marks intermediate cells as free and marks
+    /// the endpoint as occupied when `hit_obstacle` is true. When `height`
+    /// is `Some`, the endpoint's height envelope is updated.
+    fn raytrace_inner(
+        &mut self,
+        start: Vector2<f64>,
+        end: Vector2<f64>,
+        hit_obstacle: bool,
+        height: Option<f32>,
     ) {
         let start_cell = match self.world_to_grid(start.x, start.y) {
             Some(c) => c,
@@ -578,7 +542,9 @@ impl OccupancyGrid {
         if hit_obstacle {
             if end_cell.0 < self.width && end_cell.1 < self.height {
                 self.update_cell(end_cell.0, end_cell.1, true);
-                self.update_height(end_cell.0, end_cell.1, z);
+                if let Some(z) = height {
+                    self.update_height(end_cell.0, end_cell.1, z);
+                }
             }
         }
     }
