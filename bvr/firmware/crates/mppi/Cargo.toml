@@ -1,0 +1,15 @@
+[package]
+name = "mppi"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+types = { path = "../types" }
+costmap = { path = "../costmap" }
+planner = { path = "../planner" }
+tracing = { workspace = true }
+rand = { workspace = true }
+rand_distr = "0.4"
+
+[dev-dependencies]

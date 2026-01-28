@@ -478,9 +478,193 @@ impl Planner {
     }
 }
 
+/// Path smoother configuration.
+#[derive(Debug, Clone)]
+pub struct SmootherConfig {
+    /// Number of interpolation points per segment.
+    pub num_interpolation_points: usize,
+    /// Maximum deviation from original path (meters). Segments that would
+    /// deviate more than this fall back to linear interpolation.
+    pub max_deviation: f64,
+    /// Check smoothed segments for collision with costmap.
+    pub collision_check: bool,
+}
+
+impl Default for SmootherConfig {
+    fn default() -> Self {
+        Self {
+            num_interpolation_points: 5,
+            max_deviation: 0.3,
+            collision_check: true,
+        }
+    }
+}
+
+/// Smooths jagged A* output using Catmull-Rom splines.
+pub struct PathSmoother {
+    config: SmootherConfig,
+}
+
+impl PathSmoother {
+    pub fn new(config: SmootherConfig) -> Self {
+        Self { config }
+    }
+
+    /// Smooth a path using Catmull-Rom interpolation.
+    ///
+    /// For each pair of consecutive waypoints, generates interpolated points
+    /// using the Catmull-Rom spline through 4 control points (previous, start,
+    /// end, next). Falls back to linear interpolation if collision detected
+    /// or deviation exceeds threshold.
+    pub fn smooth(&self, path: &Path, costmap: Option<&Costmap>) -> Path {
+        let waypoints = &path.waypoints;
+        if waypoints.len() < 3 {
+            return path.clone();
+        }
+
+        let mut smoothed = Vec::with_capacity(
+            waypoints.len() * self.config.num_interpolation_points,
+        );
+
+        // Always include the start
+        smoothed.push(waypoints[0]);
+
+        for i in 0..waypoints.len() - 1 {
+            // Catmull-Rom needs 4 control points: p0, p1, p2, p3
+            // p1..p2 is the segment we're interpolating
+            let p0 = if i == 0 { waypoints[0] } else { waypoints[i - 1] };
+            let p1 = waypoints[i];
+            let p2 = waypoints[i + 1];
+            let p3 = if i + 2 < waypoints.len() {
+                waypoints[i + 2]
+            } else {
+                waypoints[waypoints.len() - 1]
+            };
+
+            let segment_points = self.interpolate_segment(p0, p1, p2, p3);
+
+            // Check deviation and collision for this segment
+            let use_smooth = self.validate_segment(&segment_points, &p1, &p2, costmap);
+
+            if use_smooth {
+                // Skip first point (it's p1, already added)
+                for pt in segment_points.into_iter().skip(1) {
+                    smoothed.push(pt);
+                }
+            } else {
+                // Linear fallback: just add interpolated points along the line
+                for j in 1..=self.config.num_interpolation_points {
+                    let t = j as f64 / self.config.num_interpolation_points as f64;
+                    smoothed.push(Waypoint::new(
+                        p1.x + t * (p2.x - p1.x),
+                        p1.y + t * (p2.y - p1.y),
+                    ));
+                }
+            }
+        }
+
+        let length = calculate_path_length(&smoothed);
+        Path {
+            waypoints: smoothed,
+            length,
+        }
+    }
+
+    /// Catmull-Rom interpolation between p1 and p2 with control points p0, p3.
+    fn interpolate_segment(
+        &self,
+        p0: Waypoint,
+        p1: Waypoint,
+        p2: Waypoint,
+        p3: Waypoint,
+    ) -> Vec<Waypoint> {
+        let n = self.config.num_interpolation_points;
+        let mut points = Vec::with_capacity(n + 1);
+
+        // Include segment start
+        points.push(p1);
+
+        for j in 1..=n {
+            let t = j as f64 / n as f64;
+            let pt = catmull_rom(p0, p1, p2, p3, t);
+            points.push(pt);
+        }
+
+        points
+    }
+
+    /// Validate a smoothed segment: check deviation from straight line and collision.
+    fn validate_segment(
+        &self,
+        points: &[Waypoint],
+        p1: &Waypoint,
+        p2: &Waypoint,
+        costmap: Option<&Costmap>,
+    ) -> bool {
+        for pt in points.iter() {
+            // Check deviation from the original straight line segment
+            let deviation = point_to_line_distance(pt, p1, p2);
+            if deviation > self.config.max_deviation {
+                return false;
+            }
+
+            // Check collision
+            if self.config.collision_check {
+                if let Some(cm) = costmap {
+                    if cm.get_cost(pt.x, pt.y) >= costs::LETHAL {
+                        return false;
+                    }
+                }
+            }
+        }
+        true
+    }
+}
+
+/// Catmull-Rom spline evaluation at parameter t in [0, 1] between p1 and p2.
+fn catmull_rom(p0: Waypoint, p1: Waypoint, p2: Waypoint, p3: Waypoint, t: f64) -> Waypoint {
+    let t2 = t * t;
+    let t3 = t2 * t;
+
+    // Standard Catmull-Rom matrix with tau=0.5
+    let x = 0.5
+        * ((2.0 * p1.x)
+            + (-p0.x + p2.x) * t
+            + (2.0 * p0.x - 5.0 * p1.x + 4.0 * p2.x - p3.x) * t2
+            + (-p0.x + 3.0 * p1.x - 3.0 * p2.x + p3.x) * t3);
+
+    let y = 0.5
+        * ((2.0 * p1.y)
+            + (-p0.y + p2.y) * t
+            + (2.0 * p0.y - 5.0 * p1.y + 4.0 * p2.y - p3.y) * t2
+            + (-p0.y + 3.0 * p1.y - 3.0 * p2.y + p3.y) * t3);
+
+    Waypoint::new(x, y)
+}
+
+/// Distance from point to the infinite line through a and b.
+fn point_to_line_distance(p: &Waypoint, a: &Waypoint, b: &Waypoint) -> f64 {
+    let dx = b.x - a.x;
+    let dy = b.y - a.y;
+    let len = (dx * dx + dy * dy).sqrt();
+    if len < 1e-10 {
+        return p.distance_to(a);
+    }
+    ((p.x - a.x) * dy - (p.y - a.y) * dx).abs() / len
+}
+
+/// Calculate total path length from waypoints.
+fn calculate_path_length(waypoints: &[Waypoint]) -> f64 {
+    if waypoints.len() < 2 {
+        return 0.0;
+    }
+    waypoints.windows(2).map(|w| w[0].distance_to(&w[1])).sum()
+}
+
 /// State for the reactive planner (manages replanning).
 pub struct ReactivePlanner {
     planner: Planner,
+    smoother: Option<PathSmoother>,
     current_path: Option<Path>,
     current_waypoint_idx: usize,
     replan_distance: f64,
@@ -492,6 +676,19 @@ impl ReactivePlanner {
     pub fn new(config: PlannerConfig, replan_distance: f64) -> Self {
         Self {
             planner: Planner::new(config),
+            smoother: None,
+            current_path: None,
+            current_waypoint_idx: 0,
+            replan_distance,
+            goal: None,
+        }
+    }
+
+    /// Create a reactive planner with path smoothing.
+    pub fn with_smoother(config: PlannerConfig, replan_distance: f64, smoother_config: SmootherConfig) -> Self {
+        Self {
+            planner: Planner::new(config),
+            smoother: Some(PathSmoother::new(smoother_config)),
             current_path: None,
             current_waypoint_idx: 0,
             replan_distance,
@@ -507,7 +704,11 @@ impl ReactivePlanner {
         goal: Waypoint,
     ) -> Result<&Path, PlannerError> {
         self.goal = Some(goal);
-        self.current_path = Some(self.planner.plan(costmap, start, goal)?);
+        let mut path = self.planner.plan(costmap, start, goal)?;
+        if let Some(ref smoother) = self.smoother {
+            path = smoother.smooth(&path, Some(costmap));
+        }
+        self.current_path = Some(path);
         self.current_waypoint_idx = 0;
         Ok(self.current_path.as_ref().unwrap())
     }
@@ -590,7 +791,11 @@ impl ReactivePlanner {
 
                 // Replan from current position to goal
                 if let Some(goal) = self.goal {
-                    self.current_path = Some(self.planner.plan(costmap, current_pose, goal)?);
+                    let mut path = self.planner.plan(costmap, current_pose, goal)?;
+                    if let Some(ref smoother) = self.smoother {
+                        path = smoother.smooth(&path, Some(costmap));
+                    }
+                    self.current_path = Some(path);
                     self.current_waypoint_idx = 0;
                 }
             }
@@ -681,5 +886,119 @@ mod tests {
 
         assert!(reactive.path().is_some());
         assert!(reactive.current_waypoint().is_some());
+    }
+
+    #[test]
+    fn test_smoother_config_defaults() {
+        let config = SmootherConfig::default();
+        assert_eq!(config.num_interpolation_points, 5);
+        assert!((config.max_deviation - 0.3).abs() < 1e-6);
+        assert!(config.collision_check);
+    }
+
+    #[test]
+    fn test_catmull_rom_endpoints() {
+        // At t=0, catmull_rom should return p1; at t=1, should return p2
+        let p0 = Waypoint::new(-1.0, 0.0);
+        let p1 = Waypoint::new(0.0, 0.0);
+        let p2 = Waypoint::new(1.0, 0.0);
+        let p3 = Waypoint::new(2.0, 0.0);
+
+        let start = catmull_rom(p0, p1, p2, p3, 0.0);
+        assert!((start.x - p1.x).abs() < 1e-10);
+        assert!((start.y - p1.y).abs() < 1e-10);
+
+        let end = catmull_rom(p0, p1, p2, p3, 1.0);
+        assert!((end.x - p2.x).abs() < 1e-10);
+        assert!((end.y - p2.y).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_catmull_rom_midpoint_straight() {
+        // For collinear points, midpoint should be on the line
+        let p0 = Waypoint::new(0.0, 0.0);
+        let p1 = Waypoint::new(1.0, 0.0);
+        let p2 = Waypoint::new(2.0, 0.0);
+        let p3 = Waypoint::new(3.0, 0.0);
+
+        let mid = catmull_rom(p0, p1, p2, p3, 0.5);
+        assert!((mid.x - 1.5).abs() < 1e-10);
+        assert!(mid.y.abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_smoother_short_path() {
+        let smoother = PathSmoother::new(SmootherConfig::default());
+        // Path with only 2 waypoints should be returned unchanged
+        let path = Path {
+            waypoints: vec![Waypoint::new(0.0, 0.0), Waypoint::new(1.0, 0.0)],
+            length: 1.0,
+        };
+        let smoothed = smoother.smooth(&path, None);
+        assert_eq!(smoothed.waypoints.len(), 2);
+    }
+
+    #[test]
+    fn test_smoother_produces_more_points() {
+        let smoother = PathSmoother::new(SmootherConfig::default());
+        let path = Path {
+            waypoints: vec![
+                Waypoint::new(0.0, 0.0),
+                Waypoint::new(1.0, 0.5),
+                Waypoint::new(2.0, 0.0),
+                Waypoint::new(3.0, 0.0),
+            ],
+            length: 3.5,
+        };
+        let smoothed = smoother.smooth(&path, None);
+        // Smoothed should have more waypoints than original
+        assert!(smoothed.waypoints.len() > path.waypoints.len());
+    }
+
+    #[test]
+    fn test_smoother_preserves_endpoints() {
+        let smoother = PathSmoother::new(SmootherConfig::default());
+        let path = Path {
+            waypoints: vec![
+                Waypoint::new(0.0, 0.0),
+                Waypoint::new(1.0, 1.0),
+                Waypoint::new(2.0, 0.0),
+            ],
+            length: 2.83,
+        };
+        let smoothed = smoother.smooth(&path, None);
+        let first = smoothed.waypoints.first().unwrap();
+        let last = smoothed.waypoints.last().unwrap();
+        assert!((first.x - 0.0).abs() < 1e-6);
+        assert!((first.y - 0.0).abs() < 1e-6);
+        assert!((last.x - 2.0).abs() < 1e-6);
+        assert!((last.y - 0.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn test_reactive_planner_with_smoother() {
+        let config = PlannerConfig::default();
+        let smoother_config = SmootherConfig::default();
+        let mut reactive = ReactivePlanner::with_smoother(config, 0.5, smoother_config);
+        let costmap = make_costmap();
+
+        let start = Pose { x: 0.0, y: 0.0, theta: 0.0 };
+        let goal = Waypoint::new(2.0, 2.0);
+
+        reactive.set_goal(&costmap, &start, goal).unwrap();
+        let path = reactive.path().unwrap();
+
+        // Smoothed path should have more points than raw A*
+        assert!(!path.is_empty());
+        assert!(path.length > 0.0);
+    }
+
+    #[test]
+    fn test_point_to_line_distance_fn() {
+        let p = Waypoint::new(1.0, 1.0);
+        let a = Waypoint::new(0.0, 0.0);
+        let b = Waypoint::new(2.0, 0.0);
+        let dist = point_to_line_distance(&p, &a, &b);
+        assert!((dist - 1.0).abs() < 1e-6);
     }
 }

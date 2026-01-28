@@ -15,6 +15,7 @@ dispatch = { path = "../dispatch" }
 planner = { path = "../planner" }
 pursuit = { path = "../pursuit" }
 costmap = { path = "../costmap" }
+mppi = { path = "../mppi" }
 lidar = { path = "../lidar" }
 transforms = { path = "../transforms" }
 

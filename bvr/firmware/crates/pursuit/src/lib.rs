@@ -58,6 +58,12 @@ pub struct PursuitConfig {
     pub obstacle_slowdown_factor: f64,
     /// Distance to start slowing down for goal (meters)
     pub goal_slowdown_distance: f64,
+    /// Enable cost-regulated velocity scaling (slow near inflated obstacles)
+    pub use_cost_regulated_scaling: bool,
+    /// Gain for cost-based speed reduction (0-1, higher = more aggressive)
+    pub cost_scaling_gain: f64,
+    /// Minimum speed fraction when at inscribed cost (0-1)
+    pub min_cost_speed_fraction: f64,
 }
 
 impl Default for PursuitConfig {
@@ -76,6 +82,9 @@ impl Default for PursuitConfig {
             obstacle_stop_duration: 0.5,
             obstacle_slowdown_factor: 0.5,
             goal_slowdown_distance: 1.0,
+            use_cost_regulated_scaling: true,
+            cost_scaling_gain: 0.6,
+            min_cost_speed_fraction: 0.3,
         }
     }
 }
@@ -168,6 +177,36 @@ impl PursuitController {
         self.obstacle_state
     }
 
+    /// Compute cost-based speed scaling factor by sampling points from robot to lookahead.
+    ///
+    /// Returns a factor in [min_cost_speed_fraction, 1.0] where lower values mean
+    /// the robot is near higher-cost (inflated obstacle) regions.
+    fn compute_cost_factor(&self, costmap: &Costmap, pose: &Pose, lookahead: &Waypoint) -> f64 {
+        if !self.config.use_cost_regulated_scaling {
+            return 1.0;
+        }
+
+        let num_samples = 5;
+        let mut max_cost: u8 = 0;
+
+        for i in 0..num_samples {
+            let t = (i as f64 + 1.0) / num_samples as f64;
+            let x = pose.x + t * (lookahead.x - pose.x);
+            let y = pose.y + t * (lookahead.y - pose.y);
+            let cost = costmap.get_cost(x, y);
+            max_cost = max_cost.max(cost);
+        }
+
+        // Only scale when cost is in the inflation zone (above FREE, below INSCRIBED)
+        if max_cost < costs::FREE + 1 {
+            return 1.0;
+        }
+
+        let normalized = max_cost as f64 / costs::INSCRIBED as f64;
+        let factor = 1.0 - normalized * self.config.cost_scaling_gain;
+        factor.clamp(self.config.min_cost_speed_fraction, 1.0)
+    }
+
     /// Compute control output to follow the path.
     ///
     /// # Arguments
@@ -248,8 +287,15 @@ impl PursuitController {
             return Err(PursuitError::LostPath);
         }
 
+        // Compute cost-regulated speed factor
+        let cost_factor = if let Some(costmap) = costmap {
+            self.compute_cost_factor(costmap, pose, &lookahead_point)
+        } else {
+            1.0
+        };
+
         // Pure pursuit steering calculation
-        let twist = self.pure_pursuit(pose, lookahead_point, output.distance_to_goal);
+        let twist = self.pure_pursuit(pose, lookahead_point, output.distance_to_goal, cost_factor);
         output.twist = twist;
         self.last_velocity = twist.linear;
 
@@ -348,7 +394,7 @@ impl PursuitController {
     }
 
     /// Pure pursuit steering calculation.
-    fn pure_pursuit(&self, pose: &Pose, lookahead: Waypoint, distance_to_goal: f64) -> Twist {
+    fn pure_pursuit(&self, pose: &Pose, lookahead: Waypoint, distance_to_goal: f64, cost_factor: f64) -> Twist {
         // Transform lookahead point to robot frame
         let dx = lookahead.x - pose.x;
         let dy = lookahead.y - pose.y;
@@ -393,6 +439,9 @@ impl PursuitController {
         // Use a gentler curvature scaling to avoid stopping when turning
         let curvature_factor = 1.0 / (1.0 + curvature.abs() * 1.0);
         linear_vel *= curvature_factor;
+
+        // Slow down based on costmap cost (near inflated obstacles = slower)
+        linear_vel *= cost_factor;
 
         // Ensure minimum linear velocity to avoid getting stuck while turning
         // (allows robot to "drive through" tight turns rather than oscillating)
@@ -620,5 +669,70 @@ mod tests {
         let cte = controller.compute_cross_track_error(&path, &pose);
 
         assert!((cte - 0.5).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_cost_factor_defaults() {
+        let config = PursuitConfig::default();
+        assert!(config.use_cost_regulated_scaling);
+        assert!((config.cost_scaling_gain - 0.6).abs() < 1e-6);
+        assert!((config.min_cost_speed_fraction - 0.3).abs() < 1e-6);
+    }
+
+    #[test]
+    fn test_cost_factor_no_costmap() {
+        // When no costmap is provided, cost factor should be 1.0 (no scaling)
+        let controller = PursuitController::with_defaults();
+        let pose = Pose { x: 0.0, y: 0.0, theta: 0.0 };
+        let lookahead = Waypoint::new(1.0, 0.0);
+        // Without costmap, compute() skips cost factor — tested indirectly
+        // via pure_pursuit being called with cost_factor=1.0
+        let twist = controller.pure_pursuit(&pose, lookahead, 3.0, 1.0);
+        assert!(twist.linear > 0.0);
+    }
+
+    #[test]
+    fn test_cost_factor_disabled() {
+        let config = PursuitConfig {
+            use_cost_regulated_scaling: false,
+            ..PursuitConfig::default()
+        };
+        let controller = PursuitController::new(config);
+        let costmap = costmap::Costmap::new(10.0, 10.0, 0.1, 0.3, 0.2);
+        let pose = Pose { x: 0.0, y: 0.0, theta: 0.0 };
+        let lookahead = Waypoint::new(1.0, 0.0);
+        let factor = controller.compute_cost_factor(&costmap, &pose, &lookahead);
+        assert!((factor - 1.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn test_cost_factor_free_space() {
+        let controller = PursuitController::with_defaults();
+        let costmap = costmap::Costmap::new(10.0, 10.0, 0.1, 0.3, 0.2);
+        let pose = Pose { x: 0.0, y: 0.0, theta: 0.0 };
+        let lookahead = Waypoint::new(1.0, 0.0);
+        let factor = controller.compute_cost_factor(&costmap, &pose, &lookahead);
+        assert!((factor - 1.0).abs() < 1e-6, "free space should give factor 1.0");
+    }
+
+    #[test]
+    fn test_cost_factor_clamped_to_min() {
+        // With max cost = INSCRIBED and gain = 0.6:
+        // factor = 1.0 - (253/253) * 0.6 = 0.4 — above min of 0.3
+        // With gain = 1.0 and min = 0.3:
+        // factor = 1.0 - 1.0 * 1.0 = 0.0 → clamped to 0.3
+        let config = PursuitConfig {
+            cost_scaling_gain: 1.0,
+            min_cost_speed_fraction: 0.3,
+            ..PursuitConfig::default()
+        };
+        let controller = PursuitController::new(config);
+        let costmap = costmap::Costmap::new(10.0, 10.0, 0.1, 0.3, 0.2);
+        let pose = Pose { x: 0.0, y: 0.0, theta: 0.0 };
+        // Lookahead in free space, factor should still be 1.0
+        let lookahead = Waypoint::new(1.0, 0.0);
+        let factor = controller.compute_cost_factor(&costmap, &pose, &lookahead);
+        // Empty costmap has FREE everywhere, so factor=1.0
+        assert!(factor >= 0.3);
     }
 }

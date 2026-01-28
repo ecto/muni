@@ -42,7 +42,8 @@ pub use command_processor::{CommandProcessor, ProcessedCommands};
 pub use dispatch_handler::{DispatchHandler, DispatchResult};
 pub use motor_controller::{MotorController, MotorOutput};
 pub use navigation_controller::{
-    ActiveTask, NavigationConfig, NavigationController, NavigationOutput, NavigationState,
+    ActiveTask, ControllerType, NavigationConfig, NavigationController, NavigationOutput,
+    NavigationState, RecoveryBehavior, RecoveryConfig,
 };
 pub use telemetry_builder::TelemetryBuilder;
 

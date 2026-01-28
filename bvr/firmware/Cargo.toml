@@ -86,6 +86,8 @@ costmap = { path = "crates/costmap" }
 planner = { path = "crates/planner" }
 pursuit = { path = "crates/pursuit" }
 control-loop = { path = "crates/control-loop" }
+collision-monitor = { path = "crates/collision-monitor" }
+mppi = { path = "crates/mppi" }
 
 # KD-tree for nearest-neighbor queries
 kiddo = "5"

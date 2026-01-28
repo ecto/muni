@@ -13,13 +13,29 @@
 use costmap::{Costmap, CostmapSnapshot, Obstacle, ScanAccumulator};
 use dispatch::TaskAssignment;
 use lidar::PointCloud;
-use planner::{PlannerConfig, ReactivePlanner, Waypoint};
-use pursuit::{ObstacleState, PursuitConfig, PursuitController, PursuitError, PursuitOutput};
+use mppi::{MppiConfig, MppiController};
+use planner::{PlannerConfig, ReactivePlanner, SmootherConfig, Waypoint};
+use pursuit::{PursuitConfig, PursuitController, PursuitError, PursuitOutput};
 use std::time::Instant;
 use tracing::{debug, error, info, warn};
 use transforms::Transform2D;
 use types::{Pose, Twist};
 use uuid::Uuid;
+
+/// Which local controller to use for path following.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum ControllerType {
+    /// Classical pure pursuit controller (default).
+    PurePursuit,
+    /// MPPI sampling-based trajectory optimizer.
+    Mppi,
+}
+
+impl Default for ControllerType {
+    fn default() -> Self {
+        Self::PurePursuit
+    }
+}
 
 /// Navigation controller configuration.
 #[derive(Debug, Clone)]
@@ -37,11 +53,23 @@ pub struct NavigationConfig {
     /// Pursuit configuration
     pub pursuit: PursuitConfig,
 
+    /// MPPI configuration (used when controller_type == Mppi)
+    pub mppi: MppiConfig,
+
+    /// Which local controller to use
+    pub controller_type: ControllerType,
+
     /// Replan distance (how close to waypoint before advancing)
     pub replan_distance: f64,
 
-    /// Blocked timeout (seconds) - how long to wait before giving up
+    /// Blocked timeout (seconds) - how long to wait before starting recovery
     pub blocked_timeout: f64,
+
+    /// Path smoother configuration (None to disable smoothing)
+    pub smoother: Option<SmootherConfig>,
+
+    /// Recovery behavior configuration
+    pub recovery: RecoveryConfig,
 }
 
 impl Default for NavigationConfig {
@@ -54,10 +82,65 @@ impl Default for NavigationConfig {
             inscribed_radius: 0.35,
             planner: PlannerConfig::default(),
             pursuit: PursuitConfig::default(),
+            mppi: MppiConfig::default(),
+            controller_type: ControllerType::default(),
             replan_distance: 0.5,
             blocked_timeout: 30.0,
+            smoother: Some(SmootherConfig::default()),
+            recovery: RecoveryConfig::default(),
         }
     }
+}
+
+/// Recovery behavior configuration.
+#[derive(Debug, Clone)]
+pub struct RecoveryConfig {
+    /// Distance to back up (meters).
+    pub backup_distance: f64,
+    /// Speed to back up (m/s, positive value).
+    pub backup_speed: f64,
+    /// Angular velocity for 360° spin (rad/s).
+    pub spin_speed: f64,
+    /// Duration to wait before retrying (seconds).
+    pub wait_duration: f64,
+    /// Maximum recovery cycles before declaring failure.
+    pub max_recovery_cycles: u32,
+}
+
+impl Default for RecoveryConfig {
+    fn default() -> Self {
+        Self {
+            backup_distance: 0.3,
+            backup_speed: 0.2,
+            spin_speed: 0.5,
+            wait_duration: 10.0,
+            max_recovery_cycles: 3,
+        }
+    }
+}
+
+/// Recovery behavior types.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum RecoveryBehavior {
+    /// Back up a fixed distance.
+    BackUp,
+    /// Clear costmap dynamic layer.
+    ClearCostmap,
+    /// Spin 360° to refresh LiDAR data.
+    Spin,
+    /// Wait before retrying.
+    Wait,
+}
+
+/// Progress tracking for the active recovery behavior.
+#[derive(Debug, Clone)]
+struct RecoveryProgress {
+    /// Distance backed up so far (meters).
+    distance_traveled: f64,
+    /// Angle rotated so far (radians).
+    angle_rotated: f64,
+    /// Time spent waiting (seconds).
+    wait_elapsed: f64,
 }
 
 /// State of the navigation controller.
@@ -73,6 +156,8 @@ pub enum NavigationState {
     ObstacleStopped,
     /// Replanning due to blocked path.
     Replanning,
+    /// Executing recovery behavior (back up, spin, wait, etc.).
+    Recovering(RecoveryBehavior),
     /// Goal reached.
     GoalReached,
     /// Navigation failed (no path found, stuck, etc.).
@@ -192,12 +277,17 @@ pub struct NavigationController {
     costmap: Costmap,
     planner: ReactivePlanner,
     pursuit: PursuitController,
+    mppi: Option<MppiController>,
     state: NavigationState,
     current_task: Option<ActiveTask>,
     blocked_start: Option<Instant>,
     last_pose: Pose,
     /// Multi-frame scan accumulator for reinforcing obstacle evidence.
     accumulator: ScanAccumulator,
+    /// Recovery cycle count (resets on successful plan).
+    recovery_cycle_count: u32,
+    /// Progress of current recovery behavior.
+    recovery_progress: Option<RecoveryProgress>,
 }
 
 impl NavigationController {
@@ -211,19 +301,35 @@ impl NavigationController {
             config.inscribed_radius,
         );
 
-        let planner = ReactivePlanner::new(config.planner.clone(), config.replan_distance);
+        let planner = if let Some(ref smoother_config) = config.smoother {
+            ReactivePlanner::with_smoother(
+                config.planner.clone(),
+                config.replan_distance,
+                smoother_config.clone(),
+            )
+        } else {
+            ReactivePlanner::new(config.planner.clone(), config.replan_distance)
+        };
         let pursuit = PursuitController::new(config.pursuit.clone());
+        let mppi = if config.controller_type == ControllerType::Mppi {
+            Some(MppiController::new(config.mppi.clone()))
+        } else {
+            None
+        };
 
         Self {
             config,
             costmap,
             planner,
             pursuit,
+            mppi,
             state: NavigationState::Idle,
             current_task: None,
             blocked_start: None,
             last_pose: Pose::default(),
             accumulator: ScanAccumulator::new(2),
+            recovery_cycle_count: 0,
+            recovery_progress: None,
         }
     }
 
@@ -275,7 +381,12 @@ impl NavigationController {
         self.state = NavigationState::Planning;
         self.planner.clear_goal();
         self.pursuit.reset();
+        if let Some(ref mut mppi) = self.mppi {
+            mppi.reset();
+        }
         self.blocked_start = None;
+        self.recovery_cycle_count = 0;
+        self.recovery_progress = None;
     }
 
     /// Set a simple goal (for testing without dispatch).
@@ -291,7 +402,12 @@ impl NavigationController {
         self.state = NavigationState::Planning;
         self.planner.clear_goal();
         self.pursuit.reset();
+        if let Some(ref mut mppi) = self.mppi {
+            mppi.reset();
+        }
         self.blocked_start = None;
+        self.recovery_cycle_count = 0;
+        self.recovery_progress = None;
     }
 
     /// Cancel current task.
@@ -300,7 +416,12 @@ impl NavigationController {
         self.state = NavigationState::Idle;
         self.planner.clear_goal();
         self.pursuit.reset();
+        if let Some(ref mut mppi) = self.mppi {
+            mppi.reset();
+        }
         self.blocked_start = None;
+        self.recovery_cycle_count = 0;
+        self.recovery_progress = None;
     }
 
     /// Update costmap with new LiDAR scan.
@@ -368,13 +489,25 @@ impl NavigationController {
                             "Path planned"
                         );
                         self.pursuit.reset();
+                        if let Some(ref mut mppi) = self.mppi {
+                            mppi.reset();
+                        }
                         self.state = NavigationState::Following;
                         output.total_waypoints = path.waypoints.len();
+                        // Reset recovery cycle count on successful plan
+                        self.recovery_cycle_count = 0;
+                        self.recovery_progress = None;
                     }
                     Err(e) => {
                         error!(?e, "Path planning failed");
-                        self.state = NavigationState::Failed;
-                        output.error = Some(format!("Planning failed: {}", e));
+                        // If we were replanning during recovery, try spin
+                        if self.recovery_progress.is_some() {
+                            warn!("Replan failed during recovery, trying spin");
+                            self.start_recovery(RecoveryBehavior::Spin);
+                        } else {
+                            self.state = NavigationState::Failed;
+                            output.error = Some(format!("Planning failed: {}", e));
+                        }
                     }
                 }
             }
@@ -398,59 +531,76 @@ impl NavigationController {
 
                 output.total_waypoints = path.waypoints.len();
 
-                // Follow path with pursuit controller
-                match self.pursuit.compute(&path, pose, Some(&self.costmap), dt) {
-                    Ok(pursuit_out) => {
-                        output.twist = pursuit_out.twist;
-                        output.waypoint_index = pursuit_out.waypoint_index;
-                        output.pursuit_output = Some(pursuit_out.clone());
+                // Follow path with selected controller
+                if let Some(ref mut mppi) = self.mppi {
+                    // MPPI controller
+                    let vel = Twist {
+                        linear: 0.0,
+                        angular: 0.0,
+                        boost: false,
+                    };
+                    let mppi_out = mppi.compute(&path, pose, &vel, &self.costmap);
+                    output.twist = mppi_out.twist;
 
-                        if pursuit_out.goal_reached {
-                            // Reached current waypoint in task
-                            output.goal_reached = true;
-                            self.state = NavigationState::GoalReached;
-                        } else if pursuit_out.obstacle_stop {
-                            self.state = NavigationState::ObstacleStopped;
-                            if self.blocked_start.is_none() {
-                                self.blocked_start = Some(Instant::now());
+                    // Check goal reached (distance-based)
+                    if output.distance_to_goal < self.config.replan_distance {
+                        output.goal_reached = true;
+                        self.state = NavigationState::GoalReached;
+                    }
+                    // Note: obstacle stopping is handled externally by
+                    // CollisionMonitor via notify_collision_status()
+                } else {
+                    // Pure pursuit controller
+                    match self.pursuit.compute(&path, pose, Some(&self.costmap), dt) {
+                        Ok(pursuit_out) => {
+                            output.twist = pursuit_out.twist;
+                            output.waypoint_index = pursuit_out.waypoint_index;
+                            output.pursuit_output = Some(pursuit_out.clone());
+
+                            if pursuit_out.goal_reached {
+                                // Reached current waypoint in task
+                                output.goal_reached = true;
+                                self.state = NavigationState::GoalReached;
                             }
+                            // Note: obstacle stopping is now handled externally by
+                            // CollisionMonitor via notify_collision_status()
                         }
-                    }
-                    Err(PursuitError::LostPath) => {
-                        warn!("Lost path, replanning");
-                        self.state = NavigationState::Replanning;
-                    }
-                    Err(e) => {
-                        error!(?e, "Pursuit error");
-                        self.state = NavigationState::Failed;
-                        output.error = Some(format!("Pursuit failed: {}", e));
+                        Err(PursuitError::LostPath) => {
+                            warn!("Lost path, replanning");
+                            self.state = NavigationState::Replanning;
+                        }
+                        Err(e) => {
+                            error!(?e, "Pursuit error");
+                            self.state = NavigationState::Failed;
+                            output.error = Some(format!("Pursuit failed: {}", e));
+                        }
                     }
                 }
             }
 
             NavigationState::ObstacleStopped => {
-                // Check if obstacle cleared
-                if self.pursuit.obstacle_state() == ObstacleState::Clear {
-                    info!("Obstacle cleared, resuming");
-                    self.state = NavigationState::Following;
-                    self.blocked_start = None;
-                } else {
-                    // Check timeout
-                    if let Some(start) = self.blocked_start {
-                        let blocked_time = start.elapsed().as_secs_f64();
-                        if blocked_time > self.config.blocked_timeout {
-                            warn!(
-                                blocked_time = format!("{:.1}s", blocked_time),
-                                "Blocked timeout exceeded, replanning"
-                            );
-                            self.state = NavigationState::Replanning;
-                            self.blocked_start = None;
-                        }
+                // Collision status is updated externally via notify_collision_status().
+                // If it transitions us back to Following, we'll resume next tick.
+                // Check blocked timeout to start recovery.
+                if let Some(start) = self.blocked_start {
+                    let blocked_time = start.elapsed().as_secs_f64();
+                    if blocked_time > self.config.blocked_timeout {
+                        warn!(
+                            blocked_time = format!("{:.1}s", blocked_time),
+                            cycle = self.recovery_cycle_count,
+                            "Blocked timeout exceeded, starting recovery"
+                        );
+                        self.blocked_start = None;
+                        self.start_recovery(RecoveryBehavior::BackUp);
                     }
                 }
 
                 // Still stopped
                 output.twist = Twist::default();
+            }
+
+            NavigationState::Recovering(behavior) => {
+                output.twist = self.update_recovery(behavior, pose, dt);
             }
 
             NavigationState::GoalReached => {
@@ -465,6 +615,124 @@ impl NavigationController {
 
         output.state = self.state;
         output
+    }
+
+    /// Notify the controller that the collision monitor has stopped/released the robot.
+    ///
+    /// Called from the main loop after the CollisionMonitor filters the twist.
+    /// When `is_stopped` transitions from false→true, we enter ObstacleStopped.
+    /// When it transitions from true→false, we resume Following.
+    pub fn notify_collision_status(&mut self, is_stopped: bool) {
+        match self.state {
+            NavigationState::Following if is_stopped => {
+                info!("Collision monitor stopped robot, entering ObstacleStopped");
+                self.state = NavigationState::ObstacleStopped;
+                if self.blocked_start.is_none() {
+                    self.blocked_start = Some(Instant::now());
+                }
+            }
+            NavigationState::ObstacleStopped if !is_stopped => {
+                info!("Collision monitor cleared, resuming Following");
+                self.state = NavigationState::Following;
+                self.blocked_start = None;
+            }
+            _ => {}
+        }
+    }
+
+    /// Start a recovery behavior.
+    fn start_recovery(&mut self, behavior: RecoveryBehavior) {
+        info!(?behavior, cycle = self.recovery_cycle_count, "Starting recovery behavior");
+        self.recovery_progress = Some(RecoveryProgress {
+            distance_traveled: 0.0,
+            angle_rotated: 0.0,
+            wait_elapsed: 0.0,
+        });
+        self.state = NavigationState::Recovering(behavior);
+    }
+
+    /// Update the active recovery behavior. Returns twist command.
+    fn update_recovery(&mut self, behavior: RecoveryBehavior, _pose: &Pose, dt: f64) -> Twist {
+        let progress = match self.recovery_progress.as_mut() {
+            Some(p) => p,
+            None => {
+                // Shouldn't happen, transition to Replanning
+                self.state = NavigationState::Replanning;
+                return Twist::default();
+            }
+        };
+
+        match behavior {
+            RecoveryBehavior::BackUp => {
+                let target_dist = self.config.recovery.backup_distance;
+                progress.distance_traveled += self.config.recovery.backup_speed * dt;
+
+                if progress.distance_traveled >= target_dist {
+                    info!(distance = format!("{:.2}m", progress.distance_traveled), "Backup complete");
+                    // Next step: clear costmap
+                    self.start_recovery(RecoveryBehavior::ClearCostmap);
+                    return Twist::default();
+                }
+
+                Twist {
+                    linear: -self.config.recovery.backup_speed,
+                    angular: 0.0,
+                    boost: false,
+                }
+            }
+
+            RecoveryBehavior::ClearCostmap => {
+                info!("Clearing costmap dynamic layer");
+                self.costmap.clear_obstacles();
+                self.accumulator = ScanAccumulator::new(2);
+                // Transition to replanning
+                self.state = NavigationState::Replanning;
+                // Keep recovery_progress alive so failed replan can trigger Spin
+                Twist::default()
+            }
+
+            RecoveryBehavior::Spin => {
+                let target_angle = std::f64::consts::TAU; // 360°
+                progress.angle_rotated += self.config.recovery.spin_speed * dt;
+
+                if progress.angle_rotated >= target_angle {
+                    info!("Spin complete, attempting replan");
+                    // After spin, try wait then retry from step 1
+                    self.start_recovery(RecoveryBehavior::Wait);
+                    return Twist::default();
+                }
+
+                Twist {
+                    linear: 0.0,
+                    angular: self.config.recovery.spin_speed,
+                    boost: false,
+                }
+            }
+
+            RecoveryBehavior::Wait => {
+                progress.wait_elapsed += dt;
+
+                if progress.wait_elapsed >= self.config.recovery.wait_duration {
+                    self.recovery_cycle_count += 1;
+                    info!(cycle = self.recovery_cycle_count, "Wait complete");
+
+                    if self.recovery_cycle_count >= self.config.recovery.max_recovery_cycles {
+                        error!(
+                            cycles = self.recovery_cycle_count,
+                            "Max recovery cycles exceeded, navigation failed"
+                        );
+                        self.state = NavigationState::Failed;
+                        self.recovery_progress = None;
+                    } else {
+                        // Start another recovery cycle from BackUp
+                        self.start_recovery(RecoveryBehavior::BackUp);
+                    }
+                    return Twist::default();
+                }
+
+                Twist::default()
+            }
+        }
     }
 
     /// Advance to next waypoint in task. Returns true if task is complete.
@@ -557,6 +825,69 @@ mod tests {
         assert!(!task.advance());
         assert_eq!(task.progress_percent(), 75);
         assert!(task.advance()); // Task complete
+    }
+
+    #[test]
+    fn test_recovery_config_defaults() {
+        let config = RecoveryConfig::default();
+        assert!((config.backup_distance - 0.3).abs() < 1e-6);
+        assert!((config.backup_speed - 0.2).abs() < 1e-6);
+        assert!((config.spin_speed - 0.5).abs() < 1e-6);
+        assert!((config.wait_duration - 10.0).abs() < 1e-6);
+        assert_eq!(config.max_recovery_cycles, 3);
+    }
+
+    #[test]
+    fn test_recovery_behavior_enum() {
+        // Verify all variants exist and are distinct
+        let behaviors = [
+            RecoveryBehavior::BackUp,
+            RecoveryBehavior::ClearCostmap,
+            RecoveryBehavior::Spin,
+            RecoveryBehavior::Wait,
+        ];
+        for (i, a) in behaviors.iter().enumerate() {
+            for (j, b) in behaviors.iter().enumerate() {
+                if i == j {
+                    assert_eq!(a, b);
+                } else {
+                    assert_ne!(a, b);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_navigation_state_recovering() {
+        let state = NavigationState::Recovering(RecoveryBehavior::BackUp);
+        assert!(matches!(state, NavigationState::Recovering(RecoveryBehavior::BackUp)));
+        assert_ne!(state, NavigationState::Following);
+    }
+
+    #[test]
+    fn test_notify_collision_status() {
+        let mut controller = NavigationController::with_defaults();
+        controller.set_goal(Waypoint::new(5.0, 5.0));
+
+        // Simulate planning -> following
+        controller.state = NavigationState::Following;
+
+        // Notify collision stopped
+        controller.notify_collision_status(true);
+        assert_eq!(controller.state(), NavigationState::ObstacleStopped);
+
+        // Notify collision cleared
+        controller.notify_collision_status(false);
+        assert_eq!(controller.state(), NavigationState::Following);
+    }
+
+    #[test]
+    fn test_recovery_resets_on_new_task() {
+        let mut controller = NavigationController::with_defaults();
+        controller.recovery_cycle_count = 2;
+        controller.set_goal(Waypoint::new(5.0, 5.0));
+        assert_eq!(controller.recovery_cycle_count, 0);
+        assert!(controller.recovery_progress.is_none());
     }
 
     #[test]

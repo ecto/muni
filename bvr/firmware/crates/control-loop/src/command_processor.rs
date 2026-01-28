@@ -80,6 +80,9 @@ impl CommandProcessor {
                 Command::LidarToggle(_) => {
                     // LidarToggle is handled per-connection in WebRTC, not forwarded
                 }
+                Command::SetGoal { .. } => {
+                    // SetGoal is handled by dispatch / navigation controller
+                }
             }
         }
 
