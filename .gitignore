@@ -37,6 +37,12 @@ temp/
 *.sldasm~
 *_backup*.step
 
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+
 # Node.js
 node_modules/
 dist/
