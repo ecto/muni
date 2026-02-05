@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useRef } from "react";
 import { useConsoleStore } from "@/store";
 import { CellTower, Broadcast, Heartbeat, Planet, Crosshair, CellSignalFull, CellSignalMedium, CellSignalLow, CellSignalSlash } from "@phosphor-icons/react";
 import type { GpsStatus, SatelliteInfo, Constellation } from "@/lib/types";
@@ -92,13 +92,13 @@ type SnrDataPoint = {
 };
 
 export function BaseStationView() {
-  const { gpsStatus } = useConsoleStore();
+  const gpsStatus = useConsoleStore((s) => s.gpsStatus);
   const status: GpsStatus = gpsStatus ?? defaultStatus;
 
-  // State to preserve last good data (prevents flashing when data temporarily empty)
-  const [cachedSatellites, setCachedSatellites] = useState<SatelliteInfo[]>([]);
-  const [cachedConstellations, setCachedConstellations] = useState<Partial<Record<Constellation, SatelliteInfo[]>>>({});
-  const [cachedSnrData, setCachedSnrData] = useState<SnrDataPoint[]>([]);
+  // Refs to preserve last good data (prevents flashing when data temporarily empty)
+  const cachedSatellitesRef = useRef<SatelliteInfo[]>([]);
+  const cachedConstellationsRef = useRef<Partial<Record<Constellation, SatelliteInfo[]>>>({});
+  const cachedSnrDataRef = useRef<SnrDataPoint[]>([]);
 
   const fixConfig = fixQualityConfig[status.fixQuality ?? "no_fix"] ?? fixQualityConfig.no_fix;
 
@@ -124,17 +124,11 @@ export function BaseStationView() {
     }, { seen: new Set<string>(), list: [] as SatelliteInfo[] }).list;
   }, [status.satelliteInfo]);
 
-  // Update cached satellites when we have good data
-  // (intentional state sync to prevent UI flashing when data temporarily empty)
-  useEffect(() => {
-    if (computedSatellites.length > 0) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setCachedSatellites(computedSatellites);
-    }
-  }, [computedSatellites]);
-
-  // Display computed data or fall back to cached
-  const uniqueSatellites = computedSatellites.length > 0 ? computedSatellites : cachedSatellites;
+  // Cache last good data in refs (avoids setState-in-useEffect cascade)
+  if (computedSatellites.length > 0) {
+    cachedSatellitesRef.current = computedSatellites;
+  }
+  const uniqueSatellites = computedSatellites.length > 0 ? computedSatellites : cachedSatellitesRef.current;
 
   // Group satellites by constellation - pure computation
   const computedConstellations = useMemo(() => {
@@ -146,18 +140,12 @@ export function BaseStationView() {
     }, {} as Partial<Record<Constellation, SatelliteInfo[]>>);
   }, [uniqueSatellites]);
 
-  // Update cached constellations when we have good data
-  useEffect(() => {
-    if (Object.keys(computedConstellations).length > 0) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setCachedConstellations(computedConstellations);
-    }
-  }, [computedConstellations]);
-
-  // Display computed data or fall back to cached
+  if (Object.keys(computedConstellations).length > 0) {
+    cachedConstellationsRef.current = computedConstellations;
+  }
   const satellitesByConstellation = Object.keys(computedConstellations).length > 0
     ? computedConstellations
-    : cachedConstellations;
+    : cachedConstellationsRef.current;
 
   // Prepare satellite SNR data for bar chart - pure computation
   const computedSnrData = useMemo(() => {
@@ -172,16 +160,10 @@ export function BaseStationView() {
       }));
   }, [uniqueSatellites]);
 
-  // Update cached SNR data when we have good data
-  useEffect(() => {
-    if (computedSnrData.length > 0) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setCachedSnrData(computedSnrData);
-    }
-  }, [computedSnrData]);
-
-  // Display computed data or fall back to cached
-  const satelliteSnrData = computedSnrData.length > 0 ? computedSnrData : cachedSnrData;
+  if (computedSnrData.length > 0) {
+    cachedSnrDataRef.current = computedSnrData;
+  }
+  const satelliteSnrData = computedSnrData.length > 0 ? computedSnrData : cachedSnrDataRef.current;
 
   const snrChartConfig: ChartConfig = {
     snr: {

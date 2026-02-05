@@ -28,7 +28,7 @@ const MODE_COLORS: Record<number, string> = {
  * Selected rover gets the full model, others get simplified cone markers.
  */
 export function FleetMarkers({ selectedRoverId, activeTaskRoverId }: FleetMarkersProps) {
-  const { rovers } = useConsoleStore();
+  const rovers = useConsoleStore((s) => s.rovers);
 
   // Filter to online rovers that aren't the selected one
   const otherRovers = useMemo(
