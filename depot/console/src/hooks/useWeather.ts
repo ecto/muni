@@ -14,8 +14,9 @@ export function useWeather() {
     if (window.location.hostname === "localhost") {
       return `http://depot:4890${path}`;
     }
+    // Production: route through nginx reverse proxy
     const protocol = window.location.protocol;
-    return `${protocol}//${window.location.hostname}:4890${path}`;
+    return `${protocol}//${window.location.host}/api/dispatch${path}`;
   }, []);
 
   const fetchWeather = useCallback(async () => {

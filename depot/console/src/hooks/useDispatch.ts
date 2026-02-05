@@ -114,11 +114,12 @@ export function useDispatch() {
 
   const getDispatchUrl = useCallback((path: string) => {
     if (window.location.hostname === "localhost") {
-      // Dev mode: connect to depot
+      // Dev mode: connect to depot directly
       return `http://depot:4890${path}`;
     }
+    // Production: route through nginx reverse proxy
     const protocol = window.location.protocol;
-    return `${protocol}//${window.location.hostname}:4890${path}`;
+    return `${protocol}//${window.location.host}/api/dispatch${path}`;
   }, []);
 
   const getDispatchWsUrl = useCallback(() => {
@@ -127,8 +128,9 @@ export function useDispatch() {
       const depotHost = import.meta.env.VITE_DEPOT_HOST || "depot";
       return `ws://${depotHost}:4890/ws/console`;
     }
+    // Production: route through nginx reverse proxy
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    return `${protocol}//${window.location.hostname}:4890/ws/console`;
+    return `${protocol}//${window.location.host}/api/dispatch/ws/console`;
   }, []);
 
   // ==========================================================================

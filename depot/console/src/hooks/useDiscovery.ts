@@ -26,8 +26,9 @@ export function useDiscovery() {
       const depotHost = import.meta.env.VITE_DEPOT_HOST || "depot";
       return `ws://${depotHost}:4860/ws?session_id=${sid}`;
     }
+    // Production: route through nginx reverse proxy
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    return `${protocol}//${window.location.hostname}:4860/ws?session_id=${sid}`;
+    return `${protocol}//${window.location.host}/api/discovery/ws?session_id=${sid}`;
   }, []);
 
   const connect = useCallback(() => {
