@@ -1,4 +1,5 @@
 import { StatusPanel } from "./StatusPanel";
+import { SlamPanel } from "./SlamPanel";
 import { DiagnosticsPanel } from "./DiagnosticsPanel";
 import { InputPanel } from "./InputPanel";
 import { CameraFeedSection } from "@/components/scene/EquirectangularSky";
@@ -17,6 +18,8 @@ export function TeleopSidebar({ onToggleLidar }: TeleopSidebarProps) {
     <div className="w-56 bg-card/90 backdrop-blur-sm border border-border rounded-lg overflow-hidden shadow-lg flex flex-col max-h-full">
       <div className="overflow-y-auto overflow-x-hidden scrollbar-thin">
         <StatusPanel />
+        <div className="border-t border-border" />
+        <SlamPanel />
         <div className="border-t border-border" />
         <DiagnosticsPanel onToggleLidar={onToggleLidar} />
         <div className="border-t border-border" />
