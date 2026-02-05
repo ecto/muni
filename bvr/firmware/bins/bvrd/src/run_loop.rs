@@ -99,10 +99,12 @@ pub(crate) fn run(ctx: DaemonContext) {
         mut last_subsystem_check,
         mut dispatch_connected_live,
         heartbeat_stalled,
+        seq_tracker,
     } = ctx;
 
     // Pre-compute IMU mount transform (used for both attitude and yaw extraction)
     let (sin_mount_pitch, cos_mount_pitch) = (mount_pitch_rad as f64).sin_cos();
+    let mut vel_tracker = teleop::VelocityTracker::new();
 
     // Clone dispatch task handle for event processing
     let dispatch_task_clone = current_dispatch_task.clone();
@@ -1020,6 +1022,11 @@ pub(crate) fn run(ctx: DaemonContext) {
             vesc_states[3].status5.tachometer,  // RR
         ];
         let (dx, dy, dtheta) = odometry.update(tach);
+        let now_us = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_micros() as u64)
+            .unwrap_or(0);
+        vel_tracker.update((dx * dx + dy * dy).sqrt(), dtheta, now_us);
 
         // Extract body-frame yaw rate from IMU (if available)
         let gyro_z_body: Option<f32> = imu_rx.borrow().as_ref().map(|imu| {
@@ -1138,7 +1145,7 @@ pub(crate) fn run(ctx: DaemonContext) {
         // Build SLAM status if enabled
         let slam_status = slam_state.as_ref().map(|state| SlamStatus {
             pose,
-            confidence: 0.8, // TODO: track actual match score
+            confidence: slam_state.as_ref().map(|s| s.match_score as f32).unwrap_or(0.0),
             keyframe_count: state.keyframe_count,
             loop_closure_count: state.loop_closure_count,
             mapping_active: true,
@@ -1239,15 +1246,15 @@ pub(crate) fn run(ctx: DaemonContext) {
                 system_current: state.drivetrain.total_current() as f64,
             },
             cmd_velocity: twist,
-            meas_velocity: (0.0, 0.0),  // TODO: populate from VelocityTracker
-            acceleration: (0.0, 0.0),   // TODO: populate from VelocityTracker
+            meas_velocity: (vel_tracker.linear() as f32, vel_tracker.angular() as f32),
+            acceleration: (vel_tracker.linear_accel() as f32, vel_tracker.angular_accel() as f32),
             motor_temps,
             motor_currents,
             health: state.health,
-            odometry_quality: 100,  // TODO: get from odometry
+            odometry_quality: vel_tracker.quality(),
             dt_ms: (dt * 1000.0) as f32,
-            last_cmd_seq: 0,  // TODO: populate from SequenceTracker
-            ack_bits: 0,      // TODO: populate from SequenceTracker
+            last_cmd_seq: seq_tracker.lock().map(|t| t.last_seq()).unwrap_or(0),
+            ack_bits: seq_tracker.lock().map(|t| t.ack_bits()).unwrap_or(0),
             roll,
             pitch,
             cpu_percent: sys.cpu_percent as u8,
@@ -1369,7 +1376,7 @@ pub(crate) fn run(ctx: DaemonContext) {
             let _ = recorder.log_slam_status(
                 slam.keyframe_count as usize,
                 slam.loop_closure_count as usize,
-                0.0, // TODO: track match score
+                slam_state.as_ref().map(|s| s.match_score).unwrap_or(0.0),
             );
         }
 

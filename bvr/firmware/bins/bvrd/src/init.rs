@@ -149,6 +149,9 @@ pub(crate) struct DaemonContext {
     // -- dispatch/discovery connection tracking --
     pub(crate) dispatch_connected_live: bool,
     pub(crate) heartbeat_stalled: std::sync::Arc<std::sync::atomic::AtomicBool>,
+
+    // -- sequence tracking (shared with teleop Server for ACK fields) --
+    pub(crate) seq_tracker: std::sync::Arc<std::sync::Mutex<teleop::SequenceTracker>>,
 }
 
 /// Run all initialization and return the context the control loop needs plus
@@ -584,8 +587,9 @@ pub(crate) async fn initialize(
     };
 
     // Spawn teleop server (UDP)
+    let seq_tracker = std::sync::Arc::new(std::sync::Mutex::new(teleop::SequenceTracker::new()));
     let teleop_config = TeleopConfig::default();
-    let teleop = TeleopServer::new(teleop_config, cmd_tx.clone(), telemetry_rx.clone());
+    let teleop = TeleopServer::new(teleop_config, cmd_tx.clone(), telemetry_rx.clone(), seq_tracker.clone());
 
     tokio::spawn(async move {
         if let Err(e) = teleop.run().await {
@@ -1069,6 +1073,7 @@ pub(crate) async fn initialize(
                             loop_closure_count: slam.loop_closure_count() as u32,
                             keyframe_poses: slam.keyframe_poses(),
                             pose_covariance: slam.pose_covariance_array(),
+                            match_score: update.match_score,
                         };
                         let _ = state_tx.send(state);
                     }
@@ -1338,6 +1343,7 @@ pub(crate) async fn initialize(
         last_subsystem_check: Instant::now(),
         dispatch_connected_live: false,
         heartbeat_stalled,
+        seq_tracker,
     };
 
     Ok((ctx, log_guard))

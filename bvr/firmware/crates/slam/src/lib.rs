@@ -46,6 +46,8 @@ pub struct SlamState {
     /// Pose covariance from EKF (row-major 3x3).
     /// Uses plain array to avoid nalgebra in the watch channel type.
     pub pose_covariance: [[f64; 3]; 3],
+    /// Latest GICP scan match score (0.0 when no match attempted)
+    pub match_score: f64,
 }
 
 impl Default for SlamState {
@@ -56,6 +58,7 @@ impl Default for SlamState {
             loop_closure_count: 0,
             keyframe_poses: vec![],
             pose_covariance: [[1e-4, 0.0, 0.0], [0.0, 1e-4, 0.0], [0.0, 0.0, 1e-4]],
+            match_score: 0.0,
         }
     }
 }
@@ -188,6 +191,8 @@ pub struct SlamUpdate {
     pub keyframe_count: usize,
     /// Total loop closures detected
     pub loop_closure_count: usize,
+    /// GICP scan match score (0.0 when no match attempted)
+    pub match_score: f64,
 }
 
 /// Extended Kalman Filter for 2D pose estimation.
@@ -445,6 +450,8 @@ impl SlamProcessor {
         // Take the pending IMU delta (consumed once per scan)
         let imu_delta = self.pending_imu_delta.take();
 
+        let mut last_score = 0.0;
+
         let matched = if has_moved {
             if let Some(ref_kf) = reference {
                 let ref_scan = &ref_kf.scan;
@@ -459,6 +466,7 @@ impl SlamProcessor {
                 match self.scan_matcher.match_scans(ref_scan, &scan, initial_guess) {
                     Ok(result) => {
                         if result.score > 0.5 {
+                            last_score = result.score;
                             // Compute absolute measurement: keyframe_pose * scan_match_result
                             let measurement_tf = &keyframe_pose * &result.transform;
                             let measurement = Vector3::new(
@@ -472,6 +480,7 @@ impl SlamProcessor {
                             self.consecutive_match_failures = 0;
                             true
                         } else {
+                            last_score = result.score;
                             debug!(score = result.score, "Scan match score too low, skipping correction");
                             self.consecutive_match_failures += 1;
                             false
@@ -623,6 +632,7 @@ impl SlamProcessor {
                 loop_closure_detected,
                 keyframe_count: self.keyframes.len(),
                 loop_closure_count: self.loop_closure_count,
+                match_score: last_score,
             })
         } else {
             None
@@ -1179,6 +1189,7 @@ mod tests {
             loop_closure_count: 0,
             keyframe_poses: vec![],
             pose_covariance: [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]],
+            match_score: 0.0,
         };
         assert!((state.pose_covariance[0][0] - 1.0).abs() < 1e-10);
     }

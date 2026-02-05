@@ -422,6 +422,7 @@ pub struct Server {
     config: Config,
     command_tx: mpsc::Sender<Command>,
     telemetry_rx: watch::Receiver<Telemetry>,
+    seq_tracker: std::sync::Arc<std::sync::Mutex<SequenceTracker>>,
 }
 
 impl Server {
@@ -429,11 +430,13 @@ impl Server {
         config: Config,
         command_tx: mpsc::Sender<Command>,
         telemetry_rx: watch::Receiver<Telemetry>,
+        seq_tracker: std::sync::Arc<std::sync::Mutex<SequenceTracker>>,
     ) -> Self {
         Self {
             config,
             command_tx,
             telemetry_rx,
+            seq_tracker,
         }
     }
 
@@ -460,6 +463,16 @@ impl Server {
                             last_recv = std::time::Instant::now();
 
                             if let Some(cmd) = Self::parse_command(&buf[..len]) {
+                                // Track command sequence for ACK
+                                if let Some(header) = CommandHeader::parse(&buf[..len]) {
+                                    let now_ms = std::time::SystemTime::now()
+                                        .duration_since(std::time::UNIX_EPOCH)
+                                        .map(|d| d.as_millis() as u32)
+                                        .unwrap_or(0);
+                                    if let Ok(mut tracker) = self.seq_tracker.lock() {
+                                        tracker.accept(header.sequence, header.timestamp_ms, now_ms);
+                                    }
+                                }
                                 // Log SetMode at info level for visibility
                                 match &cmd {
                                     Command::SetMode(mode) => info!(?mode, %addr, "UDP SetMode received"),
