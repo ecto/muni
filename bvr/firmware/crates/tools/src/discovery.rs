@@ -155,6 +155,13 @@ impl Registry {
         self.register(Box::new(Blower::new(config.clone())));
     }
 
+    /// Get the active tool's ToolType (for telemetry).
+    pub fn active_tool_type(&self) -> crate::ToolType {
+        self.active()
+            .map(|t| t.info().tool_type)
+            .unwrap_or(crate::ToolType::Unknown)
+    }
+
     /// Get number of registered tools.
     pub fn count(&self) -> usize {
         self.tools.len()

@@ -313,6 +313,12 @@ h264_keyframe_interval = 15
 # fov_h = 1.745                          # Horizontal FOV (radians, 100°)
 # fov_v = 1.18                           # Vertical FOV (radians, ~68°)
 
+[eth_tools]
+# Enable Ethernet tool MCU discovery (PoE-attached peripherals like headlights)
+enabled = true
+# UDP port to listen for MCU identity broadcasts
+discovery_port = 4861
+
 [blower]
 # Enable blower subsystem (90mm EDF)
 enabled = true

@@ -6,6 +6,9 @@
 pub mod auger;
 pub mod blower;
 pub mod discovery;
+pub mod eth_discovery;
+pub mod eth_protocol;
+pub mod lights;
 pub mod protocol;
 
 use bitflags::bitflags;
@@ -14,6 +17,8 @@ use types::ToolCommand;
 pub use auger::SnowAuger;
 pub use blower::Blower;
 pub use discovery::Registry;
+pub use eth_discovery::EthDiscovery;
+pub use lights::EthHeadlights;
 
 bitflags! {
     /// Tool capability flags.
@@ -29,6 +34,8 @@ bitflags! {
         const CURRENT_FB    = 0x0008;
         /// Reports temperature
         const TEMP_FB       = 0x0010;
+        /// Has controllable lights (headlights, LED strips)
+        const LIGHTS        = 0x0020;
     }
 }
 
@@ -42,6 +49,8 @@ pub enum ToolType {
     Mower = 3,
     Plow = 4,
     Blower = 5,
+    Lights = 6,
+    Sensor = 7,
 }
 
 impl From<u8> for ToolType {
@@ -52,6 +61,8 @@ impl From<u8> for ToolType {
             3 => Self::Mower,
             4 => Self::Plow,
             5 => Self::Blower,
+            6 => Self::Lights,
+            7 => Self::Sensor,
             _ => Self::Unknown,
         }
     }
@@ -86,6 +97,11 @@ pub enum ToolOutput {
     SetBoth { axis: f32, motor: f32 },
     /// Raw CAN frame (for VESC-based tools that bypass tool protocol).
     Raw(can::Frame),
+    /// UDP packet to send to an Ethernet-attached tool MCU.
+    Udp {
+        addr: std::net::SocketAddr,
+        data: Vec<u8>,
+    },
 }
 
 /// Trait for tool implementations.
@@ -115,7 +131,9 @@ mod tests {
         assert_eq!(ToolType::from(3), ToolType::Mower);
         assert_eq!(ToolType::from(4), ToolType::Plow);
         assert_eq!(ToolType::from(5), ToolType::Blower);
-        assert_eq!(ToolType::from(6), ToolType::Unknown);
+        assert_eq!(ToolType::from(6), ToolType::Lights);
+        assert_eq!(ToolType::from(7), ToolType::Sensor);
+        assert_eq!(ToolType::from(8), ToolType::Unknown);
         assert_eq!(ToolType::from(255), ToolType::Unknown);
     }
 
@@ -127,6 +145,8 @@ mod tests {
         assert_eq!(ToolType::Mower as u8, 3);
         assert_eq!(ToolType::Plow as u8, 4);
         assert_eq!(ToolType::Blower as u8, 5);
+        assert_eq!(ToolType::Lights as u8, 6);
+        assert_eq!(ToolType::Sensor as u8, 7);
     }
 
     #[test]
@@ -170,6 +190,7 @@ mod tests {
         assert_eq!(Capabilities::POSITION_FB.bits(), 0x0004);
         assert_eq!(Capabilities::CURRENT_FB.bits(), 0x0008);
         assert_eq!(Capabilities::TEMP_FB.bits(), 0x0010);
+        assert_eq!(Capabilities::LIGHTS.bits(), 0x0020);
     }
 
     #[test]

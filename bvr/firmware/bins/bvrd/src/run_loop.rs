@@ -18,7 +18,7 @@ use std::sync::atomic::Ordering;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use teleop::Telemetry;
 use tokio::sync::watch;
-use tools::{protocol, ToolOutput};
+use tools::{protocol, ToolOutput, ToolType};
 use transforms::Transform2D;
 use tracing::{debug, error, info, warn};
 use types::{Command, Mode, PowerStatus, SlamStatus, Twist};
@@ -100,6 +100,7 @@ pub(crate) fn run(ctx: DaemonContext) {
         mut dispatch_connected_live,
         heartbeat_stalled,
         seq_tracker,
+        mut eth_discovery,
     } = ctx;
 
     // Pre-compute IMU mount transform (used for both attitude and yaw extraction)
@@ -221,6 +222,31 @@ pub(crate) fn run(ctx: DaemonContext) {
             for frame in &frames {
                 state.drivetrain.process_frame(frame);
                 state.tool_registry.process_frame(frame);
+            }
+        }
+
+        // Check for newly discovered Ethernet tools and auto-register them
+        if let Some(ref eth) = eth_discovery {
+            let new_mcus = eth.online_mcus();
+            if !new_mcus.is_empty() {
+                let mut state = shared.lock().unwrap_or_else(|e| e.into_inner());
+                for (serial, tool_type, addr) in new_mcus {
+                    // Check if already registered
+                    if state.tool_registry.iter().any(|t| t.info().serial == serial) {
+                        continue;
+                    }
+                    match tool_type {
+                        ToolType::Lights => {
+                            info!(serial, %addr, "Registering Ethernet headlights");
+                            state.tool_registry.register(Box::new(
+                                tools::EthHeadlights::new(serial, addr),
+                            ));
+                        }
+                        _ => {
+                            debug!(serial, ?tool_type, "Ignoring unknown Ethernet tool type");
+                        }
+                    }
+                }
             }
         }
 
@@ -964,20 +990,34 @@ pub(crate) fn run(ctx: DaemonContext) {
         if let Some(tool) = state.tool_registry.active_mut() {
             let output = tool.update(&tool_command);
 
-            // Send tool command via CAN
+            // Send tool command via CAN or UDP
             let slot = tool.info().slot;
-            let frame = match output {
-                ToolOutput::SetAxis(axis) => Some(protocol::build_command(slot, axis, 0.0)),
-                ToolOutput::SetMotor(motor) => Some(protocol::build_command(slot, 0.0, motor)),
-                ToolOutput::SetBoth { axis, motor } => {
-                    Some(protocol::build_command(slot, axis, motor))
+            match output {
+                ToolOutput::Udp { addr, data } => {
+                    // Ethernet tool — send via tokio UDP
+                    let handle = tokio_handle.clone();
+                    handle.spawn(async move {
+                        if let Ok(socket) = tokio::net::UdpSocket::bind("0.0.0.0:0").await {
+                            let _ = socket.send_to(&data, addr).await;
+                        }
+                    });
                 }
-                ToolOutput::Raw(f) => Some(f),
-                ToolOutput::None => None,
-            };
-            if let Some(f) = frame {
-                if should_send_vesc {
-                    let _ = can_interface.send(&f);
+                _ => {
+                    let frame = match output {
+                        ToolOutput::SetAxis(axis) => Some(protocol::build_command(slot, axis, 0.0)),
+                        ToolOutput::SetMotor(motor) => Some(protocol::build_command(slot, 0.0, motor)),
+                        ToolOutput::SetBoth { axis, motor } => {
+                            Some(protocol::build_command(slot, axis, motor))
+                        }
+                        ToolOutput::Raw(f) => Some(f),
+                        ToolOutput::None => None,
+                        ToolOutput::Udp { .. } => unreachable!(),
+                    };
+                    if let Some(f) = frame {
+                        if should_send_vesc {
+                            let _ = can_interface.send(&f);
+                        }
+                    }
                 }
             }
         }
@@ -1268,6 +1308,7 @@ pub(crate) fn run(ctx: DaemonContext) {
             mode_changed_at: state.state_machine.mode_changed_at_epoch_secs(),
             policy_intention,
             fault_code: state.fault_code as u8,
+            active_tool_type: state.tool_registry.active_tool_type() as u8,
         };
 
         let _ = telemetry_tx.send(telemetry.clone());
@@ -1443,6 +1484,33 @@ pub(crate) fn run(ctx: DaemonContext) {
                 } else {
                     debug!(?current_mode, "LED command sent for mode change");
                 }
+            }
+
+            // Broadcast state change to Ethernet-attached tool MCUs
+            if let Some(ref mut eth) = eth_discovery {
+                let mode_byte = current_mode as u8;
+                let handle = tokio_handle.clone();
+                // Can't await in sync loop, so fire-and-forget via tokio
+                // We need to move the mutable reference, but can't across spawn.
+                // Instead, use the shared state to get MCU addresses and send directly.
+                let state_clone = eth.state();
+                handle.spawn(async move {
+                    let targets: Vec<std::net::SocketAddr> = {
+                        let s = state_clone.lock().unwrap_or_else(|e| e.into_inner());
+                        s.mcus.values()
+                            .filter(|m| m.online)
+                            .map(|m| m.command_addr())
+                            .collect()
+                    };
+                    if !targets.is_empty() {
+                        let packet = tools::eth_protocol::build_set_state(mode_byte, 0);
+                        if let Ok(socket) = tokio::net::UdpSocket::bind("0.0.0.0:0").await {
+                            for addr in targets {
+                                let _ = socket.send_to(&packet, addr).await;
+                            }
+                        }
+                    }
+                });
             }
 
             last_mode = current_mode;

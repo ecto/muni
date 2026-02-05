@@ -21,6 +21,7 @@
 
 import {
   Mode,
+  ToolType,
   type Telemetry,
   type Pose,
   type Twist,
@@ -213,6 +214,8 @@ export interface DecodedTelemetry {
   intention_y: number;
   /** Fault code (0 = no fault, 1 = watchdog timeout) */
   fault_code: number;
+  /** Active tool type (0 = none, see ToolType enum) */
+  active_tool_type: ToolType;
 }
 
 /**
@@ -339,16 +342,18 @@ export function decodeTelemetry(data: ArrayBuffer): DecodedTelemetry | null {
     lidar_work_state = view.getUint8(132);
   }
 
-  // Policy intention [133-141] (148-byte format)
+  // Policy intention [133-141] + fault code [142] + tool type [143] (148-byte format)
   let policy_active = false;
   let intention_x = 0;
   let intention_y = 0;
   let fault_code = 0;
+  let active_tool_type: ToolType = ToolType.Unknown;
   if (data.byteLength >= 148) {
     policy_active = view.getUint8(133) !== 0;
     intention_x = view.getFloat32(134, true);
     intention_y = view.getFloat32(138, true);
     fault_code = view.getUint8(142);
+    active_tool_type = view.getUint8(143) as ToolType;
   }
 
   return {
@@ -377,6 +382,7 @@ export function decodeTelemetry(data: ArrayBuffer): DecodedTelemetry | null {
     intention_x,
     intention_y,
     fault_code,
+    active_tool_type,
   };
 }
 
@@ -409,6 +415,7 @@ export function telemetryFromDecoded(decoded: DecodedTelemetry): Telemetry {
       ? { x: decoded.intention_x, y: decoded.intention_y }
       : null,
     faultCode: decoded.fault_code,
+    activeToolType: decoded.active_tool_type,
   };
 }
 

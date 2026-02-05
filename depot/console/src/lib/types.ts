@@ -21,6 +21,31 @@ export const ModeLabels: Record<Mode, string> = {
   [Mode.Sleep]: "Sleep",
 };
 
+// Tool type enum matching bvrd tools::ToolType
+export const ToolType = {
+  Unknown: 0,
+  SnowAuger: 1,
+  Spreader: 2,
+  Mower: 3,
+  Plow: 4,
+  Blower: 5,
+  Lights: 6,
+  Sensor: 7,
+} as const;
+
+export type ToolType = (typeof ToolType)[keyof typeof ToolType];
+
+export const ToolTypeLabels: Record<number, string> = {
+  [ToolType.Unknown]: "None",
+  [ToolType.SnowAuger]: "Snow Auger",
+  [ToolType.Spreader]: "Spreader",
+  [ToolType.Mower]: "Mower",
+  [ToolType.Plow]: "Plow",
+  [ToolType.Blower]: "Blower",
+  [ToolType.Lights]: "Headlights",
+  [ToolType.Sensor]: "Sensor",
+};
+
 export interface Twist {
   linear: number;
   angular: number;
@@ -115,6 +140,8 @@ export interface Telemetry {
   policyIntention: { x: number; y: number } | null;
   /** Fault code (0 = no fault, 1 = watchdog timeout). Set when mode is Fault. */
   faultCode: number;
+  /** Active tool type (0 = none, see ToolType enum) */
+  activeToolType: ToolType;
 }
 
 export interface GamepadInput {

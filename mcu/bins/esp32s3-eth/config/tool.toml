@@ -1,0 +1,23 @@
+# Per-board configuration — flashed to SPIFFS partition.
+# Each board gets a unique config declaring its role and GPIO mapping.
+
+[identity]
+tool_type = "lights"       # lights | auger | spreader | sensor
+serial = 0x0001            # unique per-board
+name = "Front Headlights"
+
+[network]
+mode = "dhcp"              # dhcp | static
+static_ip = "10.0.0.50"   # used if mode=static
+discovery_port = 4861      # UDP broadcast port
+command_port = 4862        # UDP unicast listen port
+
+[lights]
+# GPIO for MOSFET gate (headlight switching)
+headlight_pin = 4
+# Number of independent headlight channels
+headlight_count = 2
+# GPIO for WS2812 data line
+led_strip_pin = 5
+# Number of addressable LEDs
+led_count = 24

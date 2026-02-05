@@ -371,6 +371,9 @@ pub struct Telemetry {
     /// Fault code (0 = no fault). Set when mode is Fault, describes the cause.
     /// 1 = watchdog timeout (control loop or policy hung during autonomous).
     pub fault_code: u8,
+    /// Active tool type (0 = none/unknown, 6 = lights, etc.)
+    /// Sent in byte [143] of binary telemetry (was previously reserved).
+    pub active_tool_type: u8,
 }
 
 impl Default for Telemetry {
@@ -404,6 +407,7 @@ impl Default for Telemetry {
             mode_changed_at: 0,
             policy_intention: None,
             fault_code: 0,
+            active_tool_type: 0,
         }
     }
 }
@@ -618,7 +622,7 @@ impl Server {
 /// [134-137] f32 LE  intention_x (world meters)
 /// [138-141] f32 LE  intention_y (world meters)
 /// [142]     u8      fault_code (0=none, 1=watchdog_timeout)
-/// [143]     u8      reserved
+/// [143]     u8      active_tool_type (0=none, 6=lights, see ToolType enum)
 /// [144-147] u32     crc32
 /// ```
 pub fn serialize_telemetry(telemetry: &Telemetry) -> Option<Vec<u8>> {
@@ -700,9 +704,9 @@ pub fn serialize_telemetry(telemetry: &Telemetry) -> Option<Vec<u8>> {
     buf.extend_from_slice(&ix.to_le_bytes()); // [134-137]
     buf.extend_from_slice(&iy.to_le_bytes()); // [138-141]
 
-    // Fault code [142] + reserved [143]
+    // Fault code [142] + active tool type [143]
     buf.push(telemetry.fault_code);
-    buf.push(0);
+    buf.push(telemetry.active_tool_type);
 
     // CRC32 [144-147]
     let crc = crc32fast::hash(&buf);
@@ -934,6 +938,7 @@ mod tests {
             mode_changed_at: 1706000000,
             policy_intention: None,
             fault_code: 0,
+            active_tool_type: 6, // Lights
         };
 
         let data = serialize_telemetry(&telemetry);

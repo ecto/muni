@@ -3,6 +3,7 @@
 use anyhow::Result;
 use serde::Deserialize;
 use tools::blower::BlowerConfig;
+use tools::eth_protocol;
 use tracing::warn;
 
 /// Configuration file structure (bvr.toml).
@@ -23,6 +24,7 @@ pub(crate) struct FileConfig {
     pub estop: EStopFileConfig,
     pub camera: CameraFileConfig,
     pub blower: BlowerConfig,
+    pub eth_tools: EthToolsFileConfig,
     pub collision_guard: CollisionGuardFileConfig,
 }
 
@@ -499,6 +501,25 @@ impl Default for DiscoveryFileConfig {
             rtc_port: 4852,
             heartbeat_secs: 2,
             advertise_host: None,
+        }
+    }
+}
+
+/// Ethernet tool MCU discovery configuration.
+#[derive(Debug, Deserialize)]
+#[serde(default)]
+pub(crate) struct EthToolsFileConfig {
+    /// Enable Ethernet tool discovery
+    pub enabled: bool,
+    /// UDP port to listen for MCU broadcasts
+    pub discovery_port: u16,
+}
+
+impl Default for EthToolsFileConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            discovery_port: eth_protocol::DISCOVERY_PORT,
         }
     }
 }

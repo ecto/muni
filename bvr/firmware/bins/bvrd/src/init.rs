@@ -37,6 +37,7 @@ use teleop::rtc::{RtcConfig, RtcMetrics, RtcServer};
 use teleop::video::{H264Frame, VideoConfig, VideoServer};
 use teleop::{Config as TeleopConfig, Server as TeleopServer, Telemetry};
 use tokio::sync::{mpsc, watch, Semaphore};
+use tools::eth_discovery::EthDiscovery;
 use tools::Registry as ToolRegistry;
 use tracing::{debug, error, info, warn};
 use types::{Command, Mode, Pose, PowerStatus, SubsystemHealth, Twist};
@@ -152,6 +153,9 @@ pub(crate) struct DaemonContext {
 
     // -- sequence tracking (shared with teleop Server for ACK fields) --
     pub(crate) seq_tracker: std::sync::Arc<std::sync::Mutex<teleop::SequenceTracker>>,
+
+    // -- Ethernet tool discovery --
+    pub(crate) eth_discovery: Option<EthDiscovery>,
 }
 
 /// Run all initialization and return the context the control loop needs plus
@@ -549,6 +553,7 @@ pub(crate) async fn initialize(
         mode_changed_at: 0,
         policy_intention: None,
         fault_code: 0,
+        active_tool_type: 0,
     };
     let (telemetry_tx, telemetry_rx) = watch::channel(initial_telemetry);
 
@@ -1256,6 +1261,18 @@ pub(crate) async fn initialize(
     let heartbeat_counter = std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0));
     let heartbeat_stalled = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
 
+    // Ethernet tool discovery
+    let eth_discovery = if file_config.eth_tools.enabled {
+        let discovery = EthDiscovery::new(file_config.eth_tools.discovery_port);
+        let eth_state = discovery.state();
+        let port = file_config.eth_tools.discovery_port;
+        tokio::spawn(EthDiscovery::run(eth_state, port));
+        info!(port, "Ethernet tool discovery started");
+        Some(discovery)
+    } else {
+        None
+    };
+
     // Print info logs that come right before the control loop spawn
     info!("Entering control loop");
     info!("Dashboard available at http://localhost:{}", args.ui_port);
@@ -1344,6 +1361,7 @@ pub(crate) async fn initialize(
         dispatch_connected_live: false,
         heartbeat_stalled,
         seq_tracker,
+        eth_discovery,
     };
 
     Ok((ctx, log_guard))

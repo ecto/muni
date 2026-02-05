@@ -87,6 +87,7 @@ impl TelemetryBuilder {
             mode_changed_at: 0,
             policy_intention: None,
             fault_code: 0,
+            active_tool_type: 0,
         };
 
         self.last_telemetry = Some(telemetry.clone());

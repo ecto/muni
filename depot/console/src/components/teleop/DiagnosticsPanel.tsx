@@ -15,7 +15,7 @@ import {
 } from "@phosphor-icons/react";
 import { useConsoleStore, type ChannelMetrics } from "@/store";
 import { clearAccumulatedCloud } from "@/lib/accumulatedCloudStore";
-import { WheelStatus } from "@/lib/types";
+import { WheelStatus, ToolType, ToolTypeLabels } from "@/lib/types";
 import { useShallow } from "zustand/react/shallow";
 
 function HealthIndicator({ label, healthy, tooltip }: { label: string; healthy: boolean; tooltip: string }) {
@@ -233,6 +233,13 @@ export function DiagnosticsPanel({ onToggleLidar }: DiagnosticsPanelProps) {
         </Tooltip>
         <HealthIndicator label="SLAM" healthy={telemetry.health.slam_running} tooltip="Simultaneous Localization and Mapping running" />
         <HealthIndicator label="Rec" healthy={telemetry.health.recording_active} tooltip="Session recording to .rrd file" />
+        {telemetry.activeToolType !== ToolType.Unknown && (
+          <HealthIndicator
+            label={ToolTypeLabels[telemetry.activeToolType] ?? "Tool"}
+            healthy={true}
+            tooltip={`Connected tool: ${ToolTypeLabels[telemetry.activeToolType] ?? "Unknown"}`}
+          />
+        )}
       </div>
 
       {/* Layer toggles */}

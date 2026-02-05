@@ -189,6 +189,7 @@ const defaultTelemetry: Telemetry = {
   modeChangedAt: Date.now(),
   policyIntention: null,
   faultCode: 0,
+  activeToolType: 0,
 };
 
 const defaultInput: GamepadInput = {

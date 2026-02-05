@@ -1,0 +1,30 @@
+# ESP-IDF configuration for Waveshare ESP32-S3 PoE board
+# Ethernet PHY: IP101 (RMII)
+
+# Enable Ethernet
+CONFIG_ETH_ENABLED=y
+CONFIG_ETH_USE_ESP32_EMAC=y
+
+# RMII clock mode (Waveshare board uses GPIO0 for ref clock input)
+CONFIG_ETH_RMII_CLK_INPUT=y
+CONFIG_ETH_RMII_CLK_IN_GPIO=0
+
+# PHY address (typically 0 or 1, check board schematic)
+CONFIG_ETH_PHY_ADDR=1
+
+# MDIO pins (confirm from Waveshare schematic)
+CONFIG_ETH_MDC_GPIO=23
+CONFIG_ETH_MDIO_GPIO=18
+
+# Enable lwIP (for std::net sockets)
+CONFIG_LWIP_IPV4_NAPT=n
+CONFIG_LWIP_DHCP_RESTORE_LAST_IP=y
+
+# Enable SPIFFS for config file
+CONFIG_SPIFFS_MAX_PARTITIONS=3
+
+# Watchdog
+CONFIG_ESP_TASK_WDT_TIMEOUT_S=10
+
+# Log level
+CONFIG_LOG_DEFAULT_LEVEL_INFO=y
