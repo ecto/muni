@@ -701,17 +701,13 @@ pub(crate) fn run(ctx: DaemonContext) {
                         _ => {}
                     }
 
-                    // Feed watchdog on active navigation (any non-idle/failed state)
-                    match nav_output.state {
-                        NavigationState::Planning
-                        | NavigationState::Replanning
-                        | NavigationState::Following
-                        | NavigationState::ObstacleStopped
-                        | NavigationState::Recovering(_) => {
-                            watchdog.feed();
-                        }
-                        _ => {}
-                    }
+                    // Feed watchdog unconditionally — the control loop reaching this
+                    // point proves it's healthy. Navigation has its own timeouts
+                    // (blocked_timeout, recovery cycles) for handling stuck states.
+                    // Previously only active states fed the watchdog, which caused
+                    // spurious Fault transitions when navigation was between goals
+                    // and the console was briefly disconnected (no heartbeats).
+                    watchdog.feed();
 
                     // Publish navigation path for console visualization
                     {
