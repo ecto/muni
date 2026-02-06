@@ -734,6 +734,7 @@ async fn handle_signaling(
         // Spawn task to feed H.264 frames to the video track
         let track = video_track.clone();
         let video_metrics = metrics.clone();
+        let kf_flag = keyframe_requestor.clone();
         tokio::spawn(async move {
             let mut frame_count: u64 = 0;
 
@@ -748,6 +749,14 @@ async fn handle_signaling(
                 if drained > 0 {
                     info!(drained, "Drained stale H.264 frames from buffer");
                 }
+            }
+
+            // Force a keyframe so the first frame the peer receives is an IDR.
+            // Without this, the browser gets P-frames it can't decode and the
+            // video stays blank until the next natural keyframe or PLI round-trip.
+            if let Some(ref kf) = kf_flag {
+                kf.store(true, Ordering::Relaxed);
+                debug!("Requested keyframe for new peer");
             }
 
             loop {
