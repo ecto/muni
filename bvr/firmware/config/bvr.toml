@@ -154,6 +154,36 @@ max_angular_vel = 1.5
 # Goal waypoint [x, y] for testing (optional, can be set via command)
 # goal = [5.0, 0.0]
 
+[navigation]
+# Enable classical navigation (A* + pure pursuit)
+enabled = true
+# Costmap dimensions and resolution
+costmap_width = 20.0
+costmap_height = 20.0
+costmap_resolution = 0.1
+inflation_radius = 0.4
+inscribed_radius = 0.35
+# Pure pursuit
+lookahead_distance = 0.5
+goal_tolerance = 0.3
+# Velocity limits — bumped from defaults (1.0 / 0.5)
+max_linear_vel = 1.5
+max_angular_vel = 0.8
+# Recovery
+blocked_timeout = 30.0
+recovery_backup_distance = 0.3
+recovery_backup_speed = 0.15
+recovery_spin_speed = 0.3
+recovery_wait_duration = 2.0
+max_recovery_cycles = 3
+# Controller: "pure_pursuit" (default) or "mppi"
+controller_type = "pure_pursuit"
+# MPPI settings (used when controller_type = "mppi")
+mppi_num_samples = 512
+mppi_horizon_steps = 30
+mppi_dt = 0.1
+mppi_temperature = 0.1
+
 [estop]
 # Hardware e-stop GPIO configuration (Jetson only)
 # Requires building with --features gpio
