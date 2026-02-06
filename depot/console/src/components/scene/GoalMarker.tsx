@@ -17,6 +17,7 @@ const GOAL_COLOR = "#fbbf24"; // amber, matching ACTIVE_WAYPOINT_COLOR
 export function GoalMarker() {
   const groupRef = useRef<THREE.Group>(null);
   const ringRef = useRef<THREE.Mesh>(null);
+  const coneRef = useRef<THREE.Mesh>(null);
 
   useFrame(({ clock }) => {
     if (!groupRef.current) return;
@@ -55,7 +56,7 @@ export function GoalMarker() {
       </mesh>
 
       {/* Upright cone */}
-      <mesh position={[0, CONE_HEIGHT / 2, 0]}>
+      <mesh ref={coneRef} position={[0, CONE_HEIGHT / 2, 0]}>
         <coneGeometry args={[CONE_RADIUS, CONE_HEIGHT, 8]} />
         <meshStandardMaterial
           color={GOAL_COLOR}
