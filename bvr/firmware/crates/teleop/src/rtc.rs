@@ -1127,10 +1127,20 @@ async fn handle_signaling(
                         let latency_us = start.elapsed().as_micros() as u32;
                         stats.path.record_send(latency_us);
 
+                        // Send MPPI trajectory as a separate message on the same channel
+                        if !snapshot.mppi_trajectory.is_empty() {
+                            let mppi_data = path_stream::serialize_mppi_trajectory(&snapshot.mppi_trajectory);
+                            if let Err(e) = channel.send(&bytes::Bytes::from(mppi_data)).await {
+                                debug!(?e, "Failed to send MPPI trajectory (channel closing?)");
+                                break;
+                            }
+                        }
+
                         frame_count += 1;
                         if frame_count == 1 {
                             info!(
                                 waypoints = snapshot.waypoints.len(),
+                                mppi_points = snapshot.mppi_trajectory.len(),
                                 state = snapshot.state,
                                 "First path sent via WebRTC"
                             );

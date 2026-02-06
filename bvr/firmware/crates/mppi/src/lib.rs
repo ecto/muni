@@ -76,6 +76,8 @@ pub struct MppiOutput {
     pub best_cost: f64,
     /// Mean trajectory cost across all samples.
     pub mean_cost: f64,
+    /// Best-scoring trajectory as (x, y) positions in world frame.
+    pub best_trajectory: Vec<[f64; 2]>,
 }
 
 /// State at a single point in a simulated trajectory.
@@ -152,6 +154,7 @@ impl MppiController {
                 twist: Twist::default(),
                 best_cost: f64::MAX,
                 mean_cost: f64::MAX,
+                best_trajectory: vec![],
             };
         }
 
@@ -186,8 +189,25 @@ impl MppiController {
             boost: false,
         };
 
-        let best_cost = self.costs.iter().cloned().fold(f64::INFINITY, f64::min);
+        let (best_idx, best_cost) = self
+            .costs
+            .iter()
+            .enumerate()
+            .fold((0, f64::INFINITY), |(bi, bc), (i, &c)| {
+                if c < bc { (i, c) } else { (bi, bc) }
+            });
         let mean_cost = self.costs.iter().sum::<f64>() / n as f64;
+
+        // Extract best trajectory positions (skip initial state at step 0)
+        let best_trajectory: Vec<[f64; 2]> = {
+            let base = best_idx * (h + 1);
+            (1..=h)
+                .map(|t| {
+                    let s = &self.trajectories[base + t];
+                    [s.x, s.y]
+                })
+                .collect()
+        };
 
         debug!(
             linear = format!("{:.3}", twist.linear),
@@ -207,6 +227,7 @@ impl MppiController {
             twist,
             best_cost,
             mean_cost,
+            best_trajectory,
         }
     }
 

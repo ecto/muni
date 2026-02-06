@@ -44,6 +44,7 @@ export const MSG_COSTMAP = 0x22;
 export const MSG_OBSTACLES = 0x23;
 export const MSG_CAMERA_INFO = 0x24;
 export const MSG_PATH = 0x25;
+export const MSG_MPPI_TRAJECTORY = 0x26;
 
 // Command flags
 export const CMD_FLAG_MUST_ACK = 0x01;
@@ -869,4 +870,51 @@ export function decodePath(data: ArrayBuffer): DecodedPath | null {
   }
 
   return { state, waypoints, currentWaypoint, distanceToGoal };
+}
+
+// ============================================================================
+// MPPI Trajectory Decoding (MSG_MPPI_TRAJECTORY = 0x26)
+// ============================================================================
+
+/** MPPI trajectory header size. */
+const MPPI_HEADER_SIZE = 8;
+
+/**
+ * Decode an MPPI trajectory message from binary format.
+ *
+ * Header (8 bytes):
+ *   [0]      u8    MSG_MPPI_TRAJECTORY (0x26)
+ *   [1]      u8    reserved
+ *   [2-3]    u16   num_points (LE)
+ *   [4-7]    u32   reserved
+ *
+ * Per point (8 bytes):
+ *   [0-3]    f32   x (world meters, LE)
+ *   [4-7]    f32   y (world meters, LE)
+ */
+export function decodeMppiTrajectory(data: ArrayBuffer): [number, number][] | null {
+  if (data.byteLength < MPPI_HEADER_SIZE) {
+    return null;
+  }
+
+  const view = new DataView(data);
+  if (view.getUint8(0) !== MSG_MPPI_TRAJECTORY) {
+    return null;
+  }
+
+  const numPoints = view.getUint16(2, true);
+  const expectedSize = MPPI_HEADER_SIZE + numPoints * BYTES_PER_WAYPOINT;
+  if (data.byteLength < expectedSize) {
+    return null;
+  }
+
+  const points: [number, number][] = [];
+  for (let i = 0; i < numPoints; i++) {
+    const offset = MPPI_HEADER_SIZE + i * BYTES_PER_WAYPOINT;
+    const x = view.getFloat32(offset, true);
+    const y = view.getFloat32(offset + 4, true);
+    points.push([x, y]);
+  }
+
+  return points;
 }

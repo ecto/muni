@@ -17,6 +17,7 @@ import { IntentionMarker } from "./IntentionMarker";
 import { GoalMarker } from "./GoalMarker";
 import { CollisionGuardArc } from "./CollisionGuardArc";
 import { PathOverlay } from "./PathOverlay";
+import { MppiOverlay } from "./MppiOverlay";
 import { useConsoleStore } from "@/store";
 import { useMapData } from "@/hooks/useMapData";
 import { threeToEnu } from "@/lib/coordinates";
@@ -164,6 +165,7 @@ export function Scene({ mode = "teleop", zones: propZones, activeTasks, onZoneCl
           <CostmapOverlay />
           <ObstacleOverlay />
           <PathOverlay />
+          <MppiOverlay />
         </>
       )}
       {showFleetMarkers && (

@@ -19,7 +19,7 @@
 //!   [4-7]    f32   y (world meters, LE)
 //! ```
 
-use crate::MSG_PATH;
+use crate::{MSG_MPPI_TRAJECTORY, MSG_PATH};
 
 /// Header size in bytes.
 const HEADER_SIZE: usize = 12;
@@ -50,6 +50,8 @@ pub struct PathSnapshot {
     pub current_waypoint: u16,
     /// Distance to current goal in meters.
     pub distance_to_goal: f32,
+    /// MPPI best trajectory (x, y) in world meters. Empty when MPPI is not active.
+    pub mppi_trajectory: Vec<(f32, f32)>,
 }
 
 /// Serialize a path snapshot to binary.
@@ -77,6 +79,46 @@ pub fn serialize(snapshot: &PathSnapshot) -> Vec<u8> {
     buf
 }
 
+/// MPPI trajectory header size: [msg_type:u8][reserved:u8][num_points:u16][reserved:4B] = 8 bytes.
+const MPPI_HEADER_SIZE: usize = 8;
+
+/// Serialize an MPPI trajectory to binary.
+///
+/// # Binary format
+///
+/// ```text
+/// Header (8 bytes):
+///   [0]      u8    MSG_MPPI_TRAJECTORY (0x26)
+///   [1]      u8    reserved
+///   [2-3]    u16   num_points (LE)
+///   [4-7]    u32   reserved
+///
+/// Per point (8 bytes):
+///   [0-3]    f32   x (world meters, LE)
+///   [4-7]    f32   y (world meters, LE)
+/// ```
+pub fn serialize_mppi_trajectory(points: &[(f32, f32)]) -> Vec<u8> {
+    let count = points.len().min(u16::MAX as usize) as u16;
+    let mut buf = Vec::with_capacity(MPPI_HEADER_SIZE + count as usize * WAYPOINT_SIZE);
+
+    // Header
+    buf.push(MSG_MPPI_TRAJECTORY);
+    buf.push(0); // reserved
+    buf.extend_from_slice(&count.to_le_bytes());
+    buf.extend_from_slice(&0u32.to_le_bytes()); // reserved
+
+    debug_assert_eq!(buf.len(), MPPI_HEADER_SIZE);
+
+    // Points
+    for &(x, y) in points.iter().take(count as usize) {
+        buf.extend_from_slice(&x.to_le_bytes());
+        buf.extend_from_slice(&y.to_le_bytes());
+    }
+
+    debug_assert_eq!(buf.len(), MPPI_HEADER_SIZE + count as usize * WAYPOINT_SIZE);
+    buf
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -88,6 +130,7 @@ mod tests {
             waypoints: vec![],
             current_waypoint: 0,
             distance_to_goal: 0.0,
+            mppi_trajectory: vec![],
         };
         let data = serialize(&snapshot);
         assert_eq!(data.len(), HEADER_SIZE);
@@ -103,6 +146,7 @@ mod tests {
             waypoints: vec![(1.0, 2.0), (3.0, 4.0), (5.0, 6.0)],
             current_waypoint: 1,
             distance_to_goal: 3.5,
+            mppi_trajectory: vec![],
         };
         let data = serialize(&snapshot);
         assert_eq!(data.len(), HEADER_SIZE + 3 * WAYPOINT_SIZE);
@@ -136,9 +180,32 @@ mod tests {
             waypoints,
             current_waypoint: 50,
             distance_to_goal: 10.0,
+            mppi_trajectory: vec![],
         };
         let data = serialize(&snapshot);
         assert_eq!(data.len(), HEADER_SIZE + 100 * WAYPOINT_SIZE);
         assert!(data.len() <= 4096);
+    }
+
+    #[test]
+    fn test_serialize_mppi_trajectory_empty() {
+        let data = serialize_mppi_trajectory(&[]);
+        assert_eq!(data.len(), MPPI_HEADER_SIZE);
+        assert_eq!(data[0], MSG_MPPI_TRAJECTORY);
+        assert_eq!(u16::from_le_bytes([data[2], data[3]]), 0);
+    }
+
+    #[test]
+    fn test_serialize_mppi_trajectory_with_points() {
+        let points = vec![(1.0, 2.0), (3.0, 4.0)];
+        let data = serialize_mppi_trajectory(&points);
+        assert_eq!(data.len(), MPPI_HEADER_SIZE + 2 * WAYPOINT_SIZE);
+        assert_eq!(data[0], MSG_MPPI_TRAJECTORY);
+        assert_eq!(u16::from_le_bytes([data[2], data[3]]), 2);
+
+        let x0 = f32::from_le_bytes([data[8], data[9], data[10], data[11]]);
+        let y0 = f32::from_le_bytes([data[12], data[13], data[14], data[15]]);
+        assert!((x0 - 1.0).abs() < 0.001);
+        assert!((y0 - 2.0).abs() < 0.001);
     }
 }

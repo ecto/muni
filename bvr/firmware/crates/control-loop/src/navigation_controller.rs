@@ -183,6 +183,8 @@ pub struct NavigationOutput {
     pub pursuit_output: Option<PursuitOutput>,
     /// Error message if failed.
     pub error: Option<String>,
+    /// MPPI best trajectory as (x, y) world positions. Empty when MPPI is not active.
+    pub mppi_trajectory: Vec<[f64; 2]>,
 }
 
 impl Default for NavigationOutput {
@@ -196,6 +198,7 @@ impl Default for NavigationOutput {
             goal_reached: false,
             pursuit_output: None,
             error: None,
+            mppi_trajectory: vec![],
         }
     }
 }
@@ -541,6 +544,7 @@ impl NavigationController {
                     };
                     let mppi_out = mppi.compute(&path, pose, &vel, &self.costmap);
                     output.twist = mppi_out.twist;
+                    output.mppi_trajectory = mppi_out.best_trajectory;
 
                     // Check goal reached (distance-based)
                     if output.distance_to_goal < self.config.replan_distance {

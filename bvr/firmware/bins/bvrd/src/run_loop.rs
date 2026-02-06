@@ -734,11 +734,16 @@ pub(crate) fn run(ctx: DaemonContext) {
                         } else {
                             (vec![], 0)
                         };
+                        let mppi_trajectory: Vec<(f32, f32)> = nav_output.mppi_trajectory
+                            .iter()
+                            .map(|p| (p[0] as f32, p[1] as f32))
+                            .collect();
                         let _ = path_tx.send(Some(PathSnapshot {
                             state: nav_state_wire,
                             waypoints,
                             current_waypoint: current_wp,
                             distance_to_goal: nav_output.distance_to_goal as f32,
+                            mppi_trajectory,
                         }));
                     }
 

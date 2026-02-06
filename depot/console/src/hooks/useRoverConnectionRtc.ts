@@ -28,8 +28,10 @@ import {
   decodeCostmap,
   decodeObstacles,
   decodePath,
+  decodeMppiTrajectory,
   decodeCameraInfo,
   MSG_CAMERA_INFO,
+  MSG_MPPI_TRAJECTORY,
 } from "@/lib/protocol";
 import { pushSnapshotDirect } from "@/lib/interpolation";
 import { Mode } from "@/lib/types";
@@ -38,7 +40,7 @@ import { setPointCloudData, clearPointCloudData } from "@/lib/pointCloudStore";
 import { ingestFrame, clearAccumulatedCloud } from "@/lib/accumulatedCloudStore";
 import { setCostmapData, clearCostmapData } from "@/lib/costmapStore";
 import { setObstacleData, clearObstacleData } from "@/lib/obstacleStore";
-import { setPathData, clearPathData } from "@/lib/pathStore";
+import { setPathData, setMppiTrajectory, clearPathData } from "@/lib/pathStore";
 
 const RECONNECT_DELAY_MS = 2000;
 const COMMAND_INTERVAL_MS = 10; // 100Hz - matches rover control loop
@@ -660,14 +662,23 @@ export function useRoverConnectionRtc() {
               stats.lastTime = performance.now();
             }
 
-            const path = decodePath(msgEvent.data);
-            if (path) {
-              setPathData(
-                path.state,
-                path.waypoints,
-                path.currentWaypoint,
-                path.distanceToGoal,
-              );
+            // Dispatch based on message type byte
+            const firstByte = new Uint8Array(msgEvent.data)[0];
+            if (firstByte === MSG_MPPI_TRAJECTORY) {
+              const points = decodeMppiTrajectory(msgEvent.data);
+              if (points) {
+                setMppiTrajectory(points);
+              }
+            } else {
+              const path = decodePath(msgEvent.data);
+              if (path) {
+                setPathData(
+                  path.state,
+                  path.waypoints,
+                  path.currentWaypoint,
+                  path.distanceToGoal,
+                );
+              }
             }
           };
 

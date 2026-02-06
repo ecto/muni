@@ -63,6 +63,9 @@ pub const MSG_CAMERA_INFO: u8 = 0x24;
 /// Navigation path message type (rover → console)
 pub const MSG_PATH: u8 = 0x25;
 
+/// MPPI best trajectory message type (rover → console)
+pub const MSG_MPPI_TRAJECTORY: u8 = 0x26;
+
 /// Command flags
 pub mod cmd_flags {
     /// Require firmware ACK (SetMode, EStop, EStopRelease)

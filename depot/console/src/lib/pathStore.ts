@@ -23,6 +23,10 @@ interface PathState {
   version: number;
   /** Timestamp of last update (performance.now()). */
   timestamp: number;
+  /** MPPI best trajectory as (x, y) world positions. Null when inactive. */
+  mppiTrajectory: [number, number][] | null;
+  /** Version counter for MPPI trajectory change detection. */
+  mppiVersion: number;
 }
 
 const globalStore: PathState = {
@@ -32,6 +36,8 @@ const globalStore: PathState = {
   distanceToGoal: 0,
   version: 0,
   timestamp: 0,
+  mppiTrajectory: null,
+  mppiVersion: 0,
 };
 
 /**
@@ -76,6 +82,28 @@ export function getPathVersion(): number {
 }
 
 /**
+ * Store new MPPI trajectory data. Called from WebRTC onmessage handler.
+ */
+export function setMppiTrajectory(points: [number, number][]): void {
+  globalStore.mppiTrajectory = points;
+  globalStore.mppiVersion++;
+}
+
+/**
+ * Read current MPPI trajectory data. Called from useFrame.
+ */
+export function getMppiTrajectory(): [number, number][] | null {
+  return globalStore.mppiTrajectory;
+}
+
+/**
+ * Get MPPI trajectory version counter for change detection in useFrame.
+ */
+export function getMppiVersion(): number {
+  return globalStore.mppiVersion;
+}
+
+/**
  * Clear all path data. Called on disconnect.
  */
 export function clearPathData(): void {
@@ -84,5 +112,7 @@ export function clearPathData(): void {
   globalStore.currentWaypoint = 0;
   globalStore.distanceToGoal = 0;
   globalStore.version++;
+  globalStore.mppiTrajectory = null;
+  globalStore.mppiVersion++;
   globalStore.timestamp = performance.now();
 }
