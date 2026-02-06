@@ -7,6 +7,7 @@ export const Mode = {
   EStop: 4,
   Fault: 5,
   Sleep: 6,
+  Dance: 7,
 } as const;
 
 export type Mode = (typeof Mode)[keyof typeof Mode];
@@ -19,6 +20,7 @@ export const ModeLabels: Record<Mode, string> = {
   [Mode.EStop]: "E-Stop",
   [Mode.Fault]: "Fault",
   [Mode.Sleep]: "Sleep",
+  [Mode.Dance]: "Dance",
 };
 
 // Tool type enum matching bvrd tools::ToolType

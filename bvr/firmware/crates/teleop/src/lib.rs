@@ -561,6 +561,7 @@ impl Server {
                     2 => Mode::Teleop,
                     3 => Mode::Autonomous,
                     6 => Mode::Sleep,
+                    7 => Mode::Dance,
                     _ => return None,
                 };
                 debug!(?mode, seq = header.sequence, "SetMode command");
@@ -850,6 +851,8 @@ mod tests {
             (1, Mode::Idle),
             (2, Mode::Teleop),
             (3, Mode::Autonomous),
+            (6, Mode::Sleep),
+            (7, Mode::Dance),
         ] {
             let buf = build_command(MSG_SET_MODE, 6, &[mode_byte]);
             let cmd = Server::parse_command(&buf);

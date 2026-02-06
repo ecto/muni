@@ -30,6 +30,8 @@ pub enum Event {
     Sleep,
     /// Wake from sleep mode
     Wake,
+    /// Dance demo mode requested
+    DanceRequest,
 }
 
 /// State machine for rover operating modes.
@@ -72,6 +74,7 @@ impl StateMachine {
             (Mode::Idle, Event::TeleopCommand) => Mode::Teleop,
             (Mode::Idle, Event::AutonomousRequest) => Mode::Autonomous,
             (Mode::Idle, Event::Sleep) => Mode::Sleep,
+            (Mode::Idle, Event::DanceRequest) => Mode::Dance,
 
             // From Teleop
             (Mode::Teleop, Event::Disable) => Mode::Idle,
@@ -90,12 +93,16 @@ impl StateMachine {
                 Mode::Idle
             }
 
+            // From Dance
+            (Mode::Dance, Event::Disable) => Mode::Idle,
+            (Mode::Dance, Event::CommandTimeout) => Mode::Idle,
+
             // From Sleep
             (Mode::Sleep, Event::Wake) => Mode::Idle,
             (Mode::Sleep, Event::Disable) => Mode::Idle,
 
-            // E-Stop from any active mode (including Sleep)
-            (Mode::Idle | Mode::Teleop | Mode::Autonomous | Mode::Sleep, Event::EStop) => Mode::EStop,
+            // E-Stop from any active mode (including Sleep, Dance)
+            (Mode::Idle | Mode::Teleop | Mode::Autonomous | Mode::Sleep | Mode::Dance, Event::EStop) => Mode::EStop,
 
             // E-Stop release
             (Mode::EStop, Event::EStopRelease) => Mode::Idle,
@@ -119,7 +126,7 @@ impl StateMachine {
 
     /// Check if the rover should be driving (motors enabled).
     pub fn is_driving(&self) -> bool {
-        matches!(self.mode, Mode::Teleop | Mode::Autonomous)
+        matches!(self.mode, Mode::Teleop | Mode::Autonomous | Mode::Dance)
     }
 
     /// Check if the rover is in a safe state (motors disabled).
@@ -152,6 +159,7 @@ impl StateMachine {
             Mode::EStop => LedCommand::state_estop(),
             Mode::Fault => LedCommand::state_fault(),
             Mode::Sleep => LedCommand::state_sleep(),
+            Mode::Dance => LedCommand::state_dance(),
         }
     }
 }
@@ -477,6 +485,31 @@ mod tests {
         sm.force_estop();
         let after = sm.mode_changed_at_epoch_secs();
         assert!(after >= before);
+        assert_eq!(sm.mode(), Mode::EStop);
+    }
+
+    #[test]
+    fn test_dance_transitions() {
+        // Idle -> Dance
+        let mut sm = StateMachine::new();
+        sm.transition(Event::DanceRequest);
+        assert_eq!(sm.mode(), Mode::Dance);
+        assert!(sm.is_driving());
+
+        // Dance -> Idle via Disable
+        sm.transition(Event::Disable);
+        assert_eq!(sm.mode(), Mode::Idle);
+
+        // Dance -> Idle via CommandTimeout
+        let mut sm = StateMachine::new();
+        sm.transition(Event::DanceRequest);
+        sm.transition(Event::CommandTimeout);
+        assert_eq!(sm.mode(), Mode::Idle);
+
+        // Dance -> EStop
+        let mut sm = StateMachine::new();
+        sm.transition(Event::DanceRequest);
+        sm.transition(Event::EStop);
         assert_eq!(sm.mode(), Mode::EStop);
     }
 

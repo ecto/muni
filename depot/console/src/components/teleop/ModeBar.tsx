@@ -6,7 +6,7 @@ import {
   TooltipTrigger,
   TooltipContent,
 } from "@/components/ui/tooltip";
-import { Play, Stop, CircleNotch, Robot, Moon, Sun, ArrowCounterClockwise } from "@phosphor-icons/react";
+import { Play, Stop, CircleNotch, Robot, Moon, Sun, ArrowCounterClockwise, MusicNote } from "@phosphor-icons/react";
 import { useConsoleStore } from "@/store";
 import { Mode, ModeLabels } from "@/lib/types";
 
@@ -16,6 +16,7 @@ function getModeVariant(
   switch (mode) {
     case Mode.Teleop:
     case Mode.Autonomous:
+    case Mode.Dance:
       return "default";
     case Mode.EStop:
     case Mode.Fault:
@@ -35,6 +36,7 @@ const modeTooltips: Record<Mode, string> = {
   [Mode.Fault]: "System error detected",
   [Mode.Disabled]: "Idle",
   [Mode.Sleep]: "Sensors powered down",
+  [Mode.Dance]: "Dance demo mode",
 };
 
 /** Map fault code to human-readable description. */
@@ -50,6 +52,8 @@ interface ModeBarProps {
   sendAutonomous: () => void;
   sendStopAutonomy: () => void;
   sendClearFault: () => void;
+  sendDance: () => void;
+  sendStopDance: () => void;
 }
 
 export function ModeBar({
@@ -60,6 +64,8 @@ export function ModeBar({
   sendAutonomous,
   sendStopAutonomy,
   sendClearFault,
+  sendDance,
+  sendStopDance,
 }: ModeBarProps) {
   const telemetryMode = useConsoleStore((s) => s.telemetry.mode);
   const connected = useConsoleStore((s) => s.connected);
@@ -71,6 +77,7 @@ export function ModeBar({
   const isAutonomous = telemetryMode === Mode.Autonomous;
   const isSleep = telemetryMode === Mode.Sleep;
   const isFault = telemetryMode === Mode.Fault;
+  const isDance = telemetryMode === Mode.Dance;
 
   // Pending transition: store the label and the mode it was set in.
   // When mode changes, the pending label is automatically cleared.
@@ -168,6 +175,21 @@ export function ModeBar({
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={!connected}
+                    onClick={() => { setPending({ label: "Dancing", mode: telemetryMode }); sendDance(); }}
+                    className="gap-1.5 h-7 border-fuchsia-500 text-fuchsia-400 hover:bg-fuchsia-600 hover:text-white"
+                  >
+                    <MusicNote className="h-3.5 w-3.5" weight="fill" />
+                    Dance
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">Demo dance mode</TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
                     variant="default"
                     size="sm"
                     disabled={!connected}
@@ -233,6 +255,24 @@ export function ModeBar({
                 </Button>
               </TooltipTrigger>
               <TooltipContent side="bottom">Stop autonomous mode</TooltipContent>
+            </Tooltip>
+          )}
+
+          {/* Dance: Stop */}
+          {isDance && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={() => { setPending({ label: "Stopping", mode: telemetryMode }); sendStopDance(); }}
+                  className="gap-1.5 h-7 bg-amber-600 hover:bg-amber-500"
+                >
+                  <Stop className="h-3.5 w-3.5" weight="fill" />
+                  Stop
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">Stop dance mode</TooltipContent>
             </Tooltip>
           )}
 

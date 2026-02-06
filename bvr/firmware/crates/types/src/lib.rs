@@ -71,6 +71,8 @@ pub enum Mode {
     Fault,
     /// Sleep mode: sensors powered down but rover stays reachable
     Sleep,
+    /// Dance demo mode: choreographed motion sequence
+    Dance,
 }
 
 /// Power system status.
@@ -384,6 +386,7 @@ mod tests {
             Mode::EStop,
             Mode::Fault,
             Mode::Sleep,
+            Mode::Dance,
         ] {
             let json = serde_json::to_string(&mode).unwrap();
             let decoded: Mode = serde_json::from_str(&json).unwrap();

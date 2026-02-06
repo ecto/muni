@@ -1372,9 +1372,9 @@ fn filter_command(cmd: &Command, conn_id: u64, op_state: &OperatorState) -> Comm
                     CommandFilter::Reject("another operator is active")
                 }
             }
-            // Autonomous: anyone can request (rover drives itself, no operator needed)
-            Mode::Autonomous => {
-                // Release operator if held — autonomous doesn't need one
+            // Autonomous/Dance: anyone can request (rover drives itself, no operator needed)
+            Mode::Autonomous | Mode::Dance => {
+                // Release operator if held — autonomous/dance doesn't need one
                 if op_state.is_operator(conn_id) {
                     op_state.release(conn_id);
                 }
@@ -1463,6 +1463,7 @@ fn parse_command(data: &[u8]) -> Option<Command> {
                 2 => Mode::Teleop,
                 3 => Mode::Autonomous,
                 6 => Mode::Sleep,
+                7 => Mode::Dance,
                 _ => return None,
             };
             debug!(?mode, seq = header.sequence, "SetMode command");

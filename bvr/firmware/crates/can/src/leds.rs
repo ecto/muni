@@ -145,6 +145,18 @@ impl LedCommand {
     pub fn state_sleep() -> Self {
         Self::pulse(100, 0, 200, 100, 4000)
     }
+
+    /// Dance state: fast magenta chase.
+    pub fn state_dance() -> Self {
+        Self {
+            mode: LedMode::Chase,
+            r: 255,
+            g: 0,
+            b: 255,
+            brightness: 255,
+            period_ms: 300,
+        }
+    }
 }
 
 /// Parse LED status from MCU.

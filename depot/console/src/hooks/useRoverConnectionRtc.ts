@@ -1014,6 +1014,20 @@ export function useRoverConnectionRtc() {
         commandChannelRef.current.send(encodeSetMode(Mode.Idle));
       }
     }, []),
+    sendDance: useCallback(() => {
+      const channel = commandChannelRef.current;
+      if (channel?.readyState !== "open") return;
+      // Release operator — dance drives itself
+      isOperatorRef.current = false;
+      pendingModeRef.current = Mode.Dance;
+      channel.send(encodeSetMode(Mode.Dance));
+    }, []),
+    sendStopDance: useCallback(() => {
+      pendingModeRef.current = Mode.Idle;
+      if (commandChannelRef.current?.readyState === "open") {
+        commandChannelRef.current.send(encodeSetMode(Mode.Idle));
+      }
+    }, []),
     sendGoal: useCallback((x: number, y: number) => {
       const channel = commandChannelRef.current;
       if (channel?.readyState !== "open") return;

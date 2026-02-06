@@ -122,6 +122,9 @@ pub(crate) fn run(ctx: DaemonContext) {
     // Auto-sleep setup
     let sleep_timeout = Duration::from_secs(sleep_timeout_secs);
 
+    // Dance mode choreography timer (reset when entering Dance)
+    let mut dance_start = Instant::now();
+
     // CAN bus health tracking constants
     const CAN_ERROR_BACKOFF_THRESHOLD: u32 = 10;
     const CAN_RETRY_INTERVAL: u64 = 100;
@@ -372,6 +375,10 @@ pub(crate) fn run(ctx: DaemonContext) {
                                 // Feed watchdog when entering Autonomous to prevent immediate timeout
                                 watchdog.feed();
                                 Event::AutonomousRequest
+                            }
+                            Mode::Dance => {
+                                watchdog.feed();
+                                Event::DanceRequest
                             }
                             Mode::EStop => Event::EStop,
                             Mode::Sleep => Event::Sleep,
@@ -881,6 +888,25 @@ pub(crate) fn run(ctx: DaemonContext) {
             Mode::Teleop => {
                 // Teleop mode: use commanded twist directly
                 (commanded_twist, commanded_twist.boost)
+            }
+            Mode::Dance => {
+                let t = dance_start.elapsed().as_secs_f64();
+                let phase = t % 12.0; // 12-second loop
+                let twist = if phase < 3.0 {
+                    // Spin right
+                    Twist { linear: 0.0, angular: -1.5, boost: false }
+                } else if phase < 6.0 {
+                    // Spin left
+                    Twist { linear: 0.0, angular: 1.5, boost: false }
+                } else if phase < 8.0 {
+                    // Wiggle (fast oscillation)
+                    Twist { linear: 0.0, angular: 3.0 * (t * 8.0).sin(), boost: false }
+                } else {
+                    // Drive in a circle
+                    Twist { linear: 0.5, angular: 1.0, boost: false }
+                };
+                watchdog.feed();
+                (twist, false)
             }
             _ => {
                 // Not driving: zero velocity
@@ -1438,9 +1464,14 @@ pub(crate) fn run(ctx: DaemonContext) {
                 idle_since = Instant::now();
             }
 
+            // Reset dance choreography timer when entering Dance
+            if matches!(current_mode, Mode::Dance) {
+                dance_start = Instant::now();
+            }
+
             // Start/stop recording based on mode (only record during Teleop/Autonomous)
-            let should_record = matches!(current_mode, Mode::Teleop | Mode::Autonomous);
-            let was_recording = matches!(last_mode, Mode::Teleop | Mode::Autonomous);
+            let should_record = matches!(current_mode, Mode::Teleop | Mode::Autonomous | Mode::Dance);
+            let was_recording = matches!(last_mode, Mode::Teleop | Mode::Autonomous | Mode::Dance);
 
             if should_record && !was_recording {
                 // Entering a recording mode - start session
