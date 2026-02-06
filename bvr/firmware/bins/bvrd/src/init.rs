@@ -103,6 +103,9 @@ pub(crate) struct DaemonContext {
     pub(crate) recording_enabled: bool,
     pub(crate) rtc_metrics: Option<std::sync::Arc<RtcMetrics>>,
 
+    // -- WebRTC peer tracking (for auto-sleep suppression) --
+    pub(crate) peer_count: Arc<std::sync::atomic::AtomicU32>,
+
     // -- config-derived scalars --
     pub(crate) sleep_timeout_secs: u64,
     pub(crate) mount_pitch_rad: f32,
@@ -607,6 +610,7 @@ pub(crate) async fn initialize(
 
     // Spawn WebRTC teleop server (primary browser teleop with video)
     let mut rtc_metrics: Option<std::sync::Arc<RtcMetrics>> = None;
+    let mut rtc_peer_count: Option<Arc<std::sync::atomic::AtomicU32>> = None;
     if args.rtc_port > 0 {
         let rtc_config = RtcConfig {
             signaling_port: args.rtc_port,
@@ -647,8 +651,9 @@ pub(crate) async fn initialize(
             fov_v: camera_mount.fov_v,
         });
 
-        // Get metrics handle before spawning (for InfluxDB push)
+        // Get metrics and peer_count handles before spawning
         rtc_metrics = Some(rtc_server.metrics());
+        rtc_peer_count = Some(rtc_server.peer_count());
 
         tokio::spawn(async move {
             if let Err(e) = rtc_server.run().await {
@@ -1190,7 +1195,7 @@ pub(crate) async fn initialize(
     if file_config.collision_guard.enabled {
         info!("Collision monitor enabled (velocity scaling for all modes)");
     }
-    let mut watchdog = Watchdog::new(Duration::from_millis(500)); // Allow for network jitter over Tailscale
+    let mut watchdog = Watchdog::new(Duration::from_millis(file_config.control.watchdog_timeout_ms));
 
     // Feed watchdog immediately if starting in autonomous mode
     // (otherwise is_timed_out() returns true on first iteration before we can feed it)
@@ -1326,6 +1331,7 @@ pub(crate) async fn initialize(
         recorder,
         recording_enabled,
         rtc_metrics,
+        peer_count: rtc_peer_count.unwrap_or_else(|| Arc::new(std::sync::atomic::AtomicU32::new(0))),
         sleep_timeout_secs,
         mount_pitch_rad,
         discovery_enabled,

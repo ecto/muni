@@ -65,6 +65,7 @@ pub(crate) fn run(ctx: DaemonContext) {
         mut recorder,
         recording_enabled,
         rtc_metrics,
+        peer_count,
         sleep_timeout_secs,
         mount_pitch_rad,
         discovery_enabled,
@@ -575,11 +576,13 @@ pub(crate) fn run(ctx: DaemonContext) {
             }
         }
 
-        // Auto-sleep after idle/disabled timeout
+        // Auto-sleep after idle/disabled timeout (suppressed while a console is connected)
         if sleep_timeout_secs > 0 {
             let mode = shared.lock().unwrap_or_else(|e| e.into_inner()).state_machine.mode();
+            let peers = peer_count.load(Ordering::Relaxed);
             if matches!(mode, Mode::Idle)
                 && idle_since.elapsed() > sleep_timeout
+                && peers == 0
             {
                 info!(
                     elapsed_secs = idle_since.elapsed().as_secs(),

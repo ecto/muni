@@ -253,6 +253,8 @@ pub struct RtcServer {
     camera_info: Option<crate::CameraInfo>,
     operator_state: Arc<OperatorState>,
     metrics: Arc<RtcMetrics>,
+    /// Number of currently connected WebRTC peers (shared with control loop for auto-sleep suppression).
+    peer_count: Arc<AtomicU32>,
 }
 
 impl RtcServer {
@@ -274,6 +276,7 @@ impl RtcServer {
             camera_info: None,
             operator_state: Arc::new(OperatorState::new()),
             metrics: RtcMetrics::new(),
+            peer_count: Arc::new(AtomicU32::new(0)),
         }
     }
 
@@ -297,6 +300,7 @@ impl RtcServer {
             camera_info: None,
             operator_state: Arc::new(OperatorState::new()),
             metrics: RtcMetrics::new(),
+            peer_count: Arc::new(AtomicU32::new(0)),
         }
     }
 
@@ -321,6 +325,7 @@ impl RtcServer {
             camera_info: None,
             operator_state: Arc::new(OperatorState::new()),
             metrics: RtcMetrics::new(),
+            peer_count: Arc::new(AtomicU32::new(0)),
         }
     }
 
@@ -363,6 +368,11 @@ impl RtcServer {
         self.metrics.clone()
     }
 
+    /// Get the peer count handle (for auto-sleep suppression in the control loop).
+    pub fn peer_count(&self) -> Arc<AtomicU32> {
+        self.peer_count.clone()
+    }
+
     /// Run the WebRTC signaling server.
     pub async fn run(self) -> Result<(), TeleopError> {
         let addr = format!("0.0.0.0:{}", self.config.signaling_port);
@@ -381,6 +391,7 @@ impl RtcServer {
         let config = Arc::new(self.config);
         let operator_state = self.operator_state;
         let metrics = self.metrics;
+        let peer_count = self.peer_count;
 
         loop {
             match listener.accept().await {
@@ -401,10 +412,11 @@ impl RtcServer {
                     let cfg = config.clone();
                     let op_state = operator_state.clone();
                     let rtc_metrics = metrics.clone();
+                    let pc = peer_count.clone();
 
                     tokio::spawn(async move {
                         if let Err(e) =
-                            handle_signaling(stream, cmd_tx, telem_rx, vid_rx, kf_req, lid_rx, cm_rx, obs_rx, path_rx_clone, cam_info, cfg, conn_id, op_state.clone(), rtc_metrics)
+                            handle_signaling(stream, cmd_tx, telem_rx, vid_rx, kf_req, lid_rx, cm_rx, obs_rx, path_rx_clone, cam_info, cfg, conn_id, op_state.clone(), rtc_metrics, pc.clone())
                                 .await
                         {
                             error!(?e, conn_id, "WebRTC connection error");
@@ -458,6 +470,7 @@ async fn handle_signaling(
     conn_id: u64,
     operator_state: Arc<OperatorState>,
     metrics: Arc<RtcMetrics>,
+    peer_count: Arc<AtomicU32>,
 ) -> Result<(), TeleopError> {
     let _ = stream.set_nodelay(true);
 
@@ -1180,20 +1193,34 @@ async fn handle_signaling(
     let pc_clone = peer_connection.clone();
     let op_state_dc = operator_state.clone();
     let close_tx_dc = close_tx.clone();
+    let peer_count_dc = peer_count.clone();
     peer_connection.on_peer_connection_state_change(Box::new(move |state| {
         info!(?state, conn_id, "WebRTC peer connection state changed");
         let pc = pc_clone.clone();
         let op_state = op_state_dc.clone();
         let close = close_tx_dc.clone();
+        let peers = peer_count_dc.clone();
         Box::pin(async move {
-            if state == RTCPeerConnectionState::Failed
-                || state == RTCPeerConnectionState::Disconnected
-                || state == RTCPeerConnectionState::Closed
-            {
-                op_state.release(conn_id);
-                // Signal spawned tasks (video feed, PLI reader) to exit
-                let _ = close.send(true);
-                let _ = pc.close().await;
+            match state {
+                RTCPeerConnectionState::Connected => {
+                    let count = peers.fetch_add(1, Ordering::Relaxed) + 1;
+                    info!(conn_id, peer_count = count, "WebRTC peer connected");
+                }
+                RTCPeerConnectionState::Failed
+                | RTCPeerConnectionState::Disconnected
+                | RTCPeerConnectionState::Closed => {
+                    // Saturating decrement to avoid underflow if callback fires multiple times
+                    let prev = peers.fetch_update(Ordering::Relaxed, Ordering::Relaxed, |n| {
+                        Some(n.saturating_sub(1))
+                    }).unwrap_or(0);
+                    let count = prev.saturating_sub(1);
+                    info!(conn_id, peer_count = count, "WebRTC peer disconnected");
+                    op_state.release(conn_id);
+                    // Signal spawned tasks (video feed, PLI reader) to exit
+                    let _ = close.send(true);
+                    let _ = pc.close().await;
+                }
+                _ => {}
             }
         })
     }));

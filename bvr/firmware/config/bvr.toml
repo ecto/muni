@@ -31,6 +31,9 @@ loop_rate_hz = 100
 command_timeout_ms = 250
 # Seconds of inactivity in Idle/Disabled before auto-transitioning to Sleep (0 = disabled)
 sleep_timeout_secs = 300
+# Watchdog timeout (ms) — teleop drops to Idle if no heartbeat arrives within this window.
+# 1500ms handles browser tab throttling (setInterval → 1Hz) with margin.
+watchdog_timeout_ms = 1500
 # Velocity PID gains (per-wheel)
 [control.pid]
 kp = 1.0

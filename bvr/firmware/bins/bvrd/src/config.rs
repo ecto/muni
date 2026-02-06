@@ -34,12 +34,16 @@ pub(crate) struct FileConfig {
 pub(crate) struct ControlFileConfig {
     /// Seconds of inactivity in Idle/Disabled before auto-transitioning to Sleep (0 = disabled)
     pub sleep_timeout_secs: u64,
+    /// Watchdog timeout in milliseconds — if no heartbeat/command arrives within this window,
+    /// teleop drops to Idle. 1500ms handles browser tab throttling (1Hz setInterval) with margin.
+    pub watchdog_timeout_ms: u64,
 }
 
 impl Default for ControlFileConfig {
     fn default() -> Self {
         Self {
             sleep_timeout_secs: 0, // disabled by default
+            watchdog_timeout_ms: 1500,
         }
     }
 }
