@@ -468,6 +468,11 @@ async fn handle_signaling(
     let (ws_sender, mut ws_receiver) = ws_stream.split();
     let ws_sender = Arc::new(Mutex::new(ws_sender));
 
+    // Per-connection cancellation signal for spawned tasks (video feed, PLI reader).
+    // Sent when peer connection state goes to Failed/Disconnected/Closed.
+    let (close_tx, _close_rx) = watch::channel(false);
+    let close_tx = Arc::new(close_tx);
+
     // Create WebRTC API
     let mut media_engine = MediaEngine::default();
     media_engine.register_default_codecs().map_err(|e| {
@@ -731,10 +736,13 @@ async fn handle_signaling(
             });
         }
 
-        // Spawn task to feed H.264 frames to the video track
+        // Spawn task to feed H.264 frames to the video track.
+        // Uses close_rx to exit promptly when the peer disconnects —
+        // write_sample() does not reliably error on closed connections.
         let track = video_track.clone();
         let video_metrics = metrics.clone();
         let kf_flag = keyframe_requestor.clone();
+        let mut vid_close_rx = _close_rx.clone();
         tokio::spawn(async move {
             let mut frame_count: u64 = 0;
 
@@ -760,9 +768,18 @@ async fn handle_signaling(
             }
 
             loop {
-                let frame = {
-                    let mut guard = vid_rx.lock().await;
-                    guard.recv().await
+                // Race frame recv against connection close signal.
+                // Without this, zombie tasks accumulate and steal frames
+                // from the active connection via the shared vid_rx mutex.
+                let frame = tokio::select! {
+                    _ = vid_close_rx.changed() => {
+                        debug!("Video feed cancelled: peer disconnected");
+                        break;
+                    }
+                    frame = async {
+                        let mut guard = vid_rx.lock().await;
+                        guard.recv().await
+                    } => frame,
                 };
 
                 let frame = match frame {
@@ -1162,16 +1179,20 @@ async fn handle_signaling(
     // Handle connection state changes
     let pc_clone = peer_connection.clone();
     let op_state_dc = operator_state.clone();
+    let close_tx_dc = close_tx.clone();
     peer_connection.on_peer_connection_state_change(Box::new(move |state| {
         info!(?state, conn_id, "WebRTC peer connection state changed");
         let pc = pc_clone.clone();
         let op_state = op_state_dc.clone();
+        let close = close_tx_dc.clone();
         Box::pin(async move {
             if state == RTCPeerConnectionState::Failed
                 || state == RTCPeerConnectionState::Disconnected
                 || state == RTCPeerConnectionState::Closed
             {
                 op_state.release(conn_id);
+                // Signal spawned tasks (video feed, PLI reader) to exit
+                let _ = close.send(true);
                 let _ = pc.close().await;
             }
         })
