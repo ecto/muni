@@ -13,7 +13,6 @@ function applyDeadzone(value: number, deadzone: number): number {
 export function useGamepad() {
   const setInput = useConsoleStore((s) => s.setInput);
   const setInputSource = useConsoleStore((s) => s.setInputSource);
-  const inputSource = useConsoleStore((s) => s.inputSource);
   const frameRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -27,12 +26,15 @@ export function useGamepad() {
           gp.axes.some((a) => Math.abs(a) > 0.1) ||
           gp.buttons.some((b) => b.pressed || b.value > 0.1);
 
-        if (hasActivity && inputSource !== InputSource.Gamepad) {
+        // Read inputSource from store directly to avoid subscription churn
+        const currentSource = useConsoleStore.getState().inputSource;
+
+        if (hasActivity && currentSource !== InputSource.Gamepad) {
           setInputSource(InputSource.Gamepad);
         }
 
         // Only update if gamepad is the active source
-        if (inputSource === InputSource.Gamepad || hasActivity) {
+        if (currentSource === InputSource.Gamepad || hasActivity) {
           // Left stick for movement
           // Stick up (negative Y) = forward (positive linear)
           // Stick right (positive X) = turn right (negative angular)
@@ -82,10 +84,6 @@ export function useGamepad() {
             cameraYaw,
             cameraPitch,
           });
-
-          if (hasActivity) {
-            setInputSource(InputSource.Gamepad);
-          }
         }
       }
 
@@ -100,7 +98,7 @@ export function useGamepad() {
     };
 
     const onDisconnect = () => {
-      if (inputSource === InputSource.Gamepad) {
+      if (useConsoleStore.getState().inputSource === InputSource.Gamepad) {
         setInputSource(InputSource.None);
       }
     };
@@ -115,5 +113,5 @@ export function useGamepad() {
       window.removeEventListener("gamepadconnected", onConnect);
       window.removeEventListener("gamepaddisconnected", onDisconnect);
     };
-  }, [setInput, setInputSource, inputSource]);
+  }, [setInput, setInputSource]);
 }

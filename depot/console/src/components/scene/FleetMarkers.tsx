@@ -12,7 +12,6 @@ interface FleetMarkersProps {
 }
 
 // Color by rover mode
-const LABEL_FONT = "/BerkeleyMono-Regular.woff2";
 
 const MODE_COLORS: Record<number, string> = {
   [Mode.Disabled]: "#6b7280", // gray
@@ -83,7 +82,6 @@ function RoverMarker({ rover, isActive }: RoverMarkerProps) {
       {/* Rover ID label */}
       <Billboard position={[0, 0.5, 0]}>
         <Text
-          font={LABEL_FONT}
           fontSize={0.2}
           color={color}
           anchorX="center"

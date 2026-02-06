@@ -75,7 +75,7 @@ export function useRoverConnectionRtc() {
   const setVideoConnected = useConsoleStore((s) => s.setVideoConnected);
   const setVideoFps = useConsoleStore((s) => s.setVideoFps);
   const setVideoFrame = useConsoleStore((s) => s.setVideoFrame);
-  const updateChannelMetrics = useConsoleStore((s) => s.updateChannelMetrics);
+  const setAllChannelMetrics = useConsoleStore((s) => s.setAllChannelMetrics);
   const resetChannelMetrics = useConsoleStore((s) => s.resetChannelMetrics);
 
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
@@ -338,12 +338,15 @@ export function useRoverConnectionRtc() {
         }, HEARTBEAT_INTERVAL_MS);
 
         // Start metrics calculation interval (1Hz)
+        // Uses setAllChannelMetrics to batch all channel updates into a single
+        // Zustand set() call, avoiding cascading re-renders from 5 separate set()s.
         lastMetricsUpdateRef.current = performance.now();
         metricsIntervalRef.current = setInterval(() => {
           const now = performance.now();
           const elapsed = (now - lastMetricsUpdateRef.current) / 1000; // seconds
           lastMetricsUpdateRef.current = now;
 
+          const batch = new Map<string, Partial<import("@/store").ChannelMetrics>>();
           channelStatsRef.current.forEach((stats, channelName) => {
             const messagesPerSec = elapsed > 0 ? stats.count / elapsed : 0;
             stats.count = 0; // Reset count for next interval
@@ -353,12 +356,13 @@ export function useRoverConnectionRtc() {
             const history = existing?.history ?? [];
             const newHistory = [...history, messagesPerSec].slice(-30);
 
-            updateChannelMetrics(channelName, {
+            batch.set(channelName, {
               messagesPerSec,
               lastMessageTime: stats.lastTime,
               history: newHistory,
             });
           });
+          setAllChannelMetrics(batch);
         }, 1000);
 
         // Start polling input state
@@ -814,7 +818,7 @@ export function useRoverConnectionRtc() {
     updateTelemetry,
     setVideoConnected,
     setVideoFps,
-    updateChannelMetrics,
+    setAllChannelMetrics,
     clearIntervals,
     sendCommands,
     scheduleReconnect,
