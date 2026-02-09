@@ -800,7 +800,7 @@ pub(crate) async fn initialize(
                     tokio::time::sleep(monitor_interval).await;
 
                     let detected = camera::detect_cameras();
-                    let active = monitor_active.lock().unwrap().clone();
+                    let active = monitor_active.lock().expect("active_cameras mutex poisoned").clone();
                     let active_count = active.len();
 
                     for cam in &detected {
@@ -831,8 +831,8 @@ pub(crate) async fn initialize(
                     }
 
                     // Update health flag based on active camera count
-                    let has_cameras = !monitor_active.lock().unwrap().is_empty();
-                    monitor_shared.lock().unwrap().health.camera_active = has_cameras;
+                    let has_cameras = !monitor_active.lock().expect("active_cameras mutex poisoned").is_empty();
+                    monitor_shared.lock().expect("shared state mutex poisoned").health.camera_active = has_cameras;
                 }
             });
 
@@ -1222,7 +1222,7 @@ pub(crate) async fn initialize(
 
     // Send initial LED command for current mode
     {
-        let state = shared.lock().unwrap();
+        let state = shared.lock().expect("shared state mutex poisoned");
         let led_cmd = state.state_machine.led_command();
         let led_frame = led_cmd.to_frame();
         if let Err(e) = can_interface.send(&led_frame) {

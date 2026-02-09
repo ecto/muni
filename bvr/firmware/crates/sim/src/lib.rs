@@ -55,7 +55,7 @@ impl SimBus {
             if vesc.process_command(frame) {
                 // Queue status response
                 if let Some(status_frames) = vesc.generate_status() {
-                    let mut queue = self.rx_queue.lock().unwrap();
+                    let mut queue = self.rx_queue.lock().expect("sim rx_queue mutex poisoned");
                     for f in status_frames {
                         queue.push_back(f);
                     }
@@ -71,7 +71,7 @@ impl SimBus {
 
     /// Get next "received" frame.
     pub fn recv(&mut self) -> Option<Frame> {
-        self.rx_queue.lock().unwrap().pop_front()
+        self.rx_queue.lock().expect("sim rx_queue mutex poisoned").pop_front()
     }
 
     /// Tick the simulation (call at ~100Hz).
@@ -86,7 +86,7 @@ impl SimBus {
         self.physics.update(wheel_rpms, dt);
 
         // Generate periodic status messages
-        let mut queue = self.rx_queue.lock().unwrap();
+        let mut queue = self.rx_queue.lock().expect("sim rx_queue mutex poisoned");
 
         for vesc in &mut self.vescs {
             vesc.tick(dt);
@@ -131,12 +131,12 @@ impl SimCanAdapter {
 
     pub fn send(&self, frame: &Frame) -> Result<(), can::CanError> {
         debug!(id = frame.id, "SimCAN TX");
-        self.sim.lock().unwrap().process_tx(frame);
+        self.sim.lock().expect("sim mutex poisoned").process_tx(frame);
         Ok(())
     }
 
     pub fn recv(&self) -> Result<Option<Frame>, can::CanError> {
-        Ok(self.sim.lock().unwrap().recv())
+        Ok(self.sim.lock().expect("sim mutex poisoned").recv())
     }
 }
 

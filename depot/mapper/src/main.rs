@@ -1390,7 +1390,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         info!(port = port, "Health server listening");
 
         if let Err(e) = axum::serve(
-            tokio::net::TcpListener::bind(addr).await.unwrap(),
+            tokio::net::TcpListener::bind(addr)
+                .await
+                .expect("failed to bind health server"),
             app.into_make_service(),
         )
         .await

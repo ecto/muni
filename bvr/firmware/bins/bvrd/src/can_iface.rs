@@ -80,7 +80,7 @@ impl RemoteCan {
                                 if let Some((frame, consumed)) =
                                     can::Frame::from_bytes(&pending[1..])
                                 {
-                                    rx_queue.lock().unwrap().push_back(frame);
+                                    rx_queue.lock().expect("rx_queue mutex poisoned").push_back(frame);
                                     pending.drain(..1 + consumed);
                                 } else {
                                     break; // Need more data
@@ -100,7 +100,7 @@ impl RemoteCan {
                                 let theta = f64::from_le_bytes(
                                     pending[17..25].try_into().unwrap(),
                                 );
-                                *pose.lock().unwrap() = Pose { x, y, theta };
+                                *pose.lock().expect("pose mutex poisoned") = Pose { x, y, theta };
                                 pending.drain(..25);
                             }
                             _ => {
@@ -152,7 +152,7 @@ impl CanInterface {
         match self {
             Self::Real(bus) => bus.send(frame),
             Self::Sim(sim) => {
-                sim.lock().unwrap().process_tx(frame);
+                sim.lock().expect("sim mutex poisoned").process_tx(frame);
                 Ok(())
             }
             Self::Remote(remote) => {
@@ -165,14 +165,14 @@ impl CanInterface {
     pub(crate) fn recv(&self) -> Result<Option<can::Frame>, can::CanError> {
         match self {
             Self::Real(bus) => bus.recv(),
-            Self::Sim(sim) => Ok(sim.lock().unwrap().recv()),
-            Self::Remote(remote) => Ok(remote.rx_queue.lock().unwrap().pop_front()),
+            Self::Sim(sim) => Ok(sim.lock().expect("sim mutex poisoned").recv()),
+            Self::Remote(remote) => Ok(remote.rx_queue.lock().expect("remote rx_queue mutex poisoned").pop_front()),
         }
     }
 
     pub(crate) fn tick(&self, dt: f64) {
         if let Self::Sim(sim) = self {
-            sim.lock().unwrap().tick(dt);
+            sim.lock().expect("sim mutex poisoned").tick(dt);
         }
         // Remote: physics runs on sim-bridge, no-op here
     }
@@ -182,10 +182,10 @@ impl CanInterface {
         match self {
             Self::Real(_) => Pose::default(),
             Self::Sim(sim) => {
-                let (x, y, theta) = sim.lock().unwrap().position();
+                let (x, y, theta) = sim.lock().expect("sim mutex poisoned").position();
                 Pose { x, y, theta }
             }
-            Self::Remote(remote) => *remote.pose.lock().unwrap(),
+            Self::Remote(remote) => *remote.pose.lock().expect("remote pose mutex poisoned"),
         }
     }
 }

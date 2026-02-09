@@ -503,8 +503,12 @@ async fn main() {
     let addr = SocketAddr::from(([0, 0, 0, 0], port));
     info!("Dispatch service listening on {}", addr);
 
-    let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
-    axum::serve(listener, app).await.unwrap();
+    let listener = tokio::net::TcpListener::bind(addr)
+        .await
+        .expect("failed to bind to address");
+    axum::serve(listener, app)
+        .await
+        .expect("server exited with error");
 }
 
 /// Run database migrations manually
@@ -512,6 +516,7 @@ async fn run_migrations(pool: &PgPool) {
     let migration_001 = include_str!("../migrations/001_initial.sql");
     let migration_002 = include_str!("../migrations/002_phase2.sql");
     let migration_003 = include_str!("../migrations/003_coverage.sql");
+    let migration_004 = include_str!("../migrations/004_indexes_constraints.sql");
 
     // Check if initial migration has been run
     let table_exists: bool = sqlx::query_scalar(
@@ -564,6 +569,23 @@ async fn run_migrations(pool: &PgPool) {
             .await
             .expect("Failed to run migration 003");
         info!("Migration 003 complete");
+    }
+
+    // Check if indexes/constraints migration has been run (check for idx_tasks_created_at)
+    let idx_exists: bool = sqlx::query_scalar(
+        "SELECT EXISTS (SELECT FROM pg_indexes WHERE indexname = 'idx_tasks_created_at')",
+    )
+    .fetch_one(pool)
+    .await
+    .unwrap_or(false);
+
+    if !idx_exists {
+        info!("Running indexes/constraints migration...");
+        sqlx::raw_sql(migration_004)
+            .execute(pool)
+            .await
+            .expect("Failed to run migration 004");
+        info!("Migration 004 complete");
     }
 }
 

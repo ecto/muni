@@ -35,8 +35,8 @@ pub(crate) fn start_camera(
             );
 
             // Register in active set
-            active_cameras.lock().unwrap().insert(stable_id.clone());
-            shared.lock().unwrap().health.camera_active = true;
+            active_cameras.lock().expect("active_cameras mutex poisoned").insert(stable_id.clone());
+            shared.lock().expect("shared state mutex poisoned").health.camera_active = true;
 
             let video_tx_rtc = video_tx_rtc.clone();
             let active_cameras = active_cameras.clone();
@@ -103,7 +103,7 @@ pub(crate) fn start_camera(
                 }
 
                 // Camera died — remove from active set so monitor can restart it
-                active_cameras.lock().unwrap().remove(&stable_id);
+                active_cameras.lock().expect("active_cameras mutex poisoned").remove(&stable_id);
                 info!(camera_id, stable_id = %stable_id, "H.264 camera forwarder stopped, removed from active set");
             });
 

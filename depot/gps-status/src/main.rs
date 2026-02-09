@@ -289,8 +289,12 @@ async fn main() {
     let addr = SocketAddr::from(([0, 0, 0, 0], port));
     info!(port = port, serial = %serial_port, baud = baud_rate, "GPS status service starting");
 
-    let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
-    axum::serve(listener, app).await.unwrap();
+    let listener = tokio::net::TcpListener::bind(addr)
+        .await
+        .expect("failed to bind to address");
+    axum::serve(listener, app)
+        .await
+        .expect("server exited with error");
 }
 
 /// Temporary storage for GSV parsing (satellites come in multiple messages)
