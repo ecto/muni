@@ -210,9 +210,6 @@ export function EquirectangularSky() {
       const ids = Array.from(streams.keys()).sort((a, b) => a - b);
       const idsKey = ids.join(",");
       if (idsKey !== prevCameraIdsRef.current) {
-        if (ids.length > 0 && cameraIds.length === 0) {
-          console.log(`[EquirectangularSky] Video streams received: ${ids.length} cameras`);
-        }
         prevCameraIdsRef.current = idsKey;
         setCameraIds(ids);
       }

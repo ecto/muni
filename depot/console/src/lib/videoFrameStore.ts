@@ -55,21 +55,12 @@ const REVOCATION_DELAY_MS = 200;
  * @param url Blob URL for the frame
  * @param timestamp Frame timestamp in ms
  */
-/** Track if we've logged the first frame */
-let firstFrameLogged = false;
-
 export function setCameraFrame(
   cameraId: number,
   url: string,
   timestamp: number
 ): void {
   const now = performance.now();
-
-  // Log first frame for debugging
-  if (!firstFrameLogged) {
-    console.log(`[videoFrameStore] First frame stored: camera=${cameraId}, version=${globalStore.version + 1}`);
-    firstFrameLogged = true;
-  }
 
   // Schedule old URL for revocation
   const oldFrame = globalStore.frames.get(cameraId);

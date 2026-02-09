@@ -87,18 +87,11 @@ interface ConsoleState {
   // to read frames in useFrame or polling loops.
   videoConnected: boolean;
   videoFps: number;
-  /** @deprecated Use getLatestFrame() from videoFrameStore instead */
-  videoFrame: string | null;
   videoTimestamp: number;
-  /** @deprecated Use getAllCameraFrames() from videoFrameStore instead */
-  cameraFrames: Map<number, { url: string; timestamp: number }>;
   /** Number of active cameras (updated infrequently when cameras connect/disconnect) */
   cameraCount: number;
   setVideoConnected: (connected: boolean) => void;
   setVideoFps: (fps: number) => void;
-  setVideoFrame: (frame: string | null, timestamp: number) => void;
-  /** @deprecated Use setCameraFrame from videoFrameStore instead */
-  setCameraFrame: (cameraId: number, url: string, timestamp: number) => void;
   /** Update camera count (called when cameras connect/disconnect, not on every frame) */
   setCameraCount: (count: number) => void;
 
@@ -357,27 +350,10 @@ export const useConsoleStore = create<ConsoleState>()(
   // Video (multi-camera support)
   videoConnected: false,
   videoFps: 0,
-  videoFrame: null,
   videoTimestamp: 0,
-  cameraFrames: new Map(),
   cameraCount: 0,
   setVideoConnected: (connected) => set({ videoConnected: connected }),
   setVideoFps: (fps) => set({ videoFps: fps }),
-  setVideoFrame: (frame, timestamp) =>
-    set({ videoFrame: frame, videoTimestamp: timestamp }),
-  /** @deprecated Use setCameraFrame from videoFrameStore instead */
-  setCameraFrame: (cameraId, url, timestamp) =>
-    set((state) => {
-      const newFrames = new Map(state.cameraFrames);
-      newFrames.set(cameraId, { url, timestamp });
-      return {
-        cameraFrames: newFrames,
-        cameraCount: newFrames.size,
-        // Keep videoFrame updated with the latest frame for backwards compatibility
-        videoFrame: url,
-        videoTimestamp: timestamp,
-      };
-    }),
   setCameraCount: (count) => set({ cameraCount: count }),
 
   // Point cloud

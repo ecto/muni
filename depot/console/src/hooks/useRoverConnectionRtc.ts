@@ -76,7 +76,6 @@ export function useRoverConnectionRtc() {
   const updateTelemetry = useConsoleStore((s) => s.updateTelemetry);
   const setVideoConnected = useConsoleStore((s) => s.setVideoConnected);
   const setVideoFps = useConsoleStore((s) => s.setVideoFps);
-  const setVideoFrame = useConsoleStore((s) => s.setVideoFrame);
   const setAllChannelMetrics = useConsoleStore((s) => s.setAllChannelMetrics);
   const resetChannelMetrics = useConsoleStore((s) => s.resetChannelMetrics);
 
@@ -236,7 +235,6 @@ export function useRoverConnectionRtc() {
     // (WS handshake, SDP exchange, ICE negotiation), skip this call.
     // The existing attempt will either succeed or fail and trigger a reconnect.
     if (connectingLockRef.current) {
-      console.log("[WebRTC] connect() skipped — already connecting");
       return;
     }
     connectingLockRef.current = true;
@@ -261,9 +259,6 @@ export function useRoverConnectionRtc() {
     // Mark as connecting
     setConnecting(true);
 
-    // rtcAddress comes directly from discovery - no conversion needed
-    console.log(`[WebRTC] Connecting to signaling server: ${rtcAddress}`);
-
     try {
       // Create signaling WebSocket with session correlation ID
       const separator = rtcAddress.includes("?") ? "&" : "?";
@@ -286,7 +281,6 @@ export function useRoverConnectionRtc() {
       commandChannel.binaryType = "arraybuffer";
 
       commandChannel.onopen = () => {
-        console.log("[WebRTC] Command channel opened");
         connectingLockRef.current = false;
         setConnected(true);
         lastSendTimeRef.current = performance.now();
@@ -418,13 +412,11 @@ export function useRoverConnectionRtc() {
         // but console may have it enabled from a previous session
         if (pointCloudEnabled) {
           const { lidarStreamRate, lidarMaxPoints } = useConsoleStore.getState();
-          console.log(`[WebRTC] Syncing LiDAR state: enabled, rate: ${lidarStreamRate}Hz, maxPts: ${lidarMaxPoints}`);
           commandChannelRef.current!.send(encodeLidarToggle(true, lidarStreamRate, lidarMaxPoints));
         }
       };
 
       commandChannel.onclose = () => {
-        console.log("[WebRTC] Command channel closed");
         connectingLockRef.current = false;
         setConnected(false);
         clearIntervals();
@@ -436,7 +428,6 @@ export function useRoverConnectionRtc() {
         const channel = event.channel;
 
         if (channel.label === "telemetry") {
-          console.log("[WebRTC] Telemetry channel received");
           channel.binaryType = "arraybuffer";
           channel.onmessage = (msgEvent) => {
             if (msgEvent.data instanceof ArrayBuffer) {
@@ -445,7 +436,6 @@ export function useRoverConnectionRtc() {
               if (msgType === MSG_CAMERA_INFO) {
                 const info = decodeCameraInfo(msgEvent.data);
                 if (info) {
-                  console.log(`[WebRTC] Camera calibration: camera=${info.cameraId}, ${info.width}x${info.height}, fov=${(info.fovH * 180 / Math.PI).toFixed(0)}°x${(info.fovV * 180 / Math.PI).toFixed(0)}°`);
                   setCameraCalibration(info.cameraId, {
                     width: info.width,
                     height: info.height,
@@ -538,16 +528,10 @@ export function useRoverConnectionRtc() {
             }
           };
         } else if (channel.label === "pointcloud") {
-          console.log("[WebRTC] Pointcloud channel received");
           channel.binaryType = "arraybuffer";
-
-          channel.onopen = () => {
-            console.log("[WebRTC] Pointcloud channel opened");
-          };
 
           channel.onmessage = (msgEvent) => {
             if (!(msgEvent.data instanceof ArrayBuffer)) {
-              console.warn("[WebRTC] Pointcloud message not ArrayBuffer");
               return;
             }
 
@@ -569,20 +553,11 @@ export function useRoverConnectionRtc() {
             }
           };
 
-          channel.onclose = () => {
-            console.log("[WebRTC] Pointcloud channel closed");
-          };
         } else if (channel.label === "costmap") {
-          console.log("[WebRTC] Costmap channel received");
           channel.binaryType = "arraybuffer";
-
-          channel.onopen = () => {
-            console.log("[WebRTC] Costmap channel opened");
-          };
 
           channel.onmessage = (msgEvent) => {
             if (!(msgEvent.data instanceof ArrayBuffer)) {
-              console.warn("[WebRTC] Costmap message not ArrayBuffer");
               return;
             }
 
@@ -607,20 +582,13 @@ export function useRoverConnectionRtc() {
           };
 
           channel.onclose = () => {
-            console.log("[WebRTC] Costmap channel closed");
             clearCostmapData();
           };
         } else if (channel.label === "obstacles") {
-          console.log("[WebRTC] Obstacles channel received");
           channel.binaryType = "arraybuffer";
-
-          channel.onopen = () => {
-            console.log("[WebRTC] Obstacles channel opened");
-          };
 
           channel.onmessage = (msgEvent) => {
             if (!(msgEvent.data instanceof ArrayBuffer)) {
-              console.warn("[WebRTC] Obstacles message not ArrayBuffer");
               return;
             }
 
@@ -638,20 +606,13 @@ export function useRoverConnectionRtc() {
           };
 
           channel.onclose = () => {
-            console.log("[WebRTC] Obstacles channel closed");
             clearObstacleData();
           };
         } else if (channel.label === "path") {
-          console.log("[WebRTC] Path channel received");
           channel.binaryType = "arraybuffer";
-
-          channel.onopen = () => {
-            console.log("[WebRTC] Path channel opened");
-          };
 
           channel.onmessage = (msgEvent) => {
             if (!(msgEvent.data instanceof ArrayBuffer)) {
-              console.warn("[WebRTC] Path message not ArrayBuffer");
               return;
             }
 
@@ -683,7 +644,6 @@ export function useRoverConnectionRtc() {
           };
 
           channel.onclose = () => {
-            console.log("[WebRTC] Path channel closed");
             clearPathData();
           };
         }
@@ -693,7 +653,6 @@ export function useRoverConnectionRtc() {
       pc.ontrack = (event) => {
         if (event.track.kind === "video") {
           const stream = event.streams[0] ?? new MediaStream([event.track]);
-          console.log("[WebRTC] Video track received");
           setVideoConnected(true);
           firstFrameLoggedRef.current = false;
           setVideoStream(0, stream);
@@ -705,7 +664,6 @@ export function useRoverConnectionRtc() {
           }
 
           event.track.onended = () => {
-            console.log("[WebRTC] Video track ended");
             setVideoConnected(false);
             setVideoFps(0);
             removeVideoStream(0);
@@ -872,7 +830,6 @@ export function useRoverConnectionRtc() {
     commandChannelRef.current = null;
     setConnected(false);
     setVideoConnected(false);
-    setVideoFrame(null, 0);
     setVideoFps(0);
     removeVideoStream(0);
     clearPointCloudData();
@@ -880,7 +837,7 @@ export function useRoverConnectionRtc() {
     clearCostmapData();
     clearObstacleData();
     clearCalibrations();
-  }, [clearIntervals, setConnected, setVideoConnected, setVideoFrame, setVideoFps, resetChannelMetrics]);
+  }, [clearIntervals, setConnected, setVideoConnected, setVideoFps, resetChannelMetrics]);
 
   // Stable disconnect ref for cleanup
   const disconnectRef = useRef(disconnect);
@@ -956,32 +913,22 @@ export function useRoverConnectionRtc() {
     }, []),
     toggleLidar: useCallback((enabled: boolean) => {
       const { lidarStreamRate, lidarMaxPoints } = useConsoleStore.getState();
-      console.log(`[WebRTC] Toggling LiDAR: ${enabled}, rate: ${lidarStreamRate}Hz, maxPts: ${lidarMaxPoints}`);
       if (commandChannelRef.current?.readyState === "open") {
         commandChannelRef.current.send(encodeLidarToggle(enabled, lidarStreamRate, lidarMaxPoints));
-        console.log("[WebRTC] LiDAR toggle command sent");
-      } else {
-        console.warn("[WebRTC] Cannot toggle LiDAR - command channel not open");
       }
     }, []),
     sendSleep: useCallback(() => {
-      console.log("[WebRTC] sendSleep called");
       // Release operator status (going to sleep)
       isOperatorRef.current = false;
       pendingModeRef.current = Mode.Sleep;
 
       if (commandChannelRef.current?.readyState === "open") {
         commandChannelRef.current.send(encodeSetMode(Mode.Sleep));
-        console.log("[WebRTC] Sleep command sent");
-      } else {
-        console.warn("[WebRTC] Cannot send Sleep - command channel not open");
       }
     }, []),
     sendWake: useCallback(() => {
-      console.log("[WebRTC] sendWake called");
       const channel = commandChannelRef.current;
       if (channel?.readyState !== "open") {
-        console.warn("[WebRTC] Cannot send Wake - command channel not open");
         return;
       }
       // Claim operator status - we're waking up
@@ -990,7 +937,6 @@ export function useRoverConnectionRtc() {
 
       // Send Idle to wake from Sleep (state machine: Sleep -> Wake -> Idle)
       channel.send(encodeSetMode(Mode.Idle));
-      console.log("[WebRTC] Wake command sent (SetMode Idle)");
     }, []),
     sendAutonomous: useCallback(() => {
       const channel = commandChannelRef.current;
