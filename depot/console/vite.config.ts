@@ -1,3 +1,4 @@
+/// <reference types="vitest/config" />
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
@@ -8,6 +9,11 @@ import path from "path";
 export default defineConfig({
   plugins: [react(), tailwindcss(), wasm(), topLevelAwait()],
   base: "/",
+  test: {
+    environment: "jsdom",
+    globals: true,
+    setupFiles: ["./src/test/setup.ts"],
+  },
   optimizeDeps: {
     exclude: ["@rerun-io/web-viewer"],
     // Don't scan viewer.html in public/rerun - it's a standalone page

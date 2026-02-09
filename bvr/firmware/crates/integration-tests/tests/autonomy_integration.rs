@@ -203,60 +203,7 @@ fn test_covariance_stays_positive_definite() {
     );
 }
 
-/// Test simulated square loop for SLAM
-///
-/// Rover drives a 10m x 10m square. After completing the loop,
-/// SLAM should detect loop closure and correct accumulated drift.
-#[test]
-#[ignore] // Requires SLAM crate to be implemented
-fn test_slam_square_loop() {
-    // TODO: Implement when slam crate is ready
-    //
-    // 1. Create synthetic LiDAR scans for 4 walls
-    // 2. Simulate rover driving square:
-    //    - 10m forward
-    //    - Turn left 90°
-    //    - 10m forward
-    //    - Turn left 90°
-    //    - 10m forward
-    //    - Turn left 90°
-    //    - 10m forward (back to start)
-    // 3. Add 1% odometry drift per meter
-    // 4. Run SLAM
-    // 5. Verify loop closure detected
-    // 6. Verify final pose error < 10cm
-
-    todo!("Implement SLAM square loop test");
-}
-
-/// Test path planning with simple obstacle
-#[test]
-#[ignore] // Requires planner crate to be implemented
-fn test_path_planning_around_obstacle() {
-    // TODO: Implement when planner crate is ready
-    //
-    // 1. Create costmap with obstacle at (5, 0)
-    // 2. Plan path from (0, 0) to (10, 0)
-    // 3. Verify path goes around obstacle (not through it)
-    // 4. Verify path is kinematically feasible (respects turn radius)
-
-    todo!("Implement path planning test");
-}
-
-/// Test full autonomy pipeline (odometry → localization → planning → control)
-#[test]
-#[ignore] // Requires full autonomy stack to be implemented
-fn test_full_autonomy_pipeline() {
-    // TODO: Implement when autonomy orchestrator is ready
-    //
-    // 1. Create simulated environment (walls, obstacles)
-    // 2. Set goal waypoint
-    // 3. Run autonomy loop for 100 iterations
-    // 4. Verify:
-    //    - Localization converges
-    //    - Path is generated
-    //    - Trajectory tracking is stable
-    //    - Goal is reached
-
-    todo!("Implement full autonomy pipeline test");
-}
+// SLAM, path planning, and full autonomy pipeline integration tests live in
+// their respective crates (slam, planner, costmap). The stubs that were here
+// have been removed — add integration-level tests once the crates are wired
+// together in an autonomy orchestrator.
