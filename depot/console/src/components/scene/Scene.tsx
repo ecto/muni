@@ -150,8 +150,6 @@ export function Scene({ mode = "teleop", zones: propZones, activeTasks, onZoneCl
       <Ground />
       {/* Gaussian splat 3D map - can be toggled off for performance */}
       {splatEnabled && <World3D />}
-      <MapOverlay zones={zones} activeTasks={activeTasks} onZoneClick={onZoneClick} />
-
       {/* Rover visualization depends on mode */}
       {showSingleRover && (
         <>
@@ -170,6 +168,7 @@ export function Scene({ mode = "teleop", zones: propZones, activeTasks, onZoneCl
       )}
       {showFleetMarkers && (
         <>
+          <MapOverlay zones={zones} activeTasks={activeTasks} onZoneClick={onZoneClick} />
           <FleetMarkers
             selectedRoverId={selectedRoverId}
             activeTaskRoverId={activeTasks?.[0]?.roverId}
