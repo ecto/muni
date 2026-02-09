@@ -1,0 +1,117 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  firmware:
+    name: Firmware (cargo test)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: bvr/firmware
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # stable
+      - uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5 # v2
+        with:
+          workspaces: bvr/firmware
+      - run: cargo test --workspace
+
+  depot-discovery:
+    name: Discovery (cargo test)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: depot/discovery
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # stable
+      - uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5 # v2
+        with:
+          workspaces: depot/discovery
+      - run: cargo test
+
+  depot-dispatch:
+    name: Dispatch (cargo test)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: depot/dispatch
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # stable
+      - uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5 # v2
+        with:
+          workspaces: depot/dispatch
+      - run: cargo test
+
+  depot-mapper:
+    name: Mapper (cargo test)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: depot/mapper
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # stable
+      - uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5 # v2
+        with:
+          workspaces: depot/mapper
+      - run: cargo test
+
+  depot-map-api:
+    name: Map API (cargo test)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: depot/map-api
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # stable
+      - uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5 # v2
+        with:
+          workspaces: depot/map-api
+      - run: cargo test
+
+  depot-gps-status:
+    name: GPS Status (cargo test)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: depot/gps-status
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # stable
+      - uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5 # v2
+        with:
+          workspaces: depot/gps-status
+      - run: cargo test
+
+  console:
+    name: Console (lint + build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: depot/console
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: depot/console/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run test
+      - run: npm run build
