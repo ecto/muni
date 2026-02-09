@@ -57,10 +57,10 @@ services:
     environment:
       - DOCKER_INFLUXDB_INIT_MODE=setup
       - DOCKER_INFLUXDB_INIT_USERNAME=${INFLUXDB_ADMIN_USER:-admin}
-      - DOCKER_INFLUXDB_INIT_PASSWORD=${INFLUXDB_ADMIN_PASSWORD:-munipassword}
+      - DOCKER_INFLUXDB_INIT_PASSWORD=${INFLUXDB_ADMIN_PASSWORD:?Set INFLUXDB_ADMIN_PASSWORD in .env}
       - DOCKER_INFLUXDB_INIT_ORG=${INFLUXDB_ORG:-muni}
       - DOCKER_INFLUXDB_INIT_BUCKET=${INFLUXDB_BUCKET:-muni}
-      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=${INFLUXDB_ADMIN_TOKEN:-muni-dev-token}
+      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=${INFLUXDB_ADMIN_TOKEN:?Set INFLUXDB_ADMIN_TOKEN in .env}
     healthcheck:
       test: ["CMD", "influx", "ping"]
       interval: 30s
@@ -80,7 +80,7 @@ services:
       - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
     environment:
       - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
-      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-munipassword}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:?Set GRAFANA_ADMIN_PASSWORD in .env}
       - GF_USERS_ALLOW_SIGN_UP=false
       - GF_AUTH_ANONYMOUS_ENABLED=false
       # Serve from /grafana/ subpath behind console proxy
@@ -92,7 +92,7 @@ services:
       # InfluxDB connection for provisioning
       - INFLUXDB_URL=http://influxdb:8086
       - INFLUXDB_ORG=${INFLUXDB_ORG:-muni}
-      - INFLUXDB_TOKEN=${INFLUXDB_ADMIN_TOKEN:-muni-dev-token}
+      - INFLUXDB_TOKEN=${INFLUXDB_ADMIN_TOKEN:?Set INFLUXDB_ADMIN_TOKEN in .env}
     depends_on:
       influxdb:
         condition: service_healthy
@@ -207,7 +207,7 @@ services:
       -in serial://ttyUSB0:115200:8:n:1
       -out ntrips://:${NTRIP_PASSWORD:-muni}@:2101/ROVER
     environment:
-      - NTRIP_PASSWORD=${NTRIP_PASSWORD:-muni}
+      - NTRIP_PASSWORD=${NTRIP_PASSWORD:?Set NTRIP_PASSWORD in .env}
     # Only start if base station hardware is connected
     profiles:
       - rtk
@@ -245,7 +245,7 @@ services:
       - postgres-data:/var/lib/postgresql/data
     environment:
       - POSTGRES_USER=${POSTGRES_USER:-muni}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-munipassword}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
       - POSTGRES_DB=${POSTGRES_DB:-depot}
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-muni} -d ${POSTGRES_DB:-depot}"]
@@ -264,7 +264,7 @@ services:
       - "4890:4890"
     environment:
       - PORT=4890
-      - DATABASE_URL=postgres://${POSTGRES_USER:-muni}:${POSTGRES_PASSWORD:-munipassword}@postgres:5432/${POSTGRES_DB:-depot}
+      - DATABASE_URL=postgres://${POSTGRES_USER:-muni}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@postgres:5432/${POSTGRES_DB:-depot}
       - RUST_LOG=dispatch=info
     depends_on:
       postgres:
