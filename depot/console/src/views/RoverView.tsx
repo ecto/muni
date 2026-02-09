@@ -17,6 +17,7 @@ import { useRoverConnectionRtc } from "@/hooks/useRoverConnectionRtc";
 import { useConsoleStore } from "@/store";
 import { Mode } from "@/lib/types";
 import { Warning, CircleNotch, Robot } from "@phosphor-icons/react";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 export function RoverView() {
   const { roverId } = useParams();
@@ -87,7 +88,9 @@ export function RoverView() {
   return (
     <div className="h-full w-full overflow-hidden bg-background relative">
       {/* 3D Scene (full area) */}
-      <Scene onGoalClick={sendGoal} />
+      <ErrorBoundary fallback={<SceneErrorFallback />}>
+        <Scene onGoalClick={sendGoal} />
+      </ErrorBoundary>
 
       {/* E-Stop Overlay */}
       {isEStop && (
@@ -164,6 +167,20 @@ export function RoverView() {
         <div className="absolute bottom-0 left-0 right-0 pointer-events-auto">
           <ConnectionBar />
         </div>
+      </div>
+    </div>
+  );
+}
+
+function SceneErrorFallback() {
+  return (
+    <div className="h-full w-full flex items-center justify-center bg-background">
+      <div className="text-center">
+        <Warning className="h-12 w-12 mx-auto mb-4 text-destructive opacity-50" />
+        <h3 className="font-medium mb-1">3D scene crashed</h3>
+        <p className="text-sm text-muted-foreground">
+          Reload the page to try again
+        </p>
       </div>
     </div>
   );

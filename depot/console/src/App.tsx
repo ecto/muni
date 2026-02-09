@@ -7,6 +7,7 @@ import { useDiscovery } from "@/hooks/useDiscovery";
 import { useGpsStatus } from "@/hooks/useGpsStatus";
 import { useAlerts } from "@/hooks/useAlerts";
 import { useTheme } from "@/hooks/useTheme";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 // Views
 import { DashboardView } from "@/views/DashboardView";
@@ -34,18 +35,20 @@ function App() {
         <AppSidebar />
         <SidebarInset>
           <AlertBanner />
-          <Routes>
-            <Route path="/" element={<DashboardView />} />
-            <Route path="/base-station" element={<BaseStationView />} />
-            <Route path="/fleet" element={<FleetView />} />
-            <Route path="/fleet/:roverId" element={<RoverView />} />
-            <Route path="/sessions" element={<SessionsView />} />
-            <Route path="/sessions/:sessionName" element={<SessionDetailView />} />
-            <Route path="/maps" element={<MapsView />} />
-            <Route path="/maps/:mapId" element={<MapsView />} />
-            <Route path="/dispatch" element={<DispatchView />} />
-            <Route path="/alerts" element={<AlertsView />} />
-          </Routes>
+          <ErrorBoundary>
+            <Routes>
+              <Route path="/" element={<DashboardView />} />
+              <Route path="/base-station" element={<BaseStationView />} />
+              <Route path="/fleet" element={<FleetView />} />
+              <Route path="/fleet/:roverId" element={<RoverView />} />
+              <Route path="/sessions" element={<SessionsView />} />
+              <Route path="/sessions/:sessionName" element={<SessionDetailView />} />
+              <Route path="/maps" element={<MapsView />} />
+              <Route path="/maps/:mapId" element={<MapsView />} />
+              <Route path="/dispatch" element={<DispatchView />} />
+              <Route path="/alerts" element={<AlertsView />} />
+            </Routes>
+          </ErrorBoundary>
         </SidebarInset>
       </SidebarProvider>
       <Toast />
