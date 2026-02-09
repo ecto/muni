@@ -315,6 +315,60 @@ Requires Typst installed.
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
+## Voice Command API
+
+The dispatch service exposes a REST API for external integrations (e.g., RF
+speech-to-text servers) to send high-level commands to rovers. Commands flow
+through the existing dispatch WebSocket connection to the rover, then into the
+same command pipeline as teleop (state machine → rate limiter → collision guard
+→ motors).
+
+### Endpoints
+
+```bash
+# List connected rovers
+GET /rovers
+→ [{"id": "frog-0", "connected": true, "currentTask": null}]
+
+# Emergency stop (always accepted)
+POST /rovers/frog-0/command
+{"type": "estop"}
+
+# Release e-stop
+POST /rovers/frog-0/command
+{"type": "estop_release"}
+
+# Navigate to coordinates (auto-transitions to Autonomous)
+POST /rovers/frog-0/command
+{"type": "set_goal", "x": 5.0, "y": 3.0}
+
+# Change mode (valid: idle, autonomous, sleep, dance)
+POST /rovers/frog-0/command
+{"type": "set_mode", "mode": "idle"}
+```
+
+### Security
+
+- **API key**: Optional `X-API-Key` header. Set `VOICE_API_KEY` env var to enable.
+  When unset, the endpoint is open (relies on Tailscale network isolation).
+- **Command allowlist**: Only `estop`, `estop_release`, `set_mode`, `set_goal`.
+  Dangerous commands (`twist`, `tool`) are blocked — voice is not a real-time
+  control source.
+- **Rate limit**: 10 commands/sec per rover. Returns `429 Too Many Requests`.
+- **Network**: Inherits Tailscale isolation. The STT server must be on the
+  Tailscale network to reach the dispatch service at `depot:4890`.
+
+### Architecture
+
+```
+STT Server ──HTTP──→ Dispatch Service ──WS──→ bvrd (rover)
+                     POST /rovers/{id}/command     │
+                     validates, rate-limits,        │
+                     forwards via existing WS       ▼
+                                              cmd_tx channel
+                                              (same as teleop)
+```
+
 ## Key Files Reference
 
 | Purpose | Path |
