@@ -30,7 +30,7 @@ use depot_types::{
 use notify::{Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use serde::{Deserialize, Serialize};
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     net::SocketAddr,
     path::{Path, PathBuf},
     sync::Arc,
@@ -69,6 +69,7 @@ pub enum MapperError {
 struct MapperState {
     sessions: HashMap<Uuid, Session>,
     maps: HashMap<Uuid, MapManifest>,
+    skipped_sessions: HashSet<PathBuf>,
     sessions_dir: PathBuf,
     maps_dir: PathBuf,
 }
@@ -78,6 +79,7 @@ impl MapperState {
         Self {
             sessions: HashMap::new(),
             maps: HashMap::new(),
+            skipped_sessions: HashSet::new(),
             sessions_dir,
             maps_dir,
         }
@@ -124,6 +126,16 @@ impl MapperState {
         Ok(())
     }
 
+    /// Save skipped sessions set to disk
+    async fn save_skipped(&self) -> Result<(), MapperError> {
+        let path = self.maps_dir.join("skipped_sessions.json");
+        let paths: Vec<&PathBuf> = self.skipped_sessions.iter().collect();
+        let json = serde_json::to_string_pretty(&paths)?;
+        tokio::fs::write(&path, json).await?;
+        debug!("Saved skipped sessions ({} entries)", self.skipped_sessions.len());
+        Ok(())
+    }
+
     /// Save sessions database to disk
     async fn save_sessions(&self) -> Result<(), MapperError> {
         let sessions_db_path = self.maps_dir.join("sessions.json");
@@ -145,6 +157,15 @@ impl MapperState {
                 self.sessions.insert(session.id, session);
             }
             info!("Loaded {} sessions from database", self.sessions.len());
+        }
+
+        // Load skipped sessions
+        let skipped_path = self.maps_dir.join("skipped_sessions.json");
+        if skipped_path.exists() {
+            let json = tokio::fs::read_to_string(&skipped_path).await?;
+            let paths: Vec<PathBuf> = serde_json::from_str(&json)?;
+            self.skipped_sessions = paths.into_iter().collect();
+            info!("Loaded {} skipped sessions", self.skipped_sessions.len());
         }
 
         // Load map manifests
@@ -270,7 +291,7 @@ fn scan_sessions(sessions_dir: &Path) -> Vec<PathBuf> {
 /// Scan sessions directory for .rrd files that haven't been extracted yet.
 ///
 /// Returns paths to .rrd files that need processing.
-fn scan_rrd_sessions(sessions_dir: &Path) -> Vec<PathBuf> {
+fn scan_rrd_sessions(sessions_dir: &Path, skipped: &HashSet<PathBuf>) -> Vec<PathBuf> {
     let mut rrd_files = Vec::new();
 
     for entry in WalkDir::new(sessions_dir)
@@ -294,7 +315,7 @@ fn scan_rrd_sessions(sessions_dir: &Path) -> Vec<PathBuf> {
         {
             let extracted_dir = path.with_extension("extracted");
             let skipped_marker = path.with_extension("skipped");
-            if !extracted_dir.exists() && !skipped_marker.exists() {
+            if !extracted_dir.exists() && !skipped_marker.exists() && !skipped.contains(&path.to_path_buf()) {
                 rrd_files.push(path.to_path_buf());
             }
         }
@@ -304,7 +325,7 @@ fn scan_rrd_sessions(sessions_dir: &Path) -> Vec<PathBuf> {
             let rrd_path = path.join("session.rrd");
             let extracted_dir = path.join("extracted");
             let skipped_marker = path.join("skipped");
-            if rrd_path.exists() && !extracted_dir.exists() && !skipped_marker.exists() {
+            if rrd_path.exists() && !extracted_dir.exists() && !skipped_marker.exists() && !skipped.contains(&rrd_path) {
                 rrd_files.push(rrd_path);
             }
         }
@@ -322,25 +343,27 @@ async fn process_rrd_session(
     state: SharedState,
     rrd_path: PathBuf,
 ) -> Result<(), MapperError> {
+    // Check if already skipped (in-memory state, persisted to maps volume)
+    {
+        let s = state.read().await;
+        if s.skipped_sessions.contains(&rrd_path) {
+            debug!(path = %rrd_path.display(), "Previously skipped, not reprocessing");
+            return Ok(());
+        }
+    }
+
     info!(path = %rrd_path.display(), "Processing RRD session");
 
-    // Determine output directory and skipped marker path
-    let (extract_dir, skipped_marker) = if rrd_path.file_name().map(|n| n == "session.rrd").unwrap_or(false) {
-        // Directory-based: /sessions/timestamp/session.rrd -> /sessions/timestamp/extracted/
-        let parent = rrd_path.parent().unwrap();
-        (parent.join("extracted"), parent.join("skipped"))
+    // Determine output directory
+    let extract_dir = if rrd_path.file_name().map(|n| n == "session.rrd").unwrap_or(false) {
+        rrd_path.parent().unwrap().join("extracted")
     } else {
-        // Flat file: /sessions/name.rrd -> /sessions/name.extracted/ and /sessions/name.skipped
-        (rrd_path.with_extension("extracted"), rrd_path.with_extension("skipped"))
+        rrd_path.with_extension("extracted")
     };
 
-    // Check if already processed (either extracted or marked as skipped)
+    // Check if already extracted on disk
     if extract_dir.exists() {
         debug!(path = %rrd_path.display(), "Already extracted, skipping");
-        return Ok(());
-    }
-    if skipped_marker.exists() {
-        debug!(path = %rrd_path.display(), "Previously skipped, not reprocessing");
         return Ok(());
     }
 
@@ -357,28 +380,30 @@ async fn process_rrd_session(
     // Extract data from RRD file
     let rrd_path_clone = rrd_path.clone();
     let extract_dir_clone = extract_dir.clone();
-    let skipped_marker_clone = skipped_marker.clone();
     let extraction_result = tokio::task::spawn_blocking(move || {
         let result = rrd_extractor::extract_from_rrd(&rrd_path_clone)?;
 
-        // Validate we have LiDAR data (required for mapping)
-        if result.lidar_frames.is_empty() {
-            warn!(path = %rrd_path_clone.display(), "No LiDAR data in RRD, marking as skipped");
-            // Create marker file so we don't reprocess this file
-            if let Err(e) = std::fs::write(&skipped_marker_clone, "no_lidar_data") {
-                warn!(error = %e, "Failed to write skipped marker");
-            }
-            return Err(MapperError::IncompleteSession("No LiDAR data".into()));
+        // If we have LiDAR data, write extracted data
+        if !result.lidar_frames.is_empty() {
+            rrd_extractor::write_extracted_data(&result, &extract_dir_clone)
+                .map_err(|e| MapperError::ProcessingFailed(e.to_string()))?;
         }
-
-        // Write extracted data
-        rrd_extractor::write_extracted_data(&result, &extract_dir_clone)
-            .map_err(|e| MapperError::ProcessingFailed(e.to_string()))?;
 
         Ok::<_, MapperError>(result)
     })
     .await
     .map_err(|e| MapperError::ProcessingFailed(format!("Task join error: {}", e)))??;
+
+    // No LiDAR data — record skip in state (persisted to writable maps volume)
+    if extraction_result.lidar_frames.is_empty() {
+        warn!(path = %rrd_path.display(), "No LiDAR data in RRD, marking as skipped");
+        let mut s = state.write().await;
+        s.skipped_sessions.insert(rrd_path);
+        if let Err(e) = s.save_skipped().await {
+            warn!(error = %e, "Failed to persist skipped sessions");
+        }
+        return Ok(());
+    }
 
     info!(
         path = %rrd_path.display(),
@@ -1092,7 +1117,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                                 if name.ends_with(".rrd") && !name.contains(".partial") {
                                     let extracted_dir = path.with_extension("extracted");
-                                    if !extracted_dir.exists() {
+                                    if !extracted_dir.exists() && !s.skipped_sessions.contains(&path) {
                                         pending_extractions += 1;
                                     }
                                 }
@@ -1148,6 +1173,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                             "sessions": s.sessions.len(),
                             "maps": s.maps.len(),
                             "pending_extractions": pending_extractions,
+                            "skipped_sessions": s.skipped_sessions.len(),
                             "splat_queue": {
                                 "queued": queued_jobs,
                                 "processing": processing_jobs,
@@ -1387,7 +1413,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         // Scan for .rrd files that need extraction
         info!("Scanning for RRD files...");
-        let rrd_files = scan_rrd_sessions(&initial_scan_sessions_dir);
+        let skipped = {
+            let s = initial_scan_state.read().await;
+            s.skipped_sessions.clone()
+        };
+        let rrd_files = scan_rrd_sessions(&initial_scan_sessions_dir, &skipped);
         info!(count = rrd_files.len(), "Found unextracted RRD files");
 
         for rrd_path in rrd_files {
