@@ -51,6 +51,7 @@ pub(crate) struct DaemonContext {
     pub(crate) shared: Arc<Mutex<SharedState>>,
 
     // -- command & telemetry channels --
+    pub(crate) cmd_tx: mpsc::Sender<Command>,
     pub(crate) cmd_rx: mpsc::Receiver<Command>,
     pub(crate) telemetry_tx: watch::Sender<Telemetry>,
     pub(crate) metrics_tx: watch::Sender<MetricsSnapshot>,
@@ -1296,6 +1297,7 @@ pub(crate) async fn initialize(
         can_interface,
         is_sim,
         shared,
+        cmd_tx: cmd_tx.clone(),
         cmd_rx,
         telemetry_tx,
         metrics_tx,

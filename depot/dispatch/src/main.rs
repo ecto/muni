@@ -9,6 +9,7 @@
 //! - Task management: GET /tasks, POST /tasks/:id/cancel
 //! - Alerts: GET/POST /api/alerts
 //! - Weather: GET /api/weather
+//! - Rover commands: GET /rovers, POST /rovers/:id/command
 //! - WebSocket: /ws - rovers connect here for task assignment
 //! - Health: GET /health
 
@@ -22,7 +23,7 @@ use axum::{
         ws::{Message, WebSocket, WebSocketUpgrade},
         Path, Query, State,
     },
-    http::StatusCode,
+    http::{HeaderMap, StatusCode},
     response::IntoResponse,
     routing::{delete, get, post, put},
     Json, Router,
@@ -256,6 +257,26 @@ pub enum DispatchToRover {
     },
     /// Cancel the current task
     Cancel { task_id: Uuid },
+    /// Forwarded voice/API command
+    Command { command: serde_json::Value },
+}
+
+// =============================================================================
+// Voice Command API Types
+// =============================================================================
+
+/// Command payload from the voice/STT API
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum CommandKind {
+    /// Emergency stop
+    Estop,
+    /// Release emergency stop
+    EstopRelease,
+    /// Change rover mode
+    SetMode { mode: String },
+    /// Navigate to coordinates
+    SetGoal { x: f64, y: f64 },
 }
 
 /// Zone data sent to rover
@@ -326,10 +347,14 @@ pub struct AppState {
     pub weather_cache: Arc<weather::WeatherCache>,
     /// Webhook notifier for critical alerts
     pub webhook: webhook::WebhookNotifier,
+    /// Optional API key for voice command endpoint
+    pub voice_api_key: Option<String>,
+    /// Rate limiter: tracks last command timestamps per source
+    pub command_rate: RwLock<HashMap<String, Vec<std::time::Instant>>>,
 }
 
 impl AppState {
-    pub fn new(db: PgPool, webhook: webhook::WebhookNotifier) -> Self {
+    pub fn new(db: PgPool, webhook: webhook::WebhookNotifier, voice_api_key: Option<String>) -> Self {
         let (broadcast_tx, _) = broadcast::channel(256);
         Self {
             db,
@@ -337,6 +362,8 @@ impl AppState {
             broadcast_tx,
             weather_cache: weather::WeatherCache::new(),
             webhook,
+            voice_api_key,
+            command_rate: RwLock::new(HashMap::new()),
         }
     }
 
@@ -402,7 +429,12 @@ async fn main() {
     }
     let webhook = webhook::WebhookNotifier::new(webhook_url);
 
-    let state = Arc::new(AppState::new(pool, webhook));
+    let voice_api_key = std::env::var("VOICE_API_KEY").ok().filter(|k| !k.is_empty());
+    if voice_api_key.is_some() {
+        info!("Voice command API key authentication enabled");
+    }
+
+    let state = Arc::new(AppState::new(pool, webhook, voice_api_key));
 
     // Spawn background tasks
     let cleanup_state = state.clone();
@@ -452,6 +484,9 @@ async fn main() {
         .route("/api/alerts/{id}", delete(alerts::delete_alert))
         // Weather endpoint
         .route("/api/weather", get(weather::get_weather))
+        // Voice command API
+        .route("/rovers", get(list_connected_rovers))
+        .route("/rovers/{id}/command", post(forward_command))
         // WebSocket
         .route("/ws", get(ws_handler))
         .route("/ws/console", get(ws_console_handler))
@@ -1310,6 +1345,103 @@ async fn cancel_task_internal(
     });
 
     Ok(Json(task))
+}
+
+// =============================================================================
+// Voice Command API
+// =============================================================================
+
+/// Connected rover summary for the voice API
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ConnectedRoverInfo {
+    id: String,
+    connected: bool,
+    current_task: Option<Uuid>,
+}
+
+/// List connected rovers
+async fn list_connected_rovers(State(state): State<SharedState>) -> impl IntoResponse {
+    let rovers = state.rovers.read().await;
+    let list: Vec<ConnectedRoverInfo> = rovers
+        .values()
+        .map(|r| ConnectedRoverInfo {
+            id: r.rover_id.clone(),
+            connected: true,
+            current_task: r.current_task,
+        })
+        .collect();
+    Json(list)
+}
+
+/// Forward a command to a specific rover
+async fn forward_command(
+    State(state): State<SharedState>,
+    Path(rover_id): Path<String>,
+    headers: HeaderMap,
+    Json(payload): Json<CommandKind>,
+) -> Result<impl IntoResponse, (StatusCode, String)> {
+    // API key check (skip if VOICE_API_KEY not set)
+    if let Some(ref expected_key) = state.voice_api_key {
+        let provided = headers
+            .get("x-api-key")
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or("");
+        if provided != expected_key {
+            return Err((StatusCode::UNAUTHORIZED, "Invalid API key".to_string()));
+        }
+    }
+
+    // Rate limit: max 10 commands per second per source IP (use rover_id as proxy)
+    {
+        let now = std::time::Instant::now();
+        let window = std::time::Duration::from_secs(1);
+        let mut rate = state.command_rate.write().await;
+        let timestamps = rate.entry(rover_id.clone()).or_default();
+        timestamps.retain(|t| now.duration_since(*t) < window);
+        if timestamps.len() >= 10 {
+            return Err((
+                StatusCode::TOO_MANY_REQUESTS,
+                "Rate limit exceeded (max 10 commands/sec)".to_string(),
+            ));
+        }
+        timestamps.push(now);
+    }
+
+    // Validate mode string if SetMode
+    if let CommandKind::SetMode { ref mode } = payload {
+        let valid = ["idle", "autonomous", "sleep", "dance"];
+        if !valid.contains(&mode.as_str()) {
+            return Err((
+                StatusCode::BAD_REQUEST,
+                format!("Invalid mode '{}'. Valid: {:?}", mode, valid),
+            ));
+        }
+    }
+
+    // Serialize to JSON Value for the wire protocol
+    let command_json = serde_json::to_value(&payload)
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    // Send to rover
+    let sent = state
+        .send_to_rover(
+            &rover_id,
+            DispatchToRover::Command {
+                command: command_json,
+            },
+        )
+        .await;
+
+    if sent {
+        info!(rover_id = %rover_id, command = ?payload, "Voice command forwarded");
+        Ok(Json(serde_json::json!({ "status": "ok" })))
+    } else {
+        Err((
+            StatusCode::NOT_FOUND,
+            format!("Rover '{}' not connected", rover_id),
+        ))
+    }
 }
 
 // =============================================================================

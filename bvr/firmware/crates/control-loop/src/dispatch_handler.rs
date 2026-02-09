@@ -21,6 +21,8 @@ pub struct DispatchResult {
     pub connection_changed: Option<bool>,
     /// Request to transition to autonomous mode
     pub request_autonomous: bool,
+    /// Forwarded commands from voice/API
+    pub commands: Vec<types::Command>,
 }
 
 /// Handles dispatch service events
@@ -79,6 +81,10 @@ impl DispatchHandler {
                 DispatchEvent::TaskCancelled(task_id) => {
                     info!(task_id = %task_id, "Task cancelled by dispatch");
                     result.task_cancelled = Some(task_id);
+                }
+                DispatchEvent::CommandReceived(cmd) => {
+                    info!(?cmd, "Voice command received via dispatch");
+                    result.commands.push(cmd);
                 }
                 DispatchEvent::Connected(connected) => {
                     if connected {

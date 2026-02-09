@@ -90,6 +90,10 @@ enum DispatchToRover {
     Cancel {
         task_id: Uuid,
     },
+    /// Forwarded voice/API command
+    Command {
+        command: serde_json::Value,
+    },
 }
 
 /// Message from rover to dispatch
@@ -116,6 +120,8 @@ pub enum DispatchEvent {
     TaskCancelled(Uuid),
     /// Connection state changed
     Connected(bool),
+    /// Forwarded command from voice/API
+    CommandReceived(types::Command),
 }
 
 /// Internal command for the client
@@ -260,6 +266,14 @@ impl DispatchClient {
                                                         *current_task.lock().await = None;
                                                         let _ = event_tx.send(DispatchEvent::TaskCancelled(task_id));
                                                     }
+                                                    DispatchToRover::Command { command } => {
+                                                        if let Some(cmd) = parse_forwarded_command(&command) {
+                                                            info!("Forwarded command received: {:?}", cmd);
+                                                            let _ = event_tx.send(DispatchEvent::CommandReceived(cmd));
+                                                        } else {
+                                                            warn!("Failed to parse forwarded command: {}", command);
+                                                        }
+                                                    }
                                                 }
                                             }
                                         }
@@ -337,6 +351,35 @@ impl DispatchClient {
     }
 }
 
+/// Parse a forwarded command JSON value into a `types::Command`.
+///
+/// The depot dispatch service sends commands as `{"type": "estop"}`,
+/// `{"type": "set_mode", "mode": "idle"}`, `{"type": "set_goal", "x": 1.0, "y": 2.0}`, etc.
+fn parse_forwarded_command(value: &serde_json::Value) -> Option<types::Command> {
+    let cmd_type = value.get("type")?.as_str()?;
+    match cmd_type {
+        "estop" => Some(types::Command::EStop),
+        "estop_release" => Some(types::Command::EStopRelease),
+        "set_mode" => {
+            let mode_str = value.get("mode")?.as_str()?;
+            let mode = match mode_str {
+                "idle" => types::Mode::Idle,
+                "autonomous" => types::Mode::Autonomous,
+                "sleep" => types::Mode::Sleep,
+                "dance" => types::Mode::Dance,
+                _ => return None,
+            };
+            Some(types::Command::SetMode(mode))
+        }
+        "set_goal" => {
+            let x = value.get("x")?.as_f64()?;
+            let y = value.get("y")?.as_f64()?;
+            Some(types::Command::SetGoal { x, y })
+        }
+        _ => None,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -362,5 +405,52 @@ mod tests {
         let json = serde_json::to_string(&msg).unwrap();
         assert!(json.contains("\"type\":\"register\""));
         assert!(json.contains("\"rover_id\":\"bvr0-01\""));
+    }
+
+    #[test]
+    fn test_parse_forwarded_estop() {
+        let val = serde_json::json!({"type": "estop"});
+        let cmd = parse_forwarded_command(&val).unwrap();
+        assert!(matches!(cmd, types::Command::EStop));
+    }
+
+    #[test]
+    fn test_parse_forwarded_estop_release() {
+        let val = serde_json::json!({"type": "estop_release"});
+        let cmd = parse_forwarded_command(&val).unwrap();
+        assert!(matches!(cmd, types::Command::EStopRelease));
+    }
+
+    #[test]
+    fn test_parse_forwarded_set_mode() {
+        let val = serde_json::json!({"type": "set_mode", "mode": "idle"});
+        let cmd = parse_forwarded_command(&val).unwrap();
+        assert!(matches!(cmd, types::Command::SetMode(types::Mode::Idle)));
+    }
+
+    #[test]
+    fn test_parse_forwarded_set_goal() {
+        let val = serde_json::json!({"type": "set_goal", "x": 5.0, "y": 3.0});
+        let cmd = parse_forwarded_command(&val).unwrap();
+        match cmd {
+            types::Command::SetGoal { x, y } => {
+                assert_eq!(x, 5.0);
+                assert_eq!(y, 3.0);
+            }
+            _ => panic!("Expected SetGoal"),
+        }
+    }
+
+    #[test]
+    fn test_parse_forwarded_invalid() {
+        let val = serde_json::json!({"type": "twist", "linear": 1.0});
+        assert!(parse_forwarded_command(&val).is_none());
+    }
+
+    #[test]
+    fn test_dispatch_to_rover_command_deserialize() {
+        let json = r#"{"type": "command", "command": {"type": "estop"}}"#;
+        let msg: DispatchToRover = serde_json::from_str(json).unwrap();
+        assert!(matches!(msg, DispatchToRover::Command { .. }));
     }
 }

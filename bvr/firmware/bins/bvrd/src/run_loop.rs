@@ -30,6 +30,7 @@ pub(crate) fn run(ctx: DaemonContext) {
         can_interface,
         is_sim,
         shared,
+        cmd_tx,
         mut cmd_rx,
         telemetry_tx,
         metrics_tx,
@@ -504,6 +505,10 @@ pub(crate) fn run(ctx: DaemonContext) {
                                 }
                             }
                         }
+                    }
+                    DispatchEvent::CommandReceived(cmd) => {
+                        info!(?cmd, "Voice command received via dispatch");
+                        let _ = cmd_tx.try_send(cmd);
                     }
                     DispatchEvent::Connected(true) => {
                         info!("Connected to dispatch service");
