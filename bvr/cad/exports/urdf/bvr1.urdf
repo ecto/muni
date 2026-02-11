@@ -1,0 +1,561 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<robot name="bvr1">
+
+  <!-- ================================================================== -->
+  <!--  BVR1 — Base Vectoring Rover URDF                                   -->
+  <!--  Dimensions from bvr/firmware/config/bvr.toml (runtime authority)   -->
+  <!--  STL meshes in mm, Z-up — scaled 0.001 to meters                   -->
+  <!-- ================================================================== -->
+
+  <!-- ========================= MATERIALS ============================== -->
+
+  <material name="dark_grey">
+    <color rgba="0.3 0.3 0.3 1.0"/>
+  </material>
+  <material name="black">
+    <color rgba="0.1 0.1 0.1 1.0"/>
+  </material>
+  <material name="silver">
+    <color rgba="0.7 0.7 0.7 1.0"/>
+  </material>
+  <material name="blue">
+    <color rgba="0.2 0.4 0.8 1.0"/>
+  </material>
+
+  <!-- ======================== BASE FOOTPRINT ========================== -->
+  <!-- Ground-plane reference frame (z=0). No inertia. -->
+
+  <link name="base_footprint"/>
+
+  <joint name="base_footprint_to_base" type="fixed">
+    <parent link="base_footprint"/>
+    <child link="base_link"/>
+    <!-- base_link sits at axle height = wheel_radius = 0.0825m -->
+    <origin xyz="0 0 0.0825" rpy="0 0 0"/>
+  </joint>
+
+  <!-- =========================== BASE LINK ============================ -->
+  <!-- Chassis center at axle height. Primary inertial body. -->
+
+  <link name="base_link">
+    <inertial>
+      <mass value="14.0"/>
+      <origin xyz="0 0 0.0" rpy="0 0 0"/>
+      <!-- Box inertia: 1/12 * m * (y^2+z^2), etc. for 0.50 x 0.38 x 0.18 -->
+      <inertia ixx="0.2063" ixy="0" ixz="0"
+               iyy="0.3295" iyz="0"
+               izz="0.4601"/>
+    </inertial>
+  </link>
+
+  <!-- ========================= CHASSIS LINK =========================== -->
+  <!-- Visual frame body with mesh. Collision is a simplified box. -->
+
+  <joint name="base_to_chassis" type="fixed">
+    <parent link="base_link"/>
+    <child link="chassis_link"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </joint>
+
+  <link name="chassis_link">
+    <visual>
+      <geometry>
+        <mesh filename="../stl/bvr1_frame.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+      <material name="dark_grey"/>
+    </visual>
+    <collision>
+      <geometry>
+        <!-- L=0.50 (X), W=0.38 (Y), H=0.18 (Z) -->
+        <box size="0.50 0.38 0.18"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <!-- ============================= WHEELS ============================= -->
+  <!-- 4 continuous joints. wheel_radius=0.0825, track_width=0.55,        -->
+  <!-- wheelbase=0.55. Half-track=0.275, half-wheelbase=0.275.            -->
+  <!-- Rotation axis = Y (lateral). Wheels are cylinders r=0.0825, l=0.05 -->
+
+  <!-- Front-Left Wheel -->
+  <joint name="wheel_fl_joint" type="continuous">
+    <parent link="base_link"/>
+    <child link="wheel_fl_link"/>
+    <origin xyz="0.275 0.275 0" rpy="-1.5708 0 0"/>
+    <axis xyz="0 0 1"/>
+  </joint>
+
+  <link name="wheel_fl_link">
+    <visual>
+      <geometry>
+        <mesh filename="../stl/uumotor_svb6hs.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+      <material name="black"/>
+    </visual>
+    <collision>
+      <geometry>
+        <cylinder radius="0.0825" length="0.05"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <mass value="1.0"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <!-- Cylinder inertia: ixx=iyy=1/12*m*(3r^2+h^2), izz=1/2*m*r^2 -->
+      <inertia ixx="0.001907" ixy="0" ixz="0"
+               iyy="0.001907" iyz="0"
+               izz="0.003403"/>
+    </inertial>
+  </link>
+
+  <!-- Front-Right Wheel -->
+  <joint name="wheel_fr_joint" type="continuous">
+    <parent link="base_link"/>
+    <child link="wheel_fr_link"/>
+    <origin xyz="0.275 -0.275 0" rpy="-1.5708 0 0"/>
+    <axis xyz="0 0 1"/>
+  </joint>
+
+  <link name="wheel_fr_link">
+    <visual>
+      <geometry>
+        <mesh filename="../stl/uumotor_svb6hs.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+      <material name="black"/>
+    </visual>
+    <collision>
+      <geometry>
+        <cylinder radius="0.0825" length="0.05"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <mass value="1.0"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <inertia ixx="0.001907" ixy="0" ixz="0"
+               iyy="0.001907" iyz="0"
+               izz="0.003403"/>
+    </inertial>
+  </link>
+
+  <!-- Rear-Left Wheel -->
+  <joint name="wheel_rl_joint" type="continuous">
+    <parent link="base_link"/>
+    <child link="wheel_rl_link"/>
+    <origin xyz="-0.275 0.275 0" rpy="-1.5708 0 0"/>
+    <axis xyz="0 0 1"/>
+  </joint>
+
+  <link name="wheel_rl_link">
+    <visual>
+      <geometry>
+        <mesh filename="../stl/uumotor_svb6hs.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+      <material name="black"/>
+    </visual>
+    <collision>
+      <geometry>
+        <cylinder radius="0.0825" length="0.05"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <mass value="1.0"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <inertia ixx="0.001907" ixy="0" ixz="0"
+               iyy="0.001907" iyz="0"
+               izz="0.003403"/>
+    </inertial>
+  </link>
+
+  <!-- Rear-Right Wheel -->
+  <joint name="wheel_rr_joint" type="continuous">
+    <parent link="base_link"/>
+    <child link="wheel_rr_link"/>
+    <origin xyz="-0.275 -0.275 0" rpy="-1.5708 0 0"/>
+    <axis xyz="0 0 1"/>
+  </joint>
+
+  <link name="wheel_rr_link">
+    <visual>
+      <geometry>
+        <mesh filename="../stl/uumotor_svb6hs.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+      <material name="black"/>
+    </visual>
+    <collision>
+      <geometry>
+        <cylinder radius="0.0825" length="0.05"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <mass value="1.0"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <inertia ixx="0.001907" ixy="0" ixz="0"
+               iyy="0.001907" iyz="0"
+               izz="0.003403"/>
+    </inertial>
+  </link>
+
+  <!-- ========================== SENSOR MAST =========================== -->
+  <!-- Mast tube from chassis top (z=0.09) up 0.40m. Center at z=0.29.   -->
+
+  <joint name="sensor_mast_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="sensor_mast_link"/>
+    <origin xyz="0 0 0.29" rpy="0 0 0"/>
+  </joint>
+
+  <link name="sensor_mast_link">
+    <visual>
+      <geometry>
+        <mesh filename="../stl/sensor_mount.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+      <material name="silver"/>
+    </visual>
+    <collision>
+      <geometry>
+        <cylinder radius="0.015" length="0.40"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <mass value="1.0"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <!-- Cylinder inertia for r=0.015, l=0.40, m=1.0 -->
+      <inertia ixx="0.013389" ixy="0" ixz="0"
+               iyy="0.013389" iyz="0"
+               izz="0.000113"/>
+    </inertial>
+  </link>
+
+  <!-- ============================== LIDAR ============================= -->
+  <!-- Livox Mid-360 at mast top. 0.42m above ground = 0.3375m above     -->
+  <!-- base_link (0.42 - 0.0825). Pitched 30 deg forward (about Y).      -->
+
+  <joint name="lidar_joint" type="fixed">
+    <parent link="sensor_mast_link"/>
+    <child link="lidar_link"/>
+    <!-- Mast center is at z=0.29 above base_link, mast top is at z=0.49. -->
+    <!-- LiDAR at 0.3375 above base_link → 0.3375 - 0.29 = 0.0475 above  -->
+    <!-- mast center.                                                       -->
+    <origin xyz="0 0 0.0475" rpy="0 0.5236 0"/>
+  </joint>
+
+  <link name="lidar_link">
+    <visual>
+      <geometry>
+        <mesh filename="../stl/ref_lidar_mid360.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+      <material name="blue"/>
+    </visual>
+    <collision>
+      <geometry>
+        <cylinder radius="0.05" length="0.06"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <mass value="0.5"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <inertia ixx="0.000400" ixy="0" ixz="0"
+               iyy="0.000400" iyz="0"
+               izz="0.000625"/>
+    </inertial>
+  </link>
+
+  <!-- ============================== IMU =============================== -->
+  <!-- Co-located with LiDAR (Mid-360 has built-in IMU). -->
+
+  <joint name="imu_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="imu_link"/>
+    <origin xyz="0 0 0.3375" rpy="0 0.5236 0"/>
+  </joint>
+
+  <link name="imu_link">
+    <inertial>
+      <mass value="0.01"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <inertia ixx="0.000001" ixy="0" ixz="0"
+               iyy="0.000001" iyz="0"
+               izz="0.000001"/>
+    </inertial>
+  </link>
+
+  <!-- ============================= CAMERA ============================= -->
+  <!-- Insta360 X4 on mast, 0.10m below mast top.                        -->
+  <!-- Mast top = 0.49 above base_link, camera at 0.39 → mast-relative:  -->
+  <!-- 0.39 - 0.29 = 0.10 above mast center.                             -->
+
+  <joint name="camera_joint" type="fixed">
+    <parent link="sensor_mast_link"/>
+    <child link="camera_link"/>
+    <origin xyz="0 0 0.10" rpy="0 0 0"/>
+  </joint>
+
+  <link name="camera_link">
+    <visual>
+      <geometry>
+        <mesh filename="../stl/ref_camera_insta360.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+      <material name="dark_grey"/>
+    </visual>
+    <collision>
+      <geometry>
+        <cylinder radius="0.025" length="0.06"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <mass value="0.3"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <inertia ixx="0.000120" ixy="0" ixz="0"
+               iyy="0.000120" iyz="0"
+               izz="0.000094"/>
+    </inertial>
+  </link>
+
+  <!-- ============================== GPS =============================== -->
+  <!-- ZED-F9P antenna. Offset 0.08m forward, 0.05m below mast top.      -->
+  <!-- Mast top = 0.49 above base_link, GPS at 0.44 → mast-relative:     -->
+  <!-- 0.44 - 0.29 = 0.15 above mast center.                             -->
+
+  <joint name="gps_joint" type="fixed">
+    <parent link="sensor_mast_link"/>
+    <child link="gps_link"/>
+    <origin xyz="0.08 0 0.15" rpy="0 0 0"/>
+  </joint>
+
+  <link name="gps_link">
+    <visual>
+      <geometry>
+        <mesh filename="../stl/ref_gps_antenna.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+      <material name="silver"/>
+    </visual>
+    <collision>
+      <geometry>
+        <cylinder radius="0.04" length="0.02"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <mass value="0.1"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <inertia ixx="0.000017" ixy="0" ixz="0"
+               iyy="0.000017" iyz="0"
+               izz="0.000032"/>
+    </inertial>
+  </link>
+
+  <!-- ======================= GAZEBO PROPERTIES ======================== -->
+
+  <!-- Wheel friction and contact parameters -->
+  <gazebo reference="wheel_fl_link">
+    <mu1>1.0</mu1>
+    <mu2>0.5</mu2>
+    <kp>1e6</kp>
+    <kd>100</kd>
+    <material>Gazebo/DarkGrey</material>
+  </gazebo>
+  <gazebo reference="wheel_fr_link">
+    <mu1>1.0</mu1>
+    <mu2>0.5</mu2>
+    <kp>1e6</kp>
+    <kd>100</kd>
+    <material>Gazebo/DarkGrey</material>
+  </gazebo>
+  <gazebo reference="wheel_rl_link">
+    <mu1>1.0</mu1>
+    <mu2>0.5</mu2>
+    <kp>1e6</kp>
+    <kd>100</kd>
+    <material>Gazebo/DarkGrey</material>
+  </gazebo>
+  <gazebo reference="wheel_rr_link">
+    <mu1>1.0</mu1>
+    <mu2>0.5</mu2>
+    <kp>1e6</kp>
+    <kd>100</kd>
+    <material>Gazebo/DarkGrey</material>
+  </gazebo>
+
+  <gazebo reference="chassis_link">
+    <material>Gazebo/Grey</material>
+  </gazebo>
+
+  <!-- ======================= GAZEBO PLUGINS =========================== -->
+
+  <!-- Differential drive (4-wheel skid-steer) -->
+  <gazebo>
+    <plugin name="diff_drive" filename="libgazebo_ros_diff_drive.so">
+      <ros>
+        <namespace>/bvr1</namespace>
+      </ros>
+      <num_wheel_pairs>2</num_wheel_pairs>
+      <left_joint>wheel_fl_joint</left_joint>
+      <right_joint>wheel_fr_joint</right_joint>
+      <left_joint>wheel_rl_joint</left_joint>
+      <right_joint>wheel_rr_joint</right_joint>
+      <wheel_separation>0.55</wheel_separation>
+      <wheel_separation>0.55</wheel_separation>
+      <wheel_diameter>0.165</wheel_diameter>
+      <wheel_diameter>0.165</wheel_diameter>
+      <max_wheel_torque>20.0</max_wheel_torque>
+      <max_wheel_acceleration>5.0</max_wheel_acceleration>
+      <odometry_frame>odom</odometry_frame>
+      <robot_base_frame>base_footprint</robot_base_frame>
+      <command_topic>cmd_vel</command_topic>
+      <odometry_topic>odom</odometry_topic>
+      <publish_odom>true</publish_odom>
+      <publish_odom_tf>true</publish_odom_tf>
+      <publish_wheel_tf>true</publish_wheel_tf>
+      <update_rate>100</update_rate>
+    </plugin>
+  </gazebo>
+
+  <!-- LiDAR — Livox Mid-360 approximation -->
+  <gazebo reference="lidar_link">
+    <sensor name="lidar" type="ray">
+      <always_on>true</always_on>
+      <visualize>false</visualize>
+      <update_rate>10</update_rate>
+      <ray>
+        <scan>
+          <horizontal>
+            <samples>360</samples>
+            <resolution>1</resolution>
+            <min_angle>-3.14159</min_angle>
+            <max_angle>3.14159</max_angle>
+          </horizontal>
+          <vertical>
+            <samples>16</samples>
+            <resolution>1</resolution>
+            <min_angle>-0.1222</min_angle>   <!-- -7 deg -->
+            <max_angle>0.9076</max_angle>    <!-- +52 deg -->
+          </vertical>
+        </scan>
+        <range>
+          <min>0.5</min>
+          <max>40.0</max>
+          <resolution>0.01</resolution>
+        </range>
+        <noise>
+          <type>gaussian</type>
+          <mean>0.0</mean>
+          <stddev>0.01</stddev>
+        </noise>
+      </ray>
+      <plugin name="lidar_plugin" filename="libgazebo_ros_ray_sensor.so">
+        <ros>
+          <namespace>/bvr1</namespace>
+          <remapping>~/out:=scan</remapping>
+        </ros>
+        <output_type>sensor_msgs/PointCloud2</output_type>
+        <frame_name>lidar_link</frame_name>
+      </plugin>
+    </sensor>
+  </gazebo>
+
+  <!-- IMU -->
+  <gazebo reference="imu_link">
+    <sensor name="imu" type="imu">
+      <always_on>true</always_on>
+      <update_rate>200</update_rate>
+      <imu>
+        <angular_velocity>
+          <x><noise type="gaussian"><mean>0</mean><stddev>0.0002</stddev></noise></x>
+          <y><noise type="gaussian"><mean>0</mean><stddev>0.0002</stddev></noise></y>
+          <z><noise type="gaussian"><mean>0</mean><stddev>0.0002</stddev></noise></z>
+        </angular_velocity>
+        <linear_acceleration>
+          <x><noise type="gaussian"><mean>0</mean><stddev>0.017</stddev></noise></x>
+          <y><noise type="gaussian"><mean>0</mean><stddev>0.017</stddev></noise></y>
+          <z><noise type="gaussian"><mean>0</mean><stddev>0.017</stddev></noise></z>
+        </linear_acceleration>
+      </imu>
+      <plugin name="imu_plugin" filename="libgazebo_ros_imu_sensor.so">
+        <ros>
+          <namespace>/bvr1</namespace>
+          <remapping>~/out:=imu</remapping>
+        </ros>
+        <frame_name>imu_link</frame_name>
+        <initial_orientation_as_reference>false</initial_orientation_as_reference>
+      </plugin>
+    </sensor>
+  </gazebo>
+
+  <!-- Camera — wide-FOV approximation of Insta360 X4 -->
+  <gazebo reference="camera_link">
+    <sensor name="camera" type="camera">
+      <always_on>true</always_on>
+      <visualize>false</visualize>
+      <update_rate>15</update_rate>
+      <camera>
+        <horizontal_fov>2.094</horizontal_fov>  <!-- 120 deg wide FOV -->
+        <image>
+          <width>1920</width>
+          <height>1080</height>
+          <format>R8G8B8</format>
+        </image>
+        <clip>
+          <near>0.1</near>
+          <far>50.0</far>
+        </clip>
+        <noise>
+          <type>gaussian</type>
+          <mean>0.0</mean>
+          <stddev>0.007</stddev>
+        </noise>
+      </camera>
+      <plugin name="camera_plugin" filename="libgazebo_ros_camera.so">
+        <ros>
+          <namespace>/bvr1</namespace>
+          <remapping>~/image_raw:=camera/image_raw</remapping>
+          <remapping>~/camera_info:=camera/camera_info</remapping>
+        </ros>
+        <frame_name>camera_link</frame_name>
+      </plugin>
+    </sensor>
+  </gazebo>
+
+  <!-- GPS -->
+  <gazebo reference="gps_link">
+    <sensor name="gps" type="gps">
+      <always_on>true</always_on>
+      <update_rate>10</update_rate>
+      <gps>
+        <position_sensing>
+          <horizontal>
+            <noise type="gaussian">
+              <mean>0</mean>
+              <stddev>0.02</stddev>  <!-- RTK-fixed accuracy -->
+            </noise>
+          </horizontal>
+          <vertical>
+            <noise type="gaussian">
+              <mean>0</mean>
+              <stddev>0.04</stddev>
+            </noise>
+          </vertical>
+        </position_sensing>
+        <velocity_sensing>
+          <horizontal>
+            <noise type="gaussian">
+              <mean>0</mean>
+              <stddev>0.05</stddev>
+            </noise>
+          </horizontal>
+          <vertical>
+            <noise type="gaussian">
+              <mean>0</mean>
+              <stddev>0.05</stddev>
+            </noise>
+          </vertical>
+        </velocity_sensing>
+      </gps>
+      <plugin name="gps_plugin" filename="libgazebo_ros_gps_sensor.so">
+        <ros>
+          <namespace>/bvr1</namespace>
+          <remapping>~/out:=gps/fix</remapping>
+        </ros>
+        <frame_name>gps_link</frame_name>
+      </plugin>
+    </sensor>
+  </gazebo>
+
+</robot>
