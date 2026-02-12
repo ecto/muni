@@ -8,6 +8,7 @@ mod init;
 mod logging;
 mod run_loop;
 mod state_types;
+mod vesc_serial;
 
 use anyhow::Result;
 use clap::Parser;

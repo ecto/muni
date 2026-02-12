@@ -122,6 +122,14 @@ pub(crate) struct Args {
     #[arg(long)]
     pub remote_can: Option<String>,
 
+    /// VESC serial port for USB CAN gateway (e.g., "/dev/ttyACM0")
+    #[arg(long)]
+    pub vesc_serial: Option<String>,
+
+    /// VESC CAN ID of the USB-connected gateway VESC (default: first vesc-id)
+    #[arg(long)]
+    pub vesc_gateway_id: Option<u8>,
+
     /// Enable tokio-console for runtime introspection (requires --features console)
     #[arg(long)]
     pub console: bool,

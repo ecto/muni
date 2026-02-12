@@ -185,6 +185,8 @@ pub(crate) async fn initialize(
 
     if args.remote_can.is_some() {
         info!("Starting bvrd in REMOTE CAN mode (sim-bridge)");
+    } else if args.vesc_serial.is_some() {
+        info!("Starting bvrd in VESC SERIAL mode (USB CAN gateway)");
     } else if args.sim {
         info!("Starting bvrd in SIMULATION mode");
     } else {
@@ -461,7 +463,24 @@ pub(crate) async fn initialize(
     // Current dispatched task state
     let current_dispatch_task: Arc<Mutex<Option<DispatchedTask>>> = Arc::new(Mutex::new(None));
 
+    // Ethernet tool discovery (started early so CAN bridge can be auto-discovered)
+    let eth_discovery = if file_config.eth_tools.enabled {
+        let discovery = EthDiscovery::new(file_config.eth_tools.discovery_port);
+        let eth_state = discovery.state();
+        let port = file_config.eth_tools.discovery_port;
+        tokio::spawn(EthDiscovery::run(eth_state, port));
+        info!(port, "Ethernet tool discovery started");
+        Some(discovery)
+    } else {
+        None
+    };
+
     // Initialize CAN interface
+    // Priority:
+    //   1. --remote-can tcp://... (explicit CLI, for sim-bridge or manual bridge)
+    //   2. --sim (SimBus)
+    //   3. Auto-discover CanBridge via EthDiscovery (PoE ESP32 bridge)
+    //   4. Fall back to SocketCAN can0
     let vesc_ids: [u8; 4] = args
         .vesc_ids
         .try_into()
@@ -469,10 +488,34 @@ pub(crate) async fn initialize(
     let can_interface = if let Some(ref url) = args.remote_can {
         info!(url, "Using remote CAN (sim-bridge)");
         CanInterface::connect_remote(url).await?
+    } else if let Some(ref port) = args.vesc_serial {
+        let gateway_id = args.vesc_gateway_id.unwrap_or(vesc_ids[0]);
+        info!(port, gateway_id, "Using VESC serial CAN gateway");
+        CanInterface::open_serial(port, gateway_id).await?
     } else if args.sim {
         info!("Using simulated CAN bus");
         let sim_bus = SimBus::new(vesc_ids);
         CanInterface::Sim(Arc::new(Mutex::new(sim_bus)))
+    } else if let Some(ref eth) = eth_discovery {
+        // Wait up to 3s for a CAN bridge to appear via Ethernet discovery
+        let bridge_url = {
+            let mut found = None;
+            for _ in 0..30 {
+                if let Some(url) = eth.discover_can_bridge() {
+                    found = Some(url);
+                    break;
+                }
+                tokio::time::sleep(Duration::from_millis(100)).await;
+            }
+            found
+        };
+        if let Some(url) = bridge_url {
+            info!(url = %url, "Auto-discovered CAN bridge via Ethernet");
+            CanInterface::connect_remote(&url).await?
+        } else {
+            info!(interface = %can_iface, "No CAN bridge found, opening SocketCAN");
+            CanInterface::Real(Bus::open(can_iface)?)
+        }
     } else {
         info!(interface = %can_iface, "Opening CAN bus");
         CanInterface::Real(Bus::open(can_iface)?)
@@ -1266,18 +1309,6 @@ pub(crate) async fn initialize(
     // Heartbeat counter for deadlock detection (thread spawned in run_loop)
     let heartbeat_counter = std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0));
     let heartbeat_stalled = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
-
-    // Ethernet tool discovery
-    let eth_discovery = if file_config.eth_tools.enabled {
-        let discovery = EthDiscovery::new(file_config.eth_tools.discovery_port);
-        let eth_state = discovery.state();
-        let port = file_config.eth_tools.discovery_port;
-        tokio::spawn(EthDiscovery::run(eth_state, port));
-        info!(port, "Ethernet tool discovery started");
-        Some(discovery)
-    } else {
-        None
-    };
 
     // Print info logs that come right before the control loop spawn
     info!("Entering control loop");

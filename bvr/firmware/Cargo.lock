@@ -1160,6 +1160,7 @@ dependencies = [
  "state",
  "teleop",
  "tokio",
+ "tokio-serial",
  "toml 0.8.23",
  "tools",
  "tracing",

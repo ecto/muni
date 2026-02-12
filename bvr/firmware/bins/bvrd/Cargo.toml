@@ -49,6 +49,8 @@ tracing-appender = { workspace = true }
 anyhow = { workspace = true }
 clap = { workspace = true }
 
+tokio-serial = "5.4"
+
 # Optional: tokio-console for runtime introspection
 console-subscriber = { workspace = true, optional = true }
 

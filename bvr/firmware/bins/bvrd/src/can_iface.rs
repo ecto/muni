@@ -1,4 +1,4 @@
-//! CAN interface abstraction for real, simulated, or remote hardware.
+//! CAN interface abstraction for real, simulated, remote, or serial hardware.
 
 use anyhow::Result;
 use can::Bus;
@@ -6,6 +6,8 @@ use sim::SimBus;
 use std::sync::{Arc, Mutex};
 use tracing::{error, info, warn};
 use types::Pose;
+
+use crate::vesc_serial::VescSerial;
 
 /// Remote CAN connection to sim-bridge over TCP.
 struct RemoteCan {
@@ -139,6 +141,7 @@ pub(crate) enum CanInterface {
     Real(Bus),
     Sim(Arc<Mutex<SimBus>>),
     Remote(RemoteCan),
+    Serial(VescSerial),
 }
 
 impl CanInterface {
@@ -146,6 +149,12 @@ impl CanInterface {
     pub(crate) async fn connect_remote(url: &str) -> Result<Self> {
         let remote = RemoteCan::connect(url).await?;
         Ok(Self::Remote(remote))
+    }
+
+    /// Open a VESC serial gateway (USB UART to CAN bridge).
+    pub(crate) async fn open_serial(port: &str, gateway_id: u8) -> Result<Self> {
+        let serial = VescSerial::open(port, gateway_id).await?;
+        Ok(Self::Serial(serial))
     }
 
     pub(crate) fn send(&self, frame: &can::Frame) -> Result<(), can::CanError> {
@@ -159,6 +168,10 @@ impl CanInterface {
                 remote.send_frame(frame);
                 Ok(())
             }
+            Self::Serial(serial) => {
+                serial.send_frame(frame);
+                Ok(())
+            }
         }
     }
 
@@ -167,6 +180,7 @@ impl CanInterface {
             Self::Real(bus) => bus.recv(),
             Self::Sim(sim) => Ok(sim.lock().expect("sim mutex poisoned").recv()),
             Self::Remote(remote) => Ok(remote.rx_queue.lock().expect("remote rx_queue mutex poisoned").pop_front()),
+            Self::Serial(serial) => Ok(serial.recv()),
         }
     }
 
@@ -174,13 +188,13 @@ impl CanInterface {
         if let Self::Sim(sim) = self {
             sim.lock().expect("sim mutex poisoned").tick(dt);
         }
-        // Remote: physics runs on sim-bridge, no-op here
+        // Remote/Serial: no-op (physics runs elsewhere or on real hardware)
     }
 
     /// Get current pose from simulation (returns default for real hardware).
     pub(crate) fn pose(&self) -> Pose {
         match self {
-            Self::Real(_) => Pose::default(),
+            Self::Real(_) | Self::Serial(_) => Pose::default(),
             Self::Sim(sim) => {
                 let (x, y, theta) = sim.lock().expect("sim mutex poisoned").position();
                 Pose { x, y, theta }
