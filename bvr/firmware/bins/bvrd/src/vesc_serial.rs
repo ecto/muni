@@ -22,7 +22,6 @@ const COMM_FORWARD_CAN: u8 = 34;
 
 /// VESC UART packet start/end bytes.
 const PACKET_START_SHORT: u8 = 0x02;
-const PACKET_START_LONG: u8 = 0x03;
 const PACKET_END: u8 = 0x03;
 
 /// CAN command IDs (from can::vesc::CommandId).
@@ -44,6 +43,8 @@ pub(crate) struct VescSerial {
     rx_queue: Arc<Mutex<VecDeque<Frame>>>,
     /// Gateway VESC ID (the one connected via USB).
     gateway_id: u8,
+    /// Tokio runtime handle for spawning writes from the control loop thread.
+    rt: tokio::runtime::Handle,
 }
 
 impl VescSerial {
@@ -80,6 +81,7 @@ impl VescSerial {
             writer,
             rx_queue,
             gateway_id,
+            rt: tokio::runtime::Handle::current(),
         })
     }
 
@@ -124,7 +126,7 @@ impl VescSerial {
 
         let packet = build_packet(&payload);
         let writer = self.writer.clone();
-        tokio::spawn(async move {
+        self.rt.spawn(async move {
             let mut w = writer.lock().await;
             if let Err(e) = w.write_all(&packet).await {
                 warn!(?e, "VESC serial write error");
@@ -172,8 +174,11 @@ async fn reader_task(
                     pending.drain(..consumed);
                 }
 
-                // Prevent unbounded growth from garbage data
-                if pending.len() > 1024 {
+                // Prevent unbounded growth from garbage data.
+                // GET_VALUES responses are ~70 bytes; at 20 Hz polling we
+                // can legitimately accumulate a few hundred bytes between
+                // reads, so use a generous limit.
+                if pending.len() > 4096 {
                     warn!("VESC serial buffer overflow, clearing");
                     pending.clear();
                 }
@@ -328,27 +333,16 @@ fn process_uart_response(
 ///
 /// Uses short format (1-byte length) for payloads ≤ 255 bytes.
 fn build_packet(payload: &[u8]) -> Vec<u8> {
+    assert!(payload.len() <= 255, "VESC short packet max payload is 255");
     let crc = crc16(payload);
-    if payload.len() <= 255 {
-        let mut pkt = Vec::with_capacity(4 + payload.len());
-        pkt.push(PACKET_START_SHORT);
-        pkt.push(payload.len() as u8);
-        pkt.extend_from_slice(payload);
-        pkt.push((crc >> 8) as u8);
-        pkt.push((crc & 0xFF) as u8);
-        pkt.push(PACKET_END);
-        pkt
-    } else {
-        let mut pkt = Vec::with_capacity(6 + payload.len());
-        pkt.push(PACKET_START_LONG);
-        pkt.push((payload.len() >> 8) as u8);
-        pkt.push((payload.len() & 0xFF) as u8);
-        pkt.extend_from_slice(payload);
-        pkt.push((crc >> 8) as u8);
-        pkt.push((crc & 0xFF) as u8);
-        pkt.push(PACKET_END);
-        pkt
-    }
+    let mut pkt = Vec::with_capacity(4 + payload.len());
+    pkt.push(PACKET_START_SHORT);
+    pkt.push(payload.len() as u8);
+    pkt.extend_from_slice(payload);
+    pkt.push((crc >> 8) as u8);
+    pkt.push((crc & 0xFF) as u8);
+    pkt.push(PACKET_END);
+    pkt
 }
 
 /// Try to parse a complete VESC UART packet from the buffer.
@@ -360,77 +354,45 @@ fn parse_packet(buf: &[u8]) -> Option<(Vec<u8>, usize)> {
         return None;
     }
 
-    // Scan for a valid start byte
-    let start_pos = buf
-        .iter()
-        .position(|&b| b == PACKET_START_SHORT || b == PACKET_START_LONG)?;
+    // Scan for 0x02 (short packet start). We intentionally ignore 0x03
+    // (long packet start) because it collides with the end-of-packet byte,
+    // and all VESC responses we care about fit in short packets (≤255 bytes).
+    let start_pos = buf.iter().position(|&b| b == PACKET_START_SHORT)?;
 
     // Skip garbage bytes before start
     if start_pos > 0 {
         return Some((Vec::new(), start_pos));
     }
 
-    match buf[0] {
-        PACKET_START_SHORT => {
-            // Short packet: 0x02 | len(1) | payload(len) | crc(2) | 0x03
-            if buf.len() < 2 {
-                return None;
-            }
-            let len = buf[1] as usize;
-            let total = 2 + len + 3; // start + len_byte + payload + crc(2) + end
-            if buf.len() < total {
-                return None;
-            }
-            let payload = &buf[2..2 + len];
-            let crc_recv =
-                ((buf[2 + len] as u16) << 8) | buf[2 + len + 1] as u16;
-            let crc_calc = crc16(payload);
-            if crc_recv != crc_calc {
-                debug!(
-                    expected = crc_calc,
-                    received = crc_recv,
-                    "VESC packet CRC mismatch"
-                );
-                // Skip this start byte and try again
-                return Some((Vec::new(), 1));
-            }
-            if buf[total - 1] != PACKET_END {
-                return Some((Vec::new(), 1));
-            }
-            Some((payload.to_vec(), total))
-        }
-        PACKET_START_LONG => {
-            // Long packet: 0x03 | len_hi(1) | len_lo(1) | payload(len) | crc(2) | 0x03
-            if buf.len() < 3 {
-                return None;
-            }
-            let len = ((buf[1] as usize) << 8) | buf[2] as usize;
-            let total = 3 + len + 3;
-            if buf.len() < total {
-                return None;
-            }
-            let payload = &buf[3..3 + len];
-            let crc_recv =
-                ((buf[3 + len] as u16) << 8) | buf[3 + len + 1] as u16;
-            let crc_calc = crc16(payload);
-            if crc_recv != crc_calc {
-                debug!(
-                    expected = crc_calc,
-                    received = crc_recv,
-                    "VESC packet CRC mismatch (long)"
-                );
-                return Some((Vec::new(), 1));
-            }
-            if buf[total - 1] != PACKET_END {
-                return Some((Vec::new(), 1));
-            }
-            Some((payload.to_vec(), total))
-        }
-        _ => {
-            // Skip unknown byte
-            Some((Vec::new(), 1))
-        }
+    // Short packet: 0x02 | len(1) | payload(len) | crc(2) | 0x03
+    if buf.len() < 2 {
+        return None;
     }
+    let len = buf[1] as usize;
+    if len == 0 || len > 255 {
+        // Invalid length — skip this 0x02
+        return Some((Vec::new(), 1));
+    }
+    let total = 2 + len + 3; // start + len_byte + payload + crc(2) + end
+    if buf.len() < total {
+        return None;
+    }
+    let payload = &buf[2..2 + len];
+    let crc_recv = ((buf[2 + len] as u16) << 8) | buf[2 + len + 1] as u16;
+    let crc_calc = crc16(payload);
+    if crc_recv != crc_calc {
+        debug!(
+            expected = crc_calc,
+            received = crc_recv,
+            "VESC packet CRC mismatch"
+        );
+        // Skip this start byte and try again
+        return Some((Vec::new(), 1));
+    }
+    if buf[total - 1] != PACKET_END {
+        return Some((Vec::new(), 1));
+    }
+    Some((payload.to_vec(), total))
 }
 
 /// CRC16-CCITT (poly 0x1021, init 0x0000) — standard VESC CRC.
