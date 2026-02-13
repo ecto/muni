@@ -154,11 +154,11 @@ export default function HomePage() {
             <div className="landing-section-header">
               <span className="landing-eyebrow">How It Works</span>
               <h2 className="landing-section-title">
-                Three safety zones. Zero ML in the loop.
+                Three safety zones. Built into the hardware.
               </h2>
               <p className="landing-section-desc">
-                The rover sees the world through geometry, not neural networks.
-                Hard safety boundaries that never hallucinate.
+                LiDAR rings create physical boundaries — stop, slow, and clear.
+                Simple geometry that works every time, rain or shine.
               </p>
             </div>
 
@@ -304,7 +304,7 @@ export default function HomePage() {
                 </div>
                 <p>
                   Multi-layer safety: LiDAR detection, watchdog timer, automatic e-stop on connection loss.
-                  Rate limiting prevents dangerous commands. No ML in safety path.
+                  Rate limiting prevents dangerous commands. Hard geometric boundaries.
                 </p>
               </div>
 

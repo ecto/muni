@@ -851,14 +851,16 @@
 }
 
 .landing-spec-label {
+  display: block;
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.1em;
   color: var(--landing-fg-subtle);
-  margin-bottom: 4px;
+  margin-bottom: 6px;
 }
 
 .landing-spec-value {
+  display: block;
   font-size: 13px;
   font-weight: 600;
 }
