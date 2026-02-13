@@ -20,6 +20,9 @@ Thumbs.db
 *.log
 npm-debug.log*
 
+# Copyrighted audio (not committed)
+public/reel/audio/
+
 # Environment
 .env
 .env.local

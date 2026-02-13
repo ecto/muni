@@ -5,6 +5,8 @@
 /* Fonts loaded via staticFile in components that need them */
 /* Berkeley Mono is referenced in JS as FONT_MONO constant */
 
+/* Inter Black loaded dynamically via staticFile in components */
+
 body {
   margin: 0;
   padding: 0;
