@@ -1,20 +1,22 @@
 import {
   GithubLogo,
   BookOpenText,
-  MapPin,
   Shield,
   Lightning,
-  Sun,
-  Eye,
-  Gear,
   ArrowRight,
   CheckCircle,
-  Clock,
-  CurrencyDollar,
+  MapPin,
+  Eye,
+  Crosshair,
+  GameController,
+  Snowflake,
+  Sun,
+  Drop,
 } from "@phosphor-icons/react/dist/ssr";
 import { Footer, FloatingHeader } from "@/components/layout";
 import { HeroVideo } from "@/components/home/HeroVideo";
-import { CoverageMapViewer } from "@/components/home/CoverageMapViewer";
+import { PlatformViewer } from "@/components/home/PlatformViewer";
+import { LidarViewer } from "@/components/home/LidarViewer";
 
 export default function HomePage() {
   return (
@@ -22,7 +24,7 @@ export default function HomePage() {
       <FloatingHeader />
       <main className="landing">
         {/* ═══════════════════════════════════════════════════════════════════════
-            HERO: The Hook
+            1. HERO — Hype reel video bg + all-season copy
             ═══════════════════════════════════════════════════════════════════════ */}
         <section className="landing-hero">
           <HeroVideo />
@@ -33,17 +35,17 @@ export default function HomePage() {
               <div className="landing-hero-text">
                 <div className="landing-badge">
                   <span className="landing-badge-dot" />
-                  Only 2 pilot slots remaining for Winter 2026
+                  Pilot program — Summer 2026
                 </div>
 
                 <h1 className="landing-headline">
-                  Autonomous sidewalk clearing.
+                  Autonomous sidewalk maintenance.
                   <span className="landing-headline-accent"> Zero labor cost.</span>
                 </h1>
 
                 <p className="landing-subheadline">
-                  Deploy rovers that clear 50 miles of sidewalk per night.
-                  No crews. No overtime. No 3AM callouts.
+                  Snow. Debris. Pressure wash. One fleet handles every season.
+                  No crews. No overtime. No callbacks.
                 </p>
 
                 <div className="landing-hero-cta">
@@ -78,100 +80,34 @@ export default function HomePage() {
         </section>
 
         {/* ═══════════════════════════════════════════════════════════════════════
-            PROBLEM: The Pain
+            2. THE PLATFORM — Interactive 3D BVR1 with Snow/Sweep/Wash tabs
             ═══════════════════════════════════════════════════════════════════════ */}
-        <section className="landing-section landing-problem">
+        <section className="landing-section landing-platform">
           <div className="landing-container">
             <div className="landing-section-header">
-              <span className="landing-eyebrow">The Problem</span>
+              <span className="landing-eyebrow">The Platform</span>
               <h2 className="landing-section-title">
-                Snow removal is broken.
+                One rover. Every season.
               </h2>
               <p className="landing-section-desc">
-                Municipalities spend millions on manual labor while pedestrians face dangerous conditions.
+                Swap attachments, not fleets. The same rover clears snow in January,
+                sweeps debris in April, and pressure-washes in August.
               </p>
             </div>
 
-            <div className="landing-stats-grid">
-              <div className="landing-stat-card">
-                <div className="landing-stat-icon">
-                  <CurrencyDollar size={24} weight="bold" />
-                </div>
-                <div className="landing-stat-value">$14B</div>
-                <div className="landing-stat-label">spent annually on snow removal in the US</div>
-              </div>
-
-              <div className="landing-stat-card">
-                <div className="landing-stat-icon">
-                  <Clock size={24} weight="bold" />
-                </div>
-                <div className="landing-stat-value">$960</div>
-                <div className="landing-stat-label">per day for a 4-person manual crew</div>
-              </div>
-
-              <div className="landing-stat-card landing-stat-card-highlight">
-                <div className="landing-stat-icon">
-                  <Shield size={24} weight="bold" />
-                </div>
-                <div className="landing-stat-value">$1B+</div>
-                <div className="landing-stat-label">reserved annually for slip-and-fall liability</div>
-              </div>
-            </div>
+            <PlatformViewer />
           </div>
         </section>
 
         {/* ═══════════════════════════════════════════════════════════════════════
-            SLIP-AND-FALL: The Human Cost
+            3. THE MATH — Broadened cost comparison
             ═══════════════════════════════════════════════════════════════════════ */}
-        <section
-          className="landing-section landing-slipfall"
-          style={{ backgroundImage: "url('/images/pedestrian-road.jpg')" }}
-        >
-          <div className="landing-slipfall-overlay" />
-          <div className="landing-container">
-            <div className="landing-slipfall-content">
-              <span className="landing-eyebrow">The Human Cost</span>
-              <h2 className="landing-slipfall-title">
-                1 million slip-and-fall injuries per year.
-              </h2>
-              <p className="landing-slipfall-desc">
-                Icy sidewalks send people to the emergency room. Lawsuits cost municipalities millions.
-                Clear sidewalks save lives and budgets.
-              </p>
-            </div>
-          </div>
-        </section>
-
-        {/* ═══════════════════════════════════════════════════════════════════════
-            COVERAGE: Rovers in Action
-            ═══════════════════════════════════════════════════════════════════════ */}
-        <section className="landing-section landing-coverage">
+        <section className="landing-section landing-math">
           <div className="landing-container">
             <div className="landing-section-header">
-              <span className="landing-eyebrow">Coverage</span>
+              <span className="landing-eyebrow">The Math</span>
               <h2 className="landing-section-title">
-                50 miles cleared per night.
-              </h2>
-              <p className="landing-section-desc">
-                Three rovers working in parallel clear an entire neighborhood before the morning commute.
-              </p>
-            </div>
-
-            <div className="landing-coverage-viewer">
-              <CoverageMapViewer />
-            </div>
-          </div>
-        </section>
-
-        {/* ═══════════════════════════════════════════════════════════════════════
-            SOLUTION: The Answer
-            ═══════════════════════════════════════════════════════════════════════ */}
-        <section className="landing-section landing-solution">
-          <div className="landing-container">
-            <div className="landing-section-header">
-              <span className="landing-eyebrow">The Solution</span>
-              <h2 className="landing-section-title">
-                The math works.
+                96% cost reduction. Every season.
               </h2>
             </div>
 
@@ -193,14 +129,14 @@ export default function HomePage() {
               </div>
             </div>
 
-            <div className="landing-solution-metrics">
+            <div className="landing-math-metrics">
               <div className="landing-metric">
                 <div className="landing-metric-value">50 mi</div>
                 <div className="landing-metric-label">cleared per night</div>
               </div>
               <div className="landing-metric">
-                <div className="landing-metric-value">6 AM</div>
-                <div className="landing-metric-label">cleared before commute</div>
+                <div className="landing-metric-value">365</div>
+                <div className="landing-metric-label">days per year</div>
               </div>
               <div className="landing-metric">
                 <div className="landing-metric-value">96%</div>
@@ -211,70 +147,131 @@ export default function HomePage() {
         </section>
 
         {/* ═══════════════════════════════════════════════════════════════════════
-            FEATURES: How It Works
+            4. HOW IT WORKS — LiDAR safety viz + tech bullets
             ═══════════════════════════════════════════════════════════════════════ */}
-        <section className="landing-section landing-features">
+        <section className="landing-section landing-howitworks">
           <div className="landing-container">
             <div className="landing-section-header">
               <span className="landing-eyebrow">How It Works</span>
               <h2 className="landing-section-title">
-                Fully autonomous operation.
+                Three safety zones. Zero ML in the loop.
               </h2>
               <p className="landing-section-desc">
-                Deploy once. The rover handles the rest.
+                The rover sees the world through geometry, not neural networks.
+                Hard safety boundaries that never hallucinate.
               </p>
             </div>
 
-            <div className="landing-features-grid">
-              <div className="landing-feature-card">
-                <div className="landing-feature-icon">
-                  <Eye size={28} weight="bold" />
-                </div>
-                <h3 className="landing-feature-title">360° LiDAR Vision</h3>
-                <p className="landing-feature-desc">
-                  Livox Mid-360 scans at 200k points/sec. 1.5m safety radius with automatic e-stop.
-                  Pure geometry, no ML in the safety path.
-                </p>
+            <div className="landing-howitworks-layout">
+              <div className="landing-howitworks-viz">
+                <LidarViewer />
               </div>
 
-              <div className="landing-feature-card">
-                <div className="landing-feature-icon">
-                  <MapPin size={28} weight="bold" />
+              <div className="landing-howitworks-bullets">
+                <div className="landing-tech-bullet">
+                  <div className="landing-tech-icon">
+                    <Eye size={20} weight="bold" />
+                  </div>
+                  <div>
+                    <h3>360° LiDAR</h3>
+                    <p>Livox Mid-360 scans at 200k pts/sec. Three concentric safety zones with automatic e-stop.</p>
+                  </div>
                 </div>
-                <h3 className="landing-feature-title">RTK GPS Navigation</h3>
-                <p className="landing-feature-desc">
-                  Centimeter-accurate positioning using HD maps. Define coverage areas once,
-                  the rover follows optimal paths automatically.
-                </p>
-              </div>
 
-              <div className="landing-feature-card">
-                <div className="landing-feature-icon">
-                  <Sun size={28} weight="bold" />
+                <div className="landing-tech-bullet">
+                  <div className="landing-tech-icon">
+                    <Crosshair size={20} weight="bold" />
+                  </div>
+                  <div>
+                    <h3>RTK GPS</h3>
+                    <p>Centimeter-accurate positioning. Map once, deploy forever. Follows optimal paths automatically.</p>
+                  </div>
                 </div>
-                <h3 className="landing-feature-title">All-Weather Operation</h3>
-                <p className="landing-feature-desc">
-                  Built for snow. Operates in active snowfall, adapts speed to conditions.
-                  4-8 hour runtime with hot-swap battery packs.
-                </p>
-              </div>
 
-              <div className="landing-feature-card">
-                <div className="landing-feature-icon">
-                  <Gear size={28} weight="bold" />
+                <div className="landing-tech-bullet">
+                  <div className="landing-tech-icon">
+                    <MapPin size={20} weight="bold" />
+                  </div>
+                  <div>
+                    <h3>Behavioral Cloning</h3>
+                    <p>Learn from human operators. 5k-parameter MLP policy. Trained offline, runs on-device at 30Hz.</p>
+                  </div>
                 </div>
-                <h3 className="landing-feature-title">Modular Attachments</h3>
-                <p className="landing-feature-desc">
-                  Hot-swap tools via CAN bus. Snow auger, salt spreader, plow blade.
-                  Each tool has its own MCU for plug-and-play operation.
-                </p>
+
+                <div className="landing-tech-bullet">
+                  <div className="landing-tech-icon">
+                    <GameController size={20} weight="bold" />
+                  </div>
+                  <div>
+                    <h3>Fleet Teleop</h3>
+                    <p>One operator monitors 10+ rovers. Instant takeover via WebSocket. 100ms control latency.</p>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         </section>
 
         {/* ═══════════════════════════════════════════════════════════════════════
-            TRUST: Why Muni
+            5. CITIES — Multi-city pain points + coverage
+            ═══════════════════════════════════════════════════════════════════════ */}
+        <section className="landing-section landing-cities">
+          <div className="landing-container">
+            <div className="landing-section-header">
+              <span className="landing-eyebrow">Cities</span>
+              <h2 className="landing-section-title">
+                Every city. Every season.
+              </h2>
+              <p className="landing-section-desc">
+                Sidewalk maintenance isn&apos;t a snow-belt problem. It&apos;s a budget problem.
+              </p>
+            </div>
+
+            <div className="landing-cities-grid">
+              <div className="landing-city-card">
+                <div className="landing-city-icon">
+                  <Snowflake size={24} weight="bold" />
+                </div>
+                <h3>Snow Belt</h3>
+                <p className="landing-city-examples">Cleveland, Minneapolis, Boston, Chicago</p>
+                <ul className="landing-city-pains">
+                  <li>$14B/yr US snow removal spend</li>
+                  <li>3AM callouts, overtime labor</li>
+                  <li>Slip-and-fall liability ($1B+ reserves)</li>
+                </ul>
+              </div>
+
+              <div className="landing-city-card">
+                <div className="landing-city-icon">
+                  <Sun size={24} weight="bold" />
+                </div>
+                <h3>Sun Belt</h3>
+                <p className="landing-city-examples">Phoenix, Austin, Miami, Las Vegas</p>
+                <ul className="landing-city-pains">
+                  <li>Sand, gravel, and debris year-round</li>
+                  <li>Heat makes manual labor dangerous</li>
+                  <li>Tourism districts need daily cleaning</li>
+                </ul>
+              </div>
+
+              <div className="landing-city-card">
+                <div className="landing-city-icon">
+                  <Drop size={24} weight="bold" />
+                </div>
+                <h3>All Cities</h3>
+                <p className="landing-city-examples">SF, Portland, NYC, DC</p>
+                <ul className="landing-city-pains">
+                  <li>ADA sidewalk compliance pressure</li>
+                  <li>Chronic DPW staffing shortages</li>
+                  <li>Pressure wash + overnight maintenance</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ═══════════════════════════════════════════════════════════════════════
+            6. TRUST + SPECS + CTA
             ═══════════════════════════════════════════════════════════════════════ */}
         <section className="landing-section landing-trust">
           <div className="landing-container">
@@ -328,9 +325,7 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* ═══════════════════════════════════════════════════════════════════════
-            SPECS: Quick Reference
-            ═══════════════════════════════════════════════════════════════════════ */}
+        {/* Specs */}
         <section className="landing-section landing-specs">
           <div className="landing-container">
             <div className="landing-specs-content">
@@ -381,9 +376,7 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* ═══════════════════════════════════════════════════════════════════════
-            CTA: Close
-            ═══════════════════════════════════════════════════════════════════════ */}
+        {/* CTA */}
         <section className="landing-section landing-cta">
           <div className="landing-container">
             <div className="landing-cta-content">
@@ -393,7 +386,7 @@ export default function HomePage() {
               </div>
 
               <h2 className="landing-cta-title">
-                Ready to automate your snow removal?
+                Ready to automate sidewalk maintenance?
               </h2>
 
               <p className="landing-cta-desc">
@@ -417,7 +410,6 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* Footer */}
         <footer className="landing-footer">
           <div className="landing-container">
             <Footer />

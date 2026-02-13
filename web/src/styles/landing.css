@@ -337,152 +337,107 @@
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
-   STATS / PROBLEM SECTION
+   PLATFORM SECTION — Interactive 3D with mode tabs
    ───────────────────────────────────────────────────────────────────────────── */
 
-.landing-problem {
+.landing-platform {
   background: var(--landing-bg);
 }
 
-/* ─────────────────────────────────────────────────────────────────────────────
-   SLIP-AND-FALL SECTION
-   ───────────────────────────────────────────────────────────────────────────── */
-
-.landing-slipfall {
-  position: relative;
-  min-height: 450px;
-  display: flex;
-  align-items: center;
-  padding: var(--landing-space-4xl) 0;
-  overflow: hidden;
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-}
-
-.landing-slipfall-overlay {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    90deg,
-    oklch(0.147 0.004 49.25 / 95%) 0%,
-    oklch(0.147 0.004 49.25 / 75%) 50%,
-    oklch(0.147 0.004 49.25 / 50%) 100%
-  );
-  z-index: 1;
-}
-
-@media (max-width: 768px) {
-  .landing-slipfall-overlay {
-    background: oklch(0.147 0.004 49.25 / 85%);
-  }
-}
-
-.landing-slipfall .landing-container {
-  position: relative;
-  z-index: 2;
-}
-
-.landing-slipfall-content {
-  max-width: 520px;
-}
-
-.landing-slipfall-title {
-  font-size: clamp(1.5rem, 3.5vw, 2.25rem);
-  font-weight: 700;
-  line-height: 1.2;
-  letter-spacing: -0.01em;
-  margin-bottom: var(--landing-space-md);
-}
-
-.landing-slipfall-desc {
-  font-size: 14px;
-  line-height: 1.7;
-  color: var(--landing-fg-muted);
-}
-
-/* ─────────────────────────────────────────────────────────────────────────────
-   COVERAGE MAP SECTION
-   ───────────────────────────────────────────────────────────────────────────── */
-
-.landing-coverage {
-  background: var(--landing-bg);
-}
-
-.landing-coverage-viewer {
-  border: 1px solid var(--landing-border);
-  background: var(--landing-bg);
-  aspect-ratio: 16 / 9;
-  max-width: 800px;
+.platform-viewer {
+  max-width: 900px;
   margin: 0 auto;
 }
 
-.coverage-map-viewer {
+.platform-tabs {
+  display: flex;
+  gap: 1px;
+  background: var(--landing-border);
+  border: 1px solid var(--landing-border);
+  border-bottom: none;
+}
+
+.platform-tab {
+  flex: 1;
+  padding: 12px;
+  background: var(--landing-bg);
+  border: none;
+  font-family: var(--landing-font);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--landing-fg-subtle);
+  cursor: pointer;
+  transition: all var(--landing-transition);
+}
+
+.platform-tab:hover {
+  color: var(--landing-fg-muted);
+  background: var(--landing-bg-elevated);
+}
+
+.platform-tab-active {
+  color: var(--landing-orange);
+  background: var(--landing-bg-elevated);
+}
+
+.platform-canvas-wrap {
+  aspect-ratio: 16 / 9;
+  border: 1px solid var(--landing-border);
+  background: var(--landing-bg);
+  overflow: hidden;
+}
+
+.platform-fallback {
   width: 100%;
   height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
+  background: var(--landing-bg-elevated);
 }
 
-.coverage-map-svg {
-  color: var(--landing-fg);
+.platform-fallback-img {
+  max-width: 60%;
+  max-height: 80%;
+  object-fit: contain;
 }
 
-.landing-stats-grid {
+.platform-stats {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 1px;
   background: var(--landing-border);
   border: 1px solid var(--landing-border);
+  border-top: none;
 }
 
-@media (max-width: 768px) {
-  .landing-stats-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-.landing-stat-card {
-  padding: var(--landing-space-xl);
+.platform-stat {
+  padding: var(--landing-space-md);
   background: var(--landing-bg);
   text-align: center;
 }
 
-.landing-stat-card-highlight {
-  background: var(--landing-bg-elevated);
-}
-
-.landing-stat-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 40px;
-  margin: 0 auto var(--landing-space-md);
-  border: 1px solid var(--landing-border);
-  color: var(--landing-orange);
-}
-
-.landing-stat-value {
-  font-size: 2rem;
+.platform-stat-value {
+  font-size: 1.25rem;
   font-weight: 700;
-  letter-spacing: -0.02em;
-  color: var(--landing-fg);
-  margin-bottom: var(--landing-space-xs);
+  color: var(--landing-orange);
+  margin-bottom: 2px;
 }
 
-.landing-stat-label {
-  font-size: 12px;
+.platform-stat-label {
+  font-size: 10px;
   color: var(--landing-fg-muted);
-  line-height: 1.5;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
    SOLUTION / COMPARISON
    ───────────────────────────────────────────────────────────────────────────── */
 
-.landing-solution {
+.landing-math {
   background: var(--landing-bg);
 }
 
@@ -544,7 +499,7 @@
 }
 
 /* Metrics row */
-.landing-solution-metrics {
+.landing-math-metrics {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 1px;
@@ -555,7 +510,7 @@
 }
 
 @media (max-width: 640px) {
-  .landing-solution-metrics {
+  .landing-math-metrics {
     grid-template-columns: 1fr;
   }
 }
@@ -581,38 +536,166 @@
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
-   FEATURES
+   HOW IT WORKS — LiDAR viz + tech bullets
    ───────────────────────────────────────────────────────────────────────────── */
 
-.landing-features {
+.landing-howitworks {
   background: var(--landing-bg);
 }
 
-.landing-features-grid {
+.landing-howitworks-layout {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: 1fr 1fr;
+  gap: var(--landing-space-2xl);
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .landing-howitworks-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.landing-howitworks-viz {
+  border: 1px solid var(--landing-border);
+  background: var(--landing-bg);
+  overflow: hidden;
+}
+
+.lidar-canvas-wrap {
+  aspect-ratio: 1 / 1;
+  max-height: 500px;
+}
+
+.lidar-fallback {
+  aspect-ratio: 1 / 1;
+  max-height: 400px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--landing-space-lg);
+  background: var(--landing-bg-elevated);
+  padding: var(--landing-space-xl);
+}
+
+.lidar-fallback-zones {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.lidar-zone {
+  border-radius: 50%;
+}
+
+.lidar-zone-clear {
+  width: 200px;
+  height: 200px;
+  background: oklch(0.5 0.15 145 / 8%);
+  border: 1px solid oklch(0.5 0.15 145 / 30%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.lidar-zone-slow {
+  width: 130px;
+  height: 130px;
+  background: oklch(0.7 0.15 80 / 12%);
+  border: 1px solid oklch(0.7 0.15 80 / 40%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.lidar-zone-stop {
+  width: 60px;
+  height: 60px;
+  background: oklch(0.6 0.2 25 / 18%);
+  border: 1px solid oklch(0.6 0.2 25 / 50%);
+}
+
+.lidar-fallback-labels {
+  display: flex;
+  gap: var(--landing-space-md);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.lidar-label-stop { color: #ff2244; }
+.lidar-label-slow { color: #ffaa22; }
+.lidar-label-clear { color: #22ff66; }
+
+.landing-howitworks-bullets {
+  display: flex;
+  flex-direction: column;
   gap: 1px;
   background: var(--landing-border);
   border: 1px solid var(--landing-border);
 }
 
-@media (max-width: 768px) {
-  .landing-features-grid {
+.landing-tech-bullet {
+  display: flex;
+  gap: var(--landing-space-md);
+  padding: var(--landing-space-lg);
+  background: var(--landing-bg);
+}
+
+.landing-tech-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border: 1px solid var(--landing-border);
+  color: var(--landing-orange);
+}
+
+.landing-tech-bullet h3 {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.landing-tech-bullet p {
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--landing-fg-muted);
+  margin: 0;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   CITIES — Multi-city pain points
+   ───────────────────────────────────────────────────────────────────────────── */
+
+.landing-cities {
+  background: var(--landing-bg);
+}
+
+.landing-cities-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px;
+  background: var(--landing-border);
+  border: 1px solid var(--landing-border);
+}
+
+@media (max-width: 900px) {
+  .landing-cities-grid {
     grid-template-columns: 1fr;
   }
 }
 
-.landing-feature-card {
+.landing-city-card {
   padding: var(--landing-space-xl);
   background: var(--landing-bg);
-  transition: background var(--landing-transition);
 }
 
-.landing-feature-card:hover {
-  background: var(--landing-bg-elevated);
-}
-
-.landing-feature-icon {
+.landing-city-icon {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -623,16 +706,41 @@
   color: var(--landing-orange);
 }
 
-.landing-feature-title {
+.landing-city-card h3 {
   font-size: 14px;
   font-weight: 600;
-  margin-bottom: var(--landing-space-sm);
+  margin-bottom: var(--landing-space-xs);
 }
 
-.landing-feature-desc {
-  font-size: 13px;
+.landing-city-examples {
+  font-size: 11px;
+  color: var(--landing-fg-subtle);
+  margin-bottom: var(--landing-space-md);
+}
+
+.landing-city-pains {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.landing-city-pains li {
+  font-size: 12px;
   line-height: 1.6;
   color: var(--landing-fg-muted);
+  padding: 3px 0;
+  padding-left: 12px;
+  position: relative;
+}
+
+.landing-city-pains li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 10px;
+  width: 4px;
+  height: 4px;
+  background: var(--landing-orange);
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
