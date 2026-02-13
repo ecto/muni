@@ -182,15 +182,7 @@ function EventPromo() {
       }}
     >
       {EVENT_LINES.map((line, i) => {
-        const appearFrame = i * beatFrames;
-        const visible = frame >= appearFrame;
-        const age = frame - appearFrame;
-        const opacity = visible
-          ? interpolate(age, [0, 4], [0, 1], { extrapolateRight: "clamp" })
-          : 0;
-        const translateY = visible
-          ? interpolate(age, [0, 4], [20, 0], { extrapolateRight: "clamp" })
-          : 20;
+        const visible = frame >= i * beatFrames;
 
         return (
           <div
@@ -200,8 +192,7 @@ function EventPromo() {
               fontSize: i === 3 ? 48 : 56,
               fontWeight: 700,
               color: i === 0 ? MUNI_ORANGE : WHITE,
-              opacity,
-              transform: `translateY(${translateY}px)`,
+              opacity: visible ? 1 : 0,
               letterSpacing: 3,
             }}
           >

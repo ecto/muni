@@ -5,6 +5,7 @@ import { getCutsInRange, getCutDuration } from "../beat";
 import { getShot } from "../shots";
 import { ShotFrame } from "../../../components/overlays/ShotFrame";
 import { HypeTextCard } from "../../../components/overlays/HypeTextCard";
+import { BVR1LidarSafety } from "../components/BVR1HeroShot";
 
 const section = REEL_CONFIG.sections.theTech;
 
@@ -17,6 +18,14 @@ export function TheTech() {
         const localFrom = cut.frame - section.start;
         const duration = getCutDuration(cut, section.end);
         const shot = getShot(cut.label);
+
+        if (cut.label === "tech-lidar") {
+          return (
+            <Sequence key={cut.label} from={localFrom} durationInFrames={duration}>
+              <BVR1LidarSafety durationInFrames={duration} />
+            </Sequence>
+          );
+        }
 
         return (
           <Sequence key={cut.label} from={localFrom} durationInFrames={duration}>

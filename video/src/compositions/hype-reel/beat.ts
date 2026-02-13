@@ -51,7 +51,7 @@ const RAW_CUTS: Array<{ beat: number; label: string; section: string }> = [
 
   // === THE FLEX (beats 42–53) === 6 shots
   { beat: 42, label: "flex-snow-action-1", section: "theFlex" },
-  { beat: 44, label: "flex-text-sidewalks", section: "theFlex" },
+  { beat: 44, label: "flex-debris-action", section: "theFlex" },
   { beat: 46, label: "flex-snow-action-2", section: "theFlex" },
   { beat: 48, label: "flex-text-24-7", section: "theFlex" },
   { beat: 50, label: "flex-text-no-driver", section: "theFlex" },

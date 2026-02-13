@@ -5,8 +5,8 @@ export const DARK_BG = "#0a0a0a";
 export const WHITE = "#ffffff";
 export const BLACK = "#000000";
 
-export const FONT_MONO = '"Berkeley Mono", ui-monospace, monospace';
-export const FONT_DISPLAY = '"Inter", "Helvetica Neue", Arial, sans-serif';
+export const FONT_MONO = '"Helvetica Neue", "Helvetica", Arial, sans-serif';
+export const FONT_DISPLAY = '"Helvetica Neue", "Helvetica", Arial, sans-serif';
 
 export const colors = {
   orange: MUNI_ORANGE,

@@ -2,14 +2,10 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Fonts loaded via staticFile in components that need them */
-/* Berkeley Mono is referenced in JS as FONT_MONO constant */
-
-/* Inter Black loaded dynamically via staticFile in components */
-
 body {
   margin: 0;
   padding: 0;
   background: #0a0a0a;
-  font-family: "Berkeley Mono", ui-monospace, monospace;
+  font-family: "Helvetica Neue", "Helvetica", Arial, sans-serif;
+  font-weight: 700;
 }

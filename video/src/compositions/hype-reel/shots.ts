@@ -235,6 +235,11 @@ export const SHOTS: Record<string, Shot> = {
     description: "BVR1 plowing snow on a sidewalk",
 
   },
+  "flex-debris-action": {
+    type: "3d",
+    src: null,
+    description: "BVR1 vacuuming debris — particles pulled toward rover",
+  },
   "flex-text-sidewalks": {
     type: "text",
     src: null,
@@ -335,10 +340,9 @@ export const SHOTS: Record<string, Shot> = {
     bgColor: "#0a0a0a",
   },
   "tech-lidar": {
-    type: "image",
-    src: "reel/shots/tech-lidar.png",
-    description: "LiDAR point cloud visualization",
-
+    type: "3d",
+    src: null,
+    description: "LiDAR safety visualization — sweep beam + color-coded zones",
   },
   "tech-text-rtk": {
     type: "text",

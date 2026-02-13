@@ -5,7 +5,7 @@ import { getCutsInRange, getCutDuration } from "../beat";
 import { getShot } from "../shots";
 import { ShotFrame } from "../../../components/overlays/ShotFrame";
 import { HypeTextCard } from "../../../components/overlays/HypeTextCard";
-import { BVR1SnowAction, BVR1RainAction } from "../components/BVR1HeroShot";
+import { BVR1SnowAction, BVR1RainAction, BVR1DebrisAction } from "../components/BVR1HeroShot";
 
 const section = REEL_CONFIG.sections.theFlex;
 
@@ -24,6 +24,13 @@ export function TheFlex() {
           return (
             <Sequence key={cut.label} from={localFrom} durationInFrames={duration}>
               <BVR1SnowAction durationInFrames={duration} variant={1} />
+            </Sequence>
+          );
+        }
+        if (cut.label === "flex-debris-action") {
+          return (
+            <Sequence key={cut.label} from={localFrom} durationInFrames={duration}>
+              <BVR1DebrisAction durationInFrames={duration} />
             </Sequence>
           );
         }

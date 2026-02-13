@@ -1,9 +1,5 @@
-// Full-screen text card — Inter Black, all caps, hard cuts
-import { useCurrentFrame } from "remotion";
-import { interpolate } from "remotion";
-import { WHITE, MUNI_ORANGE, DARK_BG } from "../../lib/brand";
-
-const FONT_DISPLAY = '"Inter", "Helvetica Neue", Arial, sans-serif';
+// Full-screen text card — Helvetica Neue, all caps, hard cuts
+import { WHITE, MUNI_ORANGE, DARK_BG, FONT_DISPLAY } from "../../lib/brand";
 
 interface HypeTextCardProps {
   text: string;
@@ -20,14 +16,6 @@ export function HypeTextCard({
   fontSize = 96,
   color = WHITE,
 }: HypeTextCardProps) {
-  const frame = useCurrentFrame();
-
-  // Hard cut in — no fade, just appears. Slight scale punch on entry.
-  const scale = interpolate(frame, [0, 4], [1.05, 1], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
-  });
-
   const lines = text.split("\n");
 
   return (
@@ -40,7 +28,6 @@ export function HypeTextCard({
         flexDirection: "column",
         alignItems: "center",
         justifyContent: "center",
-        transform: `scale(${scale})`,
       }}
     >
       {tag && (

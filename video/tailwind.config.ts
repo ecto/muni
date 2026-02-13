@@ -11,7 +11,8 @@ export default {
         },
       },
       fontFamily: {
-        mono: ['"Berkeley Mono"', "ui-monospace", "monospace"],
+        mono: ['"Helvetica Neue"', '"Helvetica"', "Arial", "sans-serif"],
+        sans: ['"Helvetica Neue"', '"Helvetica"', "Arial", "sans-serif"],
       },
     },
   },
