@@ -13,7 +13,7 @@ import {
   CurrencyDollar,
 } from "@phosphor-icons/react/dist/ssr";
 import { Footer, FloatingHeader } from "@/components/layout";
-import { HeroViewer } from "@/components/home/HeroViewer";
+import { HeroVideo } from "@/components/home/HeroVideo";
 import { CoverageMapViewer } from "@/components/home/CoverageMapViewer";
 
 export default function HomePage() {
@@ -25,10 +25,8 @@ export default function HomePage() {
             HERO: The Hook
             ═══════════════════════════════════════════════════════════════════════ */}
         <section className="landing-hero">
-          <div className="landing-hero-bg">
-            <div className="landing-hero-grid" />
-            <div className="landing-hero-glow" />
-          </div>
+          <HeroVideo />
+          <div className="landing-hero-overlay" />
 
           <div className="landing-container">
             <div className="landing-hero-content">
@@ -72,16 +70,6 @@ export default function HomePage() {
                   <div className="landing-trust-item">
                     <Lightning size={16} weight="bold" />
                     <span>24/7 Operation</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="landing-hero-visual">
-                <div className="landing-hero-viewer-wrap">
-                  <HeroViewer />
-                  <div className="landing-hero-viewer-label">
-                    <span>BVR1</span>
-                    <span className="landing-hero-viewer-sublabel">Production Model</span>
                   </div>
                 </div>
               </div>
