@@ -380,10 +380,9 @@ export const SHOTS: Record<string, Shot> = {
 
   },
   "pink-bvr1": {
-    type: "image",
-    src: "reel/shots/pink-bvr1.jpg",
-    description: "BVR1 tinted hot pink",
-
+    type: "3d",
+    src: null,
+    description: "BVR1 3D model + grid tinted hot pink",
   },
   "tech-text-rust": {
     type: "text",

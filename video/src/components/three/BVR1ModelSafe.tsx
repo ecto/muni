@@ -10,6 +10,8 @@ import glbDataUrl from "../../../public/models/bvr1_assembly_realistic.glb";
 interface BVR1ModelSafeProps {
   positionY?: number;
   opacity?: number;
+  wireframe?: boolean;
+  tint?: string; // hex color to override all materials
 }
 
 // Module-level cache
@@ -35,7 +37,7 @@ function loadModel(): Promise<{ scene: THREE.Group }> {
   return gltfPromise;
 }
 
-export function BVR1ModelSafe({ positionY = 0, opacity = 1 }: BVR1ModelSafeProps) {
+export function BVR1ModelSafe({ positionY = 0, opacity = 1, wireframe = false, tint }: BVR1ModelSafeProps) {
   const groupRef = useRef<THREE.Group>(null);
   const [gltf, setGltf] = useState<{ scene: THREE.Group } | null>(gltfCache);
   const [failed, setFailed] = useState(false);
@@ -53,23 +55,33 @@ export function BVR1ModelSafe({ positionY = 0, opacity = 1 }: BVR1ModelSafeProps
     groupRef.current.position.y = -box.min.y + positionY;
   }, [gltf, positionY]);
 
-  useEffect(() => {
-    if (!gltf) return;
-    gltf.scene.traverse((child) => {
+  const clonedScene = useMemo(() => {
+    if (!gltf) return null;
+    const clone = gltf.scene.clone(true);
+    clone.traverse((child) => {
       if ((child as THREE.Mesh).isMesh) {
         const mesh = child as THREE.Mesh;
-        const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-        materials.forEach((m) => {
-          if (m && "opacity" in m) {
-            (m as THREE.MeshStandardMaterial).transparent = opacity < 1;
-            (m as THREE.MeshStandardMaterial).opacity = opacity;
+        // Clone materials so we don't mutate cached originals
+        const srcMats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+        const newMats = srcMats.map((m) => {
+          const mat = m.clone();
+          if (mat instanceof THREE.MeshStandardMaterial) {
+            mat.wireframe = wireframe;
+            mat.transparent = opacity < 1 || wireframe;
+            mat.opacity = wireframe ? 0.85 : opacity;
+            if (tint) {
+              mat.color.set(tint);
+              mat.emissive.set(tint);
+              mat.emissiveIntensity = 0.15;
+            }
           }
+          return mat;
         });
+        mesh.material = newMats.length === 1 ? newMats[0] : newMats;
       }
     });
-  }, [gltf, opacity]);
-
-  const clonedScene = useMemo(() => gltf?.scene.clone(), [gltf]);
+    return clone;
+  }, [gltf, opacity, wireframe, tint]);
 
   if (failed || !clonedScene) return null;
 

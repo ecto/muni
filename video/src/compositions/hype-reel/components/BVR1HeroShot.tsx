@@ -6,6 +6,7 @@ import { BVR1ModelSafe } from "../../../components/three/BVR1ModelSafe";
 import { CameraRig } from "../../../components/three/CameraRig";
 import { Lighting } from "../../../components/three/Lighting";
 import { Grid } from "../../../components/three/Grid";
+import { SnowParticles, SnowSpray } from "../../../components/three/SnowParticles";
 import { REEL_CONFIG } from "../config";
 import { DARK_BG } from "../../../lib/brand";
 import * as THREE from "three";
@@ -180,9 +181,20 @@ export function BVR1SnowAction({
             distance={600}
             fov={45}
           />
-          <Lighting intensity={1.2} />
-          <Grid opacity={0.5} />
+          <Lighting intensity={1.0} />
+          <fog attach="fog" args={["#1a1a2e", 500, 3000]} />
+          <Grid opacity={0.3} />
           <BVR1ModelSafe />
+          <SnowParticles count={500} speed={3} size={3} opacity={0.6} />
+          <SnowSpray
+            count={250}
+            origin={[0, 80, -250]}
+            velocity={variant === 1 ? 12 : 18}
+            spread={variant === 1 ? 1.0 : 1.5}
+            lifetime={25}
+            size={4}
+            opacity={0.5}
+          />
         </Suspense>
       </ThreeCanvas>
     </div>

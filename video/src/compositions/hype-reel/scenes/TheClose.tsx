@@ -14,6 +14,7 @@ import { Lighting } from "../../../components/three/Lighting";
 import { Grid } from "../../../components/three/Grid";
 import { BVR1ModelSafe } from "../../../components/three/BVR1ModelSafe";
 import { BVR1FounderShot } from "../components/BVR1HeroShot";
+import { SnowParticles } from "../../../components/three/SnowParticles";
 import { DARK_BG, MUNI_ORANGE, WHITE, FONT_MONO } from "../../../lib/brand";
 import { FRAMES_PER_BEAT } from "../beat";
 
@@ -38,21 +39,22 @@ export function TheClose() {
           );
         }
 
-        // Pink BVR1 — hot pink overlay timed to "pussy whip"
+        // Pink BVR1 — 3D model + grid tinted hot pink
         if (cut.label === "pink-bvr1") {
           return (
             <Sequence key={cut.label} from={localFrom} durationInFrames={duration}>
-              <ShotFrame shot={shot} durationInFrames={duration} />
-              <div
-                style={{
-                  position: "absolute",
-                  inset: 0,
-                  backgroundColor: "#ff1493",
-                  mixBlendMode: "color",
-                  opacity: 0.6,
-                  pointerEvents: "none",
-                }}
-              />
+              <div style={{ position: "absolute", inset: 0, backgroundColor: "#0a0008" }}>
+                <ThreeCanvas
+                  width={REEL_CONFIG.width}
+                  height={REEL_CONFIG.height}
+                  camera={{ fov: 45, near: 0.1, far: 5000, position: [600, 400, 600] }}
+                  style={{ position: "absolute", inset: 0 }}
+                >
+                  <Suspense fallback={null}>
+                    <PinkBVR1 durationInFrames={duration} />
+                  </Suspense>
+                </ThreeCanvas>
+              </div>
             </Sequence>
           );
         }
@@ -113,6 +115,26 @@ export function TheClose() {
   );
 }
 
+/** Pink BVR1 — hot pink tinted model + grid */
+function PinkBVR1({ durationInFrames }: { durationInFrames: number }) {
+  const frame = useCurrentFrame();
+  const azimuth = interpolate(frame, [0, durationInFrames], [Math.PI / 3, Math.PI / 2.5], {
+    extrapolateRight: "clamp",
+  });
+
+  return (
+    <>
+      <CameraRig distance={800} azimuth={azimuth} elevation={Math.PI / 8} fov={40} />
+      <ambientLight intensity={0.3} color="#ff69b4" />
+      <directionalLight position={[5, 8, 3]} intensity={1.5} color="#ff1493" />
+      <directionalLight position={[-3, 4, -5]} intensity={0.6} color="#ff69b4" />
+      <pointLight position={[0, 200, 0]} intensity={0.8} color="#ff1493" distance={2000} />
+      <Grid opacity={0.7} cellColor="#ff1493" sectionColor="#ff69b4" />
+      <BVR1ModelSafe />
+    </>
+  );
+}
+
 /** Final beauty shot — slow orbit with real BVR1 model */
 function BeautyShot({ durationInFrames }: { durationInFrames: number }) {
   const frame = useCurrentFrame();
@@ -127,8 +149,10 @@ function BeautyShot({ durationInFrames }: { durationInFrames: number }) {
     <>
       <CameraRig distance={distance} azimuth={azimuth} elevation={Math.PI / 10} fov={40} />
       <Lighting intensity={1.3} />
+      <fog attach="fog" args={["#0a0a0a", 800, 3000]} />
       <Grid opacity={0.5} />
       <BVR1ModelSafe />
+      <SnowParticles count={150} speed={1.5} size={2} opacity={0.3} area={[2500, 1500, 2500]} />
     </>
   );
 }

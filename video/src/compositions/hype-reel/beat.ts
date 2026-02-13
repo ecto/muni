@@ -33,7 +33,6 @@ const RAW_CUTS: Array<{ beat: number; label: string; section: string }> = [
   { beat: 8, label: "dirty-sidewalk", section: "introBuild" },
   { beat: 10, label: "fuck-snow", section: "introBuild" },       // 4 beats, dirty sidewalk behind
   { beat: 14, label: "what-if", section: "introBuild" },
-  { beat: 16, label: "muni-logo-flash", section: "introBuild" },
   { beat: 18, label: "text-autonomous", section: "introBuild" },
   { beat: 20, label: "text-electric", section: "introBuild" },
   { beat: 22, label: "text-open-source", section: "introBuild" },

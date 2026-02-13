@@ -38,19 +38,21 @@ const fragmentShader = `
 interface GridProps {
   opacity?: number;
   fadeDistance?: number;
+  cellColor?: string;
+  sectionColor?: string;
 }
 
-export function Grid({ opacity = 1, fadeDistance = 2000 }: GridProps) {
+export function Grid({ opacity = 1, fadeDistance = 2000, cellColor, sectionColor }: GridProps) {
   const uniforms = useMemo(
     () => ({
       uCellSize: { value: 10.0 },
       uSectionSize: { value: 100.0 },
-      uColor1: { value: new THREE.Color(gridColors.cell) },
-      uColor2: { value: new THREE.Color(MUNI_ORANGE) },
+      uColor1: { value: new THREE.Color(cellColor ?? gridColors.cell) },
+      uColor2: { value: new THREE.Color(sectionColor ?? MUNI_ORANGE) },
       uFadeDistance: { value: fadeDistance },
       uOpacity: { value: opacity },
     }),
-    [fadeDistance, opacity]
+    [fadeDistance, opacity, cellColor, sectionColor]
   );
 
   return (

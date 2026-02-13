@@ -134,11 +134,11 @@ export function TheDropReveal() {
           );
         }
 
-        // 3D model spin
+        // 3D wireframe spin — campedersen.com aesthetic
         if (cut.label === "bvr1-3d-spin") {
           return (
             <Sequence key={cut.label} from={localFrom} durationInFrames={duration}>
-              <div style={{ position: "absolute", inset: 0, backgroundColor: DARK_BG }}>
+              <div style={{ position: "absolute", inset: 0, backgroundColor: "#050208" }}>
                 <ThreeCanvas
                   width={REEL_CONFIG.width}
                   height={REEL_CONFIG.height}
@@ -206,7 +206,7 @@ export function TheDropReveal() {
   );
 }
 
-/** 3D spinning BVR1 with real model */
+/** Wireframe BVR1 spin — campedersen.com aesthetic */
 function SpinningBVR1({ durationInFrames }: { durationInFrames: number }) {
   const frame = useCurrentFrame();
   const azimuth = interpolate(frame, [0, durationInFrames], [0, Math.PI * 2], {
@@ -216,9 +216,11 @@ function SpinningBVR1({ durationInFrames }: { durationInFrames: number }) {
   return (
     <>
       <CameraRig distance={800} azimuth={azimuth} elevation={Math.PI / 10} fov={45} />
-      <Lighting intensity={1.2} />
-      <Grid opacity={0.3} />
-      <BVR1ModelSafe />
+      <ambientLight intensity={0.3} color="#a855f7" />
+      <directionalLight position={[5, 8, 3]} intensity={0.8} color="#a855f7" />
+      <directionalLight position={[-3, 4, -5]} intensity={0.4} color="#f97316" />
+      <Grid opacity={0.4} cellColor="#7c3aed" sectionColor="#a855f7" />
+      <BVR1ModelSafe wireframe tint="#a855f7" />
     </>
   );
 }
