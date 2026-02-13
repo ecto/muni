@@ -5,7 +5,7 @@ import { getCutsInRange, getCutDuration } from "../beat";
 import { getShot } from "../shots";
 import { ShotFrame } from "../../../components/overlays/ShotFrame";
 import { HypeTextCard } from "../../../components/overlays/HypeTextCard";
-import { BVR1SnowAction } from "../components/BVR1HeroShot";
+import { BVR1SnowAction, BVR1RainAction } from "../components/BVR1HeroShot";
 
 const section = REEL_CONFIG.sections.theFlex;
 
@@ -30,7 +30,7 @@ export function TheFlex() {
         if (cut.label === "flex-snow-action-2") {
           return (
             <Sequence key={cut.label} from={localFrom} durationInFrames={duration}>
-              <BVR1SnowAction durationInFrames={duration} variant={2} />
+              <BVR1RainAction durationInFrames={duration} />
             </Sequence>
           );
         }

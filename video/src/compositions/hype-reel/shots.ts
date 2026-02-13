@@ -243,10 +243,9 @@ export const SHOTS: Record<string, Shot> = {
     bgColor: "#0a0a0a",
   },
   "flex-snow-action-2": {
-    type: "video",
+    type: "3d",
     src: null,
-    description: "Close-up of plow blade cutting through snow",
-
+    description: "BVR1 in rain — all-weather operations",
   },
   "flex-text-24-7": {
     type: "text",

@@ -7,6 +7,7 @@ import { CameraRig } from "../../../components/three/CameraRig";
 import { Lighting } from "../../../components/three/Lighting";
 import { Grid } from "../../../components/three/Grid";
 import { SnowParticles, SnowSpray } from "../../../components/three/SnowParticles";
+import { RainParticles, RainSplash } from "../../../components/three/RainParticles";
 import { REEL_CONFIG } from "../config";
 import { DARK_BG } from "../../../lib/brand";
 import * as THREE from "three";
@@ -195,6 +196,50 @@ export function BVR1SnowAction({
             size={4}
             opacity={0.5}
           />
+        </Suspense>
+      </ThreeCanvas>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Rain action shot — rover in the rain (power washer / all-weather ops)
+// ---------------------------------------------------------------------------
+
+export function BVR1RainAction({ durationInFrames }: HeroShotProps) {
+  const frame = useCurrentFrame();
+
+  const azimuth = interpolate(
+    frame,
+    [0, durationInFrames],
+    [Math.PI * 0.8, Math.PI * 0.8 + Math.PI / 5],
+    { extrapolateRight: "clamp" },
+  );
+
+  return (
+    <div style={WRAPPER_STYLE}>
+      <ThreeCanvas
+        width={REEL_CONFIG.width}
+        height={REEL_CONFIG.height}
+        camera={{ fov: 45, near: 0.1, far: 5000, position: [600, 400, 600] }}
+        style={CANVAS_STYLE}
+      >
+        <Suspense fallback={null}>
+          <CameraRig
+            target={TARGET}
+            azimuth={azimuth}
+            elevation={Math.PI / 14}
+            distance={650}
+            fov={45}
+          />
+          <ambientLight intensity={0.25} color="#667788" />
+          <directionalLight position={[3, 6, 2]} intensity={0.6} color="#8899aa" />
+          <directionalLight position={[-2, 4, -3]} intensity={0.3} color="#6677aa" />
+          <fog attach="fog" args={["#0d1117", 400, 2500]} />
+          <Grid opacity={0.2} cellColor="#334455" sectionColor="#4488aa" />
+          <BVR1ModelSafe />
+          <RainParticles count={800} speed={14} size={2} opacity={0.35} angle={0.2} />
+          <RainSplash count={120} opacity={0.25} />
         </Suspense>
       </ThreeCanvas>
     </div>
