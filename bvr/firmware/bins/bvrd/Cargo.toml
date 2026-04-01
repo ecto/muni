@@ -38,6 +38,8 @@ pursuit = { workspace = true }
 control-loop = { workspace = true }
 collision-monitor = { workspace = true }
 mppi = { workspace = true }
+depth = { workspace = true }
+nalgebra = { workspace = true }
 
 tokio = { workspace = true }
 serde = { workspace = true }

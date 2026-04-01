@@ -103,6 +103,11 @@ pub(crate) fn run(ctx: DaemonContext) {
         heartbeat_stalled,
         seq_tracker,
         mut eth_discovery,
+        depth_geometries,
+        depth_config: _depth_config,
+        mut depth_visual_odometry,
+        depth_raw_rxs,
+        depth_enabled,
     } = ctx;
 
     // Pre-compute IMU mount transform (used for both attitude and yaw extraction)
@@ -1192,6 +1197,67 @@ pub(crate) fn run(ctx: DaemonContext) {
             // TODO: Move to async recording task
         }
 
+        // -----------------------------------------------------------------
+        // Depth perception pipeline (camera-based obstacle detection + VO)
+        // -----------------------------------------------------------------
+        // Drain raw frames from each camera, run back-projection, merge into
+        // costmap, and optionally run visual odometry for EKF prediction.
+        if depth_enabled {
+            let all_ground: Vec<nalgebra::Vector3<f64>> = Vec::new();
+            let all_obstacles: Vec<nalgebra::Vector3<f64>> = Vec::new();
+
+            for (cam_id, rx) in &depth_raw_rxs {
+                // Drain to latest frame (non-blocking)
+                let mut latest: Option<camera::RawFrame> = None;
+                while let Ok(frame) = rx.try_recv() {
+                    latest = Some(frame);
+                }
+
+                if let Some(frame) = latest {
+                    // Find matching geometry for this camera
+                    if let Some((_id, geom)) = depth_geometries.iter().find(|(id, _)| id == cam_id) {
+                        // TODO: When onnx feature is enabled, run DepthEstimator here.
+                        // For now, the depth pipeline is wired but inference requires
+                        // the onnx feature + model file on disk. The backproject +
+                        // costmap + VO path below is ready for when DepthMap is produced.
+                        let _ = (frame, geom); // suppress unused warnings
+                    }
+                }
+            }
+
+            // If we got points from any camera, update costmap and run VO
+            if !all_ground.is_empty() || !all_obstacles.is_empty() {
+                // Update costmap
+                if let Some(ref mut nav) = navigation_controller {
+                    let p = pose_estimator.pose();
+                    let sensor_pos = nalgebra::Vector2::new(p.x, p.y);
+                    nav.update_costmap_from_points(sensor_pos, &all_ground, &all_obstacles);
+                    let _ = costmap_tx.send(Some(nav.costmap_snapshot()));
+                    let tracked = obstacle_tracker.update(&nav.extract_obstacles(), dt as f32);
+                    let _ = obstacles_tx.send(Some(tracked));
+                }
+
+                // Visual odometry: depth-derived ego-motion → EKF
+                if let Some(ref mut vo) = depth_visual_odometry {
+                    let classified = depth::ClassifiedPoints {
+                        ground: all_ground,
+                        obstacles: all_obstacles,
+                    };
+                    let (vo_dx, vo_dy, vo_dtheta) = vo.update(&classified);
+
+                    // Feed VO into EKF (same interface as wheel odometry)
+                    if vo_dx.abs() > 1e-6 || vo_dy.abs() > 1e-6 || vo_dtheta.abs() > 1e-6 {
+                        pose_estimator.predict(vo_dx, vo_dy, vo_dtheta, gyro_z_body, dt);
+                        debug!(
+                            vo_dx = format!("{vo_dx:.4}"),
+                            vo_dy = format!("{vo_dy:.4}"),
+                            vo_dtheta = format!("{vo_dtheta:.4}"),
+                            "depth.vo"
+                        );
+                    }
+                }
+            }
+        }
 
         let (active_tool, tool_status) = if let Some(tool) = state.tool_registry.active() {
             let status = tool.status();
