@@ -16,5 +16,5 @@ kiddo.workspace = true
 
 # ONNX Runtime (optional — for actual model inference)
 # On Jetson, builds with TensorRT execution provider automatically
-ort = { version = "2.0.0-rc.12", optional = true, default-features = false }
-ndarray = { version = "0.16", optional = true }
+ort = { version = "2.0.0-rc.12", optional = true, default-features = false, features = ["std", "ndarray"] }
+ndarray = { version = "0.17", optional = true }

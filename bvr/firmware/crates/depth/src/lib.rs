@@ -270,6 +270,7 @@ pub fn estimate_metric_scale(
 mod onnx_inference {
     use super::*;
     use ort::session::Session;
+    use ort::value::TensorRef;
 
     /// Depth model inference using ONNX Runtime.
     ///
@@ -303,7 +304,7 @@ mod onnx_inference {
         /// `rgb`: row-major RGB u8 buffer, `width * height * 3` bytes.
         /// Returns a depth map at the model's native output resolution.
         pub fn estimate(
-            &self,
+            &mut self,
             rgb: &[u8],
             width: u32,
             height: u32,
@@ -321,18 +322,20 @@ mod onnx_inference {
             )
             .map_err(|e| DepthError::Inference(format!("shape error: {e}")))?;
 
+            let input_ref = TensorRef::from_array_view(&input_array)
+                .map_err(|e| DepthError::Inference(format!("tensor ref: {e}")))?;
+
             let outputs = self.session
-                .run(ort::inputs![input_array].map_err(|e| DepthError::Inference(e.to_string()))?)
+                .run(ort::inputs![input_ref])
                 .map_err(|e| DepthError::Inference(e.to_string()))?;
 
             let output = outputs.values().next()
                 .ok_or_else(|| DepthError::Inference("no output tensor".into()))?;
 
-            let tensor = output
+            let (shape, data) = output
                 .try_extract_tensor::<f32>()
                 .map_err(|e| DepthError::Inference(format!("extract tensor: {e}")))?;
 
-            let shape = tensor.shape();
             let (out_h, out_w) = match shape.len() {
                 3 => (shape[1] as u32, shape[2] as u32),
                 4 => (shape[2] as u32, shape[3] as u32),
@@ -340,7 +343,7 @@ mod onnx_inference {
             };
 
             Ok(DepthMap {
-                data: Arc::new(tensor.iter().copied().collect()),
+                data: Arc::new(data.to_vec()),
                 width: out_w,
                 height: out_h,
                 is_metric: false,

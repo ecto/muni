@@ -4,6 +4,7 @@ mod camera_init;
 mod can_iface;
 mod cli;
 mod config;
+mod depth_thread;
 mod init;
 mod logging;
 mod run_loop;

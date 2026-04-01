@@ -162,8 +162,8 @@ pub(crate) struct DaemonContext {
     pub(crate) eth_discovery: Option<EthDiscovery>,
 
     // -- depth perception pipeline --
-    pub(crate) depth_geometries: Vec<(String, depth::CameraGeometry)>,
-    pub(crate) depth_config: depth::DepthPerceptionConfig,
+    pub(crate) depth_output_rx: Option<watch::Receiver<crate::depth_thread::DepthOutput>>,
+    pub(crate) depth_frame_tx: Option<std::sync::mpsc::Sender<crate::depth_thread::TaggedFrame>>,
     pub(crate) depth_visual_odometry: Option<depth::visual_odometry::VisualOdometry>,
     pub(crate) depth_raw_rxs: Vec<(String, std::sync::mpsc::Receiver<camera::RawFrame>)>,
     pub(crate) depth_enabled: bool,
@@ -1297,15 +1297,9 @@ pub(crate) async fn initialize(
 
     // ---------- Depth perception pipeline ----------
     let depth_enabled = file_config.depth.enabled && camera_enabled;
-    let mut depth_geometries: Vec<(String, depth::CameraGeometry)> = Vec::new();
     let mut depth_raw_rxs: Vec<(String, std::sync::mpsc::Receiver<camera::RawFrame>)> = Vec::new();
-    let depth_config = depth::DepthPerceptionConfig {
-        max_depth: file_config.depth.max_depth,
-        min_depth: file_config.depth.min_depth,
-        ground_threshold: file_config.depth.ground_threshold,
-        stride: file_config.depth.stride,
-        ..Default::default()
-    };
+    let mut depth_output_rx: Option<watch::Receiver<crate::depth_thread::DepthOutput>> = None;
+    let mut depth_frame_tx: Option<std::sync::mpsc::Sender<crate::depth_thread::TaggedFrame>> = None;
     let depth_visual_odometry = if depth_enabled && file_config.depth.visual_odometry {
         Some(depth::visual_odometry::VisualOdometry::new(
             depth::visual_odometry::VisualOdometryConfig {
@@ -1329,6 +1323,8 @@ pub(crate) async fn initialize(
             fps: file_config.depth.capture_fps,
         };
 
+        // Build camera geometries for depth back-projection
+        let mut geometries: Vec<(String, depth::CameraGeometry)> = Vec::new();
         for mount in &mounts {
             let fov_h = mount.fov_h.unwrap_or(1.745);
             let fov_v = mount.fov_v.unwrap_or(1.18);
@@ -1340,8 +1336,29 @@ pub(crate) async fn initialize(
                 mount.mount_position,
                 mount.mount_rotation,
             );
-            depth_geometries.push((mount.id.clone(), geom));
+            geometries.push((mount.id.clone(), geom));
         }
+
+        // Spawn depth processing thread (inference + backprojection off main loop)
+        let thread_config = crate::depth_thread::DepthThreadConfig {
+            geometries: geometries.clone(),
+            perception: depth::DepthPerceptionConfig {
+                max_depth: file_config.depth.max_depth,
+                min_depth: file_config.depth.min_depth,
+                ground_threshold: file_config.depth.ground_threshold,
+                stride: file_config.depth.stride,
+                ..Default::default()
+            },
+            #[cfg(feature = "depth-onnx")]
+            model_path: file_config.depth.model_path.clone(),
+            #[cfg(feature = "depth-onnx")]
+            model_input_width: file_config.depth.model_input_width,
+            #[cfg(feature = "depth-onnx")]
+            model_input_height: file_config.depth.model_input_height,
+        };
+        let (frame_tx, output_rx) = crate::depth_thread::spawn_depth_thread(thread_config);
+        depth_frame_tx = Some(frame_tx);
+        depth_output_rx = Some(output_rx);
 
         // Spawn raw capture threads for depth inference
         let detected = camera::detect_cameras();
@@ -1373,7 +1390,7 @@ pub(crate) async fn initialize(
         }
 
         info!(
-            cameras = depth_geometries.len(),
+            cameras = geometries.len(),
             raw_captures = depth_raw_rxs.len(),
             vo = file_config.depth.visual_odometry,
             "Depth perception pipeline enabled"
@@ -1479,8 +1496,8 @@ pub(crate) async fn initialize(
         heartbeat_stalled,
         seq_tracker,
         eth_discovery,
-        depth_geometries,
-        depth_config,
+        depth_output_rx,
+        depth_frame_tx,
         depth_visual_odometry,
         depth_raw_rxs,
         depth_enabled,
