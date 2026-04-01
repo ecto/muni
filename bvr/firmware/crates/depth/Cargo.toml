@@ -12,6 +12,7 @@ onnx = ["dep:ort", "dep:ndarray"]
 nalgebra.workspace = true
 tracing = { workspace = true }
 thiserror = { workspace = true }
+kiddo.workspace = true
 
 # ONNX Runtime (optional — for actual model inference)
 # On Jetson, builds with TensorRT execution provider automatically

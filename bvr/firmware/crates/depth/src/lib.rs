@@ -1,10 +1,13 @@
-//! Monocular depth estimation and 3D back-projection for camera-based perception.
+//! Monocular depth estimation, 3D back-projection, and visual odometry.
 //!
 //! This crate provides:
 //! - `DepthMap`: dense per-pixel depth output
 //! - `CameraGeometry`: intrinsics + extrinsics for back-projection
 //! - `backproject_and_classify`: depth pixels → classified 3D points in rover frame
+//! - `VisualOdometry`: frame-to-frame ego-motion from depth-derived 2D scans (ICP)
 //! - `DepthEstimator` (behind `onnx` feature): ONNX Runtime inference for Depth Anything V2/V3
+
+pub mod visual_odometry;
 
 use nalgebra::{Matrix3, Rotation3, Vector3};
 use std::sync::Arc;
