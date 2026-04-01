@@ -12,7 +12,7 @@ use hal::EStopEvent;
 use lidar::LidarCommand;
 use metrics::MetricsSnapshot;
 use policy::PolicyObservation;
-use slam::SlamState;
+use slamwich::SlamState;
 use state::Event;
 use std::sync::atomic::Ordering;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
@@ -1128,7 +1128,12 @@ pub(crate) fn run(ctx: DaemonContext) {
             if rx.has_changed().unwrap_or(false) {
                 let state = rx.borrow_and_update().clone();
                 // Feed SLAM correction into EKF as measurement update
-                pose_estimator.update_slam_from_array(&state.pose, &state.pose_covariance);
+                let slam_pose = types::Pose {
+                    x: state.pose.x,
+                    y: state.pose.y,
+                    theta: state.pose.theta,
+                };
+                pose_estimator.update_slam_from_array(&slam_pose, &state.pose_covariance);
                 last_slam_update = Some(Instant::now());
                 Some(state)
             } else {
@@ -1170,9 +1175,23 @@ pub(crate) fn run(ctx: DaemonContext) {
         if let Some(ref scan) = lidar_scan_clone {
             // Send scan to SLAM background task (non-blocking)
             if let Some(ref tx) = slam_scan_tx {
-                // Consume pre-integrated IMU delta accumulated since last scan
+                // Convert lidar types to slamwich types
+                let slam_cloud = slamwich::PointCloud::new(
+                    scan.points
+                        .iter()
+                        .map(|p| slamwich::Point3D {
+                            x: p.x,
+                            y: p.y,
+                            z: p.z,
+                            reflectivity: p.reflectivity,
+                            tag: p.tag,
+                        })
+                        .collect(),
+                );
+                let p = pose_estimator.pose();
+                let slam_pose = slamwich::Pose { x: p.x, y: p.y, theta: p.theta };
                 let imu_delta = imu_preintegrator.consume();
-                let _ = tx.try_send((scan.clone(), pose_estimator.pose(), imu_delta));
+                let _ = tx.try_send((slam_cloud, slam_pose, imu_delta));
             }
 
             // Update costmap for navigation controller
@@ -1247,11 +1266,11 @@ pub(crate) fn run(ctx: DaemonContext) {
 
                         // Forward depth points to SLAM as a synthetic point cloud
                         if let Some(ref tx) = slam_scan_tx {
-                            let points: Vec<lidar::Point3D> = output
+                            let points: Vec<slamwich::Point3D> = output
                                 .ground
                                 .iter()
                                 .chain(output.obstacles.iter())
-                                .map(|p| lidar::Point3D {
+                                .map(|p| slamwich::Point3D {
                                     x: p.x as f32,
                                     y: p.y as f32,
                                     z: p.z as f32,
@@ -1260,16 +1279,11 @@ pub(crate) fn run(ctx: DaemonContext) {
                                 })
                                 .collect();
                             if points.len() >= 50 {
-                                let cloud = lidar::PointCloud {
-                                    points,
-                                    ..Default::default()
-                                };
+                                let cloud = slamwich::PointCloud::new(points);
+                                let p = pose_estimator.pose();
+                                let slam_pose = slamwich::Pose { x: p.x, y: p.y, theta: p.theta };
                                 let imu_delta = imu_preintegrator.consume();
-                                let _ = tx.try_send((
-                                    cloud,
-                                    pose_estimator.pose(),
-                                    imu_delta,
-                                ));
+                                let _ = tx.try_send((cloud, slam_pose, imu_delta));
                             }
                         }
 

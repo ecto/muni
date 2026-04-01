@@ -26,7 +26,7 @@ use policy::{NormalizationConfig, Policy, PolicyManager};
 use pursuit::PursuitConfig;
 use recording::{Config as RecordingConfig, Recorder};
 use sim::SimBus;
-use slam::{SlamConfig, SlamProcessor, SlamState};
+use slamwich::{SlamConfig, SlamProcessor, SlamState};
 use state::{Event, StateMachine};
 use std::collections::HashSet;
 use std::path::PathBuf;
@@ -73,7 +73,7 @@ pub(crate) struct DaemonContext {
     pub(crate) lidar_status_rx: watch::Receiver<LidarStatus>,
 
     // -- SLAM --
-    pub(crate) slam_scan_tx: Option<mpsc::Sender<(lidar::PointCloud, Pose, Option<slam::PreintegratedDelta>)>>,
+    pub(crate) slam_scan_tx: Option<mpsc::Sender<(slamwich::PointCloud, slamwich::Pose, Option<slamwich::PreintegratedDelta>)>>,
     pub(crate) slam_state_rx: Option<watch::Receiver<SlamState>>,
 
     // -- navigation --
@@ -136,7 +136,7 @@ pub(crate) struct DaemonContext {
     pub(crate) last_policy_action_time: Option<Instant>,
     pub(crate) dispatch_semaphore: Arc<Semaphore>,
     pub(crate) attitude_filter: AttitudeFilter,
-    pub(crate) imu_preintegrator: slam::ImuPreintegrator,
+    pub(crate) imu_preintegrator: slamwich::ImuPreintegrator,
     pub(crate) last_tick: Instant,
     pub(crate) control_period: Duration,
     pub(crate) hardware_estop_latched: bool,
@@ -984,7 +984,7 @@ pub(crate) async fn initialize(
     // Initialize SLAM processor as background task
     // This moves expensive scan matching (10-100ms) off the main control loop
     let (slam_scan_tx, slam_state_rx): (
-        Option<mpsc::Sender<(lidar::PointCloud, Pose, Option<slam::PreintegratedDelta>)>>,
+        Option<mpsc::Sender<(slamwich::PointCloud, slamwich::Pose, Option<slamwich::PreintegratedDelta>)>>,
         Option<watch::Receiver<SlamState>>,
     ) = if file_config.slam.enabled && (file_config.lidar.enabled || file_config.depth.enabled) {
         let slam_config = SlamConfig {
@@ -1005,7 +1005,7 @@ pub(crate) async fn initialize(
 
         // Channel for sending scans to SLAM (bounded to prevent backpressure)
         let (scan_tx, mut scan_rx) =
-            mpsc::channel::<(lidar::PointCloud, Pose, Option<slam::PreintegratedDelta>)>(4);
+            mpsc::channel::<(slamwich::PointCloud, slamwich::Pose, Option<slamwich::PreintegratedDelta>)>(4);
         // Watch channel for receiving SLAM state updates
         let (state_tx, state_rx) = watch::channel(SlamState::default());
 
@@ -1013,9 +1013,9 @@ pub(crate) async fn initialize(
         // SLAM's process_scan() is CPU-intensive (10-100ms+) and would starve tokio worker threads.
         // Using std::sync::mpsc for thread-safe channel from async to sync.
         let (slam_thread_tx, slam_thread_rx) = std::sync::mpsc::channel::<(
-            lidar::PointCloud,
-            Pose,
-            Option<slam::PreintegratedDelta>,
+            slamwich::PointCloud,
+            slamwich::Pose,
+            Option<slamwich::PreintegratedDelta>,
         )>();
 
         // Bridge async mpsc to sync mpsc
@@ -1293,7 +1293,7 @@ pub(crate) async fn initialize(
 
     // IMU pre-integrator for SLAM (accumulates gyro-Z between LiDAR scans)
     let imu_preintegrator =
-        slam::ImuPreintegrator::new(slam::ImuPreintegrationConfig::default());
+        slamwich::ImuPreintegrator::new(slamwich::ImuPreintegrationConfig::default());
 
     // ---------- Depth perception pipeline ----------
     let depth_enabled = file_config.depth.enabled && camera_enabled;

@@ -33,7 +33,7 @@ metrics = { workspace = true }
 policy = { workspace = true }
 dispatch = { workspace = true }
 transforms = { workspace = true }
-slam = { workspace = true }
+slamwich = { workspace = true }
 costmap = { workspace = true }
 planner = { workspace = true }
 pursuit = { workspace = true }

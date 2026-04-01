@@ -1158,7 +1158,7 @@ dependencies = [
  "recording",
  "serde",
  "sim",
- "slam",
+ "slamwich",
  "state",
  "teleop",
  "tokio",
@@ -9145,6 +9145,19 @@ dependencies = [
  "tracing",
  "transforms",
  "types",
+]
+
+[[package]]
+name = "slamwich"
+version = "0.1.0"
+source = "git+https://github.com/ecto/slamwich?branch=main#49bbcd7724e88969b538c5b449f32c342a7137eb"
+dependencies = [
+ "bincode",
+ "kiddo",
+ "nalgebra",
+ "serde",
+ "thiserror 2.0.17",
+ "tracing",
 ]
 
 [[package]]

@@ -82,6 +82,7 @@ policy = { path = "crates/policy" }
 depth = { path = "crates/depth" }
 dispatch = { path = "crates/dispatch" }
 transforms = { path = "crates/transforms" }
+slamwich = { git = "https://github.com/ecto/slamwich", branch = "main" }
 slam = { path = "crates/slam" }
 costmap = { path = "crates/costmap" }
 planner = { path = "crates/planner" }
