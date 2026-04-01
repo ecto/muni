@@ -83,6 +83,27 @@ impl Default for CollisionGuardFileConfig {
     }
 }
 
+/// Per-camera mount configuration (extrinsics + identity).
+///
+/// Used in `[[camera.mounts]]` array for multi-camera setups.
+#[derive(Debug, Deserialize, Clone)]
+pub(crate) struct CameraMountConfig {
+    /// Position identifier (e.g., "left", "center", "right")
+    pub id: String,
+    /// Device path hint for matching detected cameras (e.g., "/dev/video0")
+    pub device_hint: Option<String>,
+    /// Mount position [forward, left, up] in meters relative to rover center
+    #[serde(default)]
+    pub mount_position: [f32; 3],
+    /// Mount rotation [roll, pitch, yaw] in radians
+    #[serde(default)]
+    pub mount_rotation: [f32; 3],
+    /// Horizontal field of view in radians
+    pub fov_h: Option<f32>,
+    /// Vertical field of view in radians
+    pub fov_v: Option<f32>,
+}
+
 /// Camera configuration.
 #[derive(Debug, Deserialize)]
 #[serde(default)]
@@ -108,14 +129,18 @@ pub(crate) struct CameraFileConfig {
     pub h264_bitrate_kbps: Option<u32>,
     /// H.264 keyframe interval in frames (default: 30 = 1 keyframe/sec at 30fps)
     pub h264_keyframe_interval: Option<u32>,
-    /// Camera mount position [forward, left, up] in meters
+    /// Camera mount position [forward, left, up] in meters (legacy single-camera)
     pub mount_position: Option<[f32; 3]>,
-    /// Camera mount rotation [roll, pitch, yaw] in radians
+    /// Camera mount rotation [roll, pitch, yaw] in radians (legacy single-camera)
     pub mount_rotation: Option<[f32; 3]>,
-    /// Horizontal field of view in radians
+    /// Horizontal field of view in radians (legacy single-camera)
     pub fov_h: Option<f32>,
-    /// Vertical field of view in radians
+    /// Vertical field of view in radians (legacy single-camera)
     pub fov_v: Option<f32>,
+    /// Per-camera mount configurations for multi-camera setups.
+    /// When present, overrides the legacy single mount_position/mount_rotation fields.
+    #[serde(default)]
+    pub mounts: Vec<CameraMountConfig>,
 }
 
 impl Default for CameraFileConfig {
@@ -134,7 +159,28 @@ impl Default for CameraFileConfig {
             mount_rotation: None,
             fov_h: None,
             fov_v: None,
+            mounts: Vec::new(),
         }
+    }
+}
+
+impl CameraFileConfig {
+    /// Resolve camera mounts: use `mounts` array if present, otherwise
+    /// build a single-entry list from legacy fields.
+    pub(crate) fn resolved_mounts(&self) -> Vec<CameraMountConfig> {
+        if !self.mounts.is_empty() {
+            return self.mounts.clone();
+        }
+
+        // Legacy single-camera config
+        vec![CameraMountConfig {
+            id: "default".to_string(),
+            device_hint: None,
+            mount_position: self.mount_position.unwrap_or([0.25, 0.0, 0.25]),
+            mount_rotation: self.mount_rotation.unwrap_or([0.0, -0.175, 0.0]),
+            fov_h: self.fov_h,
+            fov_v: self.fov_v,
+        }]
     }
 }
 

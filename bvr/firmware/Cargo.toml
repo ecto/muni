@@ -79,6 +79,7 @@ recording = { path = "crates/recording" }
 metrics = { path = "crates/metrics" }
 rl = { path = "crates/rl" }
 policy = { path = "crates/policy" }
+depth = { path = "crates/depth" }
 dispatch = { path = "crates/dispatch" }
 transforms = { path = "crates/transforms" }
 slam = { path = "crates/slam" }

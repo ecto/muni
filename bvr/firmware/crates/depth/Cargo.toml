@@ -1,0 +1,19 @@
+[package]
+name = "depth"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[features]
+default = []
+onnx = ["dep:ort", "dep:ndarray"]
+
+[dependencies]
+nalgebra.workspace = true
+tracing = { workspace = true }
+thiserror = { workspace = true }
+
+# ONNX Runtime (optional — for actual model inference)
+# On Jetson, builds with TensorRT execution provider automatically
+ort = { version = "2.0.0-rc.12", optional = true, default-features = false }
+ndarray = { version = "0.16", optional = true }

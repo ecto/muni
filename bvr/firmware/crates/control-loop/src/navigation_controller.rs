@@ -12,8 +12,10 @@
 
 use costmap::{Costmap, CostmapSnapshot, Obstacle, ScanAccumulator};
 use dispatch::TaskAssignment;
+#[cfg(feature = "lidar")]
 use lidar::PointCloud;
 use mppi::{MppiConfig, MppiController};
+use nalgebra::{Vector2, Vector3};
 use planner::{PlannerConfig, ReactivePlanner, SmootherConfig, Waypoint};
 use pursuit::{PursuitConfig, PursuitController, PursuitError, PursuitOutput};
 use std::time::Instant;
@@ -427,10 +429,28 @@ impl NavigationController {
         self.recovery_progress = None;
     }
 
+    /// Update costmap from pre-classified ground and obstacle points (world frame).
+    ///
+    /// Generic entry point for any perception source (depth cameras, lidar, etc.).
+    pub fn update_costmap_from_points(
+        &mut self,
+        sensor_pos: Vector2<f64>,
+        ground_pts: &[Vector3<f64>],
+        obstacle_pts: &[Vector3<f64>],
+    ) {
+        self.costmap.update_from_points_accumulated(
+            sensor_pos,
+            ground_pts,
+            obstacle_pts,
+            &mut self.accumulator,
+        );
+    }
+
     /// Update costmap with new LiDAR scan.
     ///
     /// Uses multi-frame scan accumulation to reinforce obstacle evidence
     /// from recent scans, producing denser and more stable obstacles.
+    #[cfg(feature = "lidar")]
     pub fn update_costmap(&mut self, scan: &PointCloud, robot_pose: &Transform2D) {
         self.costmap
             .update_obstacles_accumulated(scan, robot_pose, &mut self.accumulator);

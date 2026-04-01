@@ -3,13 +3,14 @@
 //! Provides:
 //! - Log-odds occupancy grid with Bayesian updates
 //! - Multi-layer costmap (static, obstacle, inflation)
-//! - Raytrace for integrating LiDAR scans
+//! - Raytrace for integrating sensor scans (LiDAR or depth cameras)
 //!
 //! The costmap is used for path planning and obstacle avoidance.
 
 pub mod clustering;
 pub mod tracker;
 
+#[cfg(feature = "lidar")]
 use lidar::PointCloud;
 use nalgebra::{Vector2, Vector3};
 use rand::rngs::SmallRng;
@@ -17,7 +18,7 @@ use rand::seq::SliceRandom;
 use rand::SeedableRng;
 use std::collections::VecDeque;
 use thiserror::Error;
-use tracing::{debug, warn};
+use tracing::debug;
 use transforms::Transform2D;
 
 pub use clustering::{Obstacle, ObstacleClass};
@@ -92,6 +93,7 @@ impl GroundSegmenter {
     ///
     /// Returns `(ground_3d, obstacle_3d)` — world-frame XY with
     /// original Z preserved for height-annotated obstacle detection.
+    #[cfg(feature = "lidar")]
     pub fn segment(
         &mut self,
         cloud: &PointCloud,
@@ -403,9 +405,37 @@ impl OccupancyGrid {
         (&self.height_min, &self.height_max)
     }
 
+    /// Integrate pre-classified ground and obstacle points into the grid.
+    ///
+    /// Ground points produce free-space rays, obstacle points produce hits
+    /// with Z height recorded for the height envelope. All points must be
+    /// in world frame.
+    pub fn integrate_classified_points(
+        &mut self,
+        sensor_pos: Vector2<f64>,
+        ground_pts: &[Vector3<f64>],
+        obstacle_pts: &[Vector3<f64>],
+    ) {
+        // Ground points: raytrace as free space
+        for pt in ground_pts {
+            self.raytrace(sensor_pos, Vector2::new(pt.x, pt.y), false);
+        }
+
+        // Obstacle points: raytrace with hit at endpoint, recording Z
+        for pt in obstacle_pts {
+            self.raytrace_with_height(
+                sensor_pos,
+                Vector2::new(pt.x, pt.y),
+                true,
+                pt.z as f32,
+            );
+        }
+    }
+
     /// Integrate a LiDAR point cloud into the grid using raycasting.
     ///
     /// Projects 3D points to 2D ground plane and filters by height.
+    #[cfg(feature = "lidar")]
     pub fn integrate_scan(&mut self, cloud: &PointCloud, robot_pose: &Transform2D) {
         let sensor_pos = robot_pose.translation();
 
@@ -450,6 +480,7 @@ impl OccupancyGrid {
     /// Uses RANSAC-based ground segmentation instead of a hard z-threshold.
     /// Ground points produce free-space rays, obstacle points produce hits
     /// with Z height recorded for the height envelope.
+    #[cfg(feature = "lidar")]
     pub fn integrate_scan_segmented(
         &mut self,
         cloud: &PointCloud,
@@ -458,21 +489,7 @@ impl OccupancyGrid {
     ) {
         let sensor_pos = robot_pose.translation();
         let (ground_pts, obstacle_pts) = segmenter.segment(cloud, robot_pose);
-
-        // Ground points: raytrace as free space (no height needed)
-        for pt in &ground_pts {
-            self.raytrace(sensor_pos, Vector2::new(pt.x, pt.y), false);
-        }
-
-        // Obstacle points: raytrace with hit at endpoint, recording Z
-        for pt in &obstacle_pts {
-            self.raytrace_with_height(
-                sensor_pos,
-                Vector2::new(pt.x, pt.y),
-                true,
-                pt.z as f32,
-            );
-        }
+        self.integrate_classified_points(sensor_pos, &ground_pts, &obstacle_pts);
     }
 
     /// Raytrace a line, marking cells as free and the endpoint as occupied.
@@ -678,7 +695,7 @@ pub struct CostmapSnapshot {
 pub struct Costmap {
     /// Static layer (from pre-built map)
     static_layer: Option<OccupancyGrid>,
-    /// Dynamic obstacle layer (from recent LiDAR)
+    /// Dynamic obstacle layer (from sensors)
     obstacle_layer: OccupancyGrid,
     /// Combined costmap after inflation
     combined: Vec<u8>,
@@ -692,6 +709,7 @@ pub struct Costmap {
     /// Robot inscribed radius in meters
     inscribed_radius: f64,
     /// RANSAC ground segmenter for LiDAR integration
+    #[cfg(feature = "lidar")]
     ground_segmenter: GroundSegmenter,
     /// Log-odds decay per scan integration (fades stale obstacles)
     decay_step: i8,
@@ -721,6 +739,7 @@ impl Costmap {
             origin,
             inflation_radius,
             inscribed_radius,
+            #[cfg(feature = "lidar")]
             ground_segmenter: GroundSegmenter::new(GroundSegmenterConfig::default()),
             decay_step: 2,
         }
@@ -737,42 +756,78 @@ impl Costmap {
         self.obstacle_layer.clear();
     }
 
+    /// Update obstacle layer from pre-classified ground and obstacle points.
+    ///
+    /// Decays stale observations before integrating. All points must be
+    /// in world frame. This is the generic entry point used by both
+    /// lidar and depth-camera perception pipelines.
+    pub fn update_from_points(
+        &mut self,
+        sensor_pos: Vector2<f64>,
+        ground_pts: &[Vector3<f64>],
+        obstacle_pts: &[Vector3<f64>],
+    ) {
+        self.obstacle_layer.decay(self.decay_step);
+        self.obstacle_layer
+            .integrate_classified_points(sensor_pos, ground_pts, obstacle_pts);
+        self.recompute();
+    }
+
+    /// Update obstacle layer from pre-classified points with multi-frame accumulation.
+    ///
+    /// Like `update_from_points`, but also stores obstacle points in the
+    /// accumulator and reinforces old obstacle evidence via `mark_occupied`.
+    pub fn update_from_points_accumulated(
+        &mut self,
+        sensor_pos: Vector2<f64>,
+        ground_pts: &[Vector3<f64>],
+        obstacle_pts: &[Vector3<f64>],
+        accumulator: &mut ScanAccumulator,
+    ) {
+        self.obstacle_layer.decay(self.decay_step);
+
+        // Store obstacle points in accumulator
+        accumulator.push(obstacle_pts.to_vec());
+
+        // Apply accumulated old obstacle points (mark_occupied only, no raytrace)
+        accumulator.apply_accumulated(&mut self.obstacle_layer);
+
+        // Integrate current points fully (raytrace + hit)
+        self.obstacle_layer
+            .integrate_classified_points(sensor_pos, ground_pts, obstacle_pts);
+        self.recompute();
+    }
+
     /// Update obstacle layer from a LiDAR point cloud.
     ///
     /// Decays stale observations before integrating the new scan using
     /// RANSAC ground segmentation (rather than a naive z-threshold).
+    #[cfg(feature = "lidar")]
     pub fn update_obstacles(&mut self, scan: &PointCloud, robot_pose: &Transform2D) {
-        self.obstacle_layer.decay(self.decay_step);
-        self.obstacle_layer
-            .integrate_scan_segmented(scan, robot_pose, &mut self.ground_segmenter);
-        self.recompute();
+        let sensor_pos = robot_pose.translation();
+        let (ground_pts, obstacle_pts) = self.ground_segmenter.segment(scan, robot_pose);
+        self.update_from_points(sensor_pos, &ground_pts, &obstacle_pts);
     }
 
     /// Update obstacle layer with multi-frame accumulation.
     ///
     /// Like `update_obstacles`, but also stores obstacle points in the
     /// accumulator and reinforces old obstacle evidence via `mark_occupied`.
+    #[cfg(feature = "lidar")]
     pub fn update_obstacles_accumulated(
         &mut self,
         scan: &PointCloud,
         robot_pose: &Transform2D,
         accumulator: &mut ScanAccumulator,
     ) {
-        self.obstacle_layer.decay(self.decay_step);
-
-        // Segment current scan to get obstacle points
-        let (_ground, obstacle_pts) = self.ground_segmenter.segment(scan, robot_pose);
-
-        // Store obstacle points in accumulator
-        accumulator.push(obstacle_pts.clone());
-
-        // Apply accumulated old obstacle points (mark_occupied only, no raytrace)
-        accumulator.apply_accumulated(&mut self.obstacle_layer);
-
-        // Integrate current scan fully (raytrace + hit)
-        self.obstacle_layer
-            .integrate_scan_segmented(scan, robot_pose, &mut self.ground_segmenter);
-        self.recompute();
+        let sensor_pos = robot_pose.translation();
+        let (ground_pts, obstacle_pts) = self.ground_segmenter.segment(scan, robot_pose);
+        self.update_from_points_accumulated(
+            sensor_pos,
+            &ground_pts,
+            &obstacle_pts,
+            accumulator,
+        );
     }
 
     /// Recompute the combined costmap with inflation.
@@ -1118,6 +1173,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "lidar")]
     fn test_ground_segmenter_flat_plane() {
         use lidar::Point3D;
 
@@ -1173,6 +1229,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "lidar")]
     fn test_ground_segmenter_empty_cloud() {
         let mut segmenter = GroundSegmenter::new(GroundSegmenterConfig::default());
         let cloud = PointCloud::default();
@@ -1182,6 +1239,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "lidar")]
     fn test_ground_segmenter_all_high_points() {
         use lidar::Point3D;
 

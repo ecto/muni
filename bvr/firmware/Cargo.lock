@@ -1760,6 +1760,7 @@ dependencies = [
  "hal",
  "lidar",
  "mppi",
+ "nalgebra",
  "planner",
  "pursuit",
  "teleop",
@@ -2132,6 +2133,17 @@ name = "data-url"
 version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "be1e0bca6c3637f992fc1cc7cbc52a78c1ef6db076dbf1059c4323d6a2048376"
+
+[[package]]
+name = "depth"
+version = "0.1.0"
+dependencies = [
+ "nalgebra",
+ "ndarray",
+ "ort",
+ "thiserror 2.0.17",
+ "tracing",
+]
 
 [[package]]
 name = "der"
@@ -5765,6 +5777,22 @@ dependencies = [
  "futures-core",
  "pin-project-lite",
 ]
+
+[[package]]
+name = "ort"
+version = "2.0.0-rc.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d7de3af33d24a745ffb8fab904b13478438d1cd52868e6f17735ef6e1f8bf133"
+dependencies = [
+ "ort-sys",
+ "smallvec",
+]
+
+[[package]]
+name = "ort-sys"
+version = "2.0.0-rc.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d7b497d21a8b6fbb4b5a544f8fadb77e801a09ae0add9e411d31c6f89e3c1e90"
 
 [[package]]
 name = "owned_ttf_parser"
