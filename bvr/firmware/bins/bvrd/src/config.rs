@@ -26,6 +26,62 @@ pub(crate) struct FileConfig {
     pub blower: BlowerConfig,
     pub eth_tools: EthToolsFileConfig,
     pub collision_guard: CollisionGuardFileConfig,
+    pub depth: DepthFileConfig,
+}
+
+/// Depth perception configuration (camera-based obstacle detection + visual odometry).
+#[derive(Debug, Deserialize)]
+#[serde(default)]
+pub(crate) struct DepthFileConfig {
+    /// Enable depth-based perception pipeline
+    pub enabled: bool,
+    /// Path to ONNX depth model (Depth Anything V2/V3 Small)
+    pub model_path: String,
+    /// Model input width (pixels)
+    pub model_input_width: u32,
+    /// Model input height (pixels)
+    pub model_input_height: u32,
+    /// Raw capture width for depth inference
+    pub capture_width: u32,
+    /// Raw capture height for depth inference
+    pub capture_height: u32,
+    /// Raw capture framerate for depth inference
+    pub capture_fps: u32,
+    /// Maximum depth to consider (meters)
+    pub max_depth: f32,
+    /// Minimum depth to consider (meters)
+    pub min_depth: f32,
+    /// Height threshold for ground classification (meters)
+    pub ground_threshold: f32,
+    /// Pixel stride for back-projection (higher = faster, fewer points)
+    pub stride: u32,
+    /// Enable visual odometry (frame-to-frame ICP)
+    pub visual_odometry: bool,
+    /// ICP maximum correspondence distance (meters)
+    pub icp_max_dist: f64,
+    /// ICP maximum iterations
+    pub icp_max_iterations: usize,
+}
+
+impl Default for DepthFileConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            model_path: "/var/lib/bvr/models/depth-anything-v2-small.onnx".to_string(),
+            model_input_width: 518,
+            model_input_height: 518,
+            capture_width: 640,
+            capture_height: 480,
+            capture_fps: 15,
+            max_depth: 8.0,
+            min_depth: 0.3,
+            ground_threshold: 0.10,
+            stride: 4,
+            visual_odometry: true,
+            icp_max_dist: 0.5,
+            icp_max_iterations: 20,
+        }
+    }
 }
 
 /// Control loop configuration.

@@ -365,6 +365,30 @@ mount_rotation = [0.0, -0.175, 2.094]     # yaw +120°
 fov_h = 1.745
 fov_v = 1.18
 
+[depth]
+# Enable depth-based perception (replaces lidar for obstacle detection + visual odometry)
+enabled = false  # Enable when depth model is deployed to /var/lib/bvr/models/
+# ONNX model path (Depth Anything V2 Small, download from HuggingFace)
+model_path = "/var/lib/bvr/models/depth-anything-v2-small.onnx"
+# Model input resolution (DA V2 Small default: 518x518)
+model_input_width = 518
+model_input_height = 518
+# Raw capture resolution for inference (lower than streaming to save USB bandwidth)
+capture_width = 640
+capture_height = 480
+capture_fps = 15
+# Depth range (meters)
+max_depth = 8.0
+min_depth = 0.3
+# Ground plane classification threshold (meters above ground)
+ground_threshold = 0.10
+# Pixel stride for back-projection (4 = every 4th pixel, ~4x faster)
+stride = 4
+# Visual odometry (ICP scan matching between consecutive depth frames)
+visual_odometry = true
+icp_max_dist = 0.5
+icp_max_iterations = 20
+
 [eth_tools]
 # Enable Ethernet tool MCU discovery (PoE-attached peripherals like headlights)
 enabled = true
