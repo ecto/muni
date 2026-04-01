@@ -986,7 +986,7 @@ pub(crate) async fn initialize(
     let (slam_scan_tx, slam_state_rx): (
         Option<mpsc::Sender<(lidar::PointCloud, Pose, Option<slam::PreintegratedDelta>)>>,
         Option<watch::Receiver<SlamState>>,
-    ) = if file_config.slam.enabled && file_config.lidar.enabled {
+    ) = if file_config.slam.enabled && (file_config.lidar.enabled || file_config.depth.enabled) {
         let slam_config = SlamConfig {
             voxel_size: file_config.slam.voxel_size,
             max_iterations: file_config.slam.max_iterations,

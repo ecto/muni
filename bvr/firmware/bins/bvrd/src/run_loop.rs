@@ -1245,6 +1245,34 @@ pub(crate) fn run(ctx: DaemonContext) {
                             let _ = obstacles_tx.send(Some(tracked));
                         }
 
+                        // Forward depth points to SLAM as a synthetic point cloud
+                        if let Some(ref tx) = slam_scan_tx {
+                            let points: Vec<lidar::Point3D> = output
+                                .ground
+                                .iter()
+                                .chain(output.obstacles.iter())
+                                .map(|p| lidar::Point3D {
+                                    x: p.x as f32,
+                                    y: p.y as f32,
+                                    z: p.z as f32,
+                                    reflectivity: 128,
+                                    tag: 0,
+                                })
+                                .collect();
+                            if points.len() >= 50 {
+                                let cloud = lidar::PointCloud {
+                                    points,
+                                    ..Default::default()
+                                };
+                                let imu_delta = imu_preintegrator.consume();
+                                let _ = tx.try_send((
+                                    cloud,
+                                    pose_estimator.pose(),
+                                    imu_delta,
+                                ));
+                            }
+                        }
+
                         // Visual odometry → EKF
                         if let Some(ref mut vo) = depth_visual_odometry {
                             let classified = depth::ClassifiedPoints {
