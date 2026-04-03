@@ -458,4 +458,5 @@ Create a zone and mission via the Console at http://localhost/dispatch to see th
 - [Tool System](../docs/tools.md)
 - [Power System](../docs/power.md)
 - [Logging & Telemetry](../docs/logging.md)
-- [Base Station (Depot)](../depot/README.md)
+- [Hardware](../docs/hardware/)
+- [Base Station (Depot)](../../depot/README.md)
