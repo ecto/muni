@@ -512,6 +512,238 @@ bushing, or elastomer block). This is the simplest to implement:
 - Limitation: chassis can pitch and roll more freely (may need damping
   to prevent wallowing)
 
+#### Detailed Diagrams
+
+**Plan view (top down): wheel positions relative to frame**
+
+```
+                         500mm (frame length)
+                    ◄──────────────────────────►
+                ┌───────────────────────────────────┐
+                │                                   │
+         ┌──┐  │                                    │  ┌──┐
+    FL   │▓▓│──┤                                    ├──│▓▓│  FR
+  wheel  │▓▓│  │                                    │  │▓▓│  wheel
+         └──┘  │             FRAME                  │  └──┘
+               │          (2020 extrusion)           │        380mm
+               │              ● CG                  │       (frame
+               │                                    │        width)
+         ┌──┐  │                                    │  ┌──┐
+    RL   │▓▓│──┤                                    ├──│▓▓│  RR
+  wheel  │▓▓│  │                                    │  │▓▓│  wheel
+         └──┘  │                                    │  └──┘
+                │                                   │
+                └───────────────────────────────────┘
+
+         ◄────────────────── 548mm ────────────────────►
+                         (track width)
+         ◄──────────────────── 600mm ──────────────────────►
+                         (total width)
+```
+
+**Side view (one wheel): current rigid L-bracket mount**
+
+```
+         frame rail (2020 extrusion)
+         ═══════════════════════════
+                    │
+                    │ L-bracket (rigid aluminum)
+                    │
+                    │        64mm
+                    ├───────────────┐
+                    │               │
+                                    ●──── hub motor axle
+                                   ╱ ╲
+                                  ╱   ╲    wheel dia. 165mm
+                                 ╱     ╲
+                                 ╲     ╱
+                                  ╲   ╱
+                                   ╲ ╱
+         ───────────────────────────▼─────────── ground
+                    ▲
+                    │ 75mm ground clearance
+                    │
+```
+
+**Side view (one wheel): with independent spring suspension**
+
+```
+         frame rail (2020 extrusion)
+         ═══════════════════════════
+                    │
+                    │ upper mount plate (fixed to frame)
+                    │
+              ┌─────┴─────┐
+              │  ┌─────┐  │
+              │  │/////│  │◄── linear guide / bushing
+              │  │/////│  │    (constrains to vertical travel only)
+              │  └─────┘  │
+              │     ║     │
+              │    ╔╩╗    │
+              │    ║ ║    │
+              │    ║ ║    │◄── compression spring
+              │    ║ ║    │    k ≈ 1,800 N/m
+              │    ║ ║    │    ~40-50mm travel
+              │    ╚╦╝    │
+              │     ║     │
+              └─────┬─────┘
+                    │ lower mount plate (moves with wheel)
+                    │
+                    ├───────────────┐ trailing arm / bracket
+                    │               │
+                                    ●──── hub motor axle
+                                   ╱ ╲
+                                  ╱   ╲    wheel dia. 165mm
+                                 ╱     ╲
+                                 ╲     ╱
+                                  ╲   ╱
+                                   ╲ ╱
+         ───────────────────────────▼─────────── ground
+```
+
+**Front view: both wheels, showing independent travel**
+
+```
+              ═══════════════════════════════
+                 frame cross-member (380mm)
+              ═══════════════════════════════
+              │                             │
+         ┌────┴────┐                   ┌────┴────┐
+         │ ╔═════╗ │                   │ ╔═════╗ │
+         │ ║spring║ │                   │ ║spring║ │
+         │ ║  ║   ║ │                   │ ║  ║  ║ │
+         │ ╚═════╝ │                   │ ╚═════╝ │
+         └────┬────┘                   └────┬────┘
+              │                             │
+      ┌───────┴──┐                     ┌────┴───────┐
+      │          │                     │            │
+     ╱ ╲        arm                   arm          ╱ ╲
+    ╱   ╲                                         ╱   ╲
+   ╱ FL  ╲                                       ╱ FR  ╲
+   ╲     ╱                                       ╲     ╱
+    ╲   ╱                                         ╲   ╱
+     ╲ ╱                                           ╲ ╱
+   ───▼──────────────────────────────────────────────▼───
+                           ground
+
+   ◄──────────────────── 548mm ────────────────────────►
+```
+
+**Front view: independent travel on uneven terrain**
+
+The key advantage: each wheel follows the ground independently.
+The frame stays roughly level while wheels conform to terrain.
+
+```
+              ═══════════════════════════════
+                        FRAME (level)
+              ═══════════════════════════════
+              │                             │
+         ┌────┴────┐                   ┌────┴────┐
+         │ ╔═════╗ │                   │ ╔═════╗ │
+         │ ║     ║ │ spring            │ ║  ║  ║ │ spring
+         │ ║ ║   ║ │ extended          │ ║  ║  ║ │ compressed
+         │ ║ ║   ║ │ (wheel in dip)    │ ╚═════╝ │ (wheel on bump)
+         │ ╚═════╝ │                   └────┬────┘
+         └────┬────┘                        │
+              │                        ┌────┴───────┐
+      ┌───────┴──┐                     │            │
+      │          │                                 ╱ ╲
+     ╱ ╲        arm                               ╱   ╲
+    ╱   ╲                                        ╱ FR  ╲
+   ╱ FL  ╲                                       ╲     ╱
+   ╲     ╱                                        ╲   ╱
+    ╲   ╱                                          ╲ ╱
+     ╲ ╱                           ┌────────────────▼────
+   ───▼────────────────────────────┘
+                              ▲
+                              │ bump (e.g. 20mm frost heave)
+```
+
+**Isometric view: full robot with 4 independent spring corners**
+
+```
+                       ╤ spring
+                       │
+            ┌──────────┼──────────────────────┐
+           ╤│          │                      │╤
+           ││    ┌─────┴─────┐     ┌─────────┐││
+           ││    │  ┌─────┐  │     │ ┌─────┐ │││
+      FL ──┤│    │  │/█/█/│  │     │ │/█/█/│ │├┤── FR
+    ┌──┐   ││    │  └──┬──┘  │     │ └──┬──┘ │││   ┌──┐
+    │▓▓│───┘│    └─────┼─────┘     └────┼────┘│└───│▓▓│
+    │▓▓│    │          │                │     │    │▓▓│
+    └──┘    │    FRAME ║ (2020         ║     │    └──┘
+            │    ══════╬═══════════════╬═════│
+            │          ║               ║     │
+    ┌──┐    │    ┌─────┼─────┐     ┌───┼─────┐│    ┌──┐
+    │▓▓│───┐│    │  ┌──┴──┐  │     │ ┌─┴───┐ ││┌───│▓▓│
+    │▓▓│   ││    │  │/█/█/│  │     │ │/█/█/│ │├┤   │▓▓│
+    └──┘   ││    │  └─────┘  │     │ └─────┘ │││   └──┘
+      RL ──┤│    └───────────┘     └─────────┘││── RR
+           ╤│                                  │╤
+           ││                                  ││
+            └──────────────────────────────────┘
+                    spring ╤
+
+    /█/█/ = compression spring (shown from above)
+    ▓▓    = hub motor wheel (end-on)
+```
+
+#### Spring-Damper Free Body Diagram (one corner)
+
+```
+                    F_frame (from chassis weight share)
+                        │
+                        ▼
+                   ┌─────────┐
+                   │  sprung │
+                   │  mass   │  m_s ≈ 4 kg (chassis share)
+                   │  (frame)│
+                   └────┬────┘
+                        │
+                   k ═══╪═══ c       k = 1,800 N/m
+                   spring│  damper    c = 75 N·s/m
+                        │
+                   ┌────┴────┐
+                   │unsprung │
+                   │  mass   │  m_u ≈ 1 kg (wheel + bracket)
+                   │ (wheel) │
+                   └────┬────┘
+                        │
+                        ▼
+                   N (ground normal force)
+                ════════════════
+                   ground
+
+    Equation of motion (sprung mass):
+    m_s × z_s'' = -k(z_s - z_u) - c(z_s' - z_u') + m_s × g
+
+    Equation of motion (unsprung mass):
+    m_u × z_u'' = k(z_s - z_u) + c(z_s' - z_u') - N + m_u × g
+
+    Ground contact condition:
+    N ≥ 0  (wheel stays on ground while spring has travel remaining)
+```
+
+#### Design Parameters Summary
+
+```
+    Per-corner parameters:
+    ┌──────────────────────────────────────────────┐
+    │  Sprung mass (m_s):      4 kg                │
+    │  Unsprung mass (m_u):    1 kg (hub motor)    │
+    │  Spring rate (k):        1,800 N/m           │
+    │  Damping coeff (c):      75 N·s/m            │
+    │  Damping ratio (ξ):      0.4 (underdamped)   │
+    │  Natural freq (f_n):     3 Hz                │
+    │  Static deflection:      28 mm               │
+    │  Design travel:          ±25 mm (50 mm total)│
+    │  Guide type:             linear bushing       │
+    │  Spring type:            compression coil     │
+    └──────────────────────────────────────────────┘
+```
+
 ### Option D: Compliant wheel mounts (minimal)
 
 Replace rigid L-bracket wheel mounts with elastomer bushings or add
