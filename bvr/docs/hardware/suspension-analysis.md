@@ -5,16 +5,18 @@ relevant physics from first principles using BVR's actual parameters.
 
 ## BVR Physical Parameters (from bvr.toml / bvr1-dimensions.md)
 
-| Parameter | Value |
-|-----------|-------|
-| Mass (m) | ~20 kg |
-| Track width (W) | 0.55 m |
-| Wheelbase (L) | 0.55 m |
-| Wheel diameter | 0.165 m (solid hub motor, no pneumatic tire) |
-| CG height (H_cg) | 0.189 m |
-| Ground clearance | 0.075 m |
-| Max speed | 3.0 m/s |
-| Drive type | 4-wheel skid-steer (differential drive) |
+
+| Parameter        | Value                                        |
+| ---------------- | -------------------------------------------- |
+| Mass (m)         | ~20 kg                                       |
+| Track width (W)  | 0.55 m                                       |
+| Wheelbase (L)    | 0.55 m                                       |
+| Wheel diameter   | 0.165 m (solid hub motor, no pneumatic tire) |
+| CG height (H_cg) | 0.189 m                                      |
+| Ground clearance | 0.075 m                                      |
+| Max speed        | 3.0 m/s                                      |
+| Drive type       | 4-wheel skid-steer (differential drive)      |
+
 
 ## Mathematical Domains Involved
 
@@ -107,6 +109,7 @@ Any terrain irregularity exceeding ~2 mm across the wheelbase diagonal
 (0.78 m) will cause one wheel to lose ground contact.
 
 For reference, typical sidewalk surface irregularities:
+
 - Expansion joint offsets: 3-15 mm
 - Frost heave steps: 5-30 mm
 - Tree root lifting: 10-50 mm
@@ -179,6 +182,7 @@ This is where suspension (or its absence) matters most for BVR.
 
 In a differential/skid-steer robot, turning requires lateral scrubbing
 forces at the wheels. Each side of the robot must generate both:
+
 - Longitudinal force (driving forward/backward)
 - Lateral friction (resisting or generating scrub)
 
@@ -193,9 +197,9 @@ If a wheel is unloaded (N = 0), it contributes zero friction in any
 direction. This has two effects:
 
 1. **Reduced turning authority**: The unloaded side can generate less
-   lateral scrub force, causing yaw drift or sluggish turning.
+  lateral scrub force, causing yaw drift or sluggish turning.
 2. **Unpredictable yaw**: As the robot rolls over uneven terrain, the
-   traction distribution shifts suddenly (wheel lifts/lands), causing
+  traction distribution shifts suddenly (wheel lifts/lands), causing
    jerky or oscillatory yaw behavior.
 
 ### Quantifying the turning impact
@@ -247,6 +251,7 @@ m × z'' + c × z' + k × z = c × z_road' + k × z_road
 ```
 
 where:
+
 - m = sprung mass (chassis share per wheel)
 - k = spring stiffness (N/m)
 - c = damping coefficient (N·s/m)
@@ -298,6 +303,7 @@ T(f) = sqrt((1 + (2ξr)²) / ((1 - r²)² + (2ξr)²))
 where r = f/f_n and xi is the damping ratio (c / 2×sqrt(km)).
 
 Key behaviors:
+
 - r << 1 (low freq): T ≈ 1 (chassis follows road exactly -- good for contact)
 - r = 1 (resonance): T >> 1 (amplification -- bad, causes bouncing)
 - r >> 1 (high freq): T → 0 (isolation -- chassis ignores bumps)
@@ -403,6 +409,7 @@ S(Ω) = S_0 × (Ω / Ω_0)^(-w)
 ```
 
 where:
+
 - Omega = spatial frequency (cycles/m)
 - S_0 = roughness coefficient (m³/cycle)
 - w ≈ 2-3 (spectral exponent, typically 2.5 for roads)
@@ -465,9 +472,9 @@ main options with their mathematical models:
 
 - DOF added: 1 (rear axle roll)
 - Contact guarantee: 4 wheels always in contact on terrain with single-axis
-  curvature
+curvature
 - Math: eliminates the 3-point contact problem for roll-axis terrain
-  variation; pitch-axis variation still causes diagonal lift
+variation; pitch-axis variation still causes diagonal lift
 - Complexity: low (single pivot bearing)
 - Limitation: does not help with per-wheel bumps or pitch-axis irregularities
 
@@ -484,9 +491,9 @@ differential (mechanical linkage or passive averaging bar). This provides:
 
 - DOF added: 2 (one rocker per side)
 - Contact guarantee: all wheels maintain contact on arbitrary terrain
-  (up to mechanism travel limits)
+(up to mechanism travel limits)
 - Math: the differential ensures that chassis pitch = average of both
-  rocker angles; each wheel independently follows terrain
+rocker angles; each wheel independently follows terrain
 - Complexity: moderate (rocker arms, central differential or averaging bar)
 - Limitation: more complex mechanism, adds width
 
@@ -510,7 +517,7 @@ bushing, or elastomer block). This is the simplest to implement:
 - Travel needed: ~40-50 mm
 - Complexity: low (spring + linear guide or trailing arm per wheel)
 - Limitation: chassis can pitch and roll more freely (may need damping
-  to prevent wallowing)
+to prevent wallowing)
 
 #### Detailed Diagrams
 
@@ -759,16 +766,18 @@ rubber isolation pads. Provides 2-5 mm of compliance:
 
 ## 9. Decision Matrix
 
-| Factor | No Suspension | Pivot Axle | Independent Springs |
-|--------|:---:|:---:|:---:|
-| All-wheel contact on sidewalk | poor | fair | good |
-| Turning on uneven terrain | poor | fair | good |
-| Impact protection | none | partial | good |
-| Odometry accuracy | fair | fair | good |
-| Mechanical complexity | none | low | moderate |
-| Mass added | 0 | ~0.3 kg | ~0.5-1 kg |
-| Risk of mechanism failure | none | low | low-moderate |
-| Traction on ice + bumps | poor | fair | good |
+
+| Factor                        | No Suspension | Pivot Axle | Independent Springs |
+| ----------------------------- | ------------- | ---------- | ------------------- |
+| All-wheel contact on sidewalk | poor          | fair       | good                |
+| Turning on uneven terrain     | poor          | fair       | good                |
+| Impact protection             | none          | partial    | good                |
+| Odometry accuracy             | fair          | fair       | good                |
+| Mechanical complexity         | none          | low        | moderate            |
+| Mass added                    | 0             | ~0.3 kg    | ~0.5-1 kg           |
+| Risk of mechanism failure     | none          | low        | low-moderate        |
+| Traction on ice + bumps       | poor          | fair       | good                |
+
 
 ---
 
@@ -789,9 +798,9 @@ The math shows:
 
 1. One wheel lifts on any diagonal terrain variation > ~2 mm (section 1)
 2. This cuts max turning moment by up to 67% in the unfavorable direction
-   (section 3)
+  (section 3)
 3. Impact forces from sidewalk lips are ~6x static wheel load, stressing
-   the frame (section 5)
+  the frame (section 5)
 4. Odometry degrades 10-30% from wheel contact loss (section 7)
 
 ### Minimum viable suspension
@@ -799,6 +808,7 @@ The math shows:
 The simplest option that solves the core problem (ground conformity):
 
 **Independent spring mounts (Option C)**, with:
+
 - k ≈ 1,800 N/m per corner (f_n ≈ 3 Hz)
 - 40-50 mm travel
 - Light damping (xi ≈ 0.3-0.5, c ≈ 55-95 N·s/m)
@@ -823,18 +833,240 @@ compelling when:
 
 ## Summary of Math Used
 
-| Domain | Key Equations | What It Tells Us |
-|--------|---------------|------------------|
-| Planar geometry | d = WL/sqrt(W²+L²); Δz = h | When the 4th wheel lifts |
-| Statics | N = mg/n; F = μN | How traction distributes |
-| Friction cones | sqrt(Fx²+Fy²) ≤ μN | Turning authority per wheel |
-| Spring-mass-damper | f_n = sqrt(k/m)/2π | Suspension natural frequency |
-| Transmissibility | T(f) = ... | Vibration isolation ratio |
-| Impact mechanics | J = mv·sin(θ); F = J/Δt | Peak forces from curb hits |
-| Terrain PSD | S(Ω) = S_0(Ω/Ω_0)^(-w) | Statistical surface roughness |
-| Odometry kinematics | v = (v_R+v_L)/2; ω = (v_R-v_L)/W | Encoder accuracy vs contact |
+
+| Domain              | Key Equations                    | What It Tells Us              |
+| ------------------- | -------------------------------- | ----------------------------- |
+| Planar geometry     | d = WL/sqrt(W²+L²); Δz = h       | When the 4th wheel lifts      |
+| Statics             | N = mg/n; F = μN                 | How traction distributes      |
+| Friction cones      | sqrt(Fx²+Fy²) ≤ μN               | Turning authority per wheel   |
+| Spring-mass-damper  | f_n = sqrt(k/m)/2π               | Suspension natural frequency  |
+| Transmissibility    | T(f) = ...                       | Vibration isolation ratio     |
+| Impact mechanics    | J = mv·sin(θ); F = J/Δt          | Peak forces from curb hits    |
+| Terrain PSD         | S(Ω) = S_0(Ω/Ω_0)^(-w)           | Statistical surface roughness |
+| Odometry kinematics | v = (v_R+v_L)/2; ω = (v_R-v_L)/W | Encoder accuracy vs contact   |
+
 
 These span undergraduate-level dynamics, vibration theory, and vehicle
 dynamics. Nothing here requires graduate-level math; the challenge is in
 applying these models with realistic terrain data, which comes from field
 measurements rather than theory.
+
+---
+
+## Appendix A: Existing Robots with Suspension
+
+Several commercial robots in BVR's weight class have independent suspension,
+which validates the general approach and provides reference points.
+
+### AgileX SCOUT MINI
+
+The closest commercial analog to BVR.
+
+| Spec | SCOUT MINI | BVR1 |
+|------|-----------|------|
+| Mass | 23 kg | ~20 kg |
+| Payload | 20-50 kg | N/A (tool mount) |
+| Drive | 4WD skid-steer | 4WD skid-steer |
+| Suspension | Independent rocker arm (double wishbone) | None (rigid L-bracket) |
+| Ground clearance | 115 mm | 75 mm |
+| Obstacle climb | 70 mm | ~15 mm (curb lips only) |
+| Max slope | 30 deg | ~12 deg equivalent (dynamic) |
+| Price | ~$5,000 | N/A (custom build) |
+
+The SCOUT MINI's 70 mm obstacle climbing ability vs BVR's ~15 mm is
+largely attributable to its suspension travel allowing the wheels to
+conform to steps rather than the rigid frame catching on them. Their
+double-wishbone geometry maintains wheel alignment through the travel
+range, which matters more for mecanum wheels than for BVR's hub motors.
+
+### Roboworks Rosbot Plus
+
+Heavier platform, but similar suspension philosophy.
+
+| Spec | Rosbot Plus | BVR1 |
+|------|------------|------|
+| Mass | 35 kg | ~20 kg |
+| Payload | 22 kg | N/A |
+| Wheels | 254 mm inflatable rubber | 165 mm solid hub motor |
+| Suspension | 4-wheel independent | None |
+| Max slope | 30 deg | ~12 deg |
+
+The Rosbot Plus combines pneumatic tires (which add ~10-15 mm of passive
+compliance) with a mechanical suspension system. BVR's solid hub motor
+wheels have essentially zero pneumatic compliance, making mechanical
+suspension more important, not less.
+
+### Taobotics ROS Robot
+
+A smaller (2WD differential) platform with independent suspension on each
+driven wheel. Demonstrates that even 2-wheel platforms benefit from
+suspension for odometry accuracy on rough surfaces.
+
+### Key observation
+
+Every commercial outdoor robot platform in this weight class that
+targets unstructured terrain includes some form of suspension. The
+exception is indoor-only platforms (flat floors, known surfaces) where
+rigid frames work fine.
+
+---
+
+## Appendix B: Off-the-Shelf Parts for BVR Suspension
+
+BVR does not need custom-designed suspension components. Several categories
+of existing parts can be adapted directly.
+
+### 1/5-scale RC shock absorbers (strongest option)
+
+Large-scale RC cars (1/5 and 1/6 scale, e.g. Losi 5IVE-T, HPI Baja 5B,
+FG Modellsport) operate in the same weight and speed range as BVR
+(5-12 kg vehicle mass, 2-5 m/s speed). Their shock absorbers are
+well-proven, oil-damped, coil-over units:
+
+| Parameter | Typical 1/5 RC shock | BVR requirement |
+|-----------|---------------------|-----------------|
+| Stroke | 40-60 mm | 40-50 mm |
+| Body length | 100-190 mm | fits vertically on BVR frame |
+| Shaft diameter | 4-6 mm | N/A |
+| Body diameter | 20-30 mm | fits inside 2020 extrusion envelope |
+| Spring rate | ~700-1,500 N/m (typical) | ~1,800 N/m |
+| Damping | Oil-filled, adjustable | adjustable is a plus |
+| Price | $15-50 per pair | $30-100 for all 4 corners |
+
+The spring rate is slightly below BVR's 1,800 N/m target (RC cars are
+lighter per wheel), but stiffer springs are available as upgrades, or
+the stock spring can be supplemented with a helper spring. These shocks
+provide both spring and damper in a single proven package, eliminating the
+need to design a separate damping mechanism.
+
+**Sourcing**: Losi, HPI, FG Modellsport, Rovan, King Motor. Search for
+"1/5 scale shock absorber" or "big scale RC shocks." Available from
+AMain Hobbies, RC Planet, Amazon, AliExpress.
+
+**Specific models to evaluate**:
+- Losi LOSB2854 (rear shock, 5IVE-T) - ~$25/pair
+- FG 06200 (off-road shock) - ~$40/pair
+- Generic "GD type" big-scale shock, 173mm extended, 56mm travel - ~$20/pair
+
+### Linear bearings + compression springs (simplest DIY)
+
+If a more custom approach is preferred (for packaging or to avoid the
+lateral loads that coil-over shocks aren't designed for):
+
+**Linear guide**: LM8UU bearings on 8mm hardened steel shafts.
+- Inner diameter: 8 mm
+- Outer diameter: 15 mm
+- Length: 24 mm
+- Dynamic load rating: 260 N (well above the ~50 N per-wheel load)
+- Price: ~$1-2 each
+- Source: Amazon, Adafruit, any 3D printer parts supplier
+
+These are the same bearings used in 3D printer Z-axes. They provide
+smooth, low-friction linear travel. Two bearings per corner (for
+anti-rotation) on a single 8 mm shaft gives the vertical guide.
+
+**Compression spring**: Standard coil springs to match k ~ 1,800 N/m.
+
+Target specs for spring selection:
+- Free length: ~60-70 mm
+- Wire diameter: ~1.5-2.0 mm
+- Outer diameter: ~12-15 mm (fits around 8mm shaft)
+- Spring rate: ~1,800 N/m (18 N per mm deflection... too stiff)
+
+Actually, 1,800 N/m = 1.8 N/mm, which is a very soft spring in coil
+spring terms. For reference:
+
+```
+Spring rate from wire geometry:
+k = (G × d^4) / (8 × D^3 × n)
+
+where:
+  G = shear modulus (steel: ~80 GPa)
+  d = wire diameter
+  D = mean coil diameter
+  n = number of active coils
+
+For k = 1,800 N/m with OD = 15mm, d = 1.0mm:
+  D ≈ 13mm (mean coil dia)
+  n = (80e9 × (1.0e-3)^4) / (8 × (13e-3)^3 × 1800)
+    = 80e-3 / (8 × 2.197e-6 × 1800)
+    = 0.08 / 0.0316
+    ≈ 2.5 coils
+
+That's a very short spring. A more practical choice:
+  d = 0.8mm, D = 12mm, n = 6 coils:
+  k = (80e9 × 0.8e-3^4) / (8 × 12e-3^3 × 6)
+    = (80e9 × 4.096e-13) / (8 × 1.728e-6 × 6)
+    = 0.03277 / 0.0000829
+    ≈ 395 N/m  (too soft)
+
+  d = 1.2mm, D = 12mm, n = 6 coils:
+  k = (80e9 × 1.2e-3^4) / (8 × 12e-3^3 × 6)
+    = (80e9 × 2.0736e-12) / (8.294e-5)
+    = 0.16589 / 8.294e-5
+    ≈ 2,000 N/m  (close to target)
+```
+
+So: steel compression spring, 1.2 mm wire, 12 mm coil OD, 6 active
+coils, ~50 mm free length. This is a standard catalog spring.
+
+**Source**: McMaster-Carr, Lee Spring, RS Components, or any spring
+supplier. Search for compression springs with rate ~1.5-2.0 N/mm,
+OD 10-15 mm, free length 50-70 mm.
+
+### Elastomer bumpers / bushings (minimal approach)
+
+For the "Option D" compliant-mount approach (2-5 mm travel only):
+
+- Silicone vibration isolation mounts (M4/M5 thread, shore 40-60A)
+- Rubber bobbins / anti-vibration mounts
+- Source: RS Components, Mouser, McMaster-Carr
+- Price: $2-5 each
+- Limitation: insufficient travel for real terrain conformity, but
+  protects against high-frequency vibration and minor impacts
+
+### Mount integration with 2020 extrusion
+
+All of the above can attach to BVR's 2020 aluminum extrusion frame
+using standard T-slot hardware:
+
+```
+Frame rail (2020 extrusion cross-section):
+         ┌───┐
+    ─────┤   ├─────
+    ═════╪═══╪═════  ← T-slot channel
+    ─────┤   ├─────
+         └───┘
+
+Mounting options:
+1. T-nut + bolt through upper plate of shock/spring assembly
+2. Corner bracket with shock mount welded/bolted on
+3. Drop-in T-nut with threaded rod for height adjustment
+```
+
+### Bill of materials estimate (4 corners)
+
+**Option 1: RC shocks (recommended for first prototype)**
+
+| Part | Qty | Unit Price | Total |
+|------|-----|-----------|-------|
+| 1/5 scale RC shock absorber | 4 | $12-25 | $48-100 |
+| Shock mount bracket (3D print or aluminum) | 4 | $5-10 | $20-40 |
+| M5 T-slot hardware | 1 set | $5 | $5 |
+| Wheel bracket adapter plate | 4 | $5-10 | $20-40 |
+| **Total** | | | **$93-185** |
+
+**Option 2: Linear bearing + spring (more custom)**
+
+| Part | Qty | Unit Price | Total |
+|------|-----|-----------|-------|
+| 8mm hardened shaft, 100mm | 8 | $2 | $16 |
+| LM8UU linear bearing | 8 | $2 | $16 |
+| Compression spring (1.2mm wire, 12mm OD) | 4 | $3-5 | $12-20 |
+| Upper mount plate (3D print or aluminum) | 4 | $5-10 | $20-40 |
+| Lower mount plate (3D print or aluminum) | 4 | $5-10 | $20-40 |
+| M5 T-slot hardware | 1 set | $5 | $5 |
+| **Total** | | | **$89-137** |
+
+Both options are under $200 and add 0.5-1.0 kg of mass, well within BVR's
+20 kg mass budget.
