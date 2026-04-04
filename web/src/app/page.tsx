@@ -4,114 +4,119 @@ import {
   Shield,
   Lightning,
   ArrowRight,
-  CheckCircle,
-  MapPin,
   Eye,
   Crosshair,
+  MapPin,
   GameController,
-  Snowflake,
-  Sun,
-  Drop,
+  Cpu,
 } from "@phosphor-icons/react/dist/ssr";
 import { Footer, FloatingHeader } from "@/components/layout";
-import { HeroVideo } from "@/components/home/HeroVideo";
 import { PlatformViewer } from "@/components/home/PlatformViewer";
 import { LidarViewer } from "@/components/home/LidarViewer";
+import { LandingRevealProvider } from "@/components/home/LandingRevealProvider";
+import { AnimatedMetric } from "@/components/home/AnimatedMetric";
+import { HeroRover } from "@/components/home/HeroRover";
+import { HeroTerminal } from "@/components/home/HeroTerminal";
 
 export default function HomePage() {
   return (
     <>
       <FloatingHeader />
       <main className="landing">
-        {/* ═══════════════════════════════════════════════════════════════════════
-            1. HERO — Hype reel video bg + all-season copy
-            ═══════════════════════════════════════════════════════════════════════ */}
+        {/* ═══════════════════════════════════════════════════════════════════
+            CARD 1 — Hero
+            The robot is real and it works.
+            ═══════════════════════════════════════════════════════════════════ */}
         <section className="landing-hero">
-          <HeroVideo />
-          <div className="landing-hero-overlay" />
+          <HeroRover />
 
-          <div className="landing-container">
-            <div className="landing-hero-content">
-              <div className="landing-hero-text">
-                <div className="landing-badge">
-                  <span className="landing-badge-dot" />
-                  Pilot program — Summer 2026
+          <div className="landing-hero-content">
+            <div className="landing-hero-text hero-stagger">
+              <div className="landing-hero-eyebrow">
+                <span className="landing-hero-eyebrow-dot" />
+                Pilot program — Summer 2026
+              </div>
+
+              <h1 className="landing-headline">
+                Sidewalks that
+                <span className="landing-headline-accent">clear themselves.</span>
+              </h1>
+
+              <p className="landing-subheadline">
+                Autonomous sidewalk maintenance for every season.
+                No crews. No overtime. No callbacks.
+              </p>
+
+              <div className="landing-hero-cta">
+                <a href="https://muni.cal.com/cam/30min" className="landing-btn landing-btn-primary">
+                  Schedule a Call
+                  <ArrowRight size={18} weight="bold" />
+                </a>
+                <a href="/docs/whitepaper.pdf" className="landing-btn landing-btn-secondary" target="_blank" rel="noopener noreferrer">
+                  Read Whitepaper
+                </a>
+              </div>
+
+              <div className="landing-trust-row">
+                <a href="https://github.com/ecto/muni" className="landing-trust-item" target="_blank" rel="noopener noreferrer">
+                  <GithubLogo size={14} weight="bold" />
+                  <span>Open Source</span>
+                </a>
+                <div className="landing-trust-divider" />
+                <div className="landing-trust-item">
+                  <Shield size={14} weight="bold" />
+                  <span>LiDAR Safety</span>
                 </div>
-
-                <h1 className="landing-headline">
-                  Autonomous sidewalk maintenance.
-                  <span className="landing-headline-accent"> Zero labor cost.</span>
-                </h1>
-
-                <p className="landing-subheadline">
-                  Snow. Debris. Pressure wash. One fleet handles every season.
-                  No crews. No overtime. No callbacks.
-                </p>
-
-                <div className="landing-hero-cta">
-                  <a href="https://muni.cal.com/cam/30min" className="landing-btn landing-btn-primary">
-                    Schedule a Call
-                    <ArrowRight size={18} weight="bold" />
-                  </a>
-                  <a href="/docs/whitepaper.pdf" className="landing-btn landing-btn-secondary" target="_blank" rel="noopener noreferrer">
-                    Read Whitepaper
-                  </a>
-                </div>
-
-                <div className="landing-trust-row">
-                  <a href="https://github.com/ecto/muni" className="landing-trust-item" target="_blank" rel="noopener noreferrer">
-                    <GithubLogo size={16} weight="bold" />
-                    <span>Open Source</span>
-                  </a>
-                  <div className="landing-trust-divider" />
-                  <div className="landing-trust-item">
-                    <Shield size={16} weight="bold" />
-                    <span>LiDAR Safety System</span>
-                  </div>
-                  <div className="landing-trust-divider" />
-                  <div className="landing-trust-item">
-                    <Lightning size={16} weight="bold" />
-                    <span>24/7 Operation</span>
-                  </div>
+                <div className="landing-trust-divider" />
+                <div className="landing-trust-item">
+                  <Lightning size={14} weight="bold" />
+                  <span>24/7 Autonomous</span>
                 </div>
               </div>
             </div>
           </div>
+
+          <HeroTerminal />
+
+          <div className="landing-hero-scroll">
+            <div className="landing-hero-scroll-line" />
+          </div>
         </section>
 
-        {/* ═══════════════════════════════════════════════════════════════════════
-            2. THE PLATFORM — Interactive 3D BVR1 with Snow/Sweep/Wash tabs
-            ═══════════════════════════════════════════════════════════════════════ */}
-        <section className="landing-section landing-platform">
+        {/* ═══════════════════════════════════════════════════════════════════
+            CARD 2 — The Platform
+            It handles every season.
+            ═══════════════════════════════════════════════════════════════════ */}
+        <section className="landing-card landing-platform">
           <div className="landing-container">
-            <div className="landing-section-header">
+            <div className="landing-section-header reveal">
               <span className="landing-eyebrow">The Platform</span>
               <h2 className="landing-section-title">
                 One rover. Every season.
               </h2>
               <p className="landing-section-desc">
-                Swap attachments, not fleets. The same rover clears snow in January,
-                sweeps debris in April, and pressure-washes in August.
+                Swap attachments, not fleets. Snow, debris, pressure wash — same machine.
               </p>
             </div>
-
-            <PlatformViewer />
           </div>
+
+          <PlatformViewer />
         </section>
 
-        {/* ═══════════════════════════════════════════════════════════════════════
-            3. THE MATH — Broadened cost comparison
-            ═══════════════════════════════════════════════════════════════════════ */}
-        <section className="landing-section landing-math">
+        {/* ═══════════════════════════════════════════════════════════════════
+            CARD 3 — The Math
+            The economics are undeniable.
+            ═══════════════════════════════════════════════════════════════════ */}
+        <section className="landing-card landing-math">
           <div className="landing-container">
-            <div className="landing-section-header">
-              <span className="landing-eyebrow">The Math</span>
-              <h2 className="landing-section-title">
-                96% cost reduction. Every season.
-              </h2>
+            <div className="landing-math-hero reveal">
+              <div className="landing-math-hero-value">
+                <AnimatedMetric end={96} suffix="%" />
+              </div>
+              <div className="landing-math-hero-label">cost reduction vs. manual crews</div>
             </div>
 
-            <div className="landing-comparison">
+            <div className="landing-comparison reveal">
               <div className="landing-comparison-row">
                 <div className="landing-comparison-label">Manual Crew</div>
                 <div className="landing-comparison-bar-wrap">
@@ -121,7 +126,7 @@ export default function HomePage() {
               </div>
 
               <div className="landing-comparison-row landing-comparison-highlight">
-                <div className="landing-comparison-label">Muni Rover</div>
+                <div className="landing-comparison-label">Municipal Robotics</div>
                 <div className="landing-comparison-bar-wrap">
                   <div className="landing-comparison-bar landing-comparison-bar-small" />
                 </div>
@@ -129,82 +134,88 @@ export default function HomePage() {
               </div>
             </div>
 
-            <div className="landing-math-metrics">
+            <div className="landing-math-metrics reveal">
               <div className="landing-metric">
-                <div className="landing-metric-value">50 mi</div>
+                <div className="landing-metric-value">
+                  <AnimatedMetric end={50} suffix=" mi" />
+                </div>
                 <div className="landing-metric-label">cleared per night</div>
               </div>
+              <div className="landing-metric-divider" />
               <div className="landing-metric">
-                <div className="landing-metric-value">365</div>
+                <div className="landing-metric-value">
+                  <AnimatedMetric end={365} />
+                </div>
                 <div className="landing-metric-label">days per year</div>
               </div>
+              <div className="landing-metric-divider" />
               <div className="landing-metric">
-                <div className="landing-metric-value">96%</div>
-                <div className="landing-metric-label">cost reduction</div>
+                <div className="landing-metric-value">$18k</div>
+                <div className="landing-metric-label">per unit</div>
               </div>
             </div>
           </div>
         </section>
 
-        {/* ═══════════════════════════════════════════════════════════════════════
-            4. HOW IT WORKS — LiDAR safety viz + tech bullets
-            ═══════════════════════════════════════════════════════════════════════ */}
-        <section className="landing-section landing-howitworks">
+        {/* ═══════════════════════════════════════════════════════════════════
+            CARD 4 — How It Works
+            It's safe.
+            ═══════════════════════════════════════════════════════════════════ */}
+        <section className="landing-card landing-howitworks">
           <div className="landing-container">
-            <div className="landing-section-header">
-              <span className="landing-eyebrow">How It Works</span>
+            <div className="landing-section-header reveal">
+              <span className="landing-eyebrow">Safety</span>
               <h2 className="landing-section-title">
-                Three safety zones. Built into the hardware.
+                Three zones. Zero guesswork.
               </h2>
               <p className="landing-section-desc">
-                LiDAR rings create physical boundaries — stop, slow, and clear.
-                Simple geometry that works every time, rain or shine.
+                LiDAR creates hard geometric boundaries. Stop, slow, clear.
               </p>
             </div>
 
             <div className="landing-howitworks-layout">
-              <div className="landing-howitworks-viz">
+              <div className="landing-howitworks-viz reveal">
                 <LidarViewer />
               </div>
 
-              <div className="landing-howitworks-bullets">
-                <div className="landing-tech-bullet">
+              <div className="landing-howitworks-bullets reveal-stagger">
+                <div className="landing-tech-bullet reveal">
                   <div className="landing-tech-icon">
-                    <Eye size={20} weight="bold" />
+                    <Eye size={22} weight="bold" />
                   </div>
                   <div>
                     <h3>360° LiDAR</h3>
-                    <p>Livox Mid-360 scans at 200k pts/sec. Three concentric safety zones with automatic e-stop.</p>
+                    <p>200k pts/sec. Three concentric safety zones with automatic e-stop.</p>
                   </div>
                 </div>
 
-                <div className="landing-tech-bullet">
+                <div className="landing-tech-bullet reveal">
                   <div className="landing-tech-icon">
-                    <Crosshair size={20} weight="bold" />
+                    <Crosshair size={22} weight="bold" />
                   </div>
                   <div>
                     <h3>RTK GPS</h3>
-                    <p>Centimeter-accurate positioning. Map once, deploy forever. Follows optimal paths automatically.</p>
+                    <p>Centimeter-accurate positioning. Map once, deploy forever.</p>
                   </div>
                 </div>
 
-                <div className="landing-tech-bullet">
+                <div className="landing-tech-bullet reveal">
                   <div className="landing-tech-icon">
-                    <MapPin size={20} weight="bold" />
+                    <MapPin size={22} weight="bold" />
                   </div>
                   <div>
                     <h3>Behavioral Cloning</h3>
-                    <p>Learn from human operators. 5k-parameter MLP policy. Trained offline, runs on-device at 30Hz.</p>
+                    <p>5k-parameter policy. Trained offline, runs on-device at 30Hz.</p>
                   </div>
                 </div>
 
-                <div className="landing-tech-bullet">
+                <div className="landing-tech-bullet reveal">
                   <div className="landing-tech-icon">
-                    <GameController size={20} weight="bold" />
+                    <GameController size={22} weight="bold" />
                   </div>
                   <div>
                     <h3>Fleet Teleop</h3>
-                    <p>One operator monitors 10+ rovers. Instant takeover via WebSocket. 100ms control latency.</p>
+                    <p>One operator monitors 10+ rovers. 100ms takeover latency.</p>
                   </div>
                 </div>
               </div>
@@ -212,200 +223,80 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* ═══════════════════════════════════════════════════════════════════════
-            5. CITIES — Multi-city pain points + coverage
-            ═══════════════════════════════════════════════════════════════════════ */}
-        <section className="landing-section landing-cities">
-          <div className="landing-container">
-            <div className="landing-section-header">
-              <span className="landing-eyebrow">Cities</span>
-              <h2 className="landing-section-title">
-                Every city. Every season.
-              </h2>
-              <p className="landing-section-desc">
-                Sidewalk maintenance isn&apos;t a snow-belt problem. It&apos;s a budget problem.
-              </p>
-            </div>
+        {/* ═══════════════════════════════════════════════════════════════════
+            CARD 5 — Built in the Open
+            Real engineering, not vaporware.
+            ═══════════════════════════════════════════════════════════════════ */}
+        <section className="landing-card landing-open">
+          <div className="landing-open-inner reveal">
+            <span className="landing-eyebrow">Built in the Open</span>
+            <h2 className="landing-section-title">
+              Real engineering. Fully open source.
+            </h2>
+            <p className="landing-section-desc">
+              Every line of firmware, every CAD file, every schematic — on GitHub under MIT.
+              No vendor lock-in. No black boxes.
+            </p>
 
-            <div className="landing-cities-grid">
-              <div className="landing-city-card">
-                <div className="landing-city-icon">
-                  <Snowflake size={24} weight="bold" />
+            <div className="landing-open-pillars">
+              <div className="landing-open-pillar">
+                <div className="landing-open-pillar-icon">
+                  <GithubLogo size={32} weight="bold" />
                 </div>
-                <h3>Snow Belt</h3>
-                <p className="landing-city-examples">Cleveland, Minneapolis, Boston, Chicago</p>
-                <ul className="landing-city-pains">
-                  <li>$14B/yr US snow removal spend</li>
-                  <li>3AM callouts, overtime labor</li>
-                  <li>Slip-and-fall liability ($1B+ reserves)</li>
-                </ul>
+                <h3>Open Source</h3>
+                <p>Firmware, CAD, schematics, docs. Build your own for ~$5k.</p>
               </div>
 
-              <div className="landing-city-card">
-                <div className="landing-city-icon">
-                  <Sun size={24} weight="bold" />
+              <div className="landing-open-pillar">
+                <div className="landing-open-pillar-icon">
+                  <Cpu size={32} weight="bold" />
                 </div>
-                <h3>Sun Belt</h3>
-                <p className="landing-city-examples">Phoenix, Austin, Miami, Las Vegas</p>
-                <ul className="landing-city-pains">
-                  <li>Sand, gravel, and debris year-round</li>
-                  <li>Heat makes manual labor dangerous</li>
-                  <li>Tourism districts need daily cleaning</li>
-                </ul>
+                <h3>Rust + Jetson</h3>
+                <p>Production-grade firmware. Orin NX with 30 TOPS edge AI.</p>
               </div>
 
-              <div className="landing-city-card">
-                <div className="landing-city-icon">
-                  <Drop size={24} weight="bold" />
+              <div className="landing-open-pillar">
+                <div className="landing-open-pillar-icon">
+                  <BookOpenText size={32} weight="bold" />
                 </div>
-                <h3>All Cities</h3>
-                <p className="landing-city-examples">SF, Portland, NYC, DC</p>
-                <ul className="landing-city-pains">
-                  <li>ADA sidewalk compliance pressure</li>
-                  <li>Chronic DPW staffing shortages</li>
-                  <li>Pressure wash + overnight maintenance</li>
-                </ul>
+                <h3>Tested in Cleveland</h3>
+                <p>Real winters, real sidewalks. Not a lab demo.</p>
               </div>
             </div>
+
+            <a href="https://github.com/ecto/muni" className="landing-open-cta" target="_blank" rel="noopener noreferrer">
+              View on GitHub <ArrowRight size={16} weight="bold" />
+            </a>
           </div>
         </section>
 
-        {/* ═══════════════════════════════════════════════════════════════════════
-            6. TRUST + SPECS + CTA
-            ═══════════════════════════════════════════════════════════════════════ */}
-        <section className="landing-section landing-trust">
-          <div className="landing-container">
-            <div className="landing-section-header">
-              <span className="landing-eyebrow">Why Muni</span>
-              <h2 className="landing-section-title">
-                Built different.
-              </h2>
-            </div>
+        {/* ═══════════════════════════════════════════════════════════════════
+            CARD 6 — CTA
+            Schedule a call.
+            ═══════════════════════════════════════════════════════════════════ */}
+        <section className="landing-card landing-card-compact landing-cta">
+          <div className="landing-cta-content reveal">
+            <h2 className="landing-cta-title">
+              Ready to deploy?
+            </h2>
 
-            <div className="landing-trust-grid">
-              <div className="landing-trust-card">
-                <div className="landing-trust-card-header">
-                  <GithubLogo size={24} weight="bold" />
-                  <h3>Fully Open Source</h3>
-                </div>
-                <p>
-                  All firmware, CAD files, schematics, and documentation on GitHub under MIT/Apache 2.0.
-                  No vendor lock-in. Build your own for ~$5k.
-                </p>
-                <a href="https://github.com/ecto/muni" className="landing-trust-link" target="_blank" rel="noopener noreferrer">
-                  View on GitHub <ArrowRight size={14} weight="bold" />
-                </a>
-              </div>
+            <p className="landing-cta-desc">
+              Schedule a 30-minute call to discuss your city&apos;s needs.
+            </p>
 
-              <div className="landing-trust-card">
-                <div className="landing-trust-card-header">
-                  <Shield size={24} weight="bold" />
-                  <h3>Safety-First Design</h3>
-                </div>
-                <p>
-                  Multi-layer safety: LiDAR detection, watchdog timer, automatic e-stop on connection loss.
-                  Rate limiting prevents dangerous commands. Hard geometric boundaries.
-                </p>
-              </div>
-
-              <div className="landing-trust-card">
-                <div className="landing-trust-card-header">
-                  <BookOpenText size={24} weight="bold" />
-                  <h3>Real Engineering</h3>
-                </div>
-                <p>
-                  Production-grade Rust firmware. Jetson Orin NX compute with 30 TOPS AI.
-                  4-wheel skid-steer platform tested in real Cleveland winters.
-                </p>
-                <a href="/docs/whitepaper.pdf" className="landing-trust-link" target="_blank" rel="noopener noreferrer">
-                  Read the whitepaper <ArrowRight size={14} weight="bold" />
-                </a>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Specs */}
-        <section className="landing-section landing-specs">
-          <div className="landing-container">
-            <div className="landing-specs-content">
-              <div className="landing-specs-header">
-                <span className="landing-eyebrow">BVR1 Specifications</span>
-                <h2 className="landing-section-title">Production-ready.</h2>
-              </div>
-
-              <div className="landing-specs-grid">
-                <div className="landing-spec-item">
-                  <span className="landing-spec-label">Platform</span>
-                  <span className="landing-spec-value">600mm × 600mm × 400mm</span>
-                </div>
-                <div className="landing-spec-item">
-                  <span className="landing-spec-label">Weight</span>
-                  <span className="landing-spec-value">~60 kg (132 lbs)</span>
-                </div>
-                <div className="landing-spec-item">
-                  <span className="landing-spec-label">Speed</span>
-                  <span className="landing-spec-value">0-1 m/s (0-2.2 mph)</span>
-                </div>
-                <div className="landing-spec-item">
-                  <span className="landing-spec-label">Battery</span>
-                  <span className="landing-spec-value">48V 40Ah LiFePO4</span>
-                </div>
-                <div className="landing-spec-item">
-                  <span className="landing-spec-label">Runtime</span>
-                  <span className="landing-spec-value">4-8 hours</span>
-                </div>
-                <div className="landing-spec-item">
-                  <span className="landing-spec-label">Compute</span>
-                  <span className="landing-spec-value">Jetson Orin NX</span>
-                </div>
-                <div className="landing-spec-item">
-                  <span className="landing-spec-label">LiDAR</span>
-                  <span className="landing-spec-value">Livox Mid-360</span>
-                </div>
-                <div className="landing-spec-item">
-                  <span className="landing-spec-label">Price</span>
-                  <span className="landing-spec-value landing-spec-value-highlight">$18,000</span>
-                </div>
-              </div>
-
-              <a href="/rover" className="landing-specs-link">
-                View full specifications <ArrowRight size={14} weight="bold" />
+            <div className="landing-cta-buttons">
+              <a href="https://muni.cal.com/cam/30min" className="landing-btn landing-btn-primary landing-btn-large">
+                Schedule a Call
+                <ArrowRight size={20} weight="bold" />
               </a>
             </div>
-          </div>
-        </section>
 
-        {/* CTA */}
-        <section className="landing-section landing-cta">
-          <div className="landing-container">
-            <div className="landing-cta-content">
-              <div className="landing-cta-badge">
-                <CheckCircle size={16} weight="bold" />
-                Shipping Summer 2026
-              </div>
-
-              <h2 className="landing-cta-title">
-                Ready to automate sidewalk maintenance?
-              </h2>
-
-              <p className="landing-cta-desc">
-                Schedule a 30-minute call to discuss your deployment needs.
-              </p>
-
-              <div className="landing-cta-buttons">
-                <a href="https://muni.cal.com/cam/30min" className="landing-btn landing-btn-primary landing-btn-large">
-                  Schedule a Call
-                  <ArrowRight size={20} weight="bold" />
-                </a>
-              </div>
-
-              <div className="landing-cta-alt">
-                <span>Or explore:</span>
-                <a href="https://github.com/ecto/muni/tree/main/bvr/docs/hardware">Build it yourself</a>
-                <span className="landing-cta-alt-divider">/</span>
-                <a href="mailto:info@muni.works?subject=Pilot%20program">Join pilot program</a>
-              </div>
+            <div className="landing-cta-alt">
+              <a href="https://github.com/ecto/muni/tree/main/bvr/docs/hardware">Build it yourself</a>
+              <span className="landing-cta-alt-divider">/</span>
+              <a href="/docs/whitepaper.pdf" target="_blank" rel="noopener noreferrer">Read the whitepaper</a>
+              <span className="landing-cta-alt-divider">/</span>
+              <a href="mailto:info@muni.works?subject=Pilot%20program">Join pilot program</a>
             </div>
           </div>
         </section>
@@ -415,6 +306,8 @@ export default function HomePage() {
             <Footer />
           </div>
         </footer>
+
+        <LandingRevealProvider />
       </main>
     </>
   );

@@ -32,7 +32,7 @@ const productSchema = {
   image: "https://muni.works/images/bvr1.png",
   brand: {
     "@type": "Brand",
-    name: "Muni",
+    name: "Municipal Robotics",
   },
 };
 

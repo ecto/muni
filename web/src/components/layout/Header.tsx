@@ -8,7 +8,7 @@ export function MuniLogo({ className }: { className?: string }) {
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       role="img"
-      aria-label="Muni logo"
+      aria-label="Municipal Robotics logo"
     >
       <g
         stroke="#ff6600"

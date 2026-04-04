@@ -30,6 +30,15 @@
   font-style: italic;
 }
 
+/* Space Grotesk display font */
+@font-face {
+  font-family: "Space Grotesk";
+  src: url("/fonts/SpaceGrotesk-Variable.woff2") format("woff2-variations");
+  font-weight: 300 700;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
   /* Colors */
   --orange: #ff6600;
@@ -44,7 +53,7 @@
   --border: #27272a;
 
   /* Fonts */
-  --font-display: "Helvetica Neue", "Helvetica", "Arial", system-ui, sans-serif;
+  --font-display: "Space Grotesk", "Helvetica Neue", "Helvetica", "Arial", system-ui, sans-serif;
   --font-mono: "Berkeley Mono", "Menlo", "Courier New", monospace;
 
   /* Type scale (Tailwind) */
@@ -2981,35 +2990,45 @@ body > div:not(.frame-footer):not([class*="frame"]) > .formkit-form[data-uid="cb
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
-   FLOATING HEADER - Console Aesthetic (Sharp Corners, Monospace)
+   SITE NAV — Full-width transparent → solid on scroll
    ───────────────────────────────────────────────────────────────────────────── */
 
-.floating-header {
+.site-nav {
   position: fixed;
-  top: max(16px, env(safe-area-inset-top));
-  left: 50%;
-  transform: translateX(-50%);
+  top: 0;
+  left: 0;
+  right: 0;
   z-index: var(--z-header);
-  max-width: 800px;
-  width: calc(100% - 32px);
-  backdrop-filter: blur(12px) saturate(180%);
-  -webkit-backdrop-filter: blur(12px) saturate(180%);
-  background: oklch(0.147 0.004 49.25 / 92%);
-  border: 1px solid oklch(1 0 0 / 10%);
-  box-shadow:
-    0 4px 24px oklch(0 0 0 / 25%),
-    0 1px 2px oklch(0 0 0 / 15%);
+  transition: background 0.35s ease, border-color 0.35s ease, box-shadow 0.35s ease;
+  background: transparent;
+  border-bottom: 1px solid transparent;
 }
 
-.floating-header-content {
-  padding: 12px 32px;
+.site-nav-scrolled {
+  background: oklch(0.147 0.004 49.25 / 88%);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  border-bottom-color: oklch(1 0 0 / 8%);
+  box-shadow: 0 1px 12px oklch(0 0 0 / 20%);
+}
+
+.site-nav-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px 32px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 48px;
+  gap: 24px;
+  transition: padding 0.35s ease;
 }
 
-.floating-header-brand {
+.site-nav-scrolled .site-nav-inner {
+  padding-top: 14px;
+  padding-bottom: 14px;
+}
+
+/* Brand */
+.site-nav-brand {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -3017,138 +3036,131 @@ body > div:not(.frame-footer):not([class*="frame"]) > .formkit-form[data-uid="cb
   background: transparent !important;
 }
 
-.floating-header-brand:hover {
+.site-nav-brand:hover {
   background: transparent !important;
   color: inherit !important;
 }
 
-.floating-header-logo {
-  height: 24px;
+.site-nav-logo {
+  height: 22px;
   width: auto;
   background: transparent !important;
 }
 
-.floating-header-name {
-  font-family: var(--font-mono);
-  font-size: 13px;
+.site-nav-name {
+  font-family: var(--font-display);
+  font-size: 18px;
   font-weight: 700;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
+  letter-spacing: -0.02em;
   color: var(--fg) !important;
   white-space: nowrap;
   background: transparent !important;
 }
 
-.floating-header-nav {
+/* Nav links — pushed right */
+.site-nav-links {
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: 28px;
+  margin-left: auto;
 }
 
-.floating-header-link {
+.site-nav-link {
   font-family: var(--font-mono);
   font-size: 12px;
   font-weight: 500;
   color: oklch(0.709 0.01 56.259);
   text-decoration: none;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.02em;
   transition: color 0.15s ease;
   background: transparent !important;
 }
 
-.floating-header-link:hover {
+.site-nav-link:hover {
   color: oklch(0.985 0.001 106.423) !important;
   background: transparent !important;
 }
 
-.floating-header-cta {
+/* CTA */
+.site-nav-cta {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   font-family: var(--font-mono);
   font-size: 12px;
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  color: oklch(0.147 0.004 49.25) !important;
-  background: oklch(0.705 0.191 47.604) !important;
-  padding: 8px 14px;
+  letter-spacing: 0.02em;
+  color: var(--fg) !important;
+  background: transparent !important;
+  border: 1px solid oklch(1 0 0 / 20%);
+  padding: 8px 16px;
   text-decoration: none;
-  transition: all 0.15s ease;
+  transition: all 0.2s ease;
 }
 
-.floating-header-cta:hover {
-  background: oklch(0.75 0.2 47.604) !important;
-  color: oklch(0.147 0.004 49.25) !important;
+.site-nav-cta:hover {
+  border-color: oklch(0.705 0.191 47.604);
+  color: oklch(0.705 0.191 47.604) !important;
+  background: transparent !important;
 }
 
-/* Mobile responsive */
+/* Mobile */
 @media (max-width: 768px) {
-  .floating-header {
-    top: 12px;
-    width: calc(100% - 24px);
+  .site-nav-inner {
+    padding: 16px 20px;
   }
 
-  .floating-header-content {
-    padding: 8px 20px;
-    gap: 16px;
+  .site-nav-scrolled .site-nav-inner {
+    padding-top: 12px;
+    padding-bottom: 12px;
   }
 
-  .floating-header-nav {
-    gap: 12px;
-  }
-
-  .floating-header-link {
+  .site-nav-links {
     display: none;
   }
 
-  .floating-header-name {
-    display: none;
+  .site-nav-name {
+    font-size: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .site-nav-inner {
+    padding: 14px 16px;
   }
 
-  .floating-header-cta {
+  .site-nav-logo {
+    height: 18px;
+  }
+
+  .site-nav-cta {
     font-size: 11px;
     padding: 6px 12px;
   }
 }
 
-@media (max-width: 480px) {
-  .floating-header {
-    top: 8px;
-    width: calc(100% - 16px);
-  }
-
-  .floating-header-content {
-    padding: 6px 16px;
-  }
-
-  .floating-header-name {
-    font-size: 11px;
-  }
-
-  .floating-header-logo {
-    height: 20px;
-  }
-
-  .floating-header-cta {
-    font-size: 10px;
-    padding: 6px 10px;
-  }
-}
-
-/* Light mode adjustments for floating header */
+/* Light mode */
 @media (prefers-color-scheme: light) {
-  .floating-header {
-    background: oklch(0.985 0.001 106.423 / 92%);
-    border: 1px solid oklch(0 0 0 / 8%);
+  .site-nav-scrolled {
+    background: oklch(0.985 0.001 106.423 / 90%);
+    border-bottom-color: oklch(0 0 0 / 8%);
   }
 
-  .floating-header-link {
+  .site-nav-link {
     color: oklch(0.553 0.013 58.071);
   }
 
-  .floating-header-link:hover {
+  .site-nav-link:hover {
     color: oklch(0.147 0.004 49.25) !important;
+  }
+
+  .site-nav-cta {
+    color: oklch(0.147 0.004 49.25) !important;
+    border-color: oklch(0 0 0 / 15%);
+  }
+
+  .site-nav-cta:hover {
+    border-color: oklch(0.705 0.191 47.604);
+    color: oklch(0.705 0.191 47.604) !important;
   }
 }
