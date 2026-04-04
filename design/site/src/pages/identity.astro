@@ -1,0 +1,1905 @@
+---
+import Base from "../layouts/Base.astro";
+---
+
+<Base title="Identity">
+  <div class="page-header">
+    <p class="overline">Brand</p>
+    <h1>Identity</h1>
+    <p class="desc">
+      Civic infrastructure, not consumer product. The identity signals service,
+      transparency, and mechanical precision. Safety orange on black.
+    </p>
+  </div>
+
+  <section>
+    <h2 class="section-title">Logo</h2>
+    <p class="section-desc">
+      A continuous stroke that spells muni — the letters flow into each other,
+      m into u into n into i, with a single dot. One unbroken line, like
+      a sidewalk.
+    </p>
+    <div class="logo-grid">
+      <div class="logo-card logo-on-dark">
+        <img src="/muni-logo-dark.svg" alt="Muni logo on dark" class="logo-img" />
+        <span class="logo-meta">On dark — safety orange, primary usage</span>
+      </div>
+      <div class="logo-card logo-on-light">
+        <img src="/muni-logo-light.svg" alt="Muni logo on light" class="logo-img" />
+        <span class="logo-meta">On light — black</span>
+      </div>
+      <div class="logo-card logo-on-orange">
+        <img src="/muni-logo-light.svg" alt="Muni logo on orange" class="logo-img" />
+        <span class="logo-meta">On orange — black, special contexts</span>
+      </div>
+    </div>
+
+    <div class="logo-details">
+      <div class="logo-detail">
+        <span class="detail-label">Construction</span>
+        <span class="detail-value">Single continuous stroke, 40px weight, round caps and joins</span>
+      </div>
+      <div class="logo-detail">
+        <span class="detail-label">Dot</span>
+        <span class="detail-value">28px radius circle on the i — the only discrete element</span>
+      </div>
+      <div class="logo-detail">
+        <span class="detail-label">Clear space</span>
+        <span class="detail-value">Minimum 60px (viewBox padding) on all sides</span>
+      </div>
+      <div class="logo-detail">
+        <span class="detail-label">Minimum size</span>
+        <span class="detail-value">48px height — below this the stroke weight collapses</span>
+      </div>
+      <div class="logo-detail">
+        <span class="detail-label">Formats</span>
+        <span class="detail-value">SVG (source), PNG exports at 1x/2x/4x</span>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2 class="section-title">Logo Motion</h2>
+    <p class="section-desc">
+      The continuous stroke draws on left-to-right — a route being plotted.
+      A cursor traces the leading edge. The dot on the 'i' settles last with
+      spring overshoot. Total duration 2.4s at 30 fps (72 frames).
+    </p>
+
+    <div class="motion-viewport">
+      <svg id="logo-motion" viewBox="-60 -80 880 420" fill="none">
+        <defs>
+          <filter id="glow">
+            <feGaussianBlur stdDeviation="6" result="blur"/>
+            <feMerge>
+              <feMergeNode in="blur"/>
+              <feMergeNode in="SourceGraphic"/>
+            </feMerge>
+          </filter>
+        </defs>
+
+        <g stroke="#ff6600" stroke-width="40" stroke-linecap="round" stroke-linejoin="round" fill="none">
+          <path id="mpath-1" d="M 20 240 L 20 100 C 20 50, 80 50, 100 50 C 140 50, 160 70, 160 100"/>
+          <path id="mpath-2" d="M 160 240 L 160 100"/>
+          <path id="mpath-3" d="M 160 100 C 160 50, 220 50, 240 50 C 280 50, 300 70, 300 100 L 300 240 C 300 270, 330 280, 370 280 C 410 280, 440 270, 440 240 L 440 100"/>
+          <path id="mpath-4" d="M 440 100 C 440 50, 500 50, 520 50 C 560 50, 600 70, 600 100 L 600 240 C 600 270, 630 280, 670 280 C 710 280, 740 270, 740 240 L 740 100"/>
+        </g>
+
+        <circle id="logo-dot" cx="740" cy="30" r="28" fill="#ff6600" transform="scale(0)" transform-origin="740 30"/>
+        <circle id="cursor" cx="20" cy="240" r="10" fill="#ffffff" filter="url(#glow)" opacity="0"/>
+      </svg>
+
+      <div class="motion-bar">
+        <div class="motion-bar-left">
+          <button id="replay-btn" class="replay-btn">Replay</button>
+          <button id="sound-btn" class="replay-btn sound-btn">Sound</button>
+        </div>
+        <span class="motion-timer" id="motion-timer">0.00s</span>
+      </div>
+    </div>
+
+    <div class="timing-table">
+      <div class="timing-header">
+        <span>Element</span>
+        <span>Start</span>
+        <span>End</span>
+        <span>Easing</span>
+      </div>
+      <div class="timing-row">
+        <span class="timing-element">'m' left stem</span>
+        <span class="timing-val">0.00s</span>
+        <span class="timing-val">0.40s</span>
+        <span class="timing-ease">ease-in-out</span>
+      </div>
+      <div class="timing-row">
+        <span class="timing-element">'m' middle stem</span>
+        <span class="timing-val">0.30s</span>
+        <span class="timing-val">0.55s</span>
+        <span class="timing-ease">ease-in-out</span>
+      </div>
+      <div class="timing-row">
+        <span class="timing-element">'m' arch → 'u' curve</span>
+        <span class="timing-val">0.45s</span>
+        <span class="timing-val">1.40s</span>
+        <span class="timing-ease">ease-in-out</span>
+      </div>
+      <div class="timing-row">
+        <span class="timing-element">'n' arch → 'i' stem</span>
+        <span class="timing-val">1.30s</span>
+        <span class="timing-val">2.00s</span>
+        <span class="timing-ease">ease-in-out</span>
+      </div>
+      <div class="timing-row">
+        <span class="timing-element timing-dot">dot</span>
+        <span class="timing-val">2.00s</span>
+        <span class="timing-val">2.40s</span>
+        <span class="timing-ease">spring (w14, d6) — restrained</span>
+      </div>
+      <div class="timing-row timing-audio-header">
+        <span class="timing-element timing-audio-label">Audio</span>
+        <span></span>
+        <span></span>
+        <span class="timing-ease">mote synth</span>
+      </div>
+      <div class="timing-row">
+        <span class="timing-element timing-audio">trace — C3 root</span>
+        <span class="timing-val">0.00s</span>
+        <span class="timing-val">2.00s</span>
+        <span class="timing-ease">130.81 Hz, formant 1.0×</span>
+      </div>
+      <div class="timing-row">
+        <span class="timing-element timing-audio">trace — E3 third</span>
+        <span class="timing-val">0.50s</span>
+        <span class="timing-val">1.70s</span>
+        <span class="timing-ease">164.81 Hz, formant 1.0×</span>
+      </div>
+      <div class="timing-row">
+        <span class="timing-element timing-audio">trace — G3 fifth</span>
+        <span class="timing-val">1.00s</span>
+        <span class="timing-val">1.90s</span>
+        <span class="timing-ease">196.00 Hz, formant 1.0×</span>
+      </div>
+      <div class="timing-row">
+        <span class="timing-element timing-audio">dot — E4 bright</span>
+        <span class="timing-val">2.00s</span>
+        <span class="timing-val">2.35s</span>
+        <span class="timing-ease">329.63 Hz, formant 1.5×</span>
+      </div>
+      <div class="timing-row">
+        <span class="timing-element timing-audio">dot — C4 body</span>
+        <span class="timing-val">2.01s</span>
+        <span class="timing-val">2.41s</span>
+        <span class="timing-ease">261.63 Hz, formant 1.2×</span>
+      </div>
+      <div class="timing-row">
+        <span class="timing-element timing-audio">dot — G3 ring</span>
+        <span class="timing-val">2.02s</span>
+        <span class="timing-val">2.47s</span>
+        <span class="timing-ease">196.00 Hz, formant 1.0×</span>
+      </div>
+    </div>
+
+    <div class="remotion-note">
+      <span class="remotion-label">Remotion</span>
+      Map each path's <code>strokeDashoffset</code> from <code>totalLength → 0</code> using
+      <code>interpolate(frame, [startFrame, endFrame], [length, 0])</code>.
+      Dot uses <code>spring({'{'} stiffness: 196, damping: 12, mass: 1 {'}'})</code> on <code>scale</code> — restrained settle.
+      Cursor position via <code>getPointAtLength()</code> on the active path.
+    </div>
+  </section>
+
+  <section>
+    <h2 class="section-title">Wordmark</h2>
+    <div class="wordmark-grid">
+      <div class="wordmark-card wordmark-dark">
+        <span class="wordmark">muni</span>
+        <span class="wordmark-meta">On dark — primary usage</span>
+      </div>
+      <div class="wordmark-card wordmark-light">
+        <span class="wordmark">muni</span>
+        <span class="wordmark-meta">On light</span>
+      </div>
+      <div class="wordmark-card wordmark-orange">
+        <span class="wordmark">muni</span>
+        <span class="wordmark-meta">On orange — special contexts</span>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2 class="section-title">Lockup</h2>
+    <div class="lockup-demo">
+      <div class="lockup">
+        <span class="lockup-name">muni</span>
+        <span class="lockup-divider"></span>
+        <span class="lockup-sub">Municipal Robotics</span>
+      </div>
+      <div class="lockup lockup-sm">
+        <span class="lockup-name">muni</span>
+        <span class="lockup-divider"></span>
+        <span class="lockup-sub">Depot Console</span>
+      </div>
+      <div class="lockup lockup-sm">
+        <span class="lockup-name">muni</span>
+        <span class="lockup-divider"></span>
+        <span class="lockup-sub">Design System</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="livery-section">
+    <h2 class="section-title">Vehicle Livery</h2>
+    <p class="section-desc">
+      The rover is a tool, not a mascot. Slab-sided panels, standard fasteners,
+      flat surfaces — designed for stamping at volume and field repair by any
+      technician with a hex key.
+    </p>
+
+    <!-- ── Hero: Side profile ───────────────────────────────── -->
+    <div class="livery-hero">
+      <svg viewBox="0 0 880 440" fill="none" class="livery-svg">
+        <defs>
+          <pattern id="chevron" patternUnits="userSpaceOnUse" width="24" height="18" patternTransform="skewX(-15)">
+            <rect width="24" height="18" fill="oklch(0.97 0 0)"/>
+            <rect width="12" height="18" fill="oklch(0.15 0.01 49)"/>
+          </pattern>
+          <linearGradient id="body-grad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="oklch(0.66 0.18 47)"/>
+            <stop offset="100%" stop-color="oklch(0.63 0.17 47)"/>
+          </linearGradient>
+          <linearGradient id="canopy-grad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="oklch(0.68 0.18 47)"/>
+            <stop offset="100%" stop-color="oklch(0.66 0.17 47)"/>
+          </linearGradient>
+          <filter id="lcd-glow">
+            <feGaussianBlur stdDeviation="2" result="b"/>
+            <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+          <clipPath id="body-clip">
+            <rect x="225" y="175" width="410" height="164" rx="4"/>
+          </clipPath>
+        </defs>
+
+        <!-- Ground plane -->
+        <line x1="180" y1="396" x2="680" y2="396" stroke="oklch(0.20 0.005 49)" stroke-width="0.5"/>
+
+        <!-- ── Wheels — 8.5" / 216 mm, hub bolts ── -->
+        <!-- Front wheel -->
+        <circle cx="274" cy="307" r="89" fill="oklch(0.14 0.005 49)"/>
+        <circle cx="274" cy="307" r="73" fill="oklch(0.18 0.006 49)"/>
+        <circle cx="274" cy="307" r="24" fill="oklch(0.22 0.008 55)"/>
+        <circle cx="274" cy="307" r="6" fill="oklch(0.14 0.005 49)"/>
+        <circle cx="262" cy="297" r="2.5" fill="oklch(0.28 0.008 55)"/>
+        <circle cx="274" cy="291" r="2.5" fill="oklch(0.28 0.008 55)"/>
+        <circle cx="286" cy="297" r="2.5" fill="oklch(0.28 0.008 55)"/>
+        <circle cx="286" cy="317" r="2.5" fill="oklch(0.28 0.008 55)"/>
+        <circle cx="274" cy="323" r="2.5" fill="oklch(0.28 0.008 55)"/>
+        <circle cx="262" cy="317" r="2.5" fill="oklch(0.28 0.008 55)"/>
+        <!-- Rear wheel -->
+        <circle cx="586" cy="307" r="89" fill="oklch(0.14 0.005 49)"/>
+        <circle cx="586" cy="307" r="73" fill="oklch(0.18 0.006 49)"/>
+        <circle cx="586" cy="307" r="24" fill="oklch(0.22 0.008 55)"/>
+        <circle cx="586" cy="307" r="6" fill="oklch(0.14 0.005 49)"/>
+        <circle cx="574" cy="297" r="2.5" fill="oklch(0.28 0.008 55)"/>
+        <circle cx="586" cy="291" r="2.5" fill="oklch(0.28 0.008 55)"/>
+        <circle cx="598" cy="297" r="2.5" fill="oklch(0.28 0.008 55)"/>
+        <circle cx="598" cy="317" r="2.5" fill="oklch(0.28 0.008 55)"/>
+        <circle cx="586" cy="323" r="2.5" fill="oklch(0.28 0.008 55)"/>
+        <circle cx="574" cy="317" r="2.5" fill="oklch(0.28 0.008 55)"/>
+
+        <!-- ── Suspension A-arms (independent) ── -->
+        <line x1="245" y1="339" x2="274" y2="316" stroke="oklch(0.22 0.005 49)" stroke-width="3" stroke-linecap="round"/>
+        <line x1="303" y1="339" x2="274" y2="316" stroke="oklch(0.22 0.005 49)" stroke-width="3" stroke-linecap="round"/>
+        <line x1="557" y1="339" x2="586" y2="316" stroke="oklch(0.22 0.005 49)" stroke-width="3" stroke-linecap="round"/>
+        <line x1="615" y1="339" x2="586" y2="316" stroke="oklch(0.22 0.005 49)" stroke-width="3" stroke-linecap="round"/>
+
+        <!-- ── Main body — 500 mm × 200 mm slab ── -->
+        <rect x="225" y="175" width="410" height="164" rx="4" fill="url(#body-grad)"/>
+
+        <!-- Panel seam + fasteners -->
+        <line x1="232" y1="268" x2="630" y2="268" stroke="oklch(0.58 0.16 47)" stroke-width="0.75"/>
+        <circle cx="260" cy="268" r="1.5" fill="oklch(0.52 0.13 47)"/>
+        <circle cx="340" cy="268" r="1.5" fill="oklch(0.52 0.13 47)"/>
+        <circle cx="430" cy="268" r="1.5" fill="oklch(0.52 0.13 47)"/>
+        <circle cx="520" cy="268" r="1.5" fill="oklch(0.52 0.13 47)"/>
+        <circle cx="610" cy="268" r="1.5" fill="oklch(0.52 0.13 47)"/>
+
+        <!-- ── Canopy — flat top ── -->
+        <rect x="248" y="142" width="364" height="33" rx="4" fill="url(#canopy-grad)"/>
+
+        <!-- ── Sensor housing ── -->
+        <rect x="385" y="130" width="90" height="12" rx="3" fill="oklch(0.55 0.15 47)" stroke="oklch(0.50 0.14 47)" stroke-width="0.75"/>
+        <rect x="398" y="128" width="64" height="6" rx="2" fill="oklch(0.45 0.12 47 / 0.6)"/>
+
+        <!-- ── Light bar ── -->
+        <rect x="248" y="173" width="364" height="4" rx="2" fill="oklch(0.80 0.15 70)" opacity="0.85"/>
+        <rect x="248" y="173" width="364" height="4" rx="2" fill="oklch(0.80 0.15 70 / 0.25)" class="light-bar-glow"/>
+
+        <!-- ── Camera pod ── -->
+        <rect x="213" y="196" width="18" height="50" rx="4" fill="oklch(0.52 0.15 47)" stroke="oklch(0.45 0.13 47)" stroke-width="1"/>
+        <circle cx="222" cy="213" r="6" fill="oklch(0.20 0.005 240)" stroke="oklch(0.35 0.010 240)" stroke-width="0.75"/>
+        <circle cx="222" cy="213" r="2.5" fill="oklch(0.10 0 0)"/>
+        <circle cx="222" cy="233" r="6" fill="oklch(0.20 0.005 240)" stroke="oklch(0.35 0.010 240)" stroke-width="0.75"/>
+        <circle cx="222" cy="233" r="2.5" fill="oklch(0.10 0 0)"/>
+
+        <!-- ── Cooling vent ── -->
+        <line x1="580" y1="185" x2="622" y2="185" stroke="oklch(0.55 0.14 47)" stroke-width="1"/>
+        <line x1="580" y1="191" x2="622" y2="191" stroke="oklch(0.55 0.14 47)" stroke-width="1"/>
+        <line x1="580" y1="197" x2="622" y2="197" stroke="oklch(0.55 0.14 47)" stroke-width="1"/>
+        <line x1="580" y1="203" x2="622" y2="203" stroke="oklch(0.55 0.14 47)" stroke-width="1"/>
+
+        <!-- ── Chevron band ── -->
+        <rect x="225" y="326" width="410" height="12" fill="url(#chevron)" clip-path="url(#body-clip)"/>
+
+        <!-- ── Tool mount ── -->
+        <path d="M 215,280 L 215,332 C 215,336 219,339 222,339 L 225,339 L 225,280 Z" fill="none" stroke="oklch(0.50 0.14 47)" stroke-width="1" stroke-dasharray="4 3"/>
+
+        <!-- ══════ BODY MARKINGS ══════ -->
+
+        <!-- Logo mark -->
+        <g transform="translate(246, 179) scale(0.022)" stroke="oklch(0.98 0 0)" stroke-width="40" stroke-linecap="round" stroke-linejoin="round" fill="none">
+          <path d="M 20 240 L 20 100 C 20 50, 80 50, 100 50 C 140 50, 160 70, 160 100"/>
+          <path d="M 160 240 L 160 100"/>
+          <path d="M 160 100 C 160 50, 220 50, 240 50 C 280 50, 300 70, 300 100 L 300 240 C 300 270, 330 280, 370 280 C 410 280, 440 270, 440 240 L 440 100"/>
+          <path d="M 440 100 C 440 50, 500 50, 520 50 C 560 50, 600 70, 600 100 L 600 240 C 600 270, 630 280, 670 280 C 710 280, 740 270, 740 240 L 740 100"/>
+          <circle cx="740" cy="30" r="28" fill="oklch(0.98 0 0)" stroke="none"/>
+        </g>
+
+        <!-- Purpose label -->
+        <text x="248" y="192" font-family="Space Grotesk, var(--font-display)" font-size="7" font-weight="500" letter-spacing="0.14em" fill="oklch(0.98 0 0 / 0.8)">SIDEWALK SERVICE ROBOT</text>
+
+        <!-- Unit ID — 80 mm cap height at 0.82 scale -->
+        <text x="246" y="260" font-family="Space Grotesk, var(--font-display)" font-size="90" font-weight="700" letter-spacing="-0.02em" fill="oklch(0.98 0 0)">BEAVER-12</text>
+
+        <!-- LCD panel — 5" IPS, realistic scale -->
+        <rect x="244" y="274" width="90" height="46" rx="3" fill="oklch(0.12 0.005 240)" stroke="oklch(0.25 0.008 240)" stroke-width="0.75"/>
+        <rect x="247" y="277" width="84" height="40" rx="2" fill="oklch(0.08 0.004 49)"/>
+        <rect x="247" y="277" width="84" height="8" rx="2" fill="oklch(0.705 0.213 47.604)"/>
+        <text x="254" y="284" font-family="Space Grotesk, var(--font-display)" font-size="5.5" font-weight="700" fill="oklch(0.98 0 0)">muni</text>
+        <text x="257" y="298" font-family="var(--font-mono)" font-size="4.5" fill="oklch(0.75 0 0)">Clearing Snow</text>
+        <text x="257" y="308" font-family="var(--font-mono)" font-size="3.5" fill="oklch(0.45 0 0)">311 · muni.city</text>
+
+        <!-- 311 + footer -->
+        <text x="248" y="322" font-family="var(--font-mono)" font-size="5" fill="oklch(0.98 0 0 / 0.5)" letter-spacing="0.06em">MUNICIPAL ROBOTICS</text>
+        <text x="626" y="322" text-anchor="end" font-family="var(--font-mono)" font-size="5.5" font-weight="600" fill="oklch(0.98 0 0 / 0.6)">311</text>
+
+        <!-- ══════ CALLOUT NUMBERS ══════ -->
+        <!-- 1: Sensor housing -->
+        <circle cx="430" cy="120" r="9" fill="none" stroke="oklch(0.705 0.213 47.604)" stroke-width="0.75"/>
+        <text x="430" y="123" text-anchor="middle" font-family="var(--font-mono)" font-size="8" font-weight="600" fill="oklch(0.705 0.213 47.604)">1</text>
+        <!-- 2: Light bar -->
+        <circle cx="700" cy="168" r="9" fill="none" stroke="oklch(0.705 0.213 47.604)" stroke-width="0.75"/>
+        <text x="700" y="171" text-anchor="middle" font-family="var(--font-mono)" font-size="8" font-weight="600" fill="oklch(0.705 0.213 47.604)">2</text>
+        <line x1="691" y1="168" x2="638" y2="174" stroke="oklch(0.705 0.213 47.604 / 0.3)" stroke-width="0.5"/>
+        <!-- 3: Brand + purpose -->
+        <circle cx="700" cy="196" r="9" fill="none" stroke="oklch(0.705 0.213 47.604)" stroke-width="0.75"/>
+        <text x="700" y="199" text-anchor="middle" font-family="var(--font-mono)" font-size="8" font-weight="600" fill="oklch(0.705 0.213 47.604)">3</text>
+        <line x1="691" y1="196" x2="638" y2="196" stroke="oklch(0.705 0.213 47.604 / 0.3)" stroke-width="0.5"/>
+        <!-- 4: Unit ID -->
+        <circle cx="700" cy="240" r="9" fill="none" stroke="oklch(0.705 0.213 47.604)" stroke-width="0.75"/>
+        <text x="700" y="243" text-anchor="middle" font-family="var(--font-mono)" font-size="8" font-weight="600" fill="oklch(0.705 0.213 47.604)">4</text>
+        <line x1="691" y1="240" x2="638" y2="240" stroke="oklch(0.705 0.213 47.604 / 0.3)" stroke-width="0.5"/>
+        <!-- 5: LCD -->
+        <circle cx="700" cy="290" r="9" fill="none" stroke="oklch(0.705 0.213 47.604)" stroke-width="0.75"/>
+        <text x="700" y="293" text-anchor="middle" font-family="var(--font-mono)" font-size="8" font-weight="600" fill="oklch(0.705 0.213 47.604)">5</text>
+        <line x1="691" y1="290" x2="338" y2="290" stroke="oklch(0.705 0.213 47.604 / 0.3)" stroke-width="0.5"/>
+        <!-- 6: Chevron -->
+        <circle cx="700" cy="332" r="9" fill="none" stroke="oklch(0.705 0.213 47.604)" stroke-width="0.75"/>
+        <text x="700" y="335" text-anchor="middle" font-family="var(--font-mono)" font-size="8" font-weight="600" fill="oklch(0.705 0.213 47.604)">6</text>
+        <line x1="691" y1="332" x2="638" y2="332" stroke="oklch(0.705 0.213 47.604 / 0.3)" stroke-width="0.5"/>
+        <!-- 7: Camera -->
+        <circle cx="178" cy="222" r="9" fill="none" stroke="oklch(0.705 0.213 47.604)" stroke-width="0.75"/>
+        <text x="178" y="225" text-anchor="middle" font-family="var(--font-mono)" font-size="8" font-weight="600" fill="oklch(0.705 0.213 47.604)">7</text>
+        <line x1="187" y1="222" x2="213" y2="222" stroke="oklch(0.705 0.213 47.604 / 0.3)" stroke-width="0.5"/>
+
+        <!-- ── Dimensions ── -->
+        <!-- Width: 500 mm -->
+        <line x1="225" y1="416" x2="635" y2="416" stroke="oklch(0.25 0 0)" stroke-width="0.5"/>
+        <line x1="225" y1="411" x2="225" y2="421" stroke="oklch(0.25 0 0)" stroke-width="0.5"/>
+        <line x1="635" y1="411" x2="635" y2="421" stroke="oklch(0.25 0 0)" stroke-width="0.5"/>
+        <text x="430" y="428" text-anchor="middle" font-family="var(--font-mono)" font-size="7" fill="oklch(0.30 0 0)">500 mm</text>
+
+        <!-- Chassis height: 200 mm -->
+        <line x1="760" y1="175" x2="760" y2="339" stroke="oklch(0.25 0 0)" stroke-width="0.5"/>
+        <line x1="755" y1="175" x2="765" y2="175" stroke="oklch(0.25 0 0)" stroke-width="0.5"/>
+        <line x1="755" y1="339" x2="765" y2="339" stroke="oklch(0.25 0 0)" stroke-width="0.5"/>
+        <text x="770" y="260" font-family="var(--font-mono)" font-size="7" fill="oklch(0.30 0 0)" transform="rotate(90, 770, 260)">200 mm</text>
+
+        <!-- Overall height -->
+        <line x1="800" y1="130" x2="800" y2="396" stroke="oklch(0.25 0 0)" stroke-width="0.5"/>
+        <line x1="795" y1="130" x2="805" y2="130" stroke="oklch(0.25 0 0)" stroke-width="0.5"/>
+        <line x1="795" y1="396" x2="805" y2="396" stroke="oklch(0.25 0 0)" stroke-width="0.5"/>
+        <text x="810" y="266" font-family="var(--font-mono)" font-size="7" fill="oklch(0.30 0 0)" transform="rotate(90, 810, 266)">~325 mm</text>
+
+        <!-- Wheel callout -->
+        <text x="274" y="410" text-anchor="middle" font-family="var(--font-mono)" font-size="6" fill="oklch(0.30 0 0)">8.5" wheel</text>
+      </svg>
+    </div>
+
+    <!-- ── Legend grid ───────────────────────────────────────── -->
+    <div class="livery-legend">
+      <div class="legend-item"><span class="legend-num">1</span><span class="legend-text">Sensor array — lidar, IMU, GPS-RTK</span></div>
+      <div class="legend-item"><span class="legend-num">2</span><span class="legend-text">LED bar — amber/white/red, 150 m visibility</span></div>
+      <div class="legend-item"><span class="legend-num">3</span><span class="legend-text">Wordmark + purpose — function label, meets FMVSS 108</span></div>
+      <div class="legend-item"><span class="legend-num">4</span><span class="legend-text">Unit ID — 80 mm cap height, white on orange, readable 15 m</span></div>
+      <div class="legend-item"><span class="legend-num">5</span><span class="legend-text">LCD panel — real-time task status, QR, 311</span></div>
+      <div class="legend-item"><span class="legend-num">6</span><span class="legend-text">Chevron — ASTM D4956 Type XI retroreflective</span></div>
+      <div class="legend-item"><span class="legend-num">7</span><span class="legend-text">Camera pod — 3× IMX291, IP67</span></div>
+    </div>
+
+    <!-- ── Materials palette ─────────────────────────────────── -->
+    <div class="livery-materials">
+      <div class="mat-swatch">
+        <div class="mat-color" style="background: oklch(0.66 0.18 47)"></div>
+        <span class="mat-name">Matte Orange</span>
+        <span class="mat-spec">Powder-coated 5052-H32</span>
+      </div>
+      <div class="mat-swatch">
+        <div class="mat-color" style="background: oklch(0.68 0.18 47)"></div>
+        <span class="mat-name">Canopy Orange</span>
+        <span class="mat-spec">Upper panels, same alloy</span>
+      </div>
+      <div class="mat-swatch">
+        <div class="mat-color" style="background: oklch(0.97 0 0)"></div>
+        <span class="mat-name">White Markings</span>
+        <span class="mat-spec">Logo, text, identifiers</span>
+      </div>
+      <div class="mat-swatch">
+        <div class="mat-color mat-color-chevron"></div>
+        <span class="mat-name">Chevron</span>
+        <span class="mat-spec">ASTM D4956 Type XI</span>
+      </div>
+      <div class="mat-swatch">
+        <div class="mat-color mat-color-lcd"></div>
+        <span class="mat-name">LCD Panel</span>
+        <span class="mat-spec">IPS, 800 nit daylight</span>
+      </div>
+      <div class="mat-swatch">
+        <div class="mat-color" style="background: oklch(0.14 0.005 49)"></div>
+        <span class="mat-name">Dark Charcoal</span>
+        <span class="mat-spec">Wheels, hardware</span>
+      </div>
+    </div>
+
+    <!-- ── Front / Rear orthographic ─────────────────────────── -->
+    <div class="livery-ortho-row">
+      <div class="livery-ortho-col">
+        <div class="livery-ortho-label">Front</div>
+        <div class="livery-ortho-viewport">
+          <svg viewBox="0 0 340 320" fill="none" class="livery-svg-ortho">
+            <!-- Wheels (from front) — 8.5" -->
+            <rect x="22" y="172" width="24" height="108" rx="10" fill="oklch(0.14 0.005 49)"/>
+            <rect x="294" y="172" width="24" height="108" rx="10" fill="oklch(0.14 0.005 49)"/>
+
+            <!-- Body — 500 × 200 mm -->
+            <rect x="45" y="145" width="250" height="100" rx="3" fill="url(#body-grad)"/>
+            <line x1="52" y1="196" x2="288" y2="196" stroke="oklch(0.58 0.16 47)" stroke-width="0.5"/>
+            <circle cx="80" cy="196" r="1" fill="oklch(0.52 0.13 47)"/>
+            <circle cx="140" cy="196" r="1" fill="oklch(0.52 0.13 47)"/>
+            <circle cx="200" cy="196" r="1" fill="oklch(0.52 0.13 47)"/>
+            <circle cx="260" cy="196" r="1" fill="oklch(0.52 0.13 47)"/>
+
+            <!-- Canopy -->
+            <rect x="62" y="125" width="216" height="20" rx="3" fill="url(#canopy-grad)"/>
+
+            <!-- Sensor housing -->
+            <rect x="138" y="118" width="64" height="7" rx="2" fill="oklch(0.55 0.15 47)" stroke="oklch(0.50 0.14 47)" stroke-width="0.5"/>
+
+            <!-- Light bar -->
+            <rect x="62" y="143" width="216" height="3" rx="1.5" fill="oklch(0.80 0.15 70)" opacity="0.85"/>
+
+            <!-- Camera lenses -->
+            <circle cx="105" cy="164" r="8" fill="oklch(0.20 0.005 240)" stroke="oklch(0.35 0.010 240)" stroke-width="0.5"/>
+            <circle cx="105" cy="164" r="3" fill="oklch(0.10 0 0)"/>
+            <circle cx="170" cy="161" r="8" fill="oklch(0.20 0.005 240)" stroke="oklch(0.35 0.010 240)" stroke-width="0.5"/>
+            <circle cx="170" cy="161" r="3" fill="oklch(0.10 0 0)"/>
+            <circle cx="235" cy="164" r="8" fill="oklch(0.20 0.005 240)" stroke="oklch(0.35 0.010 240)" stroke-width="0.5"/>
+            <circle cx="235" cy="164" r="3" fill="oklch(0.10 0 0)"/>
+
+            <!-- Logo -->
+            <g transform="translate(62, 174) scale(0.014)" stroke="oklch(0.98 0 0)" stroke-width="40" stroke-linecap="round" stroke-linejoin="round" fill="none">
+              <path d="M 20 240 L 20 100 C 20 50, 80 50, 100 50 C 140 50, 160 70, 160 100"/>
+              <path d="M 160 240 L 160 100"/>
+              <path d="M 160 100 C 160 50, 220 50, 240 50 C 280 50, 300 70, 300 100 L 300 240 C 300 270, 330 280, 370 280 C 410 280, 440 270, 440 240 L 440 100"/>
+              <path d="M 440 100 C 440 50, 500 50, 520 50 C 560 50, 600 70, 600 100 L 600 240 C 600 270, 630 280, 670 280 C 710 280, 740 270, 740 240 L 740 100"/>
+              <circle cx="740" cy="30" r="28" fill="oklch(0.98 0 0)" stroke="none"/>
+            </g>
+
+            <!-- Purpose label -->
+            <text x="65" y="184" font-family="Space Grotesk, var(--font-display)" font-size="4.5" font-weight="500" letter-spacing="0.12em" fill="oklch(0.98 0 0 / 0.8)">SIDEWALK SERVICE ROBOT</text>
+
+            <!-- Unit ID -->
+            <text x="63" y="218" font-family="Space Grotesk, var(--font-display)" font-size="42" font-weight="700" letter-spacing="-0.02em" fill="oklch(0.98 0 0)">BEAVER-12</text>
+
+            <!-- LCD — 5" -->
+            <rect x="62" y="222" width="56" height="28" rx="2" fill="oklch(0.10 0.005 240)" stroke="oklch(0.20 0.005 240)" stroke-width="0.5"/>
+            <rect x="64" y="224" width="52" height="5" rx="1" fill="oklch(0.705 0.213 47.604)"/>
+            <text x="68" y="240" font-family="var(--font-mono)" font-size="4" fill="oklch(0.55 0 0)">Clearing Snow</text>
+
+            <!-- Chevron -->
+            <rect x="45" y="234" width="250" height="10" fill="url(#chevron)"/>
+
+            <!-- Footer -->
+            <text x="65" y="232" font-family="var(--font-mono)" font-size="4" fill="oklch(0.98 0 0 / 0.5)" letter-spacing="0.06em">MUNICIPAL ROBOTICS</text>
+            <text x="280" y="232" text-anchor="end" font-family="var(--font-mono)" font-size="4.5" font-weight="600" fill="oklch(0.98 0 0 / 0.6)">311</text>
+          </svg>
+        </div>
+      </div>
+
+      <div class="livery-ortho-col">
+        <div class="livery-ortho-label">Rear</div>
+        <div class="livery-ortho-viewport">
+          <svg viewBox="0 0 340 320" fill="none" class="livery-svg-ortho">
+            <!-- Wheels (from rear) — 8.5" -->
+            <rect x="22" y="172" width="24" height="108" rx="10" fill="oklch(0.14 0.005 49)"/>
+            <rect x="294" y="172" width="24" height="108" rx="10" fill="oklch(0.14 0.005 49)"/>
+
+            <!-- Body — 500 × 200 mm -->
+            <rect x="45" y="145" width="250" height="100" rx="3" fill="url(#body-grad)"/>
+            <line x1="52" y1="196" x2="288" y2="196" stroke="oklch(0.58 0.16 47)" stroke-width="0.5"/>
+            <circle cx="80" cy="196" r="1" fill="oklch(0.52 0.13 47)"/>
+            <circle cx="140" cy="196" r="1" fill="oklch(0.52 0.13 47)"/>
+            <circle cx="200" cy="196" r="1" fill="oklch(0.52 0.13 47)"/>
+            <circle cx="260" cy="196" r="1" fill="oklch(0.52 0.13 47)"/>
+
+            <!-- Canopy -->
+            <rect x="62" y="125" width="216" height="20" rx="3" fill="url(#canopy-grad)"/>
+
+            <!-- Rear light bar (red) -->
+            <rect x="62" y="143" width="216" height="4" rx="2" fill="oklch(0.55 0.22 18.5)" opacity="0.7"/>
+
+            <!-- Logo -->
+            <g transform="translate(62, 150) scale(0.014)" stroke="oklch(0.98 0 0)" stroke-width="40" stroke-linecap="round" stroke-linejoin="round" fill="none">
+              <path d="M 20 240 L 20 100 C 20 50, 80 50, 100 50 C 140 50, 160 70, 160 100"/>
+              <path d="M 160 240 L 160 100"/>
+              <path d="M 160 100 C 160 50, 220 50, 240 50 C 280 50, 300 70, 300 100 L 300 240 C 300 270, 330 280, 370 280 C 410 280, 440 270, 440 240 L 440 100"/>
+              <path d="M 440 100 C 440 50, 500 50, 520 50 C 560 50, 600 70, 600 100 L 600 240 C 600 270, 630 280, 670 280 C 710 280, 740 270, 740 240 L 740 100"/>
+              <circle cx="740" cy="30" r="28" fill="oklch(0.98 0 0)" stroke="none"/>
+            </g>
+
+            <!-- Purpose label -->
+            <text x="65" y="164" font-family="Space Grotesk, var(--font-display)" font-size="4.5" font-weight="500" letter-spacing="0.12em" fill="oklch(0.98 0 0 / 0.8)">SIDEWALK SERVICE ROBOT</text>
+
+            <!-- Unit ID -->
+            <text x="63" y="218" font-family="Space Grotesk, var(--font-display)" font-size="42" font-weight="700" letter-spacing="-0.02em" fill="oklch(0.98 0 0)">BEAVER-12</text>
+
+            <!-- Rear LCD — 5" -->
+            <rect x="62" y="222" width="56" height="28" rx="2" fill="oklch(0.10 0.005 240)" stroke="oklch(0.20 0.005 240)" stroke-width="0.5"/>
+            <rect x="64" y="224" width="52" height="5" rx="1" fill="oklch(0.705 0.213 47.604)"/>
+            <text x="68" y="240" font-family="var(--font-mono)" font-size="4" fill="oklch(0.55 0 0)">Clearing Snow</text>
+
+            <!-- Rear reflectors -->
+            <rect x="47" y="206" width="8" height="28" rx="3" fill="oklch(0.55 0.22 18.5 / 0.25)" stroke="oklch(0.55 0.22 18.5)" stroke-width="0.75"/>
+            <rect x="285" y="206" width="8" height="28" rx="3" fill="oklch(0.55 0.22 18.5 / 0.25)" stroke="oklch(0.55 0.22 18.5)" stroke-width="0.75"/>
+
+            <!-- Chevron -->
+            <rect x="45" y="234" width="250" height="10" fill="url(#chevron)"/>
+
+            <!-- Footer -->
+            <text x="65" y="232" font-family="var(--font-mono)" font-size="4" fill="oklch(0.98 0 0 / 0.5)" letter-spacing="0.06em">MUNICIPAL ROBOTICS</text>
+            <text x="280" y="232" text-anchor="end" font-family="var(--font-mono)" font-size="4.5" font-weight="600" fill="oklch(0.98 0 0 / 0.6)">311</text>
+
+            <!-- Tow hook -->
+            <rect x="155" y="252" width="30" height="8" rx="3" fill="oklch(0.30 0.005 49)" stroke="oklch(0.55 0.008 80)" stroke-width="0.5"/>
+            <text x="170" y="275" text-anchor="middle" font-family="var(--font-mono)" font-size="5" fill="oklch(0.35 0 0)">TOW HOOK</text>
+          </svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── LCD Panel detail ──────────────────────────────────── -->
+    <div class="lcd-detail">
+      <div class="lcd-preview">
+        <div class="lcd-bezel">
+          <div class="lcd-screen">
+            <div class="lcd-header">
+              <span class="lcd-brand">muni</span>
+              <span class="lcd-unit">BEAVER-12</span>
+            </div>
+            <div class="lcd-body">
+              <div class="lcd-task-row">
+                <div class="lcd-task-dot"></div>
+                <div class="lcd-task-info">
+                  <span class="lcd-task-name">Clearing Snow</span>
+                  <span class="lcd-task-location">Oak St NW · Block 400–600</span>
+                </div>
+              </div>
+              <div class="lcd-map">
+                <div class="lcd-map-grid">
+                  <div class="lcd-map-block"></div>
+                  <div class="lcd-map-block active"></div>
+                  <div class="lcd-map-block"></div>
+                  <div class="lcd-map-block done"></div>
+                  <div class="lcd-map-block done"></div>
+                  <div class="lcd-map-block"></div>
+                </div>
+                <span class="lcd-map-label">Route progress</span>
+              </div>
+            </div>
+            <div class="lcd-footer">
+              <div class="lcd-footer-left">
+                <span class="lcd-eta">ETA 12 min</span>
+                <span class="lcd-contact">Questions? Call 311</span>
+              </div>
+              <div class="lcd-qr">
+                <div class="lcd-qr-grid">
+                  <div></div><div></div><div></div><div></div><div></div>
+                  <div></div><div></div><div></div><div></div><div></div>
+                  <div></div><div></div><div></div><div></div><div></div>
+                  <div></div><div></div><div></div><div></div><div></div>
+                  <div></div><div></div><div></div><div></div><div></div>
+                </div>
+                <span class="lcd-qr-label">muni.city/beaver-12</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="lcd-specs">
+        <div class="lcd-spec-heading">Status Display</div>
+        <div class="lcd-spec-row">
+          <span class="lcd-spec-label">Panel</span>
+          <span class="lcd-spec-value">5" IPS LCD, 800×480, 800 nit</span>
+        </div>
+        <div class="lcd-spec-row">
+          <span class="lcd-spec-label">Brightness</span>
+          <span class="lcd-spec-value">Auto-dimming, sunlight readable</span>
+        </div>
+        <div class="lcd-spec-row">
+          <span class="lcd-spec-label">Content</span>
+          <span class="lcd-spec-value">Task, location, route progress, ETA, QR code</span>
+        </div>
+        <div class="lcd-spec-row">
+          <span class="lcd-spec-label">Placement</span>
+          <span class="lcd-spec-value">Both sides + rear — visible from any approach</span>
+        </div>
+        <div class="lcd-spec-row">
+          <span class="lcd-spec-label">Update</span>
+          <span class="lcd-spec-value">Real-time over rover mesh network</span>
+        </div>
+        <div class="lcd-spec-row">
+          <span class="lcd-spec-label">Offline</span>
+          <span class="lcd-spec-value">Shows unit ID + "Service Paused" + 311</span>
+        </div>
+        <div class="lcd-spec-row">
+          <span class="lcd-spec-label">Sealing</span>
+          <span class="lcd-spec-value">IP67, optical bonded, anti-glare</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Day / Night ───────────────────────────────────────── -->
+    <div class="livery-daynight">
+      <div class="livery-daynight-card livery-day">
+        <div class="livery-daynight-inner">
+          <svg viewBox="0 0 360 180" fill="none" class="livery-svg-sm">
+            <defs>
+              <linearGradient id="day-body" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="oklch(0.66 0.18 47)"/>
+                <stop offset="100%" stop-color="oklch(0.63 0.17 47)"/>
+              </linearGradient>
+            </defs>
+            <!-- Wheels — 8.5" (drawn first, body covers upper portion) -->
+            <circle cx="96" cy="121" r="48" fill="oklch(0.18 0.006 49)"/>
+            <circle cx="264" cy="121" r="48" fill="oklch(0.18 0.006 49)"/>
+            <!-- Suspension A-arms -->
+            <line x1="78" y1="138" x2="96" y2="126" stroke="oklch(0.22 0.005 49)" stroke-width="2" stroke-linecap="round"/>
+            <line x1="114" y1="138" x2="96" y2="126" stroke="oklch(0.22 0.005 49)" stroke-width="2" stroke-linecap="round"/>
+            <line x1="246" y1="138" x2="264" y2="126" stroke="oklch(0.22 0.005 49)" stroke-width="2" stroke-linecap="round"/>
+            <line x1="282" y1="138" x2="264" y2="126" stroke="oklch(0.22 0.005 49)" stroke-width="2" stroke-linecap="round"/>
+            <!-- Body — slab-sided, proportional to 500 × 200 mm -->
+            <rect x="70" y="50" width="220" height="88" rx="3" fill="url(#day-body)"/>
+            <!-- Canopy -->
+            <rect x="85" y="37" width="190" height="13" rx="2" fill="oklch(0.68 0.18 47)"/>
+            <!-- Sensor bar -->
+            <rect x="85" y="48" width="190" height="2" rx="1" fill="oklch(0.80 0.15 70)"/>
+            <!-- Chevron -->
+            <rect x="70" y="130" width="220" height="7" fill="url(#chevron)"/>
+            <!-- Logo -->
+            <g transform="translate(76, 54) scale(0.010)" stroke="oklch(0.98 0 0)" stroke-width="40" stroke-linecap="round" stroke-linejoin="round" fill="none">
+              <path d="M 20 240 L 20 100 C 20 50, 80 50, 100 50 C 140 50, 160 70, 160 100"/>
+              <path d="M 160 240 L 160 100"/>
+              <path d="M 160 100 C 160 50, 220 50, 240 50 C 280 50, 300 70, 300 100 L 300 240 C 300 270, 330 280, 370 280 C 410 280, 440 270, 440 240 L 440 100"/>
+              <path d="M 440 100 C 440 50, 500 50, 520 50 C 560 50, 600 70, 600 100 L 600 240 C 600 270, 630 280, 670 280 C 710 280, 740 270, 740 240 L 740 100"/>
+              <circle cx="740" cy="30" r="28" fill="oklch(0.98 0 0)" stroke="none"/>
+            </g>
+            <text x="78" y="67" font-family="Space Grotesk, var(--font-display)" font-size="3.5" font-weight="500" letter-spacing="0.10em" fill="oklch(0.98 0 0 / 0.8)">SIDEWALK SERVICE ROBOT</text>
+            <text x="77" y="84" font-family="Space Grotesk, var(--font-display)" font-size="16" font-weight="700" letter-spacing="-0.02em" fill="oklch(0.98 0 0)">BEAVER-12</text>
+            <!-- LCD — 5" -->
+            <rect x="76" y="90" width="48" height="24" rx="2" fill="oklch(0.12 0.005 240)"/>
+            <rect x="77" y="91" width="46" height="5" rx="1" fill="oklch(0.705 0.213 47.604)"/>
+          </svg>
+        </div>
+        <span class="daynight-label">Day — orange body, white markings, high contrast on pavement</span>
+      </div>
+      <div class="livery-daynight-card livery-night">
+        <div class="livery-daynight-inner">
+          <svg viewBox="0 0 360 180" fill="none" class="livery-svg-sm">
+            <defs>
+              <filter id="retro-glow">
+                <feGaussianBlur stdDeviation="3" result="b"/>
+                <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+              </filter>
+              <filter id="lcd-night">
+                <feGaussianBlur stdDeviation="1.5" result="b"/>
+                <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+              </filter>
+            </defs>
+            <!-- Wheels — 8.5" (drawn first, body covers upper portion) -->
+            <circle cx="96" cy="121" r="48" fill="oklch(0.08 0.004 49)"/>
+            <circle cx="264" cy="121" r="48" fill="oklch(0.08 0.004 49)"/>
+            <!-- Suspension A-arms -->
+            <line x1="78" y1="138" x2="96" y2="126" stroke="oklch(0.12 0.003 49)" stroke-width="2" stroke-linecap="round"/>
+            <line x1="114" y1="138" x2="96" y2="126" stroke="oklch(0.12 0.003 49)" stroke-width="2" stroke-linecap="round"/>
+            <line x1="246" y1="138" x2="264" y2="126" stroke="oklch(0.12 0.003 49)" stroke-width="2" stroke-linecap="round"/>
+            <line x1="282" y1="138" x2="264" y2="126" stroke="oklch(0.12 0.003 49)" stroke-width="2" stroke-linecap="round"/>
+            <!-- Body — slab-sided, night tones -->
+            <rect x="70" y="50" width="220" height="88" rx="3" fill="oklch(0.35 0.10 47)"/>
+            <!-- Canopy -->
+            <rect x="85" y="37" width="190" height="13" rx="2" fill="oklch(0.38 0.11 47)"/>
+            <!-- Sensor bar (glows at night) -->
+            <rect x="85" y="48" width="190" height="2" rx="1" fill="oklch(0.80 0.15 70)" filter="url(#retro-glow)"/>
+            <!-- Chevron (retroreflective glow) -->
+            <rect x="70" y="130" width="220" height="7" fill="url(#chevron)" filter="url(#retro-glow)"/>
+            <!-- Logo -->
+            <g transform="translate(76, 54) scale(0.010)" stroke="oklch(0.98 0 0)" stroke-width="40" stroke-linecap="round" stroke-linejoin="round" fill="none" filter="url(#retro-glow)">
+              <path d="M 20 240 L 20 100 C 20 50, 80 50, 100 50 C 140 50, 160 70, 160 100"/>
+              <path d="M 160 240 L 160 100"/>
+              <path d="M 160 100 C 160 50, 220 50, 240 50 C 280 50, 300 70, 300 100 L 300 240 C 300 270, 330 280, 370 280 C 410 280, 440 270, 440 240 L 440 100"/>
+              <path d="M 440 100 C 440 50, 500 50, 520 50 C 560 50, 600 70, 600 100 L 600 240 C 600 270, 630 280, 670 280 C 710 280, 740 270, 740 240 L 740 100"/>
+              <circle cx="740" cy="30" r="28" fill="oklch(0.98 0 0)" stroke="none"/>
+            </g>
+            <text x="78" y="67" font-family="Space Grotesk, var(--font-display)" font-size="3.5" font-weight="500" letter-spacing="0.10em" fill="oklch(0.98 0 0 / 0.85)" filter="url(#retro-glow)">SIDEWALK SERVICE ROBOT</text>
+            <text x="77" y="84" font-family="Space Grotesk, var(--font-display)" font-size="16" font-weight="700" letter-spacing="-0.02em" fill="oklch(0.98 0 0)" filter="url(#retro-glow)">BEAVER-12</text>
+            <!-- LCD — 5", glowing at night -->
+            <rect x="76" y="90" width="48" height="24" rx="2" fill="oklch(0.08 0.004 49)" filter="url(#lcd-night)"/>
+            <rect x="77" y="91" width="46" height="5" rx="1" fill="oklch(0.705 0.213 47.604)" filter="url(#lcd-night)"/>
+            <text x="83" y="104" font-family="var(--font-mono)" font-size="3.5" fill="oklch(0.70 0 0)" filter="url(#lcd-night)">Clearing Snow · 311</text>
+          </svg>
+        </div>
+        <span class="daynight-label">Night — orange body glows under streetlight, white markings + active LCD</span>
+      </div>
+    </div>
+
+    <!-- ── Design tenets ─────────────────────────────────────── -->
+    <div class="livery-tenets">
+      <div class="livery-tenet">
+        <span class="tenet-num">01</span>
+        <span class="tenet-heading">Flat-pack</span>
+        <span class="tenet-body">Every panel is a brake-formed flat. No compound curves, no expensive molds. Same bend radius fleet-wide.</span>
+      </div>
+      <div class="livery-tenet">
+        <span class="tenet-num">02</span>
+        <span class="tenet-heading">Accountable</span>
+        <span class="tenet-body">311, unit ID, and QR on every face. Residents identify and report any unit in seconds.</span>
+      </div>
+      <div class="livery-tenet">
+        <span class="tenet-num">03</span>
+        <span class="tenet-heading">Visible</span>
+        <span class="tenet-body">Retroreflective chevrons, 150 m LED bar, MUTCD-compliant. Day or night, impossible to miss.</span>
+      </div>
+      <div class="livery-tenet">
+        <span class="tenet-num">04</span>
+        <span class="tenet-heading">Field-swap</span>
+        <span class="tenet-body">Any panel in 15 min with standard hex fasteners. No paint booth, no specialty tooling, no downtime.</span>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2 class="section-title">Light Semantics</h2>
+    <div class="lights-table">
+      <div class="light-row">
+        <div class="light-preview light-amber-steady"></div>
+        <span class="light-pattern">Amber — Steady</span>
+        <span class="light-meaning">Operating normally</span>
+      </div>
+      <div class="light-row">
+        <div class="light-preview light-amber-pulse"></div>
+        <span class="light-pattern">Amber — Slow Pulse</span>
+        <span class="light-meaning">Yielding / Waiting for pedestrian</span>
+      </div>
+      <div class="light-row">
+        <div class="light-preview light-white-steady"></div>
+        <span class="light-pattern">White — Steady</span>
+        <span class="light-meaning">Tool active (plow, brush)</span>
+      </div>
+      <div class="light-row">
+        <div class="light-preview light-red-steady"></div>
+        <span class="light-pattern">Red — Steady</span>
+        <span class="light-meaning">Emergency stop / Fault</span>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2 class="section-title">Print System</h2>
+    <div class="print-grid">
+      <div class="print-card">
+        <div class="print-preview">
+          <div class="print-page">
+            <div class="print-heading">BVR-1 Operator Manual</div>
+            <div class="print-body-line"></div>
+            <div class="print-body-line short"></div>
+            <div class="print-body-line"></div>
+            <div class="print-callout"></div>
+            <div class="print-body-line"></div>
+            <div class="print-body-line short"></div>
+          </div>
+        </div>
+        <p class="print-label">Technical Manual</p>
+      </div>
+      <div class="print-card">
+        <div class="print-preview">
+          <div class="print-page">
+            <div class="print-heading sm">Specifications</div>
+            <div class="print-table-row"></div>
+            <div class="print-table-row"></div>
+            <div class="print-table-row"></div>
+            <div class="print-table-row"></div>
+            <div class="print-table-row"></div>
+          </div>
+        </div>
+        <p class="print-label">Datasheet</p>
+      </div>
+      <div class="print-card">
+        <div class="print-preview">
+          <div class="print-page dark">
+            <div class="print-hero-text">Sidewalk<br />Autonomy</div>
+          </div>
+        </div>
+        <p class="print-label">Pitch Deck</p>
+      </div>
+    </div>
+    <p class="print-note">
+      All print collateral generated from Typst templates consuming the same
+      design tokens. Change a color in tokens/color.ts — it propagates to every
+      PDF.
+    </p>
+  </section>
+</Base>
+
+<script>
+  import { renderSequence, playBuffer, type Segment } from "../lib/synth";
+
+  // ── Logo draw-on animation ──────────────────────────────────
+  // Matches Remotion timing: 2.4s total, 30fps = 72 frames
+
+  const paths = [
+    document.getElementById("mpath-1") as SVGPathElement,
+    document.getElementById("mpath-2") as SVGPathElement,
+    document.getElementById("mpath-3") as SVGPathElement,
+    document.getElementById("mpath-4") as SVGPathElement,
+  ];
+  const dot = document.getElementById("logo-dot")!;
+  const cursor = document.getElementById("cursor")!;
+  const timer = document.getElementById("motion-timer")!;
+  const replayBtn = document.getElementById("replay-btn")!;
+  const soundBtn = document.getElementById("sound-btn")!;
+
+  const lengths = paths.map((p) => p.getTotalLength());
+
+  // Timeline (seconds) — p=path index, s=start, e=end
+  const visualSegments = [
+    { p: 0, s: 0.0, e: 0.4 },
+    { p: 1, s: 0.3, e: 0.55 },
+    { p: 2, s: 0.45, e: 1.4 },
+    { p: 3, s: 1.3, e: 2.0 },
+  ];
+  const DOT_START = 2.0;
+  const DOT_END = 2.4;
+  const TOTAL = 2.6;
+
+  // ── Logo sonic design (mote VocalParams) ────────────────────
+  //
+  // C major triad builds during trace, resolves on dot.
+  // Root (C3) enters first, major third (E3) joins midway,
+  // fifth (G3) completes the chord. Dot stamps the octave (C4).
+  // All formant ratios near 1.0 — warm, civic, no shimmer.
+
+  const LOGO_AUDIO: Segment[] = [
+    // Trace — C3 root, holds through entire draw
+    { params: { volume: 0.16, freqHz: 130.81, formantRatio: 1.0, brightness: 0.0, attack: 0.1, sweepOctaves: 0.0 }, ms: 2000, delayMs: 0 },
+    // Trace — E3 major third, enters midway
+    { params: { volume: 0.12, freqHz: 164.81, formantRatio: 1.0, brightness: 0.0, attack: 0.1, sweepOctaves: 0.0 }, ms: 1200, delayMs: 500 },
+    // Trace — G3 fifth, completes the triad
+    { params: { volume: 0.10, freqHz: 196.00, formantRatio: 1.0, brightness: 0.0, attack: 0.1, sweepOctaves: 0.0 }, ms: 900, delayMs: 1000 },
+    // Dot — E4 bright major third, the closing note
+    { params: { volume: 0.30, freqHz: 329.63, formantRatio: 1.5, brightness: 0.0, attack: 0.8, sweepOctaves: 0.0 }, ms: 350, delayMs: 2000 },
+    // Dot — C4 octave underneath for body
+    { params: { volume: 0.18, freqHz: 261.63, formantRatio: 1.2, brightness: 0.0, attack: 0.6, sweepOctaves: 0.0 }, ms: 400, delayMs: 2010 },
+    // Dot — G3 fifth sustain, lets the chord ring
+    { params: { volume: 0.08, freqHz: 196.00, formantRatio: 1.0, brightness: 0.0, attack: 0.3, sweepOctaves: 0.0 }, ms: 450, delayMs: 2020 },
+  ];
+
+  let soundEnabled = false;
+  let audioCtx: AudioContext | null = null;
+
+  soundBtn.addEventListener("click", () => {
+    soundEnabled = !soundEnabled;
+    soundBtn.classList.toggle("active", soundEnabled);
+    if (soundEnabled && !audioCtx) {
+      audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    }
+  });
+
+  function playLogoAudio() {
+    if (!soundEnabled || !audioCtx) return;
+    if (audioCtx.state === "suspended") audioCtx.resume();
+    playBuffer(audioCtx, renderSequence(LOGO_AUDIO));
+  }
+
+  // ── Visual animation ────────────────────────────────────────
+
+  function easeInOut(t: number) {
+    return t < 0.5
+      ? 4 * t * t * t
+      : 1 - Math.pow(-2 * t + 2, 3) / 2;
+  }
+
+  function spring(t: number) {
+    // Restrained settle — small overshoot, heavy damping
+    const w = 14;
+    const d = 6;
+    return 1 - Math.exp(-d * t) * Math.cos(w * t);
+  }
+
+  function reset() {
+    paths.forEach((p, i) => {
+      p.style.strokeDasharray = `${lengths[i]}`;
+      p.style.strokeDashoffset = `${lengths[i]}`;
+    });
+    dot.setAttribute("transform", "scale(0)");
+    dot.setAttribute("transform-origin", "740 30");
+    cursor.setAttribute("opacity", "0");
+    timer.textContent = "0.00s";
+  }
+
+  function update(t: number) {
+    timer.textContent = t.toFixed(2) + "s";
+
+    let cursorVisible = false;
+    let cursorX = 20;
+    let cursorY = 240;
+
+    for (const seg of visualSegments) {
+      const idx = seg.p;
+      const start = seg.s;
+      const end = seg.e;
+      const len = lengths[idx];
+
+      if (t < start) {
+        paths[idx].style.strokeDashoffset = `${len}`;
+      } else if (t >= end) {
+        paths[idx].style.strokeDashoffset = "0";
+      } else {
+        const progress = easeInOut((t - start) / (end - start));
+        paths[idx].style.strokeDashoffset = `${len * (1 - progress)}`;
+
+        const pt = paths[idx].getPointAtLength(progress * len);
+        cursorX = pt.x;
+        cursorY = pt.y;
+        cursorVisible = true;
+      }
+    }
+
+    if (t >= TOTAL * 0.85) {
+      cursor.setAttribute("opacity", "0");
+    } else if (cursorVisible) {
+      cursor.setAttribute("cx", `${cursorX}`);
+      cursor.setAttribute("cy", `${cursorY}`);
+      cursor.setAttribute("opacity", "1");
+    } else if (t > 0) {
+      cursor.setAttribute("opacity", "0.5");
+    }
+
+    if (t >= DOT_START && t <= DOT_END) {
+      const dt = (t - DOT_START) / (DOT_END - DOT_START);
+      const sc = spring(dt);
+      dot.setAttribute("transform", `translate(740, 30) scale(${sc}) translate(-740, -30)`);
+    } else if (t > DOT_END) {
+      dot.setAttribute("transform", "translate(740, 30) scale(1) translate(-740, -30)");
+    }
+  }
+
+  let animStart = 0;
+  let running = false;
+
+  function play() {
+    reset();
+    running = true;
+    animStart = performance.now();
+    playLogoAudio();
+
+    function tick(now: number) {
+      const t = (now - animStart) / 1000;
+      if (t > TOTAL) {
+        update(TOTAL);
+        running = false;
+        return;
+      }
+      update(t);
+      requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+  }
+
+  replayBtn.addEventListener("click", play);
+
+  // Auto-play on first view (visual only — sound requires interaction)
+  const observer = new IntersectionObserver(
+    (entries) => {
+      if (entries[0].isIntersecting && !running) {
+        play();
+        observer.disconnect();
+      }
+    },
+    { threshold: 0.5 },
+  );
+  observer.observe(document.getElementById("logo-motion")!);
+</script>
+
+<style>
+  /* Section descriptions */
+  .section-desc {
+    font-size: 14px;
+    color: var(--fg-muted);
+    max-width: 560px;
+    line-height: 1.5;
+    margin-top: -20px;
+    margin-bottom: 32px;
+  }
+
+  /* Logo motion */
+  .motion-viewport {
+    position: relative;
+    border: 1px solid var(--border);
+    background: oklch(0.06 0.005 49);
+    padding: 48px 40px 16px;
+    margin-bottom: 24px;
+  }
+  #logo-motion {
+    display: block;
+    width: 100%;
+    max-width: 640px;
+    margin: 0 auto;
+    height: auto;
+  }
+  .motion-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 16px;
+  }
+  .motion-bar-left {
+    display: flex;
+    gap: 4px;
+  }
+  .sound-btn.active {
+    color: var(--primary);
+    border-color: var(--primary);
+    background: oklch(0.705 0.213 47.604 / 0.1);
+  }
+  .replay-btn {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    padding: 6px 14px;
+    cursor: pointer;
+    background: transparent;
+    color: var(--fg-muted);
+    border: 1px solid var(--border);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    transition: all 100ms ease;
+  }
+  .replay-btn:hover {
+    color: var(--primary);
+    border-color: var(--primary);
+  }
+  .motion-timer {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--fg-muted);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Timing table */
+  .timing-table {
+    border: 1px solid var(--border);
+    margin-bottom: 16px;
+  }
+  .timing-header {
+    display: grid;
+    grid-template-columns: 1fr 80px 80px 1fr;
+    padding: 10px 20px;
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--fg-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    border-bottom: 1px solid var(--border);
+  }
+  .timing-row {
+    display: grid;
+    grid-template-columns: 1fr 80px 80px 1fr;
+    padding: 8px 20px;
+    font-size: 12px;
+    border-bottom: 1px solid var(--border);
+    align-items: center;
+  }
+  .timing-row:last-child { border-bottom: none; }
+  .timing-element {
+    font-weight: 600;
+  }
+  .timing-dot {
+    color: var(--primary);
+  }
+  .timing-audio-header {
+    border-top: 1px solid var(--border);
+  }
+  .timing-audio-label {
+    color: var(--primary);
+    text-transform: uppercase;
+    font-size: 10px;
+    letter-spacing: 0.04em;
+  }
+  .timing-audio {
+    color: var(--fg-muted);
+  }
+  .timing-val {
+    font-variant-numeric: tabular-nums;
+    color: var(--fg-muted);
+  }
+  .timing-ease {
+    font-size: 11px;
+    color: var(--fg-muted);
+  }
+
+  /* Remotion note */
+  .remotion-note {
+    font-size: 12px;
+    color: var(--fg-muted);
+    line-height: 1.6;
+    padding: 16px 20px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+  }
+  .remotion-label {
+    font-weight: 700;
+    color: var(--primary);
+    margin-right: 4px;
+  }
+  .remotion-note code {
+    font-size: 11px;
+    color: var(--primary);
+    background: oklch(0.705 0.213 47.604 / 0.1);
+    padding: 1px 5px;
+  }
+
+  /* Logo */
+  .logo-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr;
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    margin-bottom: 24px;
+  }
+  .logo-card {
+    padding: 48px 32px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+  }
+  .logo-img {
+    width: 100%;
+    max-width: 280px;
+    height: auto;
+  }
+  .logo-meta {
+    font-size: 10px;
+    letter-spacing: 0.02em;
+    opacity: 0.5;
+  }
+  .logo-on-dark {
+    background: var(--black);
+    color: var(--fg);
+  }
+  .logo-on-light {
+    background: var(--white);
+    color: oklch(0.147 0.004 49.25);
+  }
+  .logo-on-orange {
+    background: oklch(0.705 0.213 47.604);
+    color: var(--black);
+  }
+  .logo-details {
+    display: flex;
+    flex-direction: column;
+  }
+  .logo-detail {
+    display: flex;
+    gap: 16px;
+    padding: 10px 0;
+    font-size: 12px;
+    align-items: baseline;
+  }
+  .detail-label {
+    font-weight: 700;
+    min-width: 120px;
+    color: var(--fg);
+  }
+  .detail-value {
+    color: var(--fg-muted);
+  }
+
+  /* Wordmark */
+  .wordmark-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+  }
+  .wordmark-card {
+    padding: 48px 32px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+  }
+  .wordmark {
+    font-family: var(--font-mono);
+    font-size: 48px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+  .wordmark-meta {
+    font-size: 10px;
+    letter-spacing: 0.04em;
+    opacity: 0.5;
+  }
+  .wordmark-dark {
+    background: var(--black);
+    color: var(--white);
+  }
+  .wordmark-light {
+    background: var(--white);
+    color: var(--black);
+  }
+  .wordmark-orange {
+    background: oklch(0.705 0.213 47.604);
+    color: var(--black);
+  }
+
+  /* Lockup */
+  .lockup-demo {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    padding: 32px;
+    border: 1px solid var(--border);
+  }
+  .lockup {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .lockup-name {
+    font-size: 24px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+  .lockup-sm .lockup-name {
+    font-size: 18px;
+  }
+  .lockup-divider {
+    width: 1px;
+    height: 24px;
+    background: var(--border);
+  }
+  .lockup-sm .lockup-divider {
+    height: 18px;
+  }
+  .lockup-sub {
+    font-size: 14px;
+    color: var(--fg-muted);
+  }
+  .lockup-sm .lockup-sub {
+    font-size: 12px;
+  }
+
+  /* Vehicle livery */
+  .livery-section {
+    /* extra breathing room for this section */
+  }
+
+  .livery-hero {
+    border: 1px solid var(--border);
+    background: oklch(0.06 0.005 49);
+    padding: 48px 32px 24px;
+    margin-bottom: 2px;
+  }
+  .livery-svg {
+    display: block;
+    width: 100%;
+    max-width: 780px;
+    margin: 0 auto;
+    height: auto;
+  }
+  .light-bar-glow {
+    animation: bar-pulse 3s ease-in-out infinite;
+  }
+  @keyframes bar-pulse {
+    0%, 100% { opacity: 0.25; }
+    50% { opacity: 0.6; }
+  }
+
+  /* Legend grid */
+  .livery-legend {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    border-top: none;
+    margin-bottom: 32px;
+  }
+  .legend-item {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    padding: 10px 16px;
+    font-size: 11px;
+    background: var(--bg);
+  }
+  .legend-num {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--primary);
+    flex-shrink: 0;
+    width: 16px;
+    text-align: center;
+  }
+  .legend-text {
+    color: var(--fg-muted);
+    line-height: 1.4;
+  }
+
+  /* Materials palette */
+  .livery-materials {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    margin-bottom: 32px;
+  }
+  .mat-swatch {
+    padding: 16px 12px;
+    background: var(--bg);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    align-items: center;
+    text-align: center;
+  }
+  .mat-color {
+    width: 100%;
+    aspect-ratio: 3 / 1;
+    border-radius: 4px;
+  }
+  .mat-color-chevron {
+    background: repeating-linear-gradient(
+      -55deg,
+      oklch(0.705 0.213 47.604) 0px,
+      oklch(0.705 0.213 47.604) 6px,
+      oklch(0.18 0.01 49) 6px,
+      oklch(0.18 0.01 49) 12px
+    );
+  }
+  .mat-color-lcd {
+    background: oklch(0.08 0.004 49);
+    border: 1px solid oklch(0.28 0.008 55);
+    position: relative;
+    overflow: hidden;
+  }
+  .mat-color-lcd::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 30%;
+    background: oklch(0.705 0.213 47.604);
+  }
+  .mat-name {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--fg);
+  }
+  .mat-spec {
+    font-size: 9px;
+    color: var(--fg-muted);
+  }
+
+  /* Orthographic views */
+  .livery-ortho-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 32px;
+  }
+  .livery-ortho-col {
+    display: flex;
+    flex-direction: column;
+  }
+  .livery-ortho-label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--fg-muted);
+    margin-bottom: 6px;
+  }
+  .livery-ortho-viewport {
+    border: 1px solid var(--border);
+    background: oklch(0.06 0.005 49);
+    padding: 24px 16px;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .livery-svg-ortho {
+    display: block;
+    width: 100%;
+    max-width: 280px;
+    height: auto;
+  }
+
+  /* LCD detail panel */
+  .lcd-detail {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    margin-bottom: 32px;
+  }
+  .lcd-preview {
+    padding: 40px 32px;
+    background: var(--bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .lcd-bezel {
+    width: 280px;
+    padding: 6px;
+    background: oklch(0.16 0.005 49);
+    border-radius: 8px;
+    box-shadow: 0 2px 16px oklch(0 0 0 / 0.3);
+  }
+  .lcd-screen {
+    background: oklch(0.08 0.005 240);
+    border-radius: 4px;
+    overflow: hidden;
+    font-family: var(--font-mono);
+  }
+  .lcd-header {
+    background: oklch(0.705 0.213 47.604);
+    padding: 6px 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .lcd-brand {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 13px;
+    color: oklch(0.98 0 0);
+    letter-spacing: -0.02em;
+  }
+  .lcd-unit {
+    font-size: 8px;
+    color: oklch(0.98 0 0 / 0.7);
+    letter-spacing: 0.04em;
+  }
+  .lcd-body {
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .lcd-task-row {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+  }
+  .lcd-task-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: oklch(0.72 0.19 145);
+    margin-top: 2px;
+    flex-shrink: 0;
+    box-shadow: 0 0 6px oklch(0.72 0.19 145 / 0.4);
+  }
+  .lcd-task-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .lcd-task-name {
+    font-size: 14px;
+    font-weight: 700;
+    color: oklch(0.95 0 0);
+  }
+  .lcd-task-location {
+    font-size: 9px;
+    color: oklch(0.55 0 0);
+  }
+  .lcd-map {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .lcd-map-grid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 3px;
+  }
+  .lcd-map-block {
+    height: 6px;
+    border-radius: 1.5px;
+    background: oklch(0.20 0.005 49);
+  }
+  .lcd-map-block.active {
+    background: oklch(0.705 0.213 47.604);
+    box-shadow: 0 0 4px oklch(0.705 0.213 47.604 / 0.3);
+  }
+  .lcd-map-block.done {
+    background: oklch(0.72 0.19 145 / 0.5);
+  }
+  .lcd-map-label {
+    font-size: 7px;
+    color: oklch(0.40 0 0);
+  }
+  .lcd-footer {
+    padding: 8px 12px;
+    border-top: 1px solid oklch(0.15 0.005 240);
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+  }
+  .lcd-footer-left {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .lcd-eta {
+    font-size: 10px;
+    color: oklch(0.80 0 0);
+    font-weight: 600;
+  }
+  .lcd-contact {
+    font-size: 8px;
+    color: oklch(0.45 0 0);
+  }
+  .lcd-qr {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+  }
+  .lcd-qr-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 1px;
+    width: 24px;
+    height: 24px;
+  }
+  .lcd-qr-grid div {
+    background: oklch(0.80 0 0);
+    border-radius: 0.5px;
+  }
+  .lcd-qr-grid div:nth-child(2n) {
+    background: oklch(0.15 0.005 240);
+  }
+  .lcd-qr-label {
+    font-size: 6px;
+    color: oklch(0.40 0 0);
+  }
+  .lcd-specs {
+    padding: 28px 32px;
+    background: var(--bg);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    justify-content: center;
+  }
+  .lcd-spec-heading {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--fg);
+    margin-bottom: 4px;
+  }
+  .lcd-spec-row {
+    display: flex;
+    gap: 12px;
+    font-size: 12px;
+    align-items: baseline;
+  }
+  .lcd-spec-label {
+    font-weight: 700;
+    min-width: 80px;
+    color: var(--fg);
+    flex-shrink: 0;
+  }
+  .lcd-spec-value {
+    color: var(--fg-muted);
+  }
+
+  /* Day/night */
+  .livery-daynight {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 32px;
+  }
+  .livery-daynight-card {
+    border: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+  }
+  .livery-daynight-inner {
+    padding: 28px 20px;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .livery-day .livery-daynight-inner {
+    background: oklch(0.85 0.008 90);
+  }
+  .livery-night .livery-daynight-inner {
+    background: oklch(0.04 0.004 49);
+  }
+  .livery-svg-sm {
+    display: block;
+    width: 100%;
+    max-width: 340px;
+    height: auto;
+  }
+  .daynight-label {
+    display: block;
+    font-size: 10px;
+    color: var(--fg-muted);
+    padding: 10px 16px;
+    border-top: 1px solid var(--border);
+    background: var(--bg);
+  }
+
+  /* Tenets */
+  .livery-tenets {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+  }
+  .livery-tenet {
+    padding: 20px 16px;
+    background: var(--bg);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .tenet-num {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    color: var(--primary);
+    letter-spacing: 0.04em;
+  }
+  .tenet-heading {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--fg);
+  }
+  .tenet-body {
+    font-size: 11px;
+    color: var(--fg-muted);
+    line-height: 1.5;
+  }
+
+  /* Lights */
+  .lights-table {
+    border: 1px solid var(--border);
+  }
+  .light-row {
+    display: grid;
+    grid-template-columns: 48px 180px 1fr;
+    padding: 16px 24px;
+    border-bottom: 1px solid var(--border);
+    align-items: center;
+    gap: 16px;
+  }
+  .light-row:last-child {
+    border-bottom: none;
+  }
+  .light-preview {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+  }
+  .light-amber-steady {
+    background: oklch(0.80 0.15 70);
+    box-shadow: 0 0 8px oklch(0.80 0.15 70 / 0.5);
+  }
+  .light-amber-pulse {
+    background: oklch(0.80 0.15 70);
+    box-shadow: 0 0 8px oklch(0.80 0.15 70 / 0.5);
+    animation: light-pulse 2s ease-in-out infinite;
+  }
+  .light-white-steady {
+    background: oklch(1 0 0);
+    box-shadow: 0 0 8px oklch(1 0 0 / 0.5);
+  }
+  .light-red-steady {
+    background: oklch(0.55 0.22 18.5);
+    box-shadow: 0 0 8px oklch(0.55 0.22 18.5 / 0.5);
+  }
+  @keyframes light-pulse {
+    0%, 100% { opacity: 1; box-shadow: 0 0 8px oklch(0.80 0.15 70 / 0.5); }
+    50% { opacity: 0.3; box-shadow: 0 0 2px oklch(0.80 0.15 70 / 0.2); }
+  }
+  .light-pattern {
+    font-size: 12px;
+    font-weight: 700;
+  }
+  .light-meaning {
+    font-size: 12px;
+    color: var(--fg-muted);
+  }
+
+  /* Print system */
+  .print-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+  .print-card {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .print-preview {
+    aspect-ratio: 8.5 / 11;
+    border: 1px solid var(--border);
+    padding: 16px;
+    display: flex;
+  }
+  .print-page {
+    flex: 1;
+    background: var(--white);
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .print-page.dark {
+    background: var(--black);
+    border: 1px solid var(--border);
+    justify-content: center;
+    align-items: center;
+  }
+  .print-heading {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--black);
+    border-left: 3px solid oklch(0.705 0.213 47.604);
+    padding-left: 8px;
+  }
+  .print-heading.sm {
+    font-size: 10px;
+  }
+  .print-body-line {
+    height: 3px;
+    background: oklch(0.9 0 0);
+  }
+  .print-body-line.short {
+    width: 60%;
+  }
+  .print-callout {
+    height: 24px;
+    background: oklch(0.705 0.213 47.604 / 0.1);
+    border-left: 2px solid oklch(0.705 0.213 47.604);
+  }
+  .print-table-row {
+    height: 8px;
+    background: oklch(0.95 0 0);
+    border-bottom: 1px solid oklch(0.9 0 0);
+  }
+  .print-hero-text {
+    font-family: var(--font-display);
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--white);
+    text-align: center;
+    line-height: 1.2;
+  }
+  .print-label {
+    font-size: 11px;
+    color: var(--fg-muted);
+    text-align: center;
+  }
+  .print-note {
+    font-size: 12px;
+    color: var(--fg-muted);
+    line-height: 1.5;
+    padding: 16px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+  }
+
+  @media (max-width: 768px) {
+    .logo-grid,
+    .wordmark-grid {
+      grid-template-columns: 1fr;
+    }
+    .print-grid {
+      grid-template-columns: 1fr;
+    }
+    .logo-detail {
+      flex-direction: column;
+      gap: 2px;
+    }
+    .detail-label {
+      min-width: unset;
+    }
+    .motion-viewport {
+      padding: 24px 16px 12px;
+    }
+    .timing-header,
+    .timing-row {
+      grid-template-columns: 1fr 60px 60px 1fr;
+      padding: 8px 12px;
+      font-size: 10px;
+    }
+    .light-row {
+      grid-template-columns: 36px 1fr;
+      gap: 8px;
+    }
+    .light-meaning { display: none; }
+    .livery-hero {
+      padding: 24px 12px 16px;
+    }
+    .livery-materials {
+      grid-template-columns: repeat(3, 1fr);
+    }
+    .livery-ortho-row,
+    .livery-daynight {
+      grid-template-columns: 1fr;
+    }
+    .lcd-detail {
+      grid-template-columns: 1fr;
+    }
+    .lcd-spec-row {
+      flex-direction: column;
+      gap: 2px;
+    }
+    .lcd-spec-label { min-width: unset; }
+    .livery-tenets {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+</style>

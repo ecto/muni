@@ -1,0 +1,593 @@
+---
+import "../styles/global.css";
+---
+
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Specimen — Muni Design</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <!-- Full-screen mock depot console — no nav, no footer, pure specimen -->
+    <div class="console">
+      <!-- Top bar -->
+      <header class="topbar">
+        <div class="topbar-left">
+          <span class="brand">muni</span>
+          <span class="divider"></span>
+          <span class="brand-sub">depot console</span>
+        </div>
+        <nav class="topbar-nav">
+          <a class="nav-link active">Dashboard</a>
+          <a class="nav-link">Fleet</a>
+          <a class="nav-link">Dispatch</a>
+          <a class="nav-link">Maps</a>
+          <a class="nav-link">Metrics</a>
+        </nav>
+        <div class="topbar-right">
+          <span class="topbar-status">
+            <span class="status-dot online"></span>
+            3 rovers online
+          </span>
+          <span class="topbar-time" id="clock">00:00:00</span>
+        </div>
+      </header>
+
+      <!-- Main content -->
+      <div class="main">
+        <!-- Left sidebar — fleet cards -->
+        <aside class="sidebar">
+          <div class="sidebar-header">
+            <span class="sidebar-title">Fleet</span>
+            <span class="sidebar-count">3 / 4</span>
+          </div>
+
+          <div class="rover-cards-wrap">
+            <div class="rover-card rover-active">
+              <div class="rover-header">
+                <span class="rover-id">beaver-12</span>
+                <span class="rover-badge badge-active">active</span>
+              </div>
+              <div class="rover-task">Clearing snow — Oak St N</div>
+              <div class="rover-stats">
+                <div class="stat">
+                  <span class="stat-label">Battery</span>
+                  <div class="stat-bar"><div class="stat-fill" style="width: 73%"></div></div>
+                  <span class="stat-value">73%</span>
+                </div>
+                <div class="stat">
+                  <span class="stat-label">Speed</span>
+                  <span class="stat-value">0.9 m/s</span>
+                </div>
+                <div class="stat">
+                  <span class="stat-label">Uptime</span>
+                  <span class="stat-value">4h 22m</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="rover-card">
+              <div class="rover-header">
+                <span class="rover-id">beaver-07</span>
+                <span class="rover-badge badge-yield">yielding</span>
+              </div>
+              <div class="rover-task">Clearing snow — Elm Ave</div>
+              <div class="rover-stats">
+                <div class="stat">
+                  <span class="stat-label">Battery</span>
+                  <div class="stat-bar"><div class="stat-fill" style="width: 45%"></div></div>
+                  <span class="stat-value">45%</span>
+                </div>
+                <div class="stat">
+                  <span class="stat-label">Speed</span>
+                  <span class="stat-value">0.0 m/s</span>
+                </div>
+                <div class="stat">
+                  <span class="stat-label">Uptime</span>
+                  <span class="stat-value">2h 05m</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="rover-card">
+              <div class="rover-header">
+                <span class="rover-id">beaver-03</span>
+                <span class="rover-badge badge-charging">charging</span>
+              </div>
+              <div class="rover-task">At depot — bay 2</div>
+              <div class="rover-stats">
+                <div class="stat">
+                  <span class="stat-label">Battery</span>
+                  <div class="stat-bar"><div class="stat-fill charging" style="width: 12%"></div></div>
+                  <span class="stat-value">12%</span>
+                </div>
+                <div class="stat">
+                  <span class="stat-label">ETA Full</span>
+                  <span class="stat-value">~48m</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="rover-card rover-offline">
+              <div class="rover-header">
+                <span class="rover-id">beaver-01</span>
+                <span class="rover-badge badge-offline">offline</span>
+              </div>
+              <div class="rover-task">Maintenance — motor replacement</div>
+            </div>
+          </div>
+        </aside>
+
+        <!-- Center — map area -->
+        <div class="map-area">
+          <div class="map-viewport dot-grid">
+            <!-- Mock map with rover positions -->
+            <div class="map-grid-overlay"></div>
+            <div class="map-rover map-rover-1">
+              <div class="map-rover-icon"></div>
+              <div class="map-rover-path"></div>
+              <span class="map-rover-label">beaver-12</span>
+            </div>
+            <div class="map-rover map-rover-2">
+              <div class="map-rover-icon yielding"></div>
+              <span class="map-rover-label">beaver-07</span>
+            </div>
+            <div class="map-depot">
+              <span class="map-depot-label">Depot</span>
+            </div>
+
+            <!-- Map controls -->
+            <div class="map-controls">
+              <button class="map-btn">+</button>
+              <button class="map-btn">−</button>
+              <button class="map-btn">⟲</button>
+            </div>
+
+            <!-- Map info overlay -->
+            <div class="map-info">
+              <span>Zone: Downtown Core</span>
+              <span>Coverage: 67%</span>
+              <span>Last scan: 12m ago</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right panel — metrics -->
+        <aside class="metrics-panel">
+          <div class="sidebar-header">
+            <span class="sidebar-title">Metrics</span>
+            <span class="sidebar-count">Live</span>
+          </div>
+
+          <div class="metric-card">
+            <div class="metric-header">
+              <span class="metric-label">Snow Cleared Today</span>
+              <span class="metric-trend trend-up">+12%</span>
+            </div>
+            <span class="metric-value">2.4 km</span>
+            <svg class="sparkline" viewBox="0 0 120 32">
+              <polyline
+                points="0,28 10,24 20,26 30,20 40,22 50,16 60,18 70,12 80,14 90,8 100,10 110,6 120,4"
+                fill="none" stroke="oklch(0.705 0.213 47.604)" stroke-width="1.5"
+              />
+              <polyline
+                points="0,28 10,24 20,26 30,20 40,22 50,16 60,18 70,12 80,14 90,8 100,10 110,6 120,4"
+                fill="oklch(0.705 0.213 47.604 / 0.1)" stroke="none"
+              />
+            </svg>
+          </div>
+
+          <div class="metric-card">
+            <div class="metric-header">
+              <span class="metric-label">Fleet Availability</span>
+            </div>
+            <span class="metric-value">75%</span>
+            <div class="metric-breakdown">
+              <div class="breakdown-bar">
+                <div class="breakdown-seg seg-active" style="width: 50%"></div>
+                <div class="breakdown-seg seg-yield" style="width: 25%"></div>
+                <div class="breakdown-seg seg-offline" style="width: 25%"></div>
+              </div>
+              <div class="breakdown-legend">
+                <span><span class="legend-dot active"></span>Active 2</span>
+                <span><span class="legend-dot yield"></span>Charging 1</span>
+                <span><span class="legend-dot offline"></span>Offline 1</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="metric-card">
+            <div class="metric-header">
+              <span class="metric-label">Energy Consumption</span>
+              <span class="metric-trend trend-down">−8%</span>
+            </div>
+            <span class="metric-value">1.2 kWh</span>
+            <svg class="sparkline" viewBox="0 0 120 32">
+              <polyline
+                points="0,8 10,12 20,10 30,16 40,14 50,18 60,16 70,20 80,18 90,22 100,20 110,24 120,22"
+                fill="none" stroke="oklch(0.723 0.191 149)" stroke-width="1.5"
+              />
+            </svg>
+          </div>
+
+          <div class="metric-card">
+            <div class="metric-header">
+              <span class="metric-label">Pedestrian Interactions</span>
+            </div>
+            <span class="metric-value">23</span>
+            <div class="metric-sub">All yielded successfully. Avg wait: 4.2s</div>
+          </div>
+
+          <div class="metric-card">
+            <div class="metric-header">
+              <span class="metric-label">Alerts</span>
+            </div>
+            <div class="alert-list">
+              <div class="alert-item alert-warning">
+                <span class="alert-time">14:32</span>
+                <span>beaver-07 low battery warning</span>
+              </div>
+              <div class="alert-item alert-info">
+                <span class="alert-time">13:15</span>
+                <span>beaver-03 returned to depot</span>
+              </div>
+              <div class="alert-item alert-info">
+                <span class="alert-time">12:48</span>
+                <span>Route Oak St N assigned to beaver-12</span>
+              </div>
+            </div>
+          </div>
+        </aside>
+      </div>
+
+      <!-- Bottom status bar -->
+      <footer class="statusbar">
+        <span class="statusbar-item">
+          <span class="status-dot online"></span> System nominal
+        </span>
+        <span class="statusbar-item">RTK Fix: 1.2cm</span>
+        <span class="statusbar-item">Comms: 24ms</span>
+        <span class="statusbar-item">Weather: −4°C, light snow</span>
+        <span class="statusbar-item right">
+          <a href="/" class="specimen-back">← Back to design system</a>
+        </span>
+      </footer>
+    </div>
+
+    <script>
+      function updateClock() {
+        const now = new Date();
+        const el = document.getElementById("clock");
+        if (el) {
+          el.textContent = now.toLocaleTimeString("en-US", { hour12: false });
+        }
+      }
+      updateClock();
+      setInterval(updateClock, 1000);
+    </script>
+  </body>
+</html>
+
+<style>
+  html, body { height: 100%; overflow: hidden; }
+  .console { display: flex; flex-direction: column; height: 100vh; }
+
+  /* Top bar */
+  .topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 16px; height: 44px;
+    border-bottom: 1px solid var(--border); flex-shrink: 0;
+    background: var(--bg);
+  }
+  .topbar-left { display: flex; align-items: center; gap: 12px; }
+  .brand { font-size: 14px; font-weight: 700; }
+  .divider { width: 1px; height: 16px; background: var(--border); }
+  .brand-sub { font-size: 11px; color: var(--fg-muted); }
+  .topbar-nav { display: flex; gap: 2px; }
+  .nav-link {
+    font-size: 11px; letter-spacing: 0.04em; text-transform: uppercase;
+    padding: 4px 12px; color: var(--fg-muted); cursor: pointer;
+    transition: color 100ms ease, background-color 100ms ease;
+  }
+  .nav-link:hover { color: var(--fg); background: var(--surface); }
+  .nav-link.active { color: var(--black); background: var(--primary); }
+  .topbar-right { display: flex; align-items: center; gap: 16px; }
+  .topbar-status { font-size: 11px; color: var(--fg-muted); display: flex; align-items: center; gap: 6px; }
+  .topbar-time { font-size: 11px; color: var(--fg-muted); font-variant-numeric: tabular-nums; }
+  .status-dot { width: 6px; height: 6px; display: inline-block; }
+  .status-dot.online { background: oklch(0.723 0.191 149); }
+
+  /* Main layout */
+  .main {
+    display: grid; grid-template-columns: 280px 1fr 260px;
+    flex: 1; overflow: hidden;
+  }
+
+  /* Sidebar */
+  .sidebar {
+    border-right: 1px solid var(--border); overflow-y: auto;
+    display: flex; flex-direction: column;
+  }
+  .sidebar-header {
+    display: flex; justify-content: space-between; padding: 12px 16px;
+    border-bottom: 1px solid var(--border); flex-shrink: 0;
+  }
+  .sidebar-title {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--fg-muted);
+  }
+  .sidebar-count { font-size: 10px; color: var(--fg-muted); }
+
+  /* Rover cards */
+  .rover-cards-wrap {
+    display: contents;
+  }
+  .rover-card {
+    padding: 12px 16px; border-bottom: 1px solid var(--border);
+    cursor: pointer; transition: background-color 100ms ease;
+  }
+  .rover-card:hover { background: var(--surface); }
+  .rover-active { border-left: 2px solid var(--primary); background: oklch(0.705 0.213 47.604 / 0.03); }
+  .rover-offline { opacity: 0.5; }
+  .rover-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+  .rover-id { font-size: 13px; font-weight: 700; }
+  .rover-badge {
+    font-size: 9px; padding: 1px 6px; letter-spacing: 0.02em;
+    text-transform: uppercase;
+  }
+  .badge-active { background: oklch(0.723 0.191 149 / 0.15); color: oklch(0.723 0.191 149); }
+  .badge-yield { background: oklch(0.705 0.213 47.604 / 0.15); color: oklch(0.705 0.213 47.604); }
+  .badge-charging { background: oklch(0.546 0.215 264 / 0.15); color: oklch(0.65 0.17 264); }
+  .badge-offline { background: oklch(0.5 0 0 / 0.15); color: var(--fg-muted); }
+  .rover-task { font-size: 11px; color: var(--fg-muted); margin-bottom: 8px; }
+  .rover-stats { display: flex; flex-direction: column; gap: 4px; }
+  .stat { display: flex; align-items: center; gap: 8px; font-size: 10px; }
+  .stat-label { color: var(--fg-muted); min-width: 48px; }
+  .stat-bar { flex: 1; height: 3px; background: var(--border); }
+  .stat-fill { height: 100%; background: oklch(0.723 0.191 149); }
+  .stat-fill.charging { background: oklch(0.546 0.215 264); animation: charge-pulse 2s ease-in-out infinite; }
+  @keyframes charge-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+  .stat-value { font-variant-numeric: tabular-nums; min-width: 48px; text-align: right; }
+
+  /* Map area */
+  .map-area { position: relative; overflow: hidden; background: oklch(0.04 0 0); }
+  .map-viewport { width: 100%; height: 100%; position: relative; }
+  .map-grid-overlay {
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(oklch(1 0 0 / 0.02) 1px, transparent 1px),
+      linear-gradient(90deg, oklch(1 0 0 / 0.02) 1px, transparent 1px);
+    background-size: 48px 48px;
+  }
+  .map-rover {
+    position: absolute; display: flex; flex-direction: column; align-items: center; gap: 4px;
+  }
+  .map-rover-1 { top: 35%; left: 55%; }
+  .map-rover-2 { top: 55%; left: 35%; }
+  .map-rover-icon {
+    width: 16px; height: 10px; background: oklch(0.723 0.191 149);
+    border: 1px solid oklch(0.723 0.191 149);
+    box-shadow: 0 0 12px oklch(0.723 0.191 149 / 0.4);
+  }
+  .map-rover-icon.yielding {
+    background: oklch(0.705 0.213 47.604);
+    border-color: oklch(0.705 0.213 47.604);
+    box-shadow: 0 0 12px oklch(0.705 0.213 47.604 / 0.4);
+    animation: pulse-glow 2s ease-in-out infinite;
+  }
+  @keyframes pulse-glow {
+    0%, 100% { box-shadow: 0 0 12px oklch(0.705 0.213 47.604 / 0.4); }
+    50% { box-shadow: 0 0 4px oklch(0.705 0.213 47.604 / 0.15); }
+  }
+  .map-rover-path {
+    position: absolute; top: -40px; left: 50%;
+    width: 2px; height: 40px;
+    border-left: 2px dashed oklch(0.705 0.213 47.604 / 0.3);
+  }
+  .map-rover-label {
+    font-size: 9px; color: var(--fg-muted); white-space: nowrap;
+    letter-spacing: 0.02em;
+  }
+  .map-depot {
+    position: absolute; bottom: 20%; right: 25%;
+    width: 32px; height: 32px; border: 1px solid var(--fg-muted);
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: flex-end; padding-bottom: 4px;
+  }
+  .map-depot-label { font-size: 8px; color: var(--fg-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+  .map-controls {
+    position: absolute; bottom: 16px; right: 16px;
+    display: flex; flex-direction: column; gap: 2px;
+  }
+  .map-btn {
+    width: 28px; height: 28px; background: var(--surface);
+    border: 1px solid var(--border); color: var(--fg);
+    font-family: var(--font-mono); font-size: 14px;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    transition: background-color 100ms ease;
+  }
+  .map-btn:hover { background: var(--border); }
+  .map-info {
+    position: absolute; top: 12px; left: 12px;
+    display: flex; gap: 16px; font-size: 10px; color: var(--fg-muted);
+    background: oklch(0 0 0 / 0.7); padding: 6px 10px;
+    backdrop-filter: blur(4px);
+  }
+
+  /* Metrics panel */
+  .metrics-panel {
+    border-left: 1px solid var(--border); overflow-y: auto;
+    display: flex; flex-direction: column;
+  }
+  .metric-card {
+    padding: 12px 16px; border-bottom: 1px solid var(--border);
+  }
+  .metric-header {
+    display: flex; justify-content: space-between; align-items: baseline;
+    margin-bottom: 4px;
+  }
+  .metric-label { font-size: 10px; color: var(--fg-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+  .metric-trend { font-size: 10px; font-weight: 700; }
+  .trend-up { color: oklch(0.723 0.191 149); }
+  .trend-down { color: oklch(0.723 0.191 149); }
+  .metric-value { font-size: 24px; font-weight: 700; display: block; margin-bottom: 8px; }
+  .metric-sub { font-size: 10px; color: var(--fg-muted); }
+  .sparkline { width: 100%; height: 32px; }
+
+  /* Breakdown */
+  .metric-breakdown { margin-top: 8px; }
+  .breakdown-bar { display: flex; height: 4px; gap: 2px; }
+  .breakdown-seg { height: 100%; }
+  .seg-active { background: oklch(0.723 0.191 149); }
+  .seg-yield { background: oklch(0.546 0.215 264); }
+  .seg-offline { background: var(--fg-muted); }
+  .breakdown-legend { display: flex; gap: 10px; margin-top: 8px; font-size: 9px; color: var(--fg-muted); }
+  .legend-dot {
+    display: inline-block; width: 6px; height: 6px; margin-right: 3px;
+    vertical-align: middle;
+  }
+  .legend-dot.active { background: oklch(0.723 0.191 149); }
+  .legend-dot.yield { background: oklch(0.546 0.215 264); }
+  .legend-dot.offline { background: var(--fg-muted); }
+
+  /* Alerts */
+  .alert-list { display: flex; flex-direction: column; gap: 4px; }
+  .alert-item {
+    font-size: 10px; display: flex; gap: 8px; padding: 4px 0;
+    color: var(--fg-muted);
+  }
+  .alert-time { color: var(--fg-muted); min-width: 32px; font-variant-numeric: tabular-nums; }
+  .alert-warning { border-left: 2px solid oklch(0.705 0.213 47.604); padding-left: 8px; }
+  .alert-info { border-left: 2px solid oklch(0.546 0.215 264 / 0.4); padding-left: 8px; }
+
+  /* Status bar */
+  .statusbar {
+    display: flex; align-items: center; gap: 24px;
+    padding: 0 16px; height: 28px;
+    border-top: 1px solid var(--border); flex-shrink: 0;
+    font-size: 10px; color: var(--fg-muted);
+  }
+  .statusbar-item { display: flex; align-items: center; gap: 6px; }
+  .statusbar-item.right { margin-left: auto; }
+  .specimen-back {
+    color: var(--primary); text-decoration: none;
+    transition: color 100ms ease;
+  }
+  .specimen-back:hover { color: var(--fg); }
+
+  /* ---- Mobile ---- */
+  @media (max-width: 768px) {
+    html, body { height: auto; overflow: auto; }
+    .console { height: auto; min-height: 100vh; min-height: 100dvh; }
+
+    /* Topbar — compact, scrollable nav */
+    .topbar {
+      flex-wrap: wrap; height: auto; padding: 8px 12px; gap: 8px;
+    }
+    .topbar-left { order: 1; }
+    .topbar-right { order: 2; margin-left: auto; }
+    .topbar-nav {
+      order: 3; width: 100%;
+      overflow-x: auto; scrollbar-width: none;
+      -ms-overflow-style: none;
+      border-top: 1px solid var(--border);
+      padding-top: 6px; margin-top: 2px;
+    }
+    .topbar-nav::-webkit-scrollbar { display: none; }
+    .nav-link { flex-shrink: 0; }
+    .brand-sub { display: none; }
+    .divider { display: none; }
+    .topbar-status span:not(.status-dot) { display: none; }
+
+    /* Main — vertical stack, scrollable */
+    .main {
+      display: flex; flex-direction: column;
+      overflow: visible;
+    }
+
+    /* Map — hero, fixed height */
+    .map-area {
+      order: 1;
+      height: 50vh; height: 50dvh;
+      min-height: 240px;
+    }
+    .map-info {
+      flex-wrap: wrap; gap: 8px;
+    }
+
+    /* Fleet — horizontal card strip */
+    .sidebar {
+      order: 2;
+      border-right: none;
+      border-bottom: 1px solid var(--border);
+      overflow: visible;
+    }
+    .sidebar-header {
+      position: sticky; left: 0;
+    }
+    .rover-cards-wrap {
+      display: flex;
+      overflow-x: auto;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+    }
+    .rover-cards-wrap::-webkit-scrollbar { display: none; }
+    .rover-card {
+      border-bottom: none;
+      border-right: 1px solid var(--border);
+      min-width: 220px;
+      flex-shrink: 0;
+    }
+    .rover-card:last-child { border-right: none; }
+    .rover-active { border-left: none; border-top: 2px solid var(--primary); }
+
+    /* Metrics — 2-col compact grid */
+    .metrics-panel {
+      order: 3;
+      border-left: none;
+      border-top: 1px solid var(--border);
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      overflow-y: visible;
+    }
+    .metrics-panel .sidebar-header {
+      grid-column: 1 / -1;
+    }
+    .metric-card {
+      border-bottom: 1px solid var(--border);
+      border-right: 1px solid var(--border);
+    }
+    .metric-card:nth-child(even) { border-right: none; }
+    /* Alerts card spans full width */
+    .metric-card:last-child {
+      grid-column: 1 / -1;
+      border-right: none;
+    }
+    .metric-value { font-size: 20px; }
+
+    /* Status bar — compact */
+    .statusbar {
+      flex-wrap: wrap; height: auto;
+      padding: 8px 12px; gap: 8px 16px;
+    }
+    .statusbar-item.right { width: 100%; }
+  }
+
+  /* Small phones */
+  @media (max-width: 420px) {
+    .topbar-time { display: none; }
+    .map-area { height: 40vh; height: 40dvh; }
+    .metrics-panel { grid-template-columns: 1fr; }
+    .metric-card { border-right: none; }
+    .rover-card { min-width: 200px; }
+  }
+</style>

@@ -1,0 +1,1016 @@
+---
+import Base from "../layouts/Base.astro";
+---
+
+<Base title="Typography">
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <!-- HERO — Pure letterforms at maximum scale                       -->
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+
+  <div class="hero-pair">
+    <div class="hero-specimen">
+      <span class="hero-cap">Space Grotesk · 700 · Display</span>
+      <div class="hero-glyph" style="font-family: var(--font-display); font-weight: 700;">muni</div>
+    </div>
+    <div class="hero-divider"></div>
+    <div class="hero-specimen">
+      <span class="hero-cap">Berkeley Mono · 400 · System</span>
+      <div class="hero-glyph">Ag</div>
+    </div>
+  </div>
+
+  <p class="hero-note">
+    Two typefaces. One accent color. No ornament.
+    Berkeley Mono is the system voice — body, UI, data, code, navigation.
+    Space Grotesk appears only for headlines and brand moments.
+    Mono-first inverts the typical hierarchy: the workhorse is the primary face.
+  </p>
+
+  <!-- ═══ 01 THE SCALE ═══════════════════════════════════════════ -->
+
+  <section>
+    <div class="section-head">
+      <span class="section-num">01</span>
+      <h2 class="section-title">The Scale</h2>
+      <p class="section-desc">
+        Twelve steps from 80 px to 10 px. Display sizes wear Space Grotesk.
+        System sizes wear Berkeley Mono. The handoff happens at 3xl.
+      </p>
+    </div>
+
+    <div class="waterfall">
+      <div class="wf-row" style="--s: 80">
+        <div class="wf-meta"><code class="wf-tok">7xl</code><span class="wf-px">80</span></div>
+        <div class="wf-sample" style="font-family: var(--font-display); font-size: clamp(40px, 8vw, 80px); font-weight: 700; line-height: 1; letter-spacing: -0.04em;">Municipal</div>
+      </div>
+      <div class="wf-row" style="--s: 60">
+        <div class="wf-meta"><code class="wf-tok">6xl</code><span class="wf-px">60</span></div>
+        <div class="wf-sample" style="font-family: var(--font-display); font-size: clamp(32px, 6vw, 60px); font-weight: 700; line-height: 1; letter-spacing: -0.04em;">Robotics</div>
+      </div>
+      <div class="wf-row" style="--s: 48">
+        <div class="wf-meta"><code class="wf-tok">5xl</code><span class="wf-px">48</span></div>
+        <div class="wf-sample" style="font-family: var(--font-display); font-size: clamp(28px, 5vw, 48px); font-weight: 700; line-height: 1.1; letter-spacing: -0.03em;">Sidewalk Service</div>
+      </div>
+      <div class="wf-row" style="--s: 36">
+        <div class="wf-meta"><code class="wf-tok">4xl</code><span class="wf-px">36</span></div>
+        <div class="wf-sample" style="font-family: var(--font-display); font-size: clamp(22px, 4vw, 36px); font-weight: 600; line-height: 1.15; letter-spacing: -0.02em;">Fleet Operations</div>
+      </div>
+      <div class="wf-row" style="--s: 28">
+        <div class="wf-meta"><code class="wf-tok">3xl</code><span class="wf-px">28</span></div>
+        <div class="wf-sample" style="font-size: clamp(18px, 3vw, 28px); line-height: 1.3;">beaver-12 operational</div>
+      </div>
+      <div class="wf-row" style="--s: 22">
+        <div class="wf-meta"><code class="wf-tok">2xl</code><span class="wf-px">22</span></div>
+        <div class="wf-sample" style="font-size: 22px; line-height: 1.3;">status: clearing snow — Oak St NW</div>
+      </div>
+      <div class="wf-row" style="--s: 18">
+        <div class="wf-meta"><code class="wf-tok">xl</code><span class="wf-px">18</span></div>
+        <div class="wf-sample" style="font-size: 18px; line-height: 1.4;">Route coverage at 67%, 3 rovers active</div>
+      </div>
+      <div class="wf-row" style="--s: 16">
+        <div class="wf-meta"><code class="wf-tok">lg</code><span class="wf-px">16</span></div>
+        <div class="wf-sample" style="font-size: 16px; line-height: 1.45;">Battery 73% · Speed 0.9 m/s · Uptime 4h 22m</div>
+      </div>
+      <div class="wf-row" style="--s: 14">
+        <div class="wf-meta"><code class="wf-tok">base</code><span class="wf-px">14</span></div>
+        <div class="wf-sample" style="font-size: 14px;">The quick brown fox jumps over the lazy dog. 0123456789</div>
+      </div>
+      <div class="wf-row" style="--s: 12">
+        <div class="wf-meta"><code class="wf-tok">sm</code><span class="wf-px">12</span></div>
+        <div class="wf-sample" style="font-size: 12px;">const rover = await depot.spawn("beaver-12"); // autonomous mode</div>
+      </div>
+      <div class="wf-row" style="--s: 11">
+        <div class="wf-meta"><code class="wf-tok">xs</code><span class="wf-px">11</span></div>
+        <div class="wf-sample" style="font-size: 11px; letter-spacing: 0.02em;">Navigation · Status · Metadata · Coordinates · Uptime</div>
+      </div>
+      <div class="wf-row" style="--s: 10">
+        <div class="wf-meta"><code class="wf-tok">2xs</code><span class="wf-px">10</span></div>
+        <div class="wf-sample" style="font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase;">Municipal Robotics · Design System · Typography Tokens · v1.0.0</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ 02 TWO VOICES ══════════════════════════════════════════ -->
+
+  <section>
+    <div class="section-head">
+      <span class="section-num">02</span>
+      <h2 class="section-title">Two Voices</h2>
+      <p class="section-desc">
+        Same content, different registers. Space Grotesk commands attention.
+        Berkeley Mono delivers information. They never compete.
+      </p>
+    </div>
+
+    <div class="voices-compare">
+      <div class="voice-col">
+        <span class="voice-label">Display</span>
+        <p style="font-family: var(--font-display); font-size: 32px; font-weight: 700; line-height: 1.15; letter-spacing: -0.02em;">Sidewalk Service Robot</p>
+      </div>
+      <div class="voice-col">
+        <span class="voice-label">System</span>
+        <p style="font-size: 32px; line-height: 1.15;">Sidewalk Service Robot</p>
+      </div>
+    </div>
+
+    <div class="weight-ramp">
+      <span class="ramp-heading">Space Grotesk</span>
+      <div class="ramp-row">
+        <span class="ramp-label">400</span>
+        <span class="ramp-sample" style="font-family: var(--font-display); font-size: 24px; font-weight: 400;">Municipal Robotics</span>
+      </div>
+      <div class="ramp-row">
+        <span class="ramp-label">500</span>
+        <span class="ramp-sample" style="font-family: var(--font-display); font-size: 24px; font-weight: 500;">Municipal Robotics</span>
+      </div>
+      <div class="ramp-row">
+        <span class="ramp-label">600</span>
+        <span class="ramp-sample" style="font-family: var(--font-display); font-size: 24px; font-weight: 600;">Municipal Robotics</span>
+      </div>
+      <div class="ramp-row">
+        <span class="ramp-label">700</span>
+        <span class="ramp-sample" style="font-family: var(--font-display); font-size: 24px; font-weight: 700;">Municipal Robotics</span>
+      </div>
+    </div>
+
+    <div class="weight-ramp">
+      <span class="ramp-heading">Berkeley Mono</span>
+      <div class="ramp-row">
+        <span class="ramp-label">400</span>
+        <span class="ramp-sample" style="font-size: 24px; font-weight: 400;">beaver-12 operational</span>
+      </div>
+      <div class="ramp-row">
+        <span class="ramp-label">700</span>
+        <span class="ramp-sample" style="font-size: 24px; font-weight: 700;">beaver-12 operational</span>
+      </div>
+    </div>
+
+    <div class="role-example">
+      <span class="voice-label">In role</span>
+      <p class="role-headline">Fleet Operations Dashboard</p>
+      <p class="role-body">Three rovers active in the downtown core. Coverage at 67 percent with estimated completion at 14:30 UTC. All units reporting nominal battery levels above the recall threshold. Next dispatch window opens in 22 minutes.</p>
+    </div>
+  </section>
+
+  <!-- ═══ 03 PARAGRAPH ═══════════════════════════════════════════ -->
+
+  <section>
+    <div class="section-head">
+      <span class="section-num">03</span>
+      <h2 class="section-title">Paragraph</h2>
+      <p class="section-desc">
+        Berkeley Mono at 14 px, 1.5 line-height, ~66-character measure.
+        The mono voice signals precision without sacrificing readability.
+      </p>
+    </div>
+
+    <div class="para-specimen">
+      <div class="para-text">
+        Municipal robotics is infrastructure, not consumer technology. The rovers that clear your sidewalk should feel as inevitable as a snowplow — visible, accountable, and fundamentally boring. Every design decision serves that goal. The matte orange body is not a brand choice but a safety choice: high contrast against snow, pavement, and grass in any lighting condition. The unit ID is set at 80 millimeters so it can be read from 15 meters. The QR code and 311 number appear on every face because a resident should never have to search for a way to report an issue. This is public infrastructure wearing its function on its skin.
+      </div>
+      <div class="para-meta">
+        <div class="para-stat">
+          <span class="para-stat-label">Font</span>
+          <span class="para-stat-value">Berkeley Mono 400</span>
+        </div>
+        <div class="para-stat">
+          <span class="para-stat-label">Size</span>
+          <span class="para-stat-value">14 px</span>
+        </div>
+        <div class="para-stat">
+          <span class="para-stat-label">Leading</span>
+          <span class="para-stat-value">21 px (1.5x)</span>
+        </div>
+        <div class="para-stat">
+          <span class="para-stat-label">Measure</span>
+          <span class="para-stat-value">~66 characters</span>
+        </div>
+        <div class="para-stat">
+          <span class="para-stat-label">Tracking</span>
+          <span class="para-stat-value">0</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ 04 NUMBERS ═════════════════════════════════════════════ -->
+
+  <section>
+    <div class="section-head">
+      <span class="section-num">04</span>
+      <h2 class="section-title">Numbers</h2>
+      <p class="section-desc">
+        Tabular numerals are non-negotiable. Every digit occupies identical width.
+        Columns align without intervention. Clocks tick without shifting.
+      </p>
+    </div>
+
+    <div class="number-grid">
+      <div class="number-block">
+        <span class="number-label">Unit IDs</span>
+        <div class="number-col">beaver-01<br/>beaver-03<br/>beaver-07<br/>beaver-12</div>
+      </div>
+      <div class="number-block">
+        <span class="number-label">Battery</span>
+        <div class="number-col number-right">12%<br/>45%<br/>73%<br/>98%</div>
+      </div>
+      <div class="number-block">
+        <span class="number-label">Coordinates</span>
+        <div class="number-col">44.9778°N<br/>93.2650°W<br/>44.9801°N<br/>93.2633°W</div>
+      </div>
+      <div class="number-block">
+        <span class="number-label">Timestamps</span>
+        <div class="number-col">06:00:00<br/>12:30:47<br/>14:32:08<br/>23:59:59</div>
+      </div>
+    </div>
+
+    <div class="digit-hero">
+      <span class="digit-hero-label">The digit</span>
+      <div class="digit-hero-chars">0123456789</div>
+    </div>
+
+    <div class="live-clock-wrap">
+      <span class="number-label">Right now</span>
+      <span class="live-clock" id="live-time">00:00:00</span>
+    </div>
+  </section>
+
+  <!-- ═══ 05 GLYPHS ══════════════════════════════════════════════ -->
+
+  <section>
+    <div class="section-head">
+      <span class="section-num">05</span>
+      <h2 class="section-title">Glyphs</h2>
+      <p class="section-desc">
+        Complete character sets. Berkeley Mono includes box-drawing and mathematical
+        symbols — essential for terminal interfaces and technical documentation.
+      </p>
+    </div>
+
+    <div class="glyph-section">
+      <span class="glyph-font-label">Space Grotesk · Uppercase</span>
+      <div class="glyph-poster">
+        <span>A</span><span>B</span><span>C</span><span>D</span><span>E</span><span>F</span><span>G</span><span>H</span><span>I</span><span>J</span><span>K</span><span>L</span><span>M</span><span>N</span><span>O</span><span>P</span><span>Q</span><span>R</span><span>S</span><span>T</span><span>U</span><span>V</span><span>W</span><span>X</span><span>Y</span><span>Z</span>
+      </div>
+    </div>
+
+    <div class="glyph-section">
+      <span class="glyph-font-label">Berkeley Mono · Full Set</span>
+      <div class="glyph-grid">
+        <span>A</span><span>B</span><span>C</span><span>D</span><span>E</span><span>F</span><span>G</span><span>H</span><span>I</span><span>J</span><span>K</span><span>L</span><span>M</span><span>N</span><span>O</span><span>P</span><span>Q</span><span>R</span><span>S</span><span>T</span><span>U</span><span>V</span><span>W</span><span>X</span><span>Y</span><span>Z</span>
+        <span>a</span><span>b</span><span>c</span><span>d</span><span>e</span><span>f</span><span>g</span><span>h</span><span>i</span><span>j</span><span>k</span><span>l</span><span>m</span><span>n</span><span>o</span><span>p</span><span>q</span><span>r</span><span>s</span><span>t</span><span>u</span><span>v</span><span>w</span><span>x</span><span>y</span><span>z</span>
+        <span>0</span><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span>
+        <span>!</span><span>@</span><span>#</span><span>$</span><span>%</span><span>^</span><span>&amp;</span><span>*</span><span>(</span><span>)</span><span>_</span><span>+</span><span>-</span><span>=</span><span>[</span><span>]</span><span>&#123;</span><span>&#125;</span><span>|</span><span>\</span><span>;</span><span>:</span><span>'</span><span>"</span><span>,</span><span>.</span><span>/</span><span>?</span><span>~</span><span>`</span><span>&lt;</span><span>&gt;</span>
+        <span>─</span><span>│</span><span>┌</span><span>┐</span><span>└</span><span>┘</span><span>├</span><span>┤</span><span>┬</span><span>┴</span><span>┼</span><span>╭</span><span>╮</span><span>╰</span><span>╯</span>
+        <span>←</span><span>→</span><span>↑</span><span>↓</span><span>●</span><span>○</span><span>■</span><span>□</span><span>◆</span><span>▲</span><span>▼</span><span>·</span><span>…</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ 06 TERMINAL ════════════════════════════════════════════ -->
+
+  <section>
+    <div class="section-head">
+      <span class="section-num">06</span>
+      <h2 class="section-title">Terminal</h2>
+      <p class="section-desc">
+        Berkeley Mono's box-drawing characters enable structured terminal output.
+        The rover's log, the depot's CLI, the operator's dashboard — all speak mono.
+      </p>
+    </div>
+
+    <pre class="terminal-block">┌───────────────────────────────────────┐
+│ FLEET STATUS                   <span id="term-time">14:32</span> │
+├────────────┬────────┬─────────────────┤
+│ beaver-12  │ active │ oak st nw       │
+│ beaver-07  │ yield  │ elm ave         │
+│ beaver-03  │ charge │ depot bay 2     │
+│ beaver-01  │ off    │ maintenance     │
+├────────────┴────────┴─────────────────┤
+│ 3/4 online · 2.4 km · −4°C snow      │
+└───────────────────────────────────────┘</pre>
+
+    <pre class="terminal-block terminal-log"><span class="log-i">I</span> <span class="log-time">14:32:07</span>  beaver-12  route.progress    67%   oak st nw
+<span class="log-w">W</span> <span class="log-time">14:31:52</span>  beaver-07  battery.low       45%   elm ave
+<span class="log-i">I</span> <span class="log-time">14:31:40</span>  beaver-03  charge.update     12%   depot bay 2
+<span class="log-e">E</span> <span class="log-time">14:31:33</span>  beaver-01  can.timeout       vesc-3
+<span class="log-i">I</span> <span class="log-time">14:31:20</span>  beaver-12  yield.complete    4.2s  pedestrian
+<span class="log-i">I</span> <span class="log-time">14:31:08</span>  beaver-12  route.progress    66%   oak st nw<span class="cursor">█</span></pre>
+  </section>
+
+  <!-- ═══ 07 IN CONTEXT ══════════════════════════════════════════ -->
+
+  <section>
+    <div class="section-head">
+      <span class="section-num">07</span>
+      <h2 class="section-title">In Context</h2>
+      <p class="section-desc">
+        Type in its natural habitat. Every text style in the system,
+        rendered in a realistic application context.
+      </p>
+    </div>
+
+    <div class="context-grid">
+      <!-- Heading stack -->
+      <div class="ctx-card">
+        <span class="ctx-label">Heading Stack</span>
+        <div class="ctx-content">
+          <p class="ctx-overline">Fleet Operations</p>
+          <p class="ctx-headline">Dashboard</p>
+          <p class="ctx-body">Real-time fleet monitoring for municipal snow removal operations. Three rovers active, one offline for maintenance.</p>
+          <p class="ctx-caption">Updated 12m ago · beaver-12 last ping 4s</p>
+        </div>
+      </div>
+
+      <!-- Metric card -->
+      <div class="ctx-card">
+        <span class="ctx-label">Metric</span>
+        <div class="ctx-content">
+          <div class="ctx-metric-head">
+            <span class="ctx-metric-label">Snow Cleared Today</span>
+            <span class="ctx-metric-trend">+12%</span>
+          </div>
+          <span class="ctx-metric-value">2.4 km</span>
+          <div class="ctx-metric-bar">
+            <div class="ctx-metric-fill" style="width: 67%"></div>
+          </div>
+          <span class="ctx-metric-sub">Target: 3.6 km · ETA 48m</span>
+        </div>
+      </div>
+
+      <!-- Status badge -->
+      <div class="ctx-card">
+        <span class="ctx-label">Status Badges</span>
+        <div class="ctx-content ctx-badges">
+          <div class="ctx-badge-row">
+            <span class="ctx-rover-id">beaver-12</span>
+            <span class="ctx-badge ctx-badge-active">active</span>
+          </div>
+          <div class="ctx-badge-row">
+            <span class="ctx-rover-id">beaver-07</span>
+            <span class="ctx-badge ctx-badge-yield">yielding</span>
+          </div>
+          <div class="ctx-badge-row">
+            <span class="ctx-rover-id">beaver-03</span>
+            <span class="ctx-badge ctx-badge-charge">charging</span>
+          </div>
+          <div class="ctx-badge-row">
+            <span class="ctx-rover-id">beaver-01</span>
+            <span class="ctx-badge ctx-badge-off">offline</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- CLI -->
+      <div class="ctx-card">
+        <span class="ctx-label">Command Line</span>
+        <div class="ctx-content ctx-cli">
+          <p><span class="ctx-prompt">$</span> muni deploy rover frog-0 --all</p>
+          <p class="ctx-cli-ok">  ✓ Cross-compiled bvrd (4.2s)</p>
+          <p class="ctx-cli-ok">  ✓ Uploaded to frog-0 (1.1s)</p>
+          <p class="ctx-cli-ok">  ✓ Config synced</p>
+          <p class="ctx-cli-ok">  ✓ Service restarted</p>
+          <p class="ctx-cli-done">Deploy complete.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ COLOPHON ═══════════════════════════════════════════════ -->
+
+  <div class="colophon">
+    <p>Two fonts. One color. No ornament.</p>
+    <p>Everything else is noise.</p>
+  </div>
+
+</Base>
+
+<script>
+  function tick() {
+    const clock = document.getElementById('live-time');
+    const term = document.getElementById('term-time');
+    if (clock) {
+      const now = new Date();
+      clock.textContent = now.toLocaleTimeString('en-US', { hour12: false });
+    }
+    if (term) {
+      const now = new Date();
+      term.textContent = now.toLocaleTimeString('en-US', {
+        hour12: false, hour: '2-digit', minute: '2-digit'
+      });
+    }
+  }
+  tick();
+  setInterval(tick, 1000);
+</script>
+
+<style>
+  /* ═══════════════════════════════════════════════════════════════
+     HERO
+     ═══════════════════════════════════════════════════════════════ */
+
+  .hero-pair {
+    padding-top: 48px;
+    margin-bottom: 48px;
+  }
+  .hero-specimen {
+    position: relative;
+  }
+  .hero-cap {
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--primary);
+    display: block;
+    margin-bottom: 8px;
+  }
+  .hero-glyph {
+    font-size: clamp(100px, 22vw, 340px);
+    line-height: 0.88;
+    letter-spacing: -0.04em;
+    color: var(--fg);
+    overflow: hidden;
+  }
+  .hero-divider {
+    height: 1px;
+    background: var(--border);
+    margin: 48px 0;
+  }
+  .hero-note {
+    font-size: 14px;
+    color: var(--fg-muted);
+    max-width: 560px;
+    line-height: 1.5;
+    margin-bottom: 120px;
+  }
+
+  /* ═══════════════════════════════════════════════════════════════
+     SECTION HEADS
+     ═══════════════════════════════════════════════════════════════ */
+
+  section {
+    margin-bottom: 120px;
+  }
+  .section-head {
+    margin-bottom: 48px;
+  }
+  .section-num {
+    font-size: 10px;
+    color: var(--primary);
+    letter-spacing: 0.08em;
+    display: block;
+    margin-bottom: 8px;
+  }
+  .section-title {
+    margin-bottom: 12px;
+  }
+  .section-desc {
+    font-size: 14px;
+    color: var(--fg-muted);
+    max-width: 560px;
+    line-height: 1.5;
+  }
+
+  /* ═══════════════════════════════════════════════════════════════
+     01 WATERFALL
+     ═══════════════════════════════════════════════════════════════ */
+
+  .waterfall {
+    border-top: 1px solid var(--border);
+  }
+  .wf-row {
+    display: flex;
+    align-items: baseline;
+    padding: 20px 0 20px 20px;
+    border-bottom: 1px solid var(--border);
+    border-left: calc(var(--s) * 0.06 * 1px) solid var(--primary);
+    gap: 20px;
+    overflow: hidden;
+  }
+  .wf-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 48px;
+    flex-shrink: 0;
+  }
+  .wf-tok {
+    font-size: 10px;
+    color: var(--primary);
+  }
+  .wf-px {
+    font-size: 10px;
+    color: var(--fg-muted);
+  }
+  .wf-px::after {
+    content: " px";
+  }
+  .wf-sample {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* ═══════════════════════════════════════════════════════════════
+     02 TWO VOICES
+     ═══════════════════════════════════════════════════════════════ */
+
+  .voices-compare {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    margin-bottom: 48px;
+  }
+  .voice-col {
+    background: var(--bg);
+    padding: 32px;
+  }
+  .voice-label {
+    font-size: 10px;
+    color: var(--primary);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    display: block;
+    margin-bottom: 16px;
+  }
+
+  .weight-ramp {
+    border: 1px solid var(--border);
+    margin-bottom: 24px;
+  }
+  .ramp-heading {
+    display: block;
+    font-size: 10px;
+    color: var(--fg-muted);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 12px 24px;
+    border-bottom: 1px solid var(--border);
+  }
+  .ramp-row {
+    display: flex;
+    align-items: baseline;
+    padding: 16px 24px;
+    border-bottom: 1px solid var(--border);
+    gap: 20px;
+  }
+  .ramp-row:last-child {
+    border-bottom: none;
+  }
+  .ramp-label {
+    font-size: 10px;
+    color: var(--fg-muted);
+    min-width: 32px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .role-example {
+    border: 1px solid var(--border);
+    padding: 32px;
+    margin-top: 24px;
+  }
+  .role-headline {
+    font-family: var(--font-display);
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+    margin-top: 16px;
+    margin-bottom: 12px;
+  }
+  .role-body {
+    font-size: 14px;
+    color: var(--fg-muted);
+    line-height: 1.5;
+    max-width: 66ch;
+  }
+
+  /* ═══════════════════════════════════════════════════════════════
+     03 PARAGRAPH
+     ═══════════════════════════════════════════════════════════════ */
+
+  .para-specimen {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 48px;
+    border: 1px solid var(--border);
+    padding: 48px;
+    align-items: start;
+  }
+  .para-text {
+    font-size: 14px;
+    line-height: 1.5;
+    max-width: 66ch;
+  }
+  .para-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    min-width: 160px;
+    border-left: 1px solid var(--border);
+    padding-left: 24px;
+  }
+  .para-stat {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .para-stat-label {
+    font-size: 10px;
+    color: var(--fg-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .para-stat-value {
+    font-size: 12px;
+    color: var(--fg);
+  }
+
+  /* ═══════════════════════════════════════════════════════════════
+     04 NUMBERS
+     ═══════════════════════════════════════════════════════════════ */
+
+  .number-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    margin-bottom: 48px;
+  }
+  .number-block {
+    background: var(--bg);
+    padding: 24px;
+  }
+  .number-label {
+    font-size: 10px;
+    color: var(--fg-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    display: block;
+    margin-bottom: 12px;
+  }
+  .number-col {
+    font-variant-numeric: tabular-nums;
+    font-size: 14px;
+    line-height: 1.8;
+  }
+  .number-right {
+    text-align: right;
+  }
+  .digit-hero {
+    text-align: center;
+    padding: 64px 0;
+    border: 1px solid var(--border);
+    margin-bottom: 24px;
+  }
+  .digit-hero-label {
+    font-size: 10px;
+    color: var(--fg-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    display: block;
+    margin-bottom: 16px;
+  }
+  .digit-hero-chars {
+    font-size: clamp(32px, 7vw, 80px);
+    letter-spacing: 0.06em;
+    font-variant-numeric: tabular-nums;
+  }
+  .live-clock-wrap {
+    text-align: center;
+    padding: 32px 0;
+    border: 1px solid var(--border);
+  }
+  .live-clock {
+    font-size: clamp(28px, 5vw, 60px);
+    font-variant-numeric: tabular-nums;
+    display: block;
+    margin-top: 8px;
+    color: var(--primary);
+  }
+
+  /* ═══════════════════════════════════════════════════════════════
+     05 GLYPHS
+     ═══════════════════════════════════════════════════════════════ */
+
+  .glyph-section {
+    margin-bottom: 48px;
+  }
+  .glyph-font-label {
+    font-size: 10px;
+    color: var(--primary);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    display: block;
+    margin-bottom: 16px;
+  }
+
+  /* Space Grotesk — large poster cells */
+  .glyph-poster {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+  }
+  .glyph-poster span {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    aspect-ratio: 1;
+    background: var(--bg);
+    font-family: var(--font-display);
+    font-size: 32px;
+    font-weight: 700;
+    transition: color 150ms ease, background-color 150ms ease;
+    cursor: default;
+  }
+  .glyph-poster span:hover {
+    background: var(--surface);
+    color: var(--primary);
+  }
+
+  /* Berkeley Mono — dense grid */
+  .glyph-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(40px, 1fr));
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+  }
+  .glyph-grid span {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    aspect-ratio: 1;
+    background: var(--bg);
+    font-size: 16px;
+    transition: color 150ms ease, background-color 150ms ease;
+    cursor: default;
+  }
+  .glyph-grid span:hover {
+    background: var(--surface);
+    color: var(--primary);
+  }
+
+  /* ═══════════════════════════════════════════════════════════════
+     06 TERMINAL
+     ═══════════════════════════════════════════════════════════════ */
+
+  .terminal-block {
+    border: 1px solid var(--border);
+    padding: 24px;
+    overflow-x: auto;
+    font-size: 13px;
+    line-height: 1.6;
+    margin-bottom: 16px;
+    background: var(--surface);
+    color: var(--fg);
+  }
+  .terminal-log {
+    font-size: 12px;
+  }
+  .log-time {
+    color: var(--fg-muted);
+  }
+  .log-i {
+    color: oklch(0.546 0.215 264);
+  }
+  .log-w {
+    color: var(--primary);
+  }
+  .log-e {
+    color: oklch(0.637 0.237 25.331);
+  }
+  .cursor {
+    animation: blink 1s step-end infinite;
+  }
+  @keyframes blink {
+    50% { opacity: 0; }
+  }
+
+  /* ═══════════════════════════════════════════════════════════════
+     07 CONTEXT
+     ═══════════════════════════════════════════════════════════════ */
+
+  .context-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+  }
+  .ctx-card {
+    background: var(--bg);
+    padding: 32px;
+  }
+  .ctx-label {
+    font-size: 10px;
+    color: var(--primary);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    display: block;
+    margin-bottom: 20px;
+  }
+
+  /* Heading stack */
+  .ctx-overline {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--primary);
+    margin-bottom: 8px;
+  }
+  .ctx-headline {
+    font-family: var(--font-display);
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    margin-bottom: 8px;
+  }
+  .ctx-body {
+    font-size: 14px;
+    color: var(--fg-muted);
+    line-height: 1.5;
+    margin-bottom: 12px;
+  }
+  .ctx-caption {
+    font-size: 10px;
+    color: oklch(0.4 0 0);
+    letter-spacing: 0.02em;
+  }
+
+  /* Metric */
+  .ctx-metric-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 4px;
+  }
+  .ctx-metric-label {
+    font-size: 10px;
+    color: var(--fg-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .ctx-metric-trend {
+    font-size: 10px;
+    font-weight: 700;
+    color: oklch(0.723 0.191 149);
+  }
+  .ctx-metric-value {
+    font-size: 36px;
+    font-weight: 700;
+    display: block;
+    margin-bottom: 12px;
+    font-variant-numeric: tabular-nums;
+  }
+  .ctx-metric-bar {
+    height: 3px;
+    background: var(--border);
+    margin-bottom: 8px;
+  }
+  .ctx-metric-fill {
+    height: 100%;
+    background: var(--primary);
+  }
+  .ctx-metric-sub {
+    font-size: 11px;
+    color: var(--fg-muted);
+  }
+
+  /* Badges */
+  .ctx-badges {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .ctx-badge-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .ctx-rover-id {
+    font-size: 13px;
+    font-weight: 700;
+  }
+  .ctx-badge {
+    font-size: 9px;
+    padding: 2px 8px;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+  }
+  .ctx-badge-active {
+    background: oklch(0.723 0.191 149 / 0.15);
+    color: oklch(0.723 0.191 149);
+  }
+  .ctx-badge-yield {
+    background: oklch(0.705 0.213 47.604 / 0.15);
+    color: oklch(0.705 0.213 47.604);
+  }
+  .ctx-badge-charge {
+    background: oklch(0.546 0.215 264 / 0.15);
+    color: oklch(0.65 0.17 264);
+  }
+  .ctx-badge-off {
+    background: oklch(0.5 0 0 / 0.15);
+    color: var(--fg-muted);
+  }
+
+  /* CLI */
+  .ctx-cli {
+    font-size: 12px;
+    line-height: 1.7;
+  }
+  .ctx-prompt {
+    color: oklch(0.723 0.191 149);
+    font-weight: 700;
+  }
+  .ctx-cli-ok {
+    color: oklch(0.723 0.191 149);
+  }
+  .ctx-cli-done {
+    color: var(--fg);
+    font-weight: 700;
+    margin-top: 4px;
+  }
+
+  /* ═══════════════════════════════════════════════════════════════
+     COLOPHON
+     ═══════════════════════════════════════════════════════════════ */
+
+  .colophon {
+    text-align: center;
+    padding: 80px 0 40px;
+    color: var(--fg-muted);
+    font-size: 14px;
+    line-height: 1.6;
+  }
+
+  /* ═══════════════════════════════════════════════════════════════
+     RESPONSIVE
+     ═══════════════════════════════════════════════════════════════ */
+
+  @media (max-width: 768px) {
+    .hero-glyph {
+      font-size: clamp(80px, 20vw, 200px);
+    }
+    .hero-divider {
+      margin: 32px 0;
+    }
+    .hero-note {
+      margin-bottom: 80px;
+    }
+    section {
+      margin-bottom: 80px;
+    }
+    .voices-compare {
+      grid-template-columns: 1fr;
+    }
+    .number-grid {
+      grid-template-columns: 1fr 1fr;
+    }
+    .para-specimen {
+      grid-template-columns: 1fr;
+      padding: 24px;
+    }
+    .para-meta {
+      border-left: none;
+      border-top: 1px solid var(--border);
+      padding-left: 0;
+      padding-top: 24px;
+      flex-direction: row;
+      flex-wrap: wrap;
+      gap: 16px 32px;
+    }
+    .context-grid {
+      grid-template-columns: 1fr;
+    }
+    .glyph-poster {
+      grid-template-columns: repeat(auto-fill, minmax(48px, 1fr));
+    }
+    .glyph-poster span {
+      font-size: 24px;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .number-grid {
+      grid-template-columns: 1fr;
+    }
+    .wf-meta {
+      min-width: 36px;
+    }
+    .voices-compare p {
+      font-size: 22px !important;
+    }
+    .ramp-sample {
+      font-size: 18px !important;
+    }
+  }
+</style>

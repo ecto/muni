@@ -1,0 +1,540 @@
+---
+import Base from "../layouts/Base.astro";
+---
+
+<Base title="Sound">
+  <div class="page-header">
+    <p class="overline">Audio</p>
+    <h1>Sound Signature</h1>
+    <p class="desc">
+      Mechanical precision, not digital polish. The sonic identity bridges the
+      physical robot and its digital interface. All sounds are synthesized in
+      real-time from parametric vocal models — the same engine that gives
+      <a href="https://github.com/ecto/mote" class="mote-link">mote</a> creatures their voice.
+    </p>
+  </div>
+
+  <section>
+    <h2 class="section-title">Character</h2>
+    <div class="grid-3">
+      <div class="char-card">
+        <h3>Warm Mechanical</h3>
+        <p>
+          Sounds feel like they come from a real machine — soft clicks,
+          resonant tones, analog warmth. Never cold digital beeps.
+        </p>
+      </div>
+      <div class="char-card">
+        <h3>Non-Startling</h3>
+        <p>
+          A robot operating near pedestrians cannot produce alarming sounds
+          during normal operation. Alerts escalate gradually. Only E-stop
+          is deliberately harsh.
+        </p>
+      </div>
+      <div class="char-card">
+        <h3>Ambient-Aware</h3>
+        <p>
+          Volume adapts to environment. Quiet residential streets get softer
+          cues. Busy intersections get louder signals. The robot reads the room.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2 class="section-title">Frequency Palette</h2>
+    <div class="freq-diagram">
+      <div class="freq-band">
+        <div class="freq-bar freq-low"></div>
+        <div class="freq-meta">
+          <span class="freq-range">100 – 300 Hz</span>
+          <span class="freq-label">Low</span>
+          <span class="freq-use">Ambient presence, movement undertone</span>
+        </div>
+      </div>
+      <div class="freq-band">
+        <div class="freq-bar freq-mid"></div>
+        <div class="freq-meta">
+          <span class="freq-range">300 – 800 Hz</span>
+          <span class="freq-label">Mid</span>
+          <span class="freq-use">Communication, chimes, acknowledgments</span>
+        </div>
+      </div>
+      <div class="freq-band">
+        <div class="freq-bar freq-high"></div>
+        <div class="freq-meta">
+          <span class="freq-range">800 – 2000 Hz</span>
+          <span class="freq-label">High</span>
+          <span class="freq-use">Alerts, warnings, attention</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2 class="section-title">Synth Engine</h2>
+    <p class="engine-desc">
+      Ported from <code>mote/src/synth.rs</code> — six continuous parameters
+      in [-1, 1] drive ~150ms of mono PCM at 44.1 kHz per tick. The same
+      parametric model that gives mote creatures their voice now generates
+      every sound in this system.
+    </p>
+    <div class="param-grid">
+      <div class="param-card">
+        <span class="param-name">volume</span>
+        <span class="param-range">0 – 1</span>
+        <span class="param-desc">Overall amplitude. Threshold 0.3 to emit sound.</span>
+      </div>
+      <div class="param-card">
+        <span class="param-name">freq_hz</span>
+        <span class="param-range">55 – 3520 Hz</span>
+        <span class="param-desc">Fundamental frequency. 440 × 2^(raw × 2.5)</span>
+      </div>
+      <div class="param-card">
+        <span class="param-name">formant_ratio</span>
+        <span class="param-range">0.35 – 2.83×</span>
+        <span class="param-desc">Harmonic overtone ratio. Adds timbral color.</span>
+      </div>
+      <div class="param-card">
+        <span class="param-name">brightness</span>
+        <span class="param-range">0 – 1</span>
+        <span class="param-desc">Sine↔noise blend. 0 = pure tone, 1 = white noise.</span>
+      </div>
+      <div class="param-card">
+        <span class="param-name">attack</span>
+        <span class="param-range">0 – 1</span>
+        <span class="param-desc">Onset speed. 0 = soft 50ms fade-in, 1 = instant.</span>
+      </div>
+      <div class="param-card">
+        <span class="param-name">sweep_octaves</span>
+        <span class="param-range">-2 – +2</span>
+        <span class="param-desc">Frequency glide over duration in octaves.</span>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2 class="section-title">Sound Library</h2>
+    <p class="hint">Click to preview — synthesized in real-time via mote vocal engine.</p>
+    <div class="sound-library">
+      <button class="sound-row" data-sound="tick">
+        <div class="sound-viz">
+          <svg viewBox="0 0 32 32" class="play-icon"><polygon points="10,6 10,26 26,16"/></svg>
+        </div>
+        <div class="sound-info">
+          <span class="sound-name">Tick</span>
+          <span class="sound-spec">440 Hz · formant 1.8× · sweep +0.3 oct · instant · 35ms</span>
+        </div>
+        <span class="sound-context">Movement indicator — audible proximity cue</span>
+      </button>
+
+      <button class="sound-row" data-sound="yield">
+        <div class="sound-viz">
+          <svg viewBox="0 0 32 32" class="play-icon"><polygon points="10,6 10,26 26,16"/></svg>
+        </div>
+        <div class="sound-info">
+          <span class="sound-name">Yield Chime</span>
+          <span class="sound-spec">520→390 Hz · formant 1.5× · sweep -0.15 oct · 2 notes</span>
+        </div>
+        <span class="sound-context">Before passing pedestrians — gentle descending interval</span>
+      </button>
+
+      <button class="sound-row" data-sound="complete">
+        <div class="sound-viz">
+          <svg viewBox="0 0 32 32" class="play-icon"><polygon points="10,6 10,26 26,16"/></svg>
+        </div>
+        <div class="sound-info">
+          <span class="sound-name">Task Complete</span>
+          <span class="sound-spec">440→590 Hz · formant 1.7× · sweep +0.25 oct · 2 notes</span>
+        </div>
+        <span class="sound-context">Route finished — rising major third, optimistic</span>
+      </button>
+
+      <button class="sound-row" data-sound="notification">
+        <div class="sound-viz">
+          <svg viewBox="0 0 32 32" class="play-icon"><polygon points="10,6 10,26 26,16"/></svg>
+        </div>
+        <div class="sound-info">
+          <span class="sound-name">Notification</span>
+          <span class="sound-spec">580 Hz · formant 2.1× · sweep +0.1 oct · 200ms</span>
+        </div>
+        <span class="sound-context">UI notification — soft ping, non-urgent</span>
+      </button>
+
+      <button class="sound-row" data-sound="warning">
+        <div class="sound-viz">
+          <svg viewBox="0 0 32 32" class="play-icon"><polygon points="10,6 10,26 26,16"/></svg>
+        </div>
+        <div class="sound-info">
+          <span class="sound-name">Warning</span>
+          <span class="sound-spec">680 Hz · formant 1.9× · bright 0.12 · 3 pulses · 80ms</span>
+        </div>
+        <span class="sound-context">Attention required — harsh but brief</span>
+      </button>
+
+      <button class="sound-row" data-sound="estop">
+        <div class="sound-viz">
+          <svg viewBox="0 0 32 32" class="play-icon"><polygon points="10,6 10,26 26,16"/></svg>
+        </div>
+        <div class="sound-info">
+          <span class="sound-name">E-Stop</span>
+          <span class="sound-spec">800 Hz · formant 2.3× · bright 0.2 · sweep -0.5 oct · 900ms</span>
+        </div>
+        <span class="sound-context">Emergency — unmistakable, impossible to ignore</span>
+      </button>
+
+      <button class="sound-row" data-sound="click">
+        <div class="sound-viz">
+          <svg viewBox="0 0 32 32" class="play-icon"><polygon points="10,6 10,26 26,16"/></svg>
+        </div>
+        <div class="sound-info">
+          <span class="sound-name">UI Click</span>
+          <span class="sound-spec">600 Hz · formant 2.0× · instant · 10ms</span>
+        </div>
+        <span class="sound-context">Button press, toggle, selection</span>
+      </button>
+
+      <button class="sound-row" data-sound="toggle">
+        <div class="sound-viz">
+          <svg viewBox="0 0 32 32" class="play-icon"><polygon points="10,6 10,26 26,16"/></svg>
+        </div>
+        <div class="sound-info">
+          <span class="sound-name">UI Toggle</span>
+          <span class="sound-spec">500 Hz · formant 1.9× · sweep +0.8 oct · 18ms</span>
+        </div>
+        <span class="sound-context">Switch, checkbox, mode change</span>
+      </button>
+    </div>
+  </section>
+
+  <section>
+    <h2 class="section-title">Alert Escalation</h2>
+    <div class="escalation">
+      <div class="esc-level">
+        <div class="esc-bar esc-info"></div>
+        <div class="esc-meta">
+          <span class="esc-name">Info</span>
+          <span class="esc-desc">Single tone, low volume, easily dismissed</span>
+        </div>
+      </div>
+      <div class="esc-level">
+        <div class="esc-bar esc-warning"></div>
+        <div class="esc-meta">
+          <span class="esc-name">Warning</span>
+          <span class="esc-desc">Pulsing square wave, moderate volume, demands attention</span>
+        </div>
+      </div>
+      <div class="esc-level">
+        <div class="esc-bar esc-danger"></div>
+        <div class="esc-meta">
+          <span class="esc-name">Danger</span>
+          <span class="esc-desc">Rapid pulsing, high frequency, cannot be ignored</span>
+        </div>
+      </div>
+      <div class="esc-level">
+        <div class="esc-bar esc-estop"></div>
+        <div class="esc-meta">
+          <span class="esc-name">E-Stop</span>
+          <span class="esc-desc">Continuous tone, maximum volume, sustained until resolved</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2 class="section-title">Physical vs. Digital</h2>
+    <div class="comparison">
+      <div class="comp-col">
+        <div class="comp-header">Robot (Physical)</div>
+        <div class="comp-row">
+          <span class="comp-label">Movement</span>
+          <span>Soft tick-tock at 2 Hz, proportional to speed</span>
+        </div>
+        <div class="comp-row">
+          <span class="comp-label">Passing</span>
+          <span>Two-note chime before overtaking pedestrian</span>
+        </div>
+        <div class="comp-row">
+          <span class="comp-label">Voice</span>
+          <span>"Passing on your left" — only when directly engaged</span>
+        </div>
+        <div class="comp-row">
+          <span class="comp-label">Volume</span>
+          <span>Adaptive to ambient noise level via microphone</span>
+        </div>
+      </div>
+      <div class="comp-col">
+        <div class="comp-header">Console (Digital)</div>
+        <div class="comp-row">
+          <span class="comp-label">Interaction</span>
+          <span>Clicks, toggles — brief noise/sine bursts</span>
+        </div>
+        <div class="comp-row">
+          <span class="comp-label">Alerts</span>
+          <span>Escalating from soft ping to pulsing square wave</span>
+        </div>
+        <div class="comp-row">
+          <span class="comp-label">Voice</span>
+          <span>None — operators read, not listen</span>
+        </div>
+        <div class="comp-row">
+          <span class="comp-label">Volume</span>
+          <span>Fixed, user-controlled, never auto-adjusting</span>
+        </div>
+      </div>
+    </div>
+  </section>
+</Base>
+
+<script>
+  import { type Segment, renderSequence, playBuffer } from "../lib/synth";
+
+  // ── Sound definitions as VocalParams ──────────────────────────
+
+  const SOUNDS: Record<string, Segment[]> = {
+    // Radar pip — clean transient with harmonic ring
+    tick: [
+      { params: { volume: 0.35, freqHz: 440, formantRatio: 1.8, brightness: 0.02, attack: 1.0, sweepOctaves: 0.3 }, ms: 35 },
+    ],
+
+    // Proximity chime — smooth descending interval, comm-channel tone
+    yield: [
+      { params: { volume: 0.35, freqHz: 520, formantRatio: 1.5, brightness: 0.03, attack: 0.4, sweepOctaves: -0.15 }, ms: 240, delayMs: 0 },
+      { params: { volume: 0.30, freqHz: 390, formantRatio: 1.5, brightness: 0.03, attack: 0.4, sweepOctaves: -0.1 }, ms: 240, delayMs: 300 },
+    ],
+
+    // Mission confirm — rising dual-tone, crisp harmonic shimmer
+    complete: [
+      { params: { volume: 0.35, freqHz: 440, formantRatio: 1.7, brightness: 0.0, attack: 0.6, sweepOctaves: 0.2 }, ms: 140, delayMs: 0 },
+      { params: { volume: 0.4, freqHz: 590, formantRatio: 1.7, brightness: 0.0, attack: 0.6, sweepOctaves: 0.25 }, ms: 180, delayMs: 180 },
+    ],
+
+    // Comm ping — single tone with upper-harmonic shimmer
+    notification: [
+      { params: { volume: 0.3, freqHz: 580, formantRatio: 2.1, brightness: 0.02, attack: 0.5, sweepOctaves: 0.1 }, ms: 200 },
+    ],
+
+    // Caution — clipped tonal pulses, bright formant edge
+    warning: [
+      { params: { volume: 0.45, freqHz: 680, formantRatio: 1.9, brightness: 0.12, attack: 1.0, sweepOctaves: 0 }, ms: 80, delayMs: 0 },
+      { params: { volume: 0.45, freqHz: 680, formantRatio: 1.9, brightness: 0.12, attack: 1.0, sweepOctaves: 0 }, ms: 80, delayMs: 180 },
+      { params: { volume: 0.45, freqHz: 680, formantRatio: 1.9, brightness: 0.12, attack: 1.0, sweepOctaves: 0 }, ms: 80, delayMs: 360 },
+    ],
+
+    // Hull breach — descending alarm, dense harmonics, controlled chaos
+    estop: [
+      { params: { volume: 0.7, freqHz: 800, formantRatio: 2.3, brightness: 0.2, attack: 1.0, sweepOctaves: -0.5 }, ms: 900 },
+    ],
+
+    // Interface tap — precise digital transient
+    click: [
+      { params: { volume: 0.3, freqHz: 600, formantRatio: 2.0, brightness: 0.04, attack: 1.0, sweepOctaves: 0.4 }, ms: 10 },
+    ],
+
+    // State change — quick rising blip with harmonic tail
+    toggle: [
+      { params: { volume: 0.3, freqHz: 500, formantRatio: 1.9, brightness: 0.0, attack: 1.0, sweepOctaves: 0.8 }, ms: 18 },
+    ],
+  };
+
+  // ── Playback ──────────────────────────────────────────────────
+
+  const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+
+  function playSound(name: string) {
+    const def = SOUNDS[name];
+    if (!def) return;
+    playBuffer(audioCtx, renderSequence(def));
+  }
+
+  // ── Wire up buttons ──────────────────────────────────────────
+
+  document.querySelectorAll<HTMLElement>("[data-sound]").forEach((el) => {
+    el.addEventListener("click", () => {
+      if (audioCtx.state === "suspended") audioCtx.resume();
+      playSound(el.dataset.sound!);
+
+      // Brief visual feedback
+      const icon = el.querySelector(".play-icon") as SVGElement | null;
+      if (icon) {
+        icon.classList.add("playing");
+        setTimeout(() => icon.classList.remove("playing"), 200);
+      }
+    });
+  });
+</script>
+
+<style>
+  .hint { font-size: 11px; color: var(--fg-muted); margin-bottom: 16px; }
+  .mote-link { color: var(--primary); text-decoration: none; }
+  .mote-link:hover { text-decoration: underline; }
+
+  /* Character */
+  .grid-3 {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 1px; background: var(--border); border: 1px solid var(--border);
+  }
+  .char-card { padding: 24px; background: var(--bg); }
+  .char-card h3 { font-size: 14px; font-weight: 700; margin-bottom: 8px; }
+  .char-card p { font-size: 12px; color: var(--fg-muted); line-height: 1.5; }
+
+  /* Frequency */
+  .freq-diagram { display: flex; flex-direction: column; gap: 12px; }
+  .freq-band {
+    display: grid; grid-template-columns: 200px 1fr;
+    border: 1px solid var(--border); overflow: hidden;
+  }
+  .freq-bar { height: 100%; min-height: 60px; }
+  .freq-low {
+    background: linear-gradient(90deg,
+      oklch(0.3 0.08 47.604) 0%, oklch(0.4 0.10 47.604) 100%);
+  }
+  .freq-mid {
+    background: linear-gradient(90deg,
+      oklch(0.5 0.14 47.604) 0%, oklch(0.6 0.17 47.604) 100%);
+  }
+  .freq-high {
+    background: linear-gradient(90deg,
+      oklch(0.65 0.19 47.604) 0%, oklch(0.705 0.213 47.604) 100%);
+  }
+  .freq-meta {
+    padding: 12px 16px; display: flex; flex-direction: column; gap: 2px;
+    justify-content: center;
+  }
+  .freq-range { font-size: 12px; font-weight: 700; }
+  .freq-label { font-size: 10px; color: var(--primary); text-transform: uppercase; letter-spacing: 0.04em; }
+  .freq-use { font-size: 11px; color: var(--fg-muted); }
+
+  /* Synth engine */
+  .engine-desc {
+    font-size: 13px; color: var(--fg-muted); line-height: 1.6;
+    max-width: 640px; margin-bottom: 24px;
+  }
+  .engine-desc code {
+    font-size: 12px; color: var(--primary);
+    background: var(--surface); padding: 2px 6px;
+  }
+  .param-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 1px; background: var(--border); border: 1px solid var(--border);
+  }
+  .param-card {
+    padding: 16px; background: var(--bg);
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .param-name {
+    font-family: var(--font-mono); font-size: 13px; font-weight: 700;
+    color: var(--primary);
+  }
+  .param-range {
+    font-size: 10px; color: var(--fg-muted);
+    letter-spacing: 0.02em;
+  }
+  .param-desc {
+    font-size: 11px; color: var(--fg-muted); line-height: 1.4;
+    margin-top: 4px;
+  }
+
+  /* Sound library */
+  .sound-library { border: 1px solid var(--border); }
+  .sound-row {
+    display: grid; grid-template-columns: 56px 1fr 1fr;
+    padding: 16px 20px; border-bottom: 1px solid var(--border);
+    align-items: center; gap: 16px;
+    cursor: pointer; background: var(--bg);
+    font-family: var(--font-mono); color: var(--fg);
+    border-left: none; border-right: none; border-top: none;
+    width: 100%; text-align: left;
+    transition: background-color 100ms ease;
+  }
+  .sound-row:last-child { border-bottom: none; }
+  .sound-row:hover { background: var(--surface); }
+  .sound-row:active { background: oklch(0.705 0.213 47.604 / 0.1); }
+  .sound-viz { display: flex; align-items: center; justify-content: center; }
+
+  .play-icon {
+    width: 28px; height: 28px;
+    fill: var(--fg-muted);
+    transition: fill 100ms ease, transform 100ms ease;
+  }
+  .sound-row:hover .play-icon { fill: var(--primary); }
+  .play-icon.playing {
+    fill: var(--primary);
+    transform: scale(1.2);
+  }
+
+  .sound-info { display: flex; flex-direction: column; gap: 2px; }
+  .sound-name { font-size: 13px; font-weight: 700; }
+  .sound-spec { font-size: 10px; color: var(--primary); }
+  .sound-context { font-size: 11px; color: var(--fg-muted); }
+
+  /* Escalation */
+  .escalation {
+    display: flex; flex-direction: column;
+    border: 1px solid var(--border);
+  }
+  .esc-level {
+    display: grid; grid-template-columns: 200px 1fr;
+    border-bottom: 1px solid var(--border);
+  }
+  .esc-level:last-child { border-bottom: none; }
+  .esc-bar { min-height: 56px; }
+  .esc-info {
+    background: oklch(0.546 0.215 264 / 0.2);
+    border-right: 3px solid oklch(0.546 0.215 264);
+  }
+  .esc-warning {
+    background: oklch(0.705 0.213 47.604 / 0.2);
+    border-right: 3px solid oklch(0.705 0.213 47.604);
+  }
+  .esc-danger {
+    background: oklch(0.467 0.186 18.5 / 0.3);
+    border-right: 3px solid oklch(0.467 0.186 18.5);
+  }
+  .esc-estop {
+    background: oklch(0.467 0.186 18.5 / 0.5);
+    border-right: 3px solid oklch(0.6 0.22 18.5);
+    animation: pulse-bg 1s ease-in-out infinite;
+  }
+  @keyframes pulse-bg {
+    0%, 100% { background: oklch(0.467 0.186 18.5 / 0.5); }
+    50% { background: oklch(0.467 0.186 18.5 / 0.7); }
+  }
+  .esc-meta {
+    padding: 16px 20px; display: flex; flex-direction: column;
+    gap: 4px; justify-content: center;
+  }
+  .esc-name { font-size: 13px; font-weight: 700; }
+  .esc-desc { font-size: 11px; color: var(--fg-muted); }
+
+  /* Comparison */
+  .comparison {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 1px; background: var(--border); border: 1px solid var(--border);
+  }
+  .comp-col { background: var(--bg); }
+  .comp-header {
+    padding: 12px 16px; font-size: 10px; font-weight: 700;
+    letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--fg-muted); border-bottom: 1px solid var(--border);
+  }
+  .comp-row {
+    padding: 10px 16px; border-bottom: 1px solid var(--border);
+    font-size: 12px; display: flex; gap: 12px; align-items: baseline;
+  }
+  .comp-row:last-child { border-bottom: none; }
+  .comp-label { font-weight: 700; min-width: 80px; color: var(--primary); font-size: 11px; }
+
+  @media (max-width: 768px) {
+    .grid-3 { grid-template-columns: 1fr; }
+    .param-grid { grid-template-columns: 1fr 1fr; }
+    .comparison { grid-template-columns: 1fr; }
+    .freq-band { grid-template-columns: 1fr; }
+    .freq-bar { min-height: 20px; }
+    .sound-row { grid-template-columns: 44px 1fr; }
+    .sound-context { display: none; }
+    .esc-level { grid-template-columns: 1fr; }
+    .esc-bar { min-height: 24px; }
+  }
+</style>

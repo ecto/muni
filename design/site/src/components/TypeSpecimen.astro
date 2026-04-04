@@ -1,0 +1,80 @@
+---
+interface Props {
+  family: "mono" | "display";
+  label: string;
+  sample?: string;
+}
+
+const { family, label, sample = "Municipal Robotics" } = Astro.props;
+
+const fontVar = family === "mono" ? "var(--font-mono)" : "var(--font-display)";
+---
+
+<div class="specimen">
+  <div class="label">{label}</div>
+  <div class="sizes">
+    <div class="size-row" style={`font-family: ${fontVar}; font-size: 60px; line-height: 1; letter-spacing: -0.04em;`}>
+      <span class="size-label">60</span>
+      {sample}
+    </div>
+    <div class="size-row" style={`font-family: ${fontVar}; font-size: 36px; line-height: 1.15; letter-spacing: -0.02em;`}>
+      <span class="size-label">36</span>
+      {sample}
+    </div>
+    <div class="size-row" style={`font-family: ${fontVar}; font-size: 22px; line-height: 1.3;`}>
+      <span class="size-label">22</span>
+      {sample}
+    </div>
+    <div class="size-row" style={`font-family: ${fontVar}; font-size: 16px; line-height: 1.5;`}>
+      <span class="size-label">16</span>
+      {sample}
+    </div>
+    <div class="size-row" style={`font-family: ${fontVar}; font-size: 14px; line-height: 1.5;`}>
+      <span class="size-label">14</span>
+      {sample}
+    </div>
+    <div class="size-row" style={`font-family: ${fontVar}; font-size: 12px; line-height: 1.5;`}>
+      <span class="size-label">12</span>
+      {sample}
+    </div>
+    <div class="size-row" style={`font-family: ${fontVar}; font-size: 11px; line-height: 1.5; letter-spacing: 0.02em;`}>
+      <span class="size-label">11</span>
+      {sample}
+    </div>
+  </div>
+</div>
+
+<style>
+  .specimen {
+    border: 1px solid var(--border);
+    padding: 32px;
+  }
+  .label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--fg-muted);
+    margin-bottom: 32px;
+  }
+  .sizes {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+  .size-row {
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+  .size-label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--fg-muted);
+    min-width: 24px;
+    text-align: right;
+  }
+</style>

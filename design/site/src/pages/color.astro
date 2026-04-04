@@ -1,0 +1,296 @@
+---
+import Base from "../layouts/Base.astro";
+import ColorSwatch from "../components/ColorSwatch.astro";
+
+const orangeScale = [
+  { name: "orange-50", value: "oklch(0.97 0.02 47.604)" },
+  { name: "orange-100", value: "oklch(0.93 0.05 47.604)" },
+  { name: "orange-200", value: "oklch(0.87 0.09 47.604)" },
+  { name: "orange-300", value: "oklch(0.80 0.13 47.604)" },
+  { name: "orange-400", value: "oklch(0.75 0.17 47.604)" },
+  { name: "orange-500", value: "oklch(0.705 0.213 47.604)" },
+  { name: "orange-600", value: "oklch(0.62 0.19 47.604)" },
+  { name: "orange-700", value: "oklch(0.54 0.16 47.604)" },
+  { name: "orange-800", value: "oklch(0.45 0.13 47.604)" },
+  { name: "orange-900", value: "oklch(0.37 0.10 47.604)" },
+  { name: "orange-950", value: "oklch(0.27 0.07 47.604)" },
+];
+
+const stoneScale = [
+  { name: "stone-50", value: "oklch(0.985 0.001 106.424)" },
+  { name: "stone-100", value: "oklch(0.97 0.001 106.424)" },
+  { name: "stone-200", value: "oklch(0.923 0.003 106.424)" },
+  { name: "stone-300", value: "oklch(0.869 0.005 106.424)" },
+  { name: "stone-400", value: "oklch(0.709 0.010 106.424)" },
+  { name: "stone-500", value: "oklch(0.553 0.013 106.424)" },
+  { name: "stone-600", value: "oklch(0.444 0.011 106.424)" },
+  { name: "stone-700", value: "oklch(0.374 0.010 106.424)" },
+  { name: "stone-800", value: "oklch(0.268 0.007 106.424)" },
+  { name: "stone-900", value: "oklch(0.216 0.006 106.424)" },
+  { name: "stone-950", value: "oklch(0.147 0.004 49.25)" },
+];
+
+const semanticColors = [
+  { name: "danger", value: "oklch(0.467 0.186 18.5)", hex: "#C41E3A" },
+  { name: "warning", value: "oklch(0.705 0.213 47.604)", hex: "#ff6600" },
+  { name: "info", value: "oklch(0.546 0.215 264)", hex: "#2563EB" },
+  { name: "success", value: "oklch(0.723 0.191 149)", hex: "#22c55e" },
+];
+
+const chartColors = [
+  { name: "chart-1", value: "oklch(0.705 0.213 47.604)" },
+  { name: "chart-2", value: "oklch(0.75 0.20 195)" },
+  { name: "chart-3", value: "oklch(0.82 0.19 85)" },
+  { name: "chart-4", value: "oklch(0.68 0.22 300)" },
+  { name: "chart-5", value: "oklch(0.72 0.21 25)" },
+];
+---
+
+<Base title="Color">
+  <div class="page-header">
+    <p class="overline">Tokens</p>
+    <h1>Color</h1>
+    <p class="desc">
+      All colors defined in OKLCH for perceptual uniformity. One accent color:
+      safety orange. Everything else is stone-tinted gray on pure black/white.
+    </p>
+  </div>
+
+  <section>
+    <h2 class="section-title">Brand</h2>
+    <div class="brand-strip">
+      <div class="brand-block brand-black">
+        <span class="brand-label">Black</span>
+        <span class="brand-value">oklch(0 0 0)</span>
+      </div>
+      <div class="brand-block brand-orange">
+        <span class="brand-label">Safety Orange</span>
+        <span class="brand-value">oklch(0.705 0.213 47.604)</span>
+      </div>
+      <div class="brand-block brand-white">
+        <span class="brand-label">White</span>
+        <span class="brand-value">oklch(1 0 0)</span>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2 class="section-title">Orange</h2>
+    <div class="scale-grid">
+      {orangeScale.map((c) => <ColorSwatch name={c.name} value={c.value} />)}
+    </div>
+  </section>
+
+  <section>
+    <h2 class="section-title">Stone</h2>
+    <div class="scale-grid">
+      {stoneScale.map((c) => <ColorSwatch name={c.name} value={c.value} />)}
+    </div>
+  </section>
+
+  <section>
+    <h2 class="section-title">Semantic</h2>
+    <div class="semantic-grid">
+      {
+        semanticColors.map((c) => (
+          <div class="semantic-card">
+            <div class="semantic-preview" style={`background: ${c.value};`} />
+            <div class="semantic-meta">
+              <span class="semantic-name">{c.name}</span>
+              <code class="semantic-value">{c.hex}</code>
+            </div>
+          </div>
+        ))
+      }
+    </div>
+  </section>
+
+  <section>
+    <h2 class="section-title">Chart Palette</h2>
+    <div class="chart-strip">
+      {
+        chartColors.map((c) => (
+          <div class="chart-bar" style={`background: ${c.value};`}>
+            <span class="chart-label">{c.name}</span>
+          </div>
+        ))
+      }
+    </div>
+  </section>
+
+  <section>
+    <h2 class="section-title">Theme</h2>
+    <div class="theme-demo">
+      <div class="theme-card theme-light">
+        <div class="theme-label">Light</div>
+        <div class="theme-surface">
+          <p>Background: white</p>
+          <p>Foreground: stone-950</p>
+          <p class="theme-muted">Muted text</p>
+          <div class="theme-cta">Primary action</div>
+        </div>
+      </div>
+      <div class="theme-card theme-dark">
+        <div class="theme-label">Dark</div>
+        <div class="theme-surface">
+          <p>Background: black</p>
+          <p>Foreground: near-white</p>
+          <p class="theme-muted">Muted text</p>
+          <div class="theme-cta">Primary action</div>
+        </div>
+      </div>
+    </div>
+  </section>
+</Base>
+
+<style>
+  /* Brand strip */
+  .brand-strip {
+    display: grid;
+    grid-template-columns: 1fr 2fr 1fr;
+    height: 160px;
+    border: 1px solid var(--border);
+  }
+  .brand-block {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    padding: 16px;
+    gap: 4px;
+  }
+  .brand-black {
+    background: oklch(0 0 0);
+    color: oklch(1 0 0);
+  }
+  .brand-orange {
+    background: oklch(0.705 0.213 47.604);
+    color: oklch(0 0 0);
+  }
+  .brand-white {
+    background: oklch(1 0 0);
+    color: oklch(0 0 0);
+  }
+  .brand-label {
+    font-size: 12px;
+    font-weight: 700;
+  }
+  .brand-value {
+    font-size: 10px;
+    opacity: 0.7;
+  }
+
+  /* Scale grid */
+  .scale-grid {
+    display: grid;
+    grid-template-columns: repeat(11, 1fr);
+    gap: 8px;
+  }
+
+  /* Semantic */
+  .semantic-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+  }
+  .semantic-card {
+    border: 1px solid var(--border);
+  }
+  .semantic-preview {
+    height: 80px;
+  }
+  .semantic-meta {
+    padding: 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+  }
+  .semantic-name {
+    font-size: 12px;
+    font-weight: 700;
+  }
+  .semantic-value {
+    font-size: 10px;
+    color: var(--fg-muted);
+  }
+
+  /* Chart strip */
+  .chart-strip {
+    display: flex;
+    height: 80px;
+    border: 1px solid var(--border);
+  }
+  .chart-bar {
+    flex: 1;
+    display: flex;
+    align-items: flex-end;
+    padding: 8px 12px;
+  }
+  .chart-label {
+    font-size: 10px;
+    font-weight: 700;
+    color: oklch(0 0 0);
+  }
+
+  /* Theme demo */
+  .theme-demo {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+  }
+  .theme-card {
+    padding: 32px;
+  }
+  .theme-light {
+    background: oklch(1 0 0);
+    color: oklch(0.147 0.004 49.25);
+  }
+  .theme-dark {
+    background: oklch(0 0 0);
+    color: oklch(0.985 0.002 247.839);
+  }
+  .theme-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    opacity: 0.5;
+    margin-bottom: 16px;
+  }
+  .theme-surface {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    font-size: 13px;
+  }
+  .theme-muted {
+    opacity: 0.5;
+  }
+  .theme-cta {
+    display: inline-block;
+    background: oklch(0.705 0.213 47.604);
+    color: oklch(0 0 0);
+    padding: 8px 16px;
+    font-size: 12px;
+    font-weight: 700;
+    margin-top: 8px;
+    align-self: flex-start;
+  }
+
+  @media (max-width: 768px) {
+    .scale-grid {
+      grid-template-columns: repeat(6, 1fr);
+    }
+    .semantic-grid {
+      grid-template-columns: 1fr 1fr;
+    }
+    .brand-strip {
+      grid-template-columns: 1fr;
+      height: auto;
+    }
+    .brand-block {
+      padding: 24px 16px;
+    }
+  }
+</style>

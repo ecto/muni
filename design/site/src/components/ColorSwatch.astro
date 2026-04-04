@@ -1,0 +1,48 @@
+---
+interface Props {
+  name: string;
+  value: string;
+  large?: boolean;
+}
+
+const { name, value, large = false } = Astro.props;
+---
+
+<div class:list={["swatch", { large }]}>
+  <div class="preview" style={`background: ${value};`}></div>
+  <div class="meta">
+    <span class="name">{name}</span>
+    <span class="value">{value}</span>
+  </div>
+</div>
+
+<style>
+  .swatch {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .preview {
+    width: 100%;
+    aspect-ratio: 1;
+    border: 1px solid var(--border);
+  }
+  .large .preview {
+    aspect-ratio: 2 / 1;
+  }
+  .meta {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .name {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+  }
+  .value {
+    font-size: 10px;
+    color: var(--fg-muted);
+    word-break: break-all;
+  }
+</style>
