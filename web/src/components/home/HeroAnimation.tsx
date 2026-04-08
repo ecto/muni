@@ -428,13 +428,34 @@ export function HeroAnimation() {
       ctx!.fillStyle = `rgba(${OR},${OG},${OB},0.5)`;
       ctx!.fill();
 
-      animId = requestAnimationFrame(tick);
+      animId = requestAnimationFrame(guardedTick);
     }
 
     function onMouse(e: MouseEvent) { mouse.x = e.clientX; mouse.y = e.clientY; }
     function onMouseLeave() { mouse.x = -9999; mouse.y = -9999; }
     function onTouch(e: TouchEvent) {
       if (e.touches.length) { mouse.x = e.touches[0].clientX; mouse.y = e.touches[0].clientY; }
+    }
+
+    // Pause animation when scrolled out of view
+    let isVisible = true;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        isVisible = entry.isIntersecting;
+        if (isVisible && !prefersReduced) {
+          lastTime = 0;
+          animId = requestAnimationFrame(guardedTick);
+        } else if (!isVisible) {
+          cancelAnimationFrame(animId);
+        }
+      },
+      { threshold: 0 }
+    );
+    observer.observe(canvas);
+
+    function guardedTick(now: number) {
+      if (!isVisible) return;
+      tick(now);
     }
 
     resize();
@@ -446,11 +467,12 @@ export function HeroAnimation() {
     if (prefersReduced) {
       tick(performance.now());
     } else {
-      animId = requestAnimationFrame(tick);
+      animId = requestAnimationFrame(guardedTick);
     }
 
     return () => {
       cancelAnimationFrame(animId);
+      observer.disconnect();
       window.removeEventListener("resize", resize);
       window.removeEventListener("mousemove", onMouse);
       window.removeEventListener("mouseleave", onMouseLeave);

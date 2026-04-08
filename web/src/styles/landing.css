@@ -252,6 +252,24 @@
 .exploded-viewer {
   width: 100%;
   height: 100%;
+  animation: viewer-fade-in 800ms ease both;
+}
+
+@keyframes viewer-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Mobile: skip 3D viewers, show tinted bg instead */
+@media (max-width: 640px) {
+  .card-viewer-bg,
+  .vcad-viewer-bg {
+    display: none;
+  }
+
+  .card-rover { background: var(--bg); }
+  .card-vcad { background: var(--bg); }
+  .card-open { background: var(--bg); }
 }
 
 /* Per-card accent colors (all warm/amber family from design tokens) */
@@ -277,8 +295,9 @@
   background: linear-gradient(
     to top,
     var(--bg) 0%,
-    oklch(0.147 0.004 49.25 / 40%) 30%,
-    transparent 60%
+    oklch(0.147 0.004 49.25 / 60%) 25%,
+    oklch(0.147 0.004 49.25 / 20%) 50%,
+    transparent 70%
   ) !important;
 }
 
@@ -392,8 +411,9 @@
     background: linear-gradient(
       to top,
       oklch(0.985 0.001 106.423) 0%,
-      oklch(0.985 0.001 106.423 / 40%) 30%,
-      transparent 60%
+      oklch(0.985 0.001 106.423 / 60%) 25%,
+      oklch(0.985 0.001 106.423 / 20%) 50%,
+      transparent 70%
     ) !important;
   }
 }
