@@ -2,8 +2,8 @@
 
 import { useRef, useState, useEffect } from "react";
 
-export function useInView(margin = "200px"): [React.RefObject<HTMLDivElement | null>, boolean] {
-  const ref = useRef<HTMLDivElement | null>(null);
+export function useInView(margin = "200px"): [React.RefObject<HTMLDivElement>, boolean] {
+  const ref = useRef<HTMLDivElement>(null);
   const [inView, setInView] = useState(false);
 
   useEffect(() => {
