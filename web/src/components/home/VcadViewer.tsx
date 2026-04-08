@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, useEffect } from "react";
+import * as THREE from "three";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Edges, Line } from "@react-three/drei";
 import { useReducedMotion, useDarkMode } from "./hooks/useIsMobile";
