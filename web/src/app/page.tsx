@@ -4,6 +4,10 @@ import {
 } from "@phosphor-icons/react/dist/ssr";
 import Link from "next/link";
 import { Footer, FloatingHeader } from "@/components/layout";
+import { HeroAnimation } from "@/components/home/HeroAnimation";
+import { VcadViewer } from "@/components/home/VcadViewer";
+import { RoverViewer } from "@/components/home/RoverViewer";
+import { ExplodedViewer } from "@/components/home/ExplodedViewer";
 
 export default function HomePage() {
   return (
@@ -12,36 +16,33 @@ export default function HomePage() {
       <main className="landing">
         {/* ═══════════════════════════════════════════════════════════════════
             SCREEN 1 — Hero
-            Full-bleed video. No text. Let the product speak.
+            Animated dot-grid canvas. Company identity.
             ═══════════════════════════════════════════════════════════════════ */}
         <section className="screen hero">
-          <video
-            className="hero-video"
-            src="/videos/hype-reel.mp4"
-            autoPlay
-            muted
-            loop
-            playsInline
-          />
+          <HeroAnimation />
+          <div className="hero-overlay">
+            <h1 className="hero-headline">
+              Municipal<br />Robotics
+            </h1>
+            <p className="hero-sub">
+              Building robots to help people.
+            </p>
+          </div>
         </section>
 
         {/* ═══════════════════════════════════════════════════════════════════
             SCREEN 2 — The Rover
-            Dark CAD render fills the screen. Text anchored bottom-left.
             ═══════════════════════════════════════════════════════════════════ */}
         <section className="screen card card-rover">
-          <img
-            className="card-bg"
-            src="/images/hype-reel-poster.jpg"
-            alt=""
-            draggable={false}
-          />
-          <div className="card-scrim" />
+          <div className="card-viewer-bg">
+            <RoverViewer />
+          </div>
+          <div className="card-scrim card-scrim-solid" />
           <div className="card-body">
             <h2 className="card-title">The Rover</h2>
             <p className="card-desc">
+              Autonomous sidewalk clearing. 50 miles per night, zero labor cost.
               Snow, debris, pressure wash — swap the tool, not the fleet.
-              Autonomous from dusk to dawn.
             </p>
             <Link href="/rover" className="card-link">
               View specs <ArrowRight size={16} weight="bold" />
@@ -50,17 +51,33 @@ export default function HomePage() {
         </section>
 
         {/* ═══════════════════════════════════════════════════════════════════
-            SCREEN 3 — Open Source
-            Build flatlay fills the screen. Text anchored bottom-left.
+            SCREEN 3 — vcad
+            ═══════════════════════════════════════════════════════════════════ */}
+        <section className="screen card card-vcad">
+          <div className="vcad-viewer-bg">
+            <VcadViewer />
+          </div>
+          <div className="card-scrim card-scrim-solid" />
+          <div className="card-body">
+            <h2 className="card-title">vcad</h2>
+            <p className="card-desc">
+              Open-source parametric CAD for the AI era. Modeling, simulation,
+              and manufacturing — from sketch to STEP to slicer.
+            </p>
+            <a href="https://vcad.io" className="card-link" target="_blank" rel="noopener noreferrer">
+              Try vcad <ArrowRight size={16} weight="bold" />
+            </a>
+          </div>
+        </section>
+
+        {/* ═══════════════════════════════════════════════════════════════════
+            SCREEN 4 — Open Source
             ═══════════════════════════════════════════════════════════════════ */}
         <section className="screen card card-open">
-          <img
-            className="card-bg"
-            src="/images/bvr0-disassembled.jpg"
-            alt=""
-            draggable={false}
-          />
-          <div className="card-scrim" />
+          <div className="card-viewer-bg">
+            <ExplodedViewer />
+          </div>
+          <div className="card-scrim card-scrim-solid" />
           <div className="card-body">
             <h2 className="card-title">Open Source</h2>
             <p className="card-desc">
@@ -75,8 +92,7 @@ export default function HomePage() {
         </section>
 
         {/* ═══════════════════════════════════════════════════════════════════
-            SCREEN 4 — Pilot + CTA
-            Pure typography. The ask. Orange accent.
+            SCREEN 5 — Closer
             ═══════════════════════════════════════════════════════════════════ */}
         <section className="screen closer">
           <div className="closer-inner">

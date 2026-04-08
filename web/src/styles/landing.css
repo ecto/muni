@@ -94,33 +94,49 @@
 
 /* ═══════════════════════════════════════════════════════════════════════════
    SCREEN 1 — HERO
-   Full-bleed video. No text. Let the product speak.
+   Animated dot-grid canvas. Company identity overlay.
    ═══════════════════════════════════════════════════════════════════════════ */
 
 .hero {
-  align-items: stretch;
-  justify-content: stretch;
+  align-items: flex-end;
+  justify-content: flex-start;
   padding: 0;
   background: var(--bg);
 }
 
-.hero-video {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: center center;
+.hero-canvas {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+
+.hero-overlay {
+  position: relative;
+  z-index: 1;
+  padding: 72px 80px;
 }
 
 @media (max-width: 768px) {
-  .hero {
-    min-height: auto;
-    aspect-ratio: 9 / 14;
-    max-height: 100dvh;
+  .hero-overlay {
+    padding: 32px 24px 48px;
   }
+}
 
-  .hero-video {
-    object-position: center 30%;
-  }
+.hero-headline {
+  font-family: var(--font-display);
+  font-size: clamp(4rem, 12vw, 10rem);
+  font-weight: 700;
+  line-height: 0.9;
+  letter-spacing: -0.04em;
+  margin-bottom: 20px;
+}
+
+.hero-sub {
+  font-family: var(--font-display);
+  font-size: clamp(1.1rem, 2vw, 1.5rem);
+  font-weight: 300;
+  color: var(--fg-muted);
+  line-height: 1.5;
 }
 
 
@@ -210,37 +226,63 @@
   font-family: var(--font-mono);
   font-size: clamp(14px, 1.2vw, 16px);
   font-weight: 600;
-  color: var(--orange);
+  color: var(--card-accent, var(--orange));
   text-decoration: none;
   transition: gap 200ms ease, color 150ms ease;
 }
 
 .card-link:hover {
-  color: var(--orange-bright);
+  color: var(--card-accent-bright, var(--orange-bright));
   gap: 14px;
 }
 
-/* Rover card — the dark CAD render is already dark, lighter scrim */
-.card-rover .card-scrim {
-  background: linear-gradient(
-    to top,
-    var(--bg) 0%,
-    oklch(0.147 0.004 49.25 / 50%) 30%,
-    oklch(0.147 0.004 49.25 / 10%) 60%,
-    transparent 100%
-  );
+/* (rover card now uses 3D viewer with card-scrim-solid) */
+
+/* ─── 3D viewer backgrounds (shared) ─── */
+
+.card-viewer-bg,
+.vcad-viewer-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
 }
 
-/* Open source card — the flatlay photo is lighter, needs stronger scrim */
-.card-open .card-scrim {
+.rover-viewer,
+.vcad-viewer,
+.exploded-viewer {
+  width: 100%;
+  height: 100%;
+}
+
+/* Per-card accent colors (all warm/amber family from design tokens) */
+.card-rover {
+  --card-accent: oklch(0.705 0.213 47.604);  /* orange 500 */
+  --card-accent-bright: oklch(0.75 0.20 47.604);
+  background: var(--bg);
+}
+
+.card-vcad {
+  --card-accent: oklch(0.72 0.22 350);  /* pink */
+  --card-accent-bright: oklch(0.78 0.20 350);
+  background: var(--bg);
+}
+
+.card-open {
+  --card-accent: oklch(0.723 0.191 149);  /* green 500 */
+  --card-accent-bright: oklch(0.78 0.17 149);
+  background: var(--bg);
+}
+
+.card-scrim-solid {
   background: linear-gradient(
     to top,
     var(--bg) 0%,
-    oklch(0.147 0.004 49.25 / 75%) 35%,
-    oklch(0.147 0.004 49.25 / 40%) 60%,
-    oklch(0.147 0.004 49.25 / 20%) 100%
-  );
+    oklch(0.147 0.004 49.25 / 40%) 30%,
+    transparent 60%
+  ) !important;
 }
+
+/* (open source card now uses 3D viewer with card-scrim-solid) */
 
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -346,34 +388,13 @@
     --border-strong: oklch(0 0 0 / 12%);
   }
 
-  .card-scrim {
+  .card-scrim-solid {
     background: linear-gradient(
       to top,
       oklch(0.985 0.001 106.423) 0%,
-      oklch(0.985 0.001 106.423 / 70%) 35%,
-      oklch(0.985 0.001 106.423 / 30%) 60%,
-      transparent 100%
-    );
-  }
-
-  .card-rover .card-scrim {
-    background: linear-gradient(
-      to top,
-      oklch(0.985 0.001 106.423) 0%,
-      oklch(0.985 0.001 106.423 / 60%) 30%,
-      oklch(0.985 0.001 106.423 / 20%) 60%,
-      transparent 100%
-    );
-  }
-
-  .card-open .card-scrim {
-    background: linear-gradient(
-      to top,
-      oklch(0.985 0.001 106.423) 0%,
-      oklch(0.985 0.001 106.423 / 80%) 35%,
-      oklch(0.985 0.001 106.423 / 50%) 60%,
-      oklch(0.985 0.001 106.423 / 30%) 100%
-    );
+      oklch(0.985 0.001 106.423 / 40%) 30%,
+      transparent 60%
+    ) !important;
   }
 }
 
@@ -400,86 +421,127 @@
   padding: 0 24px;
 }
 
-.products-hero { padding: 140px 0 96px; }
+/* ─── Hero — full-bleed image card ─────────────────────────────────────── */
 
-.products-hero-content {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 64px;
-  align-items: center;
-}
-
-@media (max-width: 768px) {
-  .products-hero-content { grid-template-columns: 1fr; gap: 32px; }
-}
-
-.products-hero-text { max-width: 480px; }
-
-@media (max-width: 768px) {
-  .products-hero-text { max-width: 100%; text-align: center; }
-}
-
-.products-eyebrow {
-  display: inline-block;
-  font-size: 10px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.15em;
-  color: var(--orange);
-  margin-bottom: 8px;
-}
-
-.products-title {
-  font-family: var(--font-display);
-  font-size: clamp(1.75rem, 4vw, 2.5rem);
-  font-weight: 700;
-  line-height: 1.15;
-  letter-spacing: -0.02em;
-  margin-bottom: 8px;
-}
-
-.products-subtitle {
-  font-family: var(--font-mono);
-  font-size: 14px;
-  color: var(--fg-muted);
-  margin-bottom: 24px;
-}
-
-.products-hero-cta { display: flex; gap: 8px; }
-@media (max-width: 768px) { .products-hero-cta { justify-content: center; flex-wrap: wrap; } }
-
-.products-hero-image {
+.products-hero {
+  position: relative;
+  min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
-  justify-content: center;
-  align-items: center;
-  border: 1px solid var(--border);
-  background: var(--bg-elevated);
-  padding: 32px;
+  flex-direction: column;
+  justify-content: flex-end;
+  overflow: hidden;
 }
 
-@media (max-width: 768px) { .products-hero-image { order: -1; } }
-.products-hero-image img { max-width: 100%; height: auto; }
+.products-hero-bg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 0;
+}
 
-.products-btn {
-  display: inline-flex;
+.products-hero-scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: linear-gradient(
+    to top,
+    var(--bg) 0%,
+    oklch(0.147 0.004 49.25 / 60%) 35%,
+    oklch(0.147 0.004 49.25 / 20%) 60%,
+    transparent 100%
+  );
+}
+
+.products-hero-body {
+  position: relative;
+  z-index: 2;
+  max-width: 900px;
+  padding: 72px 80px;
+}
+
+@media (max-width: 768px) {
+  .products-hero-body {
+    padding: 32px 24px 48px;
+  }
+}
+
+.products-hero-title {
+  font-family: var(--font-display);
+  font-size: clamp(4rem, 12vw, 10rem);
+  font-weight: 700;
+  line-height: 0.9;
+  letter-spacing: -0.04em;
+  margin-bottom: 20px;
+}
+
+.products-hero-sub {
+  font-family: var(--font-display);
+  font-size: clamp(1.1rem, 2vw, 1.5rem);
+  font-weight: 300;
+  line-height: 1.5;
+  color: var(--fg-muted);
+  max-width: 500px;
+  margin-bottom: 36px;
+}
+
+.products-hero-cta {
+  display: flex;
+  gap: 12px;
+}
+
+@media (max-width: 480px) {
+  .products-hero-cta {
+    flex-direction: column;
+  }
+}
+
+/* ─── Value Props ──────────────────────────────────────────────────────── */
+
+.products-values {
+  padding: 96px 0;
+  background: var(--bg);
+}
+
+.products-values-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 48px;
+  text-align: center;
+}
+
+@media (max-width: 640px) {
+  .products-values-grid {
+    grid-template-columns: 1fr;
+    gap: 40px;
+  }
+}
+
+.products-value {
+  display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 6px;
-  padding: 10px 18px;
+  gap: 8px;
+}
+
+.products-value-stat {
+  font-family: var(--font-display);
+  font-size: clamp(3rem, 7vw, 5rem);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.04em;
+  color: var(--orange);
+}
+
+.products-value-label {
   font-family: var(--font-mono);
-  font-size: 12px;
-  font-weight: 600;
-  text-decoration: none;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  border: 1px solid transparent;
-  transition: all 150ms ease;
+  font-size: 13px;
+  color: var(--fg-muted);
 }
 
-.products-btn-primary { background: var(--orange); color: var(--bg); border-color: var(--orange); }
-.products-btn-primary:hover { background: var(--orange-bright); border-color: var(--orange-bright); color: var(--bg); }
-.products-btn-secondary { background: transparent; color: var(--fg); border-color: var(--border-strong); }
-.products-btn-secondary:hover { background: oklch(0.216 0.006 56.043); border-color: var(--fg-subtle); color: var(--fg); }
-.products-btn-large { padding: 14px 24px; font-size: 13px; }
+/* ─── Sections ─────────────────────────────────────────────────────────── */
 
 .products-section { padding: 64px 0; }
 .products-section-title { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; color: var(--fg-muted); margin-bottom: 32px; }
@@ -517,10 +579,42 @@
 .products-resource span { font-size: 12px; color: var(--fg-muted); }
 .products-resource > svg:last-child { color: var(--fg-subtle); }
 
-.products-cta { text-align: center; background: var(--bg); }
-.products-cta-content { max-width: 480px; margin: 0 auto; }
-.products-cta-title { font-family: var(--font-display); font-size: clamp(1.25rem, 3vw, 1.5rem); font-weight: 700; margin-bottom: 8px; }
-.products-cta-desc { font-size: 14px; color: var(--fg-muted); margin-bottom: 32px; }
+/* ─── Closer CTA ───────────────────────────────────────────────────────── */
+
+.products-closer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 120px 24px;
+  background: var(--bg);
+}
+
+.products-closer-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  max-width: 700px;
+}
+
+.products-closer-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: var(--orange);
+  margin-bottom: 32px;
+}
+
+.products-closer-headline {
+  font-family: var(--font-display);
+  font-size: clamp(2.5rem, 7vw, 5rem);
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: -0.04em;
+  margin-bottom: 40px;
+}
 
 .products-footer { padding: 48px 0; background: var(--bg); }
 
@@ -533,5 +627,15 @@
     --fg-subtle: oklch(0.709 0.01 56.259);
     --border: oklch(0 0 0 / 8%);
     --border-strong: oklch(0 0 0 / 12%);
+  }
+
+  .products-hero-scrim {
+    background: linear-gradient(
+      to top,
+      oklch(0.985 0.001 106.423) 0%,
+      oklch(0.985 0.001 106.423 / 70%) 35%,
+      oklch(0.985 0.001 106.423 / 30%) 60%,
+      transparent 100%
+    );
   }
 }

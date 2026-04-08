@@ -41,36 +41,59 @@ export default function RoverPage() {
     <>
       <FloatingHeader />
       <main className="products">
-        {/* Hero */}
+        {/* ═══════════════════════════════════════════════════════════════════
+            Hero — Full-bleed rover image
+            ═══════════════════════════════════════════════════════════════════ */}
         <section className="products-hero">
+          <img
+            className="products-hero-bg"
+            src="/images/hype-reel-poster.jpg"
+            alt=""
+            draggable={false}
+          />
+          <div className="products-hero-scrim" />
+          <div className="products-hero-body">
+            <h1 className="products-hero-title">The Rover</h1>
+            <p className="products-hero-sub">
+              50 miles per night. Zero labor cost. Operates in active snowfall.
+            </p>
+            <div className="products-hero-cta">
+              <a href="https://muni.cal.com/cam/30min" className="btn btn-primary">
+                Schedule a Call
+                <ArrowRight size={18} weight="bold" />
+              </a>
+              <a href="/docs/whitepaper.pdf" className="btn btn-ghost" target="_blank" rel="noopener noreferrer">
+                Read Whitepaper
+              </a>
+            </div>
+          </div>
+        </section>
+
+        {/* ═══════════════════════════════════════════════════════════════════
+            Value Props — The outcomes, not the specs
+            ═══════════════════════════════════════════════════════════════════ */}
+        <section className="products-values">
           <div className="products-container">
-            <div className="products-hero-content">
-              <div className="products-hero-text">
-                <span className="products-eyebrow">BVR1 Production Rover</span>
-                <h1 className="products-title">
-                  Autonomous sidewalk clearing.
-                </h1>
-                <p className="products-subtitle">
-                  50 miles per night. Zero labor cost. Operates in active snowfall.
-                </p>
-                <div className="products-hero-cta">
-                  <a href="https://muni.cal.com/cam/30min" className="products-btn products-btn-primary">
-                    Schedule a Call
-                    <ArrowRight size={16} weight="bold" />
-                  </a>
-                  <a href="/docs/whitepaper.pdf" className="products-btn products-btn-secondary" target="_blank" rel="noopener noreferrer">
-                    Read Whitepaper
-                  </a>
-                </div>
+            <div className="products-values-grid">
+              <div className="products-value">
+                <span className="products-value-stat">50mi</span>
+                <span className="products-value-label">per night, per rover</span>
               </div>
-              <div className="products-hero-image">
-                <img src="/images/bvr1.png" alt="BVR1 Production Rover" />
+              <div className="products-value">
+                <span className="products-value-stat">4–8hr</span>
+                <span className="products-value-label">runtime on a single charge</span>
+              </div>
+              <div className="products-value">
+                <span className="products-value-stat">0</span>
+                <span className="products-value-label">labor hours required</span>
               </div>
             </div>
           </div>
         </section>
 
-        {/* Specs */}
+        {/* ═══════════════════════════════════════════════════════════════════
+            Specs
+            ═══════════════════════════════════════════════════════════════════ */}
         <section className="products-section">
           <div className="products-container">
             <h2 className="products-section-title">Specifications</h2>
@@ -88,9 +111,9 @@ export default function RoverPage() {
               <div className="products-spec">
                 <div className="products-spec-icon"><Eye size={20} weight="bold" /></div>
                 <div className="products-spec-content">
-                  <span className="products-spec-label">LiDAR</span>
-                  <span className="products-spec-value">Livox Mid-360</span>
-                  <span className="products-spec-detail">360° × 59° FOV, 200k pts/sec</span>
+                  <span className="products-spec-label">Vision</span>
+                  <span className="products-spec-value">3× IMX291 Cameras</span>
+                  <span className="products-spec-detail">Stereo depth + wide-angle</span>
                 </div>
               </div>
 
@@ -145,8 +168,8 @@ export default function RoverPage() {
                 <span>0-1 m/s (0-2.2 mph)</span>
               </div>
               <div className="products-specs-row">
-                <span>Camera</span>
-                <span>Insta360 X4 (360° video)</span>
+                <span>Drive</span>
+                <span>2WD rear chain drive</span>
               </div>
               <div className="products-specs-row">
                 <span>Warranty</span>
@@ -166,7 +189,7 @@ export default function RoverPage() {
                 <Shield size={20} weight="bold" />
                 <div>
                   <strong>1.5m Safety Radius</strong>
-                  <p>LiDAR-based obstacle detection. Immediate e-stop if breached.</p>
+                  <p>Vision-based obstacle detection. Immediate e-stop if breached.</p>
                 </div>
               </div>
               <div className="products-safety-item">
@@ -230,20 +253,17 @@ export default function RoverPage() {
           </div>
         </section>
 
-        {/* CTA */}
-        <section className="products-section products-cta">
-          <div className="products-container">
-            <div className="products-cta-content">
-              <span className="products-eyebrow">Shipping Summer 2026</span>
-              <h2 className="products-cta-title">Ready to get started?</h2>
-              <p className="products-cta-desc">
-                Schedule a call to discuss your deployment needs.
-              </p>
-              <a href="https://muni.cal.com/cam/30min" className="products-btn products-btn-primary products-btn-large">
-                Schedule a Call
-                <ArrowRight size={18} weight="bold" />
-              </a>
-            </div>
+        {/* CTA Closer */}
+        <section className="products-closer">
+          <div className="products-closer-inner">
+            <span className="products-closer-eyebrow">Shipping Summer 2026</span>
+            <h2 className="products-closer-headline">
+              Let&apos;s clear<br />your sidewalks.
+            </h2>
+            <a href="https://muni.cal.com/cam/30min" className="btn btn-primary btn-lg">
+              Schedule a Call
+              <ArrowRight size={20} weight="bold" />
+            </a>
           </div>
         </section>
 
