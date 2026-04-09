@@ -262,6 +262,5 @@ fn test_with_recording() {
 
 ## References
 
-- [artifact-plan.md](../../../docs/artifact-plan.md) - Implementation specifications
 - [CLAUDE.md](../../../CLAUDE.md) - Codebase overview
 - [Rust testing guide](https://doc.rust-lang.org/book/ch11-00-testing.html)

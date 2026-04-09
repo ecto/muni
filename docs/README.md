@@ -14,7 +14,7 @@ Platform-level documentation for the Muni robotics system.
 - [Depot Rack](hardware/depot.md) — Base station 10" rack setup
 - [Rover Rack](hardware/rover-rack.md) — Rover electronics enclosure
 - [RTK GPS](hardware/rtk.md) — Centimeter-accurate positioning
-- [Motors](hardware/motors.md) — Hub motor specifications
+- [Motors](../bvr/docs/hardware/motors.md) — Hub motor specifications and VESC tuning
 - [Networking](hardware/networking.md) — LTE and local connectivity
 - [Firmware](hardware/firmware.md) — Flashing bvrd and attachments
 
@@ -23,3 +23,5 @@ Platform-level documentation for the Muni robotics system.
 For hardware and firmware documentation specific to each robot type, see:
 
 - [BVR Documentation](../bvr/docs/) — Base Vectoring Rover
+  - [Architecture](../bvr/docs/architecture.md) — System architecture and data flow
+  - [Teleop](../bvr/docs/teleop.md) — Remote operation protocol and controls

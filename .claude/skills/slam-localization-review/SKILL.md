@@ -890,7 +890,6 @@ rerun slam_debug.rrd
 
 ## References
 
-- [artifact-plan.md](../../../docs/artifact-plan.md) - Detailed SLAM implementation specs
 - [CLAUDE.md](../../../CLAUDE.md) - Codebase overview
 - [bvr/firmware/README.md](../../../bvr/firmware/README.md) - Build and deployment
 - [nalgebra docs](https://docs.rs/nalgebra) - Matrix math library
