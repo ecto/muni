@@ -137,7 +137,7 @@
 ]
 
 // =============================================================================
-// Slide 4: Demo
+// Slide 4: Progress
 // =============================================================================
 
 #page[
@@ -181,10 +181,66 @@
     )[
       #text(size: 12pt)[
         #text(fill: muni-orange, weight: "bold")[Proven:] Drivetrain #sym.dot Teleoperation #sym.dot GPS #sym.dot MCU firmware #sym.dot Depot deployment \
-        #text(fill: muni-orange, weight: "bold")[Now (Artifact):] BVR1 R&D #sym.dot Supervised autonomy #sym.dot Production unit
+        #text(fill: muni-orange, weight: "bold")[Now:] BVR1 R&D at F.Inc #sym.dot Supervised autonomy #sym.dot Production unit
       ]
     ]
   ]
+]
+
+// =============================================================================
+// Slide 4b: F.Inc Artifact Residency
+// =============================================================================
+
+#page[
+  = F.Inc Artifact, Spring 2026
+
+  #grid(
+    columns: (1.1fr, 1fr),
+    gutter: 0.4in,
+    [
+      #grid(
+        columns: 2,
+        gutter: 8pt,
+        image("images/bvr1-finc-overhead.jpg", height: 2.4in),
+        image("images/bvr1-finc-front.jpg", height: 2.4in),
+      )
+      #v(6pt)
+      #align(center)[
+        #text(size: 10pt, fill: gray)[
+          BVR1 prototype #sym.dash second build, on the bench at F.Inc
+        ]
+      ]
+    ],
+    [
+      #text(size: 18pt, weight: "bold")[Second prototype, in residency]
+
+      #v(0.15in)
+
+      #text(size: 13pt)[
+        #link("https://f.inc")[*F.Inc Artifact*] is a hardware-focused residency for early-stage robotics and physical-product founders. We were accepted into the *Spring 2026* cohort.
+      ]
+
+      #v(0.2in)
+
+      - *Second BVR prototype* built in-residence (next to bvr0)
+      - *Supervised autonomy* milestone: 1 operator, multiple rovers
+      - *Hardware founder network:* peer review, shared shop, investor days
+      - *Production-ready BVR1* leaves the residency
+
+      #v(0.2in)
+
+      #box(
+        fill: muni-light-gray,
+        radius: 6pt,
+        inset: 12pt,
+        width: 100%,
+      )[
+        #text(size: 12pt)[
+          Two working prototypes, two coasts, one platform.
+        ]
+      ]
+    ]
+  )
 ]
 
 // =============================================================================
@@ -290,25 +346,25 @@
     gutter: 0.4in,
     [
       #align(center)[
-        #text(size: 48pt, weight: "bold", fill: muni-orange)[1]
+        #text(size: 48pt, weight: "bold", fill: muni-orange)[2]
         #v(0.1in)
-        #text(size: 16pt, weight: "bold")[Working Prototype]
+        #text(size: 16pt, weight: "bold")[Working Prototypes]
         #v(0.1in)
         #text(size: 12pt, fill: gray)[
-          bvr0 complete \
-          December 2025
+          bvr0 (Cleveland, Dec '25) \
+          bvr1 (F.Inc, Spring '26)
         ]
       ]
     ],
     [
       #align(center)[
-        #text(size: 48pt, weight: "bold", fill: muni-orange)[Cleveland]
+        #text(size: 48pt, weight: "bold", fill: muni-orange)[Multi-City]
         #v(0.1in)
-        #text(size: 16pt, weight: "bold")[Pilot Discussions]
+        #text(size: 16pt, weight: "bold")[Public Works Meetings]
         #v(0.1in)
         #text(size: 12pt, fill: gray)[
-          Public works interest \
-          Meetings scheduled
+          Cleveland + multiple cities \
+          Meetings already underway
         ]
       ]
     ],
@@ -335,7 +391,7 @@
       radius: 8pt,
     )[
       #text(size: 16pt)[
-        *Bootstrapped to seed.* No pre-seed dilution. Cleveland pilot validates demand.
+        *Bootstrapped to seed.* No pre-seed dilution. Active pilot discussions across multiple municipal public works departments.
       ]
     ]
   ]

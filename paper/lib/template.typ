@@ -1,7 +1,6 @@
 // Municipal Robotics Document Template
 // Shared styling for whitepapers, manuals, and technical documentation
 
-#import "@preview/cetz:0.4.2"
 #import "@preview/zero:0.5.0": num, ztable, set-num
 
 // =============================================================================
@@ -25,8 +24,8 @@
 
 #let muni-font = "Helvetica Neue" // Primary font (prose and headings)
 #let muni-font-mono = "Berkeley Mono" // Monospace (code, data labels, metadata, tables)
-#let muni-font-fallback = ("Helvetica", "Arial")
-#let muni-font-mono-fallback = ("Menlo", "Courier New", "Courier")
+#let muni-font-fallback = ("Helvetica", "Arial", "Nimbus Sans", "Liberation Sans", "DejaVu Sans")
+#let muni-font-mono-fallback = ("Menlo", "Courier New", "Courier", "DejaVu Sans Mono", "Liberation Mono")
 #let muni-font-size = 9pt
 #let muni-leading = 0.9em
 #let muni-tracking = 0em
