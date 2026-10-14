@@ -1,0 +1,29 @@
+carriage q 0..790 (plinth centre X = 355 + q); shoulders z=455, Y=260; margin >= 5 deg; virtual scan q -400..1300
+
+| point | (X,Y,Z) | q=0 | q=395 | q=790 | L reach q | R reach q | both-arm q |
+|---|---|---|---|---|---|---|---|
+| mill door centre (60 in) | (250, -110, 390) | - | - | - | -400..-285, 475..780 | 75..380 | - |
+| bench free-area centre | (750, -190, 215) | R | L+R | L | 65..1125 | -335..725 | 65..725 |
+| bench corner near-L | (540, -60, 215) | L+R | L+R | L | -230..1000 | -400..600 | -230..600 |
+| bench corner near-R | (960, -60, 215) | R | L+R | L+R | 190..1300 | -210..1020 | 190..1020 |
+| bench corner far-L (under oven: in front of it) **UNREACHABLE** | (540, -620, 215) | - | - | - | - | - | - |
+| bench centre (oven front edge) | (750, -330, 215) | R | L+R | L | 230..960 | -170..560 | 230..560 |
+| oven door centre (face) | (750, -340, 300) | R | L+R | L | 115..1075 | -285..675 | 115..675 |
+| winder top | (1360, -160, 365) | - | R | L+R | 675..1300 | 275..1300 | 675..1300 |
+| stock drawer top | (1130, -210, 335) | - | R | L+R | 475..1300 | 75..1075 | 475..1075 |
+| finished drawer top **UNREACHABLE** | (1130, -520, 335) | - | - | - | - | - | - |
+| tip peg 1 (z560) | (110, 345, 560) | L | - | - | -245..155, 440..680 | -400..-245, 40..280 | -245..-245, 40..155 |
+| tip peg 4 (z740) | (290, 345, 740) | L+R | L+R | L | -400..450, 620..820 | -400..50, 220..420 | -400..50, 220..420 |
+| tip rack z500 | (200, 345, 500) | - | - | - | 530..765 | 130..365 | - |
+| tip rack z800 | (200, 345, 800) | L | - | - | -400..360, 530..675 | -400..-40, 130..275 | -400..-40, 130..275 |
+| parts shelf 1 mid (z300) | (750, 360, 340) | L | - | R | -175..65, 1165..1250 | -400..-335, 765..850 | - |
+| parts shelf 4 mid (z750) | (750, 360, 790) | L+R | L+R | L+R | -45..965, 1165..1235 | -400..565, 765..835 | -45..565, 765..835 |
+| parts shelf 1 left end | (100, 360, 340) | - | - | - | 515..600 | 115..200 | - |
+| parts shelf 4 right end | (1400, 360, 790) | - | R | L+R | 605..1300 | 205..1215 | 605..1215 |
+| tool strip | (1320, 345, 720) | - | R | L+R | 465..1300 | 65..1080, 1250..1300 | 465..1080, 1250..1300 |
+
+min stroke, one arm at every reachable point listed (17 pts): 165 mm (q 600..765 = plinth centre X 955..1120)
+
+min stroke, both arms at every reachable point listed (13 pts): 520 mm (q 155..675 = plinth centre X 510..1030)
+
+unreachable / off-rail: bench corner far-L (under oven: in front of it), finished drawer top
