@@ -413,7 +413,7 @@
   let lab = if it.has("label") { str(it.label) } else { "" }
   let wide = it.gap != 1.09em
   let framed = it.kind != table or lab in web-framed-tables
-  let body = if framed { html.frame(block(width: if wide { 7.1in } else { 4.8in }, fill: c-bg, inset: 6pt, it.body)) } else { it.body }
+  let body = if framed { html.frame(block(width: if wide { 7.1in } else { 4.8in }, fill: c-bg, inset: 6pt, { set math.equation(alt: "in-frame"); it.body })) } else { it.body }
   let cap = if it.caption != none { html.elem("figcaption", [#html.elem("span", attrs: (class: "fig-label"))[#{ if it.kind == table [Table] else [Fig] } #context it.counter.display(it.numbering)] #it.caption.body]) }
   html.elem("figure", attrs: (id: lab, class: if wide { "wide" } else { "narrow" }), if it.kind == table { cap; body } else { body; cap })
 }
@@ -1128,7 +1128,7 @@ The same structure repeats one level up. A limb's materials are about \$2,000, o
 == Math
 
 #mathfig(
-  [$ g = 1/N sum_(i=1)^N norm(y_i^"real" - y_i^"sim" (theta)) $ #v(0.4em) $ "pass" quad "if" quad g + 2 sigma < g_"max" $],
+  [$ epsilon_i (theta) = y_i^"real" - y_i^"sim" (theta) $ #v(0.3em) $ overline(epsilon) = 1/N sum_(i=1)^N norm(epsilon_i (theta)) $ #v(0.3em) $ "pass" quad "if" quad overline(epsilon) + 2 sigma < overline(epsilon)_"max" $],
   cetz.canvas(length: 1.3cm, {
     import cetz.draw: *
     let W = 6.0
@@ -1137,20 +1137,20 @@ The same structure repeats one level up. A limb's materials are about \$2,000, o
     for (i, e) in errs.enumerate() { circle((e * 1.6, 0.25 + calc.rem(i, 3) * 0.17), radius: 0.06, fill: c-info, stroke: none) }
     let g = 1.28 * 1.6
     line((g, -0.1), (g, 1.05), stroke: 1pt + c-text)
-    content((g, 1.1), anchor: "south", text(font: mono-m, size: 6.3pt, fill: c-text, tracking: track, upper[g]))
+    content((g, 1.1), anchor: "south", text(font: mono-m, size: 6.3pt, fill: c-text, tracking: track)[$overline(epsilon)$])
     line((g, 0.95), (g + 0.95, 0.95), stroke: 0.7pt + c-text, mark: (end: "|", size: 0.1))
     content((g + 0.48, 0.97), anchor: "south", text(font: mono, size: 6.3pt, fill: c-label)[2σ])
     let gmax = 4.6
     line((gmax, -0.1), (gmax, 1.25), stroke: (paint: c-ok, thickness: 1pt, dash: (2pt, 2pt)))
-    content((gmax, 1.3), anchor: "south", text(font: mono-m, size: 6.3pt, fill: c-ok, tracking: track, upper[g max]))
+    content((gmax, 1.3), anchor: "south", text(font: mono-m, size: 6.3pt, fill: c-ok, tracking: track)[$overline(epsilon)_"max"$])
     content((W / 2, -0.25), anchor: "north", text(font: sans, size: 6.5pt, fill: c-label)[error of each unit, real against simulated])
   }),
-  [#lead[The gap, as a number with an error bar.] Each unit $i$ is run for real and in simulation with parameters $theta$; $g$ is the mean error over $N$ units. A gate passes only when the gap, plus twice its spread, clears the threshold.],
+  [#lead[The gap, as a number with an error bar.] Each unit $i$ is run for real and in simulation with parameters $theta$; $epsilon_i$ is its prediction error and $overline(epsilon)$ the mean over $N$ units. A gate passes only when the gap, plus twice its spread, clears the threshold.],
 ) <fig:eq-gap>
 
 Every robotics lab has a sim-to-real gap. We know of few that publish it as a number with an error bar, unit by unit. One established response is domain randomization: vary the simulator until a policy tolerates the difference @tobin2017domain. That makes the policy robust to the gap, but it does not by itself measure it.
 
-We treat the gap as the central measurement. It decides whether a design is ready to build, whether a controller is ready to deploy, and whether an actuator is ready to replace a purchased one. It also tells us how much of the loop can run without a person in it. A gap that is not measured cannot be closed, and a loop with an unmeasured gap needs a human in it.
+We call the gap $overline(epsilon)$ and treat it as the central measurement. The method is system identification's prediction-error method @ljung1999system: each unit's prediction error $epsilon_i$ is what it did minus what the model said it would do, and $overline(epsilon)$ is the mean of their sizes (@fig:eq-gap). We add one step: the gradient of $overline(epsilon)$ moves the design, not only the model. It decides whether a design is ready to build, whether a controller is ready to deploy, and whether an actuator is ready to replace a purchased one. It also tells us how much of the loop can run without a person in it. A gap that is not measured cannot be closed, and a loop with an unmeasured gap needs a human in it.
 
 
 
@@ -1343,7 +1343,7 @@ Each stage pays for the next and teaches it something it could not learn otherwi
       content((x + 0.3, 0.8), anchor: "north-west", box(width: (w - 0.6) * 1cm, text(size: s-xs, fill: c-label, note)))
     }
   }),
-  caption: [#lead[The dashboard, October 2026.] The gap per unit (@fig:loop), electrons under management (@sec:eum) and doubling time (@sec:replication). We will publish each one when it first has a value, and every time it changes.],
+  caption: [#lead[The dashboard, October 2026.] The gap per unit, $overline(epsilon)$ (@fig:loop), electrons under management (@sec:eum) and doubling time (@sec:replication). We will publish each one when it first has a value, and every time it changes.],
 ) <fig:dash>
 
 Three numbers track the whole plan (@fig:dash). Today none of them is good, and we say so.
@@ -1455,12 +1455,12 @@ Every number in this plan comes from one loop (@fig:loop): design in loon source
     node((2, 0), [*Simulate*\ #text(fill: c-label, size: s-sm)[phyz, wodl world]], shape: sqnode, fill: n-fill, width: 38mm, name: <s>),
     node((2, 2), [*Build*\ #text(fill: c-label, size: s-sm)[kerf, a pair]], shape: sqnode, fill: n-fill, width: 38mm, name: <b>),
     node((0, 2), [*Measure*\ #text(fill: c-label, size: s-sm)[dyno, cameras, K1]], shape: sqnode, fill: n-fill, width: 38mm, name: <m>),
-    node((1, 1), [*Gap*\ measured − predicted\ #text(fill: c-label, size: s-sm)[published on every unit]], shape: sqnode, fill: c-surface, stroke: 1.2pt + c-sel, width: 40mm, name: <g>),
+    node((1, 1), [*Gap* $overline(epsilon)$\ measured − predicted\ #text(fill: c-label, size: s-sm)[published on every unit]], shape: sqnode, fill: c-surface, stroke: 1.2pt + c-sel, width: 40mm, name: <g>),
     edge(<d>, <s>, "-|>", text(size: s-sm, fill: c-label)[parameters θ]),
     edge(<s>, <b>, "-|>", text(size: s-sm, fill: c-label)[prediction], label-side: left),
     edge(<b>, <m>, "-|>", text(size: s-sm, fill: c-label)[built unit]),
     edge(<m>, (0, 1), <g>, "-|>"),
-    edge(<g>, (1, 0.5), (0, 0.5), <d>, "-|>", text(size: s-sm, fill: c-text)[gradient ∂J/∂θ], label-pos: 0.5, label-side: right),
+    edge(<g>, (1, 0.5), (0, 0.5), <d>, "-|>", text(size: s-sm, fill: c-text)[gradient $partial overline(epsilon) slash partial theta$], label-pos: 0.5, label-side: right),
   ),
   caption: [#lead[The loop, read clockwise.] The small labels name the tool at each step. The software projects are listed in @fig:elements, and the dyno is a planned actuator test stand that does not exist yet. Each later stage of the plan removes a human from one more edge. In Desk the gradient edge is a person reading the gap and redesigning by hand.],
 ) <fig:loop>
@@ -1497,7 +1497,7 @@ The payoff is a gradient that crosses the whole molecule. A task loss in Ipse pa
       let col = fam.at(e.at(2)).color
       let exists = e.at(3) == "exists"
       circle(pos, radius: r, fill: if exists { col } else { c-bg }, stroke: if e.at(3) == "concept" { (paint: col, thickness: 0.8pt, dash: (2pt, 2pt)) } else { 0.9pt + col })
-      content(pos, text(font: sans-sb, size: 8pt, fill: if exists { c-sel-ink } else { col }, wj(name)))
+      content(pos, text(font: sans-sb, size: 8pt, fill: if exists { c-sel-ink } else { col }, wj(e.at(1))))
     }
     content((5.0, -0.2), anchor: "north", text(font: mono-m, size: 5pt, fill: c-sel, tracking: track, upper[gradient]))
   }),
