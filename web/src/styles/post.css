@@ -158,7 +158,7 @@
 
 /* section numbers hang to the left of the heading, small and grey, as in the PDF */
 .post :is(h2, h3) { position: relative; }
-.post .sec-num {
+.post :is(h2, h3) > .sec-num {
   position: absolute;
   right: calc(100% + 1.1rem);
   top: 0.5em;
@@ -171,7 +171,7 @@
   white-space: nowrap;
 }
 @media (max-width: 52rem) {
-  .post .sec-num { position: static; display: block; margin-bottom: 0.45rem; }
+  .post :is(h2, h3) > .sec-num { position: static; display: block; margin-bottom: 0.45rem; }
 }
 /* in prose, a reference's number reads as plain text */
 .post a .sec-num, .post p .sec-num { position: static; font: inherit; color: inherit; letter-spacing: 0; }
@@ -295,3 +295,25 @@
 .blog-list a:hover .blog-list-title { color: var(--p-sel); }
 .blog-list-desc { color: var(--p-label); }
 .post .toc-col { break-before: column; margin-top: 0 !important; }
+
+/* the PDF's all-caps labels, kept: parts, figure and table labels, table headers, the signature's place */
+.post :is(.part-label, .toc-part a, .fig-label, thead th, .sig-place) { text-transform: uppercase; letter-spacing: 0.12em; }
+
+/* back matter: appendices and references in two columns, one on narrow screens */
+.post .back-matter {
+  columns: 2 19rem;
+  column-gap: 2.6rem;
+  margin-inline: calc((var(--p-measure) - min(var(--p-wide), 100vw - 2.5rem)) / 2);
+  font-size: 0.86rem;
+}
+.post .back-matter > * { break-inside: avoid; }
+.post .back-matter h2 { break-after: avoid; margin-top: 2.2rem; font-size: 1.15rem; }
+.post .back-matter h2:first-child { margin-top: 0; }
+.post .back-matter figure,
+.post .back-matter figure.wide { margin: 1.2rem 0; }
+.post .back-matter figure > table { font-size: 0.76rem; }
+.post .back-matter [role="doc-bibliography"] li,
+.post .back-matter ol li { break-inside: avoid; }
+/* in columns there is no margin to hang a number in: the appendix label sits above its title, as in the PDF */
+.post .back-matter :is(h2, h3) > .sec-num { position: static; display: block; margin-bottom: 0.4rem; text-transform: uppercase; letter-spacing: 0.12em; }
+.post .back-matter h2 > .sec-num::before { content: "Appendix "; }

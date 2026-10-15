@@ -193,7 +193,6 @@ export function PostCover({ title, subtitle, children }: { title: string; subtit
     <header className="post-cover">
       <canvas ref={ref} className="post-cover-canvas" aria-hidden="true" />
       <div className="post-cover-text">
-        <p className="post-kicker">Municipal Robotics · Master plan</p>
         <h1>{title}</h1>
         <p className="post-subtitle">{subtitle}</p>
         {children}

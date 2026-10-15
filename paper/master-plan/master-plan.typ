@@ -1939,6 +1939,8 @@ Early buyers for the limb and the pair who will share measured data. A municipal
 #set columns(gutter: 0.3in)
 #counter(heading).update(0)
 #set heading(numbering: web-num("A.1"), supplement: [Appendix])
+// on the web the back matter runs in columns too; this wraps everything after it
+#show: rest => if web { html.elem("div", attrs: (class: "back-matter"), rest) } else { rest }
 // in two columns every figure stays inside its column (the 1.09em gap marks it narrow)
 #set figure(gap: 1.09em)
 // in two columns there is no margin to hang the label in: it sits above the title
