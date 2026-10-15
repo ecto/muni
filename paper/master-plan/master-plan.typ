@@ -274,8 +274,6 @@
 
 Every civilization that left its planet would have had to solve one problem first: making machines without people making each machine. Launch is a transport problem. Staying is a manufacturing problem. A settlement that needs a factory on Earth for every bearing, plate and chip is a colony on a supply line; one that carries a cell able to build the next cell is the start of something that grows. This paper is a specification for that cell, and for the measured, gated path from a litter-picking robot on an Ohio sidewalk to a lineage of machines powered by the sun.
 
-Municipal Robotics is a one-person company: Cam Pedersen. There is no team and no lab behind it. What exists today is exactly this: a Booster K1 humanoid, the software stack (@tab:stack), a CNC mill, and the plan you are reading. No arm has been built, there is no actuator dyno yet, and the K1 has not grasped litter.
-
 The paper is written for anyone who wants to check it or join it: technical readers, buyers of a table arm or a small manufacturing cell, municipal partners, collaborators and investors. It keeps the register of our sidewalk-maintenance paper @muni2025whitepaper: plain claims, numbers with sources, exact gates, and a section on what we do not claim.
 
 Most of what this paper describes is *proposed*, not operational. @tab:status separates them. Throughout the paper, "modeled" means a number comes from our own CAD, kinematics or load scripts and has not been measured on hardware. "Measured" is reserved for results from our own hardware, and this paper reports none yet. Vendor ratings and public data are cited as sourced.
@@ -305,6 +303,110 @@ Most of what this paper describes is *proposed*, not operational. @tab:status se
   placement: bottom,
   caption: [#lead[What exists, what is designed, and what is proposed] (October 2026). What exists: a K1, the software stack, a CNC mill and a plan.],
 ) <tab:status>
+
+= Where we come from <sec:story>
+
+Municipal Robotics started in Cleveland in December 2025 with one machine for one job: a small rover to clear snow from sidewalks. Our first paper made the case for it, with Lakewood, Ohio as the reference city @muni2025whitepaper. By the end of that month the first rover, bvr0, drove under teleoperation with GPS and a depot behind it. #text(fill: c-warn)[[TODO: Founders Inc: when we joined, what it gave us, and what came of it.]]
+
+Building the rover taught us the lesson this paper is built on. The hard and expensive parts of a robot are not the parts. They are the people who design, build and check each one. To build one rover, we wrote a language for parts, a CAD kernel, a differentiable physics engine and a recording pipeline. None of them cares whether the thing it designs is a rover. Pointed at a humanoid, or at the cell that builds humanoids, they work the same way.
+
+At the same time, the body worth building changed. A rover clears one kind of sidewalk in one season. A humanoid that a small company can buy (@sec:why) works where people work, and two good arms tend a machine as well as they pick up litter. So we retired the rover #text(fill: c-warn)[[TODO: when, and the reason in your words]] and kept the city, the sidewalk and the discipline of our first paper: plain claims, sourced numbers, exact gates.
+
+Municipal Robotics is a one-person company: Cam Pedersen. There is no team and no lab behind it. What exists today is exactly this: a Booster K1 humanoid, the software stack (@tab:stack), a CNC mill and the plan you are reading. No arm has been built, there is no actuator dyno yet, and the K1 has not grasped litter. The ambition grew because the tools did. A person who can write every layer between a parameter in a source file and a measured joint torque can aim at the machine that makes machines, and should say so in public, with gates.
+
+= Humanity and the Kardashev scale <sec:kardashev>
+
+In 1964 the astronomer Nikolai Kardashev proposed ranking civilizations by the power they command @kardashev1964. A Type I civilization uses the energy available on its planet, a Type II its star's, and a Type III its galaxy's. Carl Sagan turned the types into a continuous scale, $K = (log_(10) P - 6) \/ 10$ for a power $P$ in watts, which puts Type I at 10#super[16] W and Type II at 10#super[26] W @sagan1973cosmic.
+
+Humanity used about 620 EJ of primary energy in 2023 @ei2024review: a mean of about 2 × 10#super[13] W, or $K approx 0.73$. Its electricity alone, about 30,000 TWh a year, is a mean of about 3.4 × 10#super[12] W @ei2024review. The sun puts out 3.828 × 10#super[26] W @iau2015b3, about $K approx 2.06$. Between us and Type I lie three orders of magnitude; between us and our star, thirteen.
+
+Every earlier step up the scale came from a machine that made energy or work cheaper. Fire and farming fed muscle. The steam engine turned heat into work, electricity carried work anywhere, and the transistor made control almost free. One thing has not become cheaper at anything like that rate: making the machines themselves. Every machine still passes through human hands, so the number of machines grows about as fast as the number of people who make them.
+
+Getting off the planet is now mostly that problem. Launch has become cheap. Reusable rockets cut the cost of reaching low Earth orbit from about \$54,500 per kg on the Space Shuttle to about \$2,700 per kg on a Falcon 9 @csis2022launch. What stays expensive is everything a settlement needs when it arrives, and the people needed to make it. A civilization does not climb toward Type II by launching factories. It climbs by sending a seed that can grow one.
+
+This plan gives that climb one number of its own, electrons under management (@sec:eum): the power drawn by machines we built, in service, measured on the same axis as the Kardashev scale. Today it is zero.
+
+== What made this plan possible <sec:why>
+
+Five years ago this plan would have needed a factory before it needed a customer. Four things changed.
+
+*Integrated actuators became a catalog item.* Quasi-direct-drive actuators, with motor, planetary reduction, encoder and driver in one housing, are now sold off the shelf by several Chinese vendors. RobStride's range includes the RS00, RS02, RS04 and RS06, each with a published manual, outline drawing and CAN interface @robstride2026manual. Our arm uses six of them. Retail prices for the family run roughly \$70–170 for the small units and more for the large ones (our estimate from retail listings, not a quote). The design idea does not depend on RobStride, but the v9 drawings do: motor mounts, bolt patterns and screw lengths are taken from RobStride's manual drawings @rose2026forkv9, so another vendor's motor means new drawings. What matters is that a 120 N·m peak joint (RS04 @robstride2026manual) can be bought with its driver attached.
+
+*Flat-sheet fabrication fits on a desk.* Every structural plate of the v9 arm except the 1/4" foot is cut from 1/8" (3.175 mm) 5052 aluminum. The parts nest on three 15 × 15 inch sheets and one 12 × 12 inch sheet, and they are laid out for a 390 mm desktop router bed @rose2026forkv9. The same files go to SendCutSend or to a local supplier without change. A machine that can be built from flat sheet, standard extrusion and purchased actuators can, in principle, be built by another such machine. That is the premise of chapter 3.
+
+*We can now take gradients through contact.* Our physics engine, phyz, computes exact gradients of a simulated motion with respect to physical parameters such as mass and inertia. That includes contact, the hard case and the one that matters for anything with feet or fingers: its contact adjoint differentiates the same physics the forward pass runs @ipse2026brief. In simulation, on synthetic motion, it has recovered five of a K1 humanoid's inertial parameters from ±20% error to machine precision (sphere feet; @sec:schema). Domain randomization @tobin2017domain, the usual alternative, can make a policy robust to a gap. It cannot take the gap's gradient.
+
+*Humanoids reached the price of a used car.* Unitree announced its G1 at \$16,000 in 2024 @unitree2024g1. We bought a Booster K1 (95 cm, 19.5 kg, 22 degrees of freedom, force-controlled joints) as the reference body for our mind research @booster2025k1. A humanoid that a small company can buy, break, and instrument changes who can do the research.
+
+The result is that one person can now write every layer between a parameter in a source file and a measured joint torque. Ten years ago that took a company the size of a robot OEM. The specification is written to be carried by more hands than one, and everything in it that can be open is open.
+
+= The plan at a glance <sec:glance>
+
+The plan climbs from one arm to a lineage of machines powered by the sun (@fig:glance). Each rung is a machine the rung before it can build, and each is counted on one axis, the power our machines draw in service. Only the first chapter is a plan; the rest are goals (@sec:arc).
+
+#figure(
+  cetz.canvas(length: 1cm, {
+    import cetz.draw: *
+    let tiles = (
+      ("1", "Arm", "images-dark/fork-v9-lines.png", "6 joints, $5,000"),
+      ("1", "Bench", "images-native/bench_shallow_iso.png", "2 arms build arms"),
+      ("2", "rose + city", "images-native/humanoid_bay_iso.png", "a body that knows itself"),
+      ("3", "Aisle → hall", "images-native/hall_grow_3.png", "the cell builds the cell"),
+      ("4", "Seed", "images-native/seed_iso.png", "Moon, then Mars"),
+      ("5", "Lineage", none, "cells on sunlight"),
+    )
+    let tw = 2.65
+    let gap = 0.27
+    for (i, t) in tiles.enumerate() {
+      let (ch, name, img, what) = t
+      let x = i * (tw + gap)
+      rect((x, 0), (x + tw, tw), fill: c-surface, stroke: if i == 0 { 1.2pt + c-sel } else { 0.6pt + c-line-hi })
+      if img != none {
+        content((x + tw / 2, tw / 2), image(img, width: (tw - 0.3) * 1cm, height: (tw - 0.3) * 1cm, fit: "contain"))
+      } else {
+        circle((x + tw / 2, tw / 2), radius: 0.75, fill: c-sel, stroke: none)
+        for k in range(12) {
+          let a = k * 30deg
+          line((x + tw / 2 + 0.95 * calc.cos(a), tw / 2 + 0.95 * calc.sin(a)), (x + tw / 2 + 1.18 * calc.cos(a), tw / 2 + 1.18 * calc.sin(a)), stroke: 1pt + c-sel)
+        }
+      }
+      content((x, tw + 0.15), anchor: "south-west", text(font: mono-m, size: s-xs, fill: c-label)[CH #ch])
+      content((x, -0.15), anchor: "north-west", text(font: sans-m, size: s-sm, fill: c-text, name))
+      content((x, -0.6), anchor: "north-west", text(size: s-xs, fill: c-label, what))
+      if i < 5 { line((x + tw + 0.03, tw / 2), (x + tw + gap - 0.03, tw / 2), stroke: 0.7pt + c-label, mark: (end: "straight", size: 0.12)) }
+    }
+    // power axis, log10 W from 0 to 27
+    let W = 6 * tw + 5 * gap
+    let y0 = -2.3
+    let X(e) = e / 27 * W
+    line((0, y0), (W, y0), stroke: 0.7pt + c-line-hi)
+    for e in range(0, 28, step: 3) {
+      line((X(e), y0), (X(e), y0 - 0.12), stroke: 0.5pt + c-line-hi)
+      content((X(e), y0 - 0.2), anchor: "north", text(font: mono, size: 5.5pt, fill: c-label)[10#super[#str(e)]])
+    }
+    content((W, y0 - 0.55), anchor: "north-east", text(font: mono, size: s-xs, fill: c-label)[WATTS, LOG SCALE])
+    // our chapters as bands (orders of magnitude, not targets)
+    let bands = (("1", 1.7, 4), ("2", 5, 6), ("3", 6, 8), ("5", 8, 26.6))
+    for (i, (ch, a, b)) in bands.enumerate() {
+      let lo = y0 + 0.12 + i * 0.16
+      rect((X(a), lo), (X(b), lo + 0.14), fill: if ch == "1" { c-sel } else { c-raised }, stroke: none)
+      content((X(a) - 0.06, lo + 0.07), anchor: "east", text(font: mono-m, size: 5pt, fill: c-text)[CH #ch])
+    }
+    // humanity and the scale
+    let marks = (
+      (13.3, "humanity today, K 0.73", "east", 1.15),
+      (16, "Type I", "west", 1.15),
+      (26, "Type II", "west", 1.15),
+    )
+    for (e, l, side, h) in marks {
+      line((X(e), y0 - 0.0), (X(e), y0 + h), stroke: (paint: c-label, thickness: 0.6pt, dash: "dashed"))
+      let dx = if side == "east" { -0.06 } else { 0.06 }
+      content((X(e) + dx, y0 + h - 0.05), anchor: "north-" + side, text(font: mono-m, size: 5.5pt, fill: c-label, upper(l)))
+    }
+    content((0, y0 + 1.1), anchor: "north-west", text(font: mono-m, size: 5.5pt, fill: c-label)[EUM TODAY: 0 W])
+  }),
+  caption: [#lead[The plan, from arm to sun.] Top: the rungs, by chapter. Each is built by the one before it. Bottom: electrons under management (@sec:eum) by chapter, as orders of magnitude, not targets, against humanity's power use and the Kardashev scale @kardashev1964 @sagan1973cosmic @ei2024review. Chapter 4's first kilowatts off Earth sit inside chapter 3's band. Only chapter 1 is a plan.],
+) <fig:glance>
 
 The paper is organized around one loop (@fig:loop). The design is written as source code. It is simulated in a physics engine that can be differentiated, built by machines we control, and measured. The difference between them, measured minus predicted, is what we call the gap. It is the most valuable number in the system, because it is the one thing nobody can compute in advance. Here it is written down as a product specification: every arm will ship with its sim-to-real gap stated.
 
@@ -406,20 +508,6 @@ These are restated from the sections that argue them, so that they can be quoted
 + *Never be Flock Safety.* No face recognition, no plate reading, no tracking of people, no selling or sharing data that tracks anyone, no police access to people-tracking data (@sec:muni).
 + *Everything that can be open is open.* Software, designs, firmware where we control it, and data formats. The K1's Booster firmware is not ours and is not open.
 + *No central planner.* Tenders publish to the twin and claim the nearest idle task (@sec:cell).
-
-= Why now: the hardware inflection
-
-Five years ago this plan would have needed a factory before it needed a customer. Four things changed.
-
-*Integrated actuators became a catalog item.* Quasi-direct-drive actuators, with motor, planetary reduction, encoder and driver in one housing, are now sold off the shelf by several Chinese vendors. RobStride's range includes the RS00, RS02, RS04 and RS06, each with a published manual, outline drawing and CAN interface @robstride2026manual. Our arm uses six of them. Retail prices for the family run roughly \$70–170 for the small units and more for the large ones (our estimate from retail listings, not a quote). The design idea does not depend on RobStride, but the v9 drawings do: motor mounts, bolt patterns and screw lengths are taken from RobStride's manual drawings @rose2026forkv9, so another vendor's motor means new drawings. What matters is that a 120 N·m peak joint (RS04 @robstride2026manual) can be bought with its driver attached.
-
-*Flat-sheet fabrication fits on a desk.* Every structural plate of the v9 arm except the 1/4" foot is cut from 1/8" (3.175 mm) 5052 aluminum. The parts nest on three 15 × 15 inch sheets and one 12 × 12 inch sheet, and they are laid out for a 390 mm desktop router bed @rose2026forkv9. The same files go to SendCutSend or to a local supplier without change. A machine that can be built from flat sheet, standard extrusion and purchased actuators can, in principle, be built by another such machine. That is the premise of chapter 3.
-
-*We can now take gradients through contact.* Our physics engine, phyz, computes exact gradients of a simulated motion with respect to physical parameters such as mass and inertia. That includes contact, the hard case and the one that matters for anything with feet or fingers: its contact adjoint differentiates the same physics the forward pass runs @ipse2026brief. In simulation, on synthetic motion, it has recovered five of a K1 humanoid's inertial parameters from ±20% error to machine precision (sphere feet; @sec:schema). Domain randomization @tobin2017domain, the usual alternative, can make a policy robust to a gap. It cannot take the gap's gradient.
-
-*Humanoids reached the price of a used car.* Unitree announced its G1 at \$16,000 in 2024 @unitree2024g1. We bought a Booster K1 (95 cm, 19.5 kg, 22 degrees of freedom, force-controlled joints) as the reference body for our mind research @booster2025k1. A humanoid that a small company can buy, break, and instrument changes who can do the research.
-
-The result is that one person can now write every layer between a parameter in a source file and a measured joint torque. Ten years ago that took a company the size of a robot OEM. The specification is written to be carried by more hands than one, and everything in it that can be open is open.
 
 = The problem
 
