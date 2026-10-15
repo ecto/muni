@@ -127,7 +127,8 @@
 #show regex(" [×≈=≤≥] \\d[\\d.,]*( " + unit-re + ")?"): it => it.text.replace(" ", "\u{a0}")
 #show regex("\\d " + unit-re): it => it.text.replace(" ", "\u{a0}")
 #show regex("–\\d"): it => it.text.replace("–", "–\u{2060}")
-#set list(marker: text(font: mono, fill: c-label)[–], indent: 0em, body-indent: 0.7em, spacing: 1.15em)
+// list marker: a small square centred on the x-height, like a register mark
+#set list(marker: box(baseline: -0.07em, rect(width: 0.36em, height: 0.36em, fill: c-label, stroke: none)), indent: 0em, body-indent: 0.85em, spacing: 1.15em)
 #show list: set par(justify: false)
 #show enum: set par(justify: false)
 #set enum(numbering: n => text(font: mono-m, size: s-sm, fill: c-label, number-width: "tabular", str(n)), indent: 0em, body-indent: 0.9em, spacing: 1.15em)
