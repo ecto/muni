@@ -1403,7 +1403,7 @@ The stack is a tree rooted at one language, loon. Every project in it, software 
       rect((x, y), (x + w, y - w), fill: fl, stroke: st)
       content((x + 0.13 * k, y - 0.12 * k), anchor: "north-west", text(font: mono-m, size: 5.5pt * k, fill: meta, number-width: "tabular", str(num)))
       content((x + w - 0.13 * k, y - 0.12 * k), anchor: "north-east", text(font: mono-m, size: 4.6pt * k, fill: meta, tracking: track, wj(upper(stage))))
-      content((x + 0.11 * k, y - 0.5 * k), anchor: "north-west", text(font: sans-sb, size: 19pt * k, tracking: -0.02em, fill: ink, wj(name)))
+      content((x + 0.11 * k, y - 0.5 * k), anchor: "north-west", text(font: sans-sb, size: 19pt * k, tracking: -0.02em, fill: ink, wj(lower(name))))
       content((x + 0.13 * k, y - w + 0.13 * k), anchor: "south-west", box(width: (w - 0.26 * k) * 1cm, par(leading: 0.32em, text(font: sans, size: 5.2pt * k, fill: meta, note.split(" ").map(wj).join(" ")))))
     }
     let x = 0
