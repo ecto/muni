@@ -1,0 +1,19 @@
+arm (rose v6): structure 2.40 kg (base 0.66, turret 0.55, upper 0.47, fore 0.36, yoke 0.12, wrist 0.19, tool 0.05), actuators 5.43, harness 0.25 -> 8.08 kg (README 8.9); moving 5.20 kg, COM 253 mm from shoulder
+plinth: plate 520x320x10 Al 4.49 kg + 4 blocks 0.8 + chain share 0.5 + 2 arms 16.2 + 2 x 2.5 kg payload = 27.0 kg -> 264 N, 66 N per block static
+one arm straight out, horizontal, 2.5 kg at 702 mm: self 12.9 + payload 17.2 = 30.1 N.m about its shoulder
+  (rose README: v6 HOLDS 1.28 kg straight out continuously -- wrist binds; 2.5 kg straight out is a peak/short-duty case)
+
+block loads (blocks at X -/+180, Y -/+150 mm about the plinth centre; order (-X-Y) (-X+Y) (+X-Y) (+X+Y)):
+static, both arms tucked + payloads                            Mx    0.0  My    0.0 N.m -> blocks   +66   +66   +66   +66 N; max compression   66, max lift-off    0
+A: R arm straight out to -Y (front), 2.5 kg                    Mx   30.1  My    4.9 N.m -> blocks  +103    +3  +117   +17 N; max compression  117, max lift-off    0
+B: R arm straight out along +X past the plinth end, 2.5 kg     Mx    0.0  My   35.0 N.m -> blocks   +11   +11  +109  +109 N; max compression  109, max lift-off    0
+C: both arms straight out to -Y, 2.5 kg each                   Mx   60.2  My    0.0 N.m -> blocks  +166   -34  +166   -34 N; max compression  166, max lift-off   34
+D: A + RS04 peak torque 120 N.m reacting (dynamic)             Mx  150.1  My    4.9 N.m -> blocks  +303  -197  +317  -183 N; max compression  317, max lift-off  197
+
+carriage accel 2 m/s^2: 54 N axial drive force; COM ~300 mm above the rods -> 16.2 N.m pitch, +/-22 N on the blocks
+
+ASSUMED ratings (typical catalogue values for open SBR blocks on 16/20 mm rod -- not from a Vevor datasheet, verify before buying):
+  SBR16UU  dynamic C ~ 1.2 kN, static C0 ~ 1.4 kN; lift-off (pull-off) on an open block taken as ~50 % of C0 ~ 0.7 kN
+  SBR20UU  dynamic C ~ 1.6 kN, static C0 ~ 2.4 kN; lift-off ~ 1.2 kN
+  SBR16UU: worst compression 317 N -> C0/F = 4.4 (static), C/F = 3.8; worst lift-off 197 N -> 3.6 x margin
+  SBR20UU: worst compression 317 N -> C0/F = 7.6 (static), C/F = 5.0; worst lift-off 197 N -> 6.1 x margin
