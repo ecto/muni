@@ -143,6 +143,8 @@
 #set page(
   paper: "us-letter",
   fill: c-bg,
+  // DRAFT across every page until the plan is released
+  foreground: place(center + horizon, rotate(-32deg, text(font: mono-sb, size: 128pt, tracking: 0.12em, fill: c-sel.transparentize(93%), "DRAFT"))),
   margin: (x: 1.85in, top: 1.1in, bottom: 1.05in),
   header-ascent: 0.45in,
   footer-descent: 0.45in,
@@ -230,6 +232,16 @@
 #set place(clearance: 3em)
 // short lead phrase of a caption, set in Medium
 #let lead(body) = text(font: sans-m, fill: c-text, body)
+// an aside: a boxed digression the reader may skip
+#let aside(title, body) = if web { html.elem("aside", attrs: (class: "aside"), { html.elem("div", attrs: (class: "aside-title"), title); body }) } else {
+  block(width: 100%, fill: c-surface, inset: (x: 16pt, top: 13pt, bottom: 14pt), stroke: (left: 1.5pt + c-sel), above: 1.9em, below: 1.9em, breakable: false, {
+    set text(size: s-sm)
+    set par(spacing: 1.15em, leading: 0.7em)
+    show parbreak: v(0.6em)
+    block(below: 0.9em, text(font: mono-m, size: s-xs, fill: c-sel, tracking: track, upper([Aside · ] + title)))
+    body
+  })
+}
 // citations: superscript numbers in the label grey, so they never read as exponents
 #show cite: set text(fill: c-label)
 #show figure.where(kind: table): set figure.caption(position: top)
@@ -1330,6 +1342,18 @@ The payoff is a gradient that crosses the whole molecule. A task loss in ipse pa
   }),
   caption: [#lead[The stack as a molecule.] Each bond is a dependency; color is family, fill is maturity, as in @fig:elements. The orange path is the gradient the stack exists to carry: from a task loss in ipse, through phyz's contact adjoint and vcad geometry, back to a number in loon source.],
 ) <fig:bonds>
+
+#aside[A gradient, in one page][
+Picture a robot design as a dial board: hundreds of knobs, one for each wall thickness, gear ratio and motor constant. Somewhere there is a score you care about, say how far the robot can reach while holding a full cup.
+
+The obvious way to improve the score is to wiggle one knob, rebuild, re-test and see if the score went up. With 300 knobs that is 300 experiments for a single step, and you will need thousands of steps.
+
+A *gradient* is the answer to all 300 questions at once: for every knob, which way to turn it and how much the score cares. Its arithmetic is the chain rule, which says that sensitivities along a chain multiply. If the score moves 2 mm per newton of grip, and grip moves 5 newtons per millimeter of finger wall, then the score moves 10 mm per millimeter of wall:
+
+$ (diff "reach") / (diff "wall") = (diff "reach") / (diff "grip") times (diff "grip") / (diff "wall") $
+
+Computed backward through a program, from the score to the knobs, the whole gradient costs about as much as running the program once more. That is the trick behind every modern neural network, and it is why we built a stack it can pass through: from a task, through physics, into geometry, to the line of source that sets the knob. Where any link is a file exported from another tool, the chain breaks, and we are back to wiggling knobs one at a time.
+]
 
 == Who is in the loop
 
