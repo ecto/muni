@@ -16,6 +16,36 @@ const pdfDir = join(web, "public/blog");
 mkdirSync(contentDir, { recursive: true });
 mkdirSync(pdfDir, { recursive: true });
 
+// Product names, as [name, family] pairs, if the source publishes them as <brand-names> metadata.
+function brandNames(common, src) {
+  try {
+    const out = execFileSync("typst", ["query", ...common, src, "<brand-names>", "--field", "value", "--one"], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
+    return JSON.parse(out);
+  } catch {
+    return [];
+  }
+}
+
+// Wrap each product name in <span class="name n-<family>">, in text only: never inside
+// tags, SVG frames (whose text is drawn), code or the head of a link's attributes.
+function colorNames(html, names) {
+  if (!names.length) return html;
+  const family = new Map(names);
+  const re = new RegExp(`\\b(${[...family.keys()].sort((a, b) => b.length - a.length).map((n) => n.replace(/[-]/g, "\\$&")).join("|")})\\b`, "g");
+  let skip = 0;
+  return html
+    .split(/(<[^>]+>)/)
+    .map((part) => {
+      if (part.startsWith("<")) {
+        const m = part.match(/^<(\/?)(svg|code|pre|script|style)\b/);
+        if (m) skip += m[1] ? -1 : part.endsWith("/>") ? 0 : 1;
+        return part;
+      }
+      return skip > 0 ? part : part.replace(re, (n) => `<span class="name n-${family.get(n)}">${n}</span>`);
+    })
+    .join("");
+}
+
 for (const post of posts) {
   const root = resolve(web, post.root);
   const src = join(root, post.source);
@@ -25,7 +55,8 @@ for (const post of posts) {
   const htmlOut = join(contentDir, `${post.slug}.full.html`);
   execFileSync("typst", ["compile", ...common, "--features", "html", "--format", "html", "--input", "target=html", src, htmlOut], { stdio: "inherit" });
   const full = readFileSync(htmlOut, "utf8");
-  const body = full.slice(full.indexOf("<body>") + 6, full.lastIndexOf("</body>")).trim();
+  let body = full.slice(full.indexOf("<body>") + 6, full.lastIndexOf("</body>")).trim();
+  body = colorNames(body, brandNames(common, src));
   writeFileSync(join(contentDir, `${post.slug}.html`), body);
   execFileSync("rm", [htmlOut]);
 

@@ -406,3 +406,12 @@ html.post-rail-on::-webkit-scrollbar { display: none; }
 @media (prefers-reduced-motion: reduce) {
   .post-rail-tip, .post-rail-now, .post-rail-mark::before { transition: none; }
 }
+
+/* product names take their family color (periodic table, fig:elements) */
+.post .name { font-weight: inherit; }
+.post .n-make { color: #7fe08a; }
+.post .n-world { color: #62d6ea; }
+.post .n-body { color: #f4b84a; }
+.post .n-power { color: #ff7272; }
+.post .n-mind { color: #b79cff; }
+.post .n-silicon { color: #a99a82; }
