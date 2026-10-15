@@ -1713,10 +1713,12 @@ Every board design is open. Printed-circuit fabrication and assembly stay bought
 #if not web { pagebreak(weak: true) }
 == Tools <sec:tools>
 
-A humanoid's tools are bus devices. A drill or a blower in a robot's hand takes power and commands through a coupler at the wrist, 48 V and CAN-FD, and carries no battery of its own. Away from a robot, or for a person, a tool takes a *brick*: half a pack. The pack's 13S2P is two 13S1P strings, so a brick is 13 cells, 46.8 V, 234 Wh and about 1.3 kg (estimate). It needs no new voltage, cell, charger or dock: two bricks clip together into a pack, and a pack comes apart into two bricks.
+A tool goes where the gripper goes: on a *tool changer* at the wrist. Two datum pins locate it and a quarter-turn ring locks it. One face carries four contacts, 48 V and return and the two CAN-FD lines, and a short enable pin that mates last, so a tool stays dead until it is fully seated: the same rule as the pack's connector (@sec:power). A tool is a bus device with no trigger and no battery of its own. The robot commands it over CAN, and it reports back what it did. Tools wait in a passive rack, and a humanoid changes them the way it swaps packs, in about a minute.
+
+Away from a robot, or in a person's hand, a tool takes a *brick*: half a pack. The pack's 13S2P is two 13S1P strings, so a brick is 13 cells, 46.8 V, 234 Wh and about 1.3 kg (estimate). It needs no new voltage, cell, charger or dock: two bricks clip together into a pack, and a pack comes apart into two bricks.
 
 #figure(
-  align(center, cetz.canvas(length: 1cm, {
+  align(center, cetz.canvas(length: 0.85cm, {
     import cetz.draw: *
     let amber = fam.power.color
     // the pack comes apart into two bricks
@@ -1734,12 +1736,19 @@ A humanoid's tools are bus devices. A drill or a blower in a robot's hand takes 
     // the wrist coupler: one bus
     let cx = 6.6
     rect((cx - 0.55, -0.3), (cx + 0.55, 0.9), fill: c-surface, stroke: 0.8pt + fam.body.color)
-    content((cx, 1.1), anchor: "south", text(font: mono-m, size: 6.3pt, fill: c-label, tracking: track, upper[wrist coupler]))
+    content((cx, 1.1), anchor: "south", text(font: mono-m, size: 6.3pt, fill: c-label, tracking: track, upper[tool changer]))
     for (y, t) in ((0.55, [48 V]), (0.05, [CAN-FD])) { content((cx, y), text(font: mono-m, size: 6.3pt, fill: c-text, t)) }
     line((4.2, -0.55), (cx - 0.6, 0.1), stroke: (paint: c-line-hi, thickness: 0.6pt, dash: (2pt, 2pt)))
     content((5.3, -1.05), anchor: "north", text(font: sans, size: 6.5pt, fill: c-label)[or a brick, away from a robot])
     // the tools
-    let tx = 9.6
+    // the grabber: a tube with jaws at its tip
+    let gx = 8.4
+    line((gx, 0.62), (gx + 2.3, 0.62), stroke: (paint: c-text, thickness: 3pt, cap: "round"))
+    line((gx + 2.3, 0.62), (gx + 2.75, 0.9), stroke: 1.2pt + c-text)
+    line((gx + 2.3, 0.62), (gx + 2.75, 0.34), stroke: 1.2pt + c-text)
+    rect((gx - 0.25, 0.42), (gx + 0.05, 0.82), fill: c-raised, stroke: 0.7pt + c-text)
+    content((gx + 1.3, -0.7), anchor: "north", box(align(center, { text(font: sans-sb, size: 8pt, fill: c-text)[grabber]; linebreak(); text(font: sans, size: 6.5pt, fill: c-label)[first, on the K1] })))
+    let tx = 12.0
     // drill: body, handle, chuck
     rect((tx, 0.4), (tx + 1.5, 0.85), fill: c-surface, stroke: 0.8pt + c-text, radius: 0.08)
     rect((tx + 1.5, 0.5), (tx + 1.85, 0.75), fill: c-raised, stroke: 0.7pt + c-text)
@@ -1747,18 +1756,22 @@ A humanoid's tools are bus devices. A drill or a blower in a robot's hand takes 
     line((tx + 0.35, 0.4), (tx + 0.55, -0.45), (tx + 0.9, -0.45), (tx + 0.8, 0.4), close: true, fill: c-surface, stroke: 0.8pt + c-text)
     content((tx + 1.2, -0.7), anchor: "north", box(align(center, { text(font: sans-sb, size: 8pt, fill: c-text)[drill/driver]; linebreak(); text(font: sans, size: 6.5pt, fill: c-label)[torc clutch, every torque logged] })))
     // blower: body and tube
-    let bx = 13.6
+    let bx = 15.8
     circle((bx, 0.35), radius: 0.5, fill: c-surface, stroke: 0.8pt + c-text)
     line((bx + 0.35, 0.1), (bx + 2.4, -0.35), stroke: (paint: c-text, thickness: 4pt, cap: "round"))
     line((bx + 0.35, 0.1), (bx + 2.4, -0.35), stroke: (paint: c-surface, thickness: 2.4pt, cap: "round"))
     line((bx - 0.1, 0.85), (bx + 0.35, 1.05), (bx + 0.7, 0.75), stroke: 1pt + c-text)
     content((bx + 1.0, -0.7), anchor: "north", box(align(center, { text(font: sans-sb, size: 8pt, fill: c-text)[leaf blower]; linebreak(); text(font: sans, size: 6.5pt, fill: c-label)[≈ 14 min a brick, 28 a pack] })))
-    line((cx + 0.6, 0.3), (tx - 0.2, 0.6), stroke: 0.8pt + c-sel, mark: (end: ">", fill: c-sel, size: 0.12))
+    line((cx + 0.6, 0.3), (gx - 0.35, 0.6), stroke: 0.8pt + c-sel, mark: (end: ">", fill: c-sel, size: 0.12))
   })),
-  caption: [#lead[One voltage, cell to tool.] A pack comes apart into two bricks; a tool runs from a robot's wrist on the bus, or from a brick on its own. Illustrative; neither tool is designed, and the blower's draw is an estimate.],
+  caption: [#lead[One voltage, cell to tool.] A pack comes apart into two bricks. A tool runs from a robot's tool changer on the bus, or from a brick on its own. Illustrative: no tool is designed, and the blower's draw is an estimate.],
 ) <fig:tools>
 
-Two tools come first. A *drill/driver* uses a brushless motor run by torc, so its clutch is software: every screw is driven to a torque, and the torque is logged with the unit it went into. A *leaf blower* is the first street tool, for Road and City work; 48 V is already where the strongest cordless blowers sit. At about 1 kW (estimate), a blower runs about 14 minutes on a brick and 28 on a pack, and a humanoid swaps either in about a minute (@sec:power).
+Three tools come first, in this order.
+
++ *The grabber.* The litter reacher of @sec:city is the first tool: a \~450 mm tube with gripper v2 jaws, driven by an EL05 through a pushrod. The K1 is its testbed. The K1's wrist mount, an adapter plate carrying the changer's face, is the first changer we build, and the reacher's open checks (@sec:city) are the changer's first tests.
++ *The drill/driver.* A brushless motor run by torc, through a two-speed planetary, so its clutch is software: every screw is driven to a torque, and the torque is logged with the unit it went into. A pair that assembles a limb leaves a record of every fastener in it. The reaction torque goes into the arm, so a drill's limit is the wrist's rating, checked before each run.
++ *The leaf blower.* The first street tool, for Road and City work; 48 V is already where the strongest cordless blowers sit. At about 1 kW (estimate) it runs about 14 minutes on a brick and 28 on a pack.
 
 
 = Safety <sec:safety>
@@ -1862,8 +1875,6 @@ One number runs through every stage: *electrons under management* (EUM), in watt
   caption: [#lead[The arc.] Eight stages, each a step up in scale; one loop, one number. Each stage contains the one before it, and each removes a person from one more edge of the loop. Watts are electrons under management (@sec:eum), as orders of magnitude, not targets @mr2026masterplan.],
 ) <fig:arc>
 
-*Definition.* EUM is the mean electrical input power, over a trailing 30-day window, of every machine in service that we designed and built, measured at each machine's main power input (a DC-bus shunt or a metered AC outlet) and logged at ≥ 1 Hz. "In service" means doing work for someone other than its maker. Machines we did not build but that run our stack, such as the K1 or a bought mill, are reported beside it as *electrons under control*, never added to the headline.
-
 #mathfig(
   [$ "EUM" = 1/T sum_m integral_0^T V_m (t) I_m (t) dif t $],
   cetz.canvas(length: 1.3cm, {
@@ -1879,6 +1890,9 @@ One number runs through every stage: *electrons under management* (EUM), in watt
   }),
   [#lead[Electrons under management.] Power $V_m I_m$ at the input of every machine $m$ we built that is in service, averaged over a trailing window $T$ of 30 days.],
 ) <fig:eq-eum>
+
+*Definition.* EUM is the mean electrical input power, over a trailing 30-day window, of every machine in service that we designed and built, measured at each machine's main power input (a DC-bus shunt or a metered AC outlet) and logged at ≥ 1 Hz. "In service" means doing work for someone other than its maker. Machines we did not build but that run our stack, such as the K1 or a bought mill, are reported beside it as *electrons under control*, never added to the headline.
+
 
 *Baseline, October 2026.*
 
@@ -2150,7 +2164,7 @@ How the K1 picks up litter is not settled. The current concept, under design, is
 
 The concept has four open checks, none done yet:
 
-- *A K1 wrist mount* for the reacher tube, which does not exist yet.
+- *A K1 wrist mount:* the tool changer's adapter plate for the K1 (@sec:tools), which does not exist yet.
 - *A K1 arm load check:* 0.6 kg held 50 cm out from the wrist, against the K1 arm's joint ratings.
 - *A grasp set:* the litter the reacher must pick (cans, bottles, wrappers, cups), with a success rate per item.
 - *Behavior around people:* yield, stop, and never reach toward a person.
