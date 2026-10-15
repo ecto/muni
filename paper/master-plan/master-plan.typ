@@ -640,6 +640,8 @@ Many wars are fought over what is scarce: land, water, fuel, minerals, and the l
 
 That is a hope, not a law. The same machines could make war cheaper, and robots are already being built for it. That is why our first commitment is that nothing we build is made or sold to harm a person, or sold for weapons or military use (@sec:safety), and why the commitment is written before the plan rather than after it.
 
+We still choose hope. Every machine in this plan is a bet that the next century can be one of plenty rather than of taking: that what people have fought over can be made, and made by machines that will not be turned against them.
+
 = Problem <sec:problem>
 
 == Made by hand
@@ -900,7 +902,7 @@ The stack is a tree rooted at one language, loon (@tab:stack). Build order runs 
     [Make], [kerf], [Design to manufactured part, with a receipt], [exists],
     [Hardware], [rana · torc], [Axial-flux actuators, motor control], [prototype],
     [Hardware], [arm], [Manipulator module: product, humanoid limb], [designed (v9)],
-    [Hardware], [rose], [Humanoid line: mini, pro, max], [in progress],
+    [Hardware], [rose], [Humanoid line: mini, full, mega], [in progress],
     [Hardware], [K1], [Booster K1, 22 DoF: reference body, in hand], [in hand],
     [Hardware], [pack · blade], [One battery and one compute module for every body], [mockup],
     [Hardware], [moth], [Drone: street perception, kino's movable camera], [proposed],
@@ -1178,6 +1180,10 @@ The second headline number is the time a lineage of pairs takes to double what i
 + *An arm worth buying.* Build it on RobStride actuators. The actuator is a commodity. Our edge is everything around it: geometry checked against real loads, a measured model of every unit, a controller trained against that model, and a stated sim-to-real gap on every limb.
 + *Own the actuator, where it wins.* Limb revenue funds rana and torc. A purchased joint is replaced only where rana wins on a measured metric. Dropping rana is a valid outcome, not a failure.
 
+== Sizes
+
+The limb comes in the same three sizes as rose. *Limb mini* is K1 size, for rose mini and for light pairs. *Limb full* is human size: the rose fork v9 described below, and the limb this paper means when it says "limb". *Limb mega* is industrial, for heavy pairs and rose mega. All three share one design, the fork, written as one loon source with size as a parameter. Only limb full is drawn; mini and mega are scaled from it and not yet checked against their actuators.
+
 == Arm
 
 One arm does three jobs: it is sold on its own, it is half of every pair, and it is an arm of the rose humanoid. Its design idea is that *every pitch joint is a fork* @rose2026forkv9. The parent link holds the motor's stator between its two side plates. The child straddles the parent, with one plate bolted to the output and the other riding a plain bearing on a hollow sleeve on the joint axis. Parent and child share one centerline, so no joint is offset and there is no offset elbow to twist the arm. Cables pass through the hollow sleeves, so they only twist and never loop outside the arm. The name comes from where the design lives. rose fork v9 is the ninth revision of the fork concept, drawn in the rose humanoid repository as a table arm that is also rose's arm @rose2026forkv9. In this paper "the arm" means this design, and "rose" on its own means the humanoid line (@tab:stack), whose \$15,000 target assumes rana (@sec:rana).
@@ -1346,7 +1352,13 @@ A pair is two limb feet (Ø230 mm, four M6 on Ø190) on one plate that clamps to
 
 == Work
 
-A pair sells for its work. The first tasks are the ones nobody wants and every table has: folding, sorting, kitting, tending a machine. A pair is far cheaper than a humanoid and does not walk; it brings the robot to the task by bringing the task to a table. Each task gets its own gate: a named task, a success rate, a count (@tab:arc).
+A pair is a product before it is anything else. It sells for its work, and the first buyers are labs and builders who want a measured, open pair of arms to build on. A pair is far cheaper than a humanoid and does not walk; it brings the robot to the task by bringing the task to a table.
+
+The first task is folding laundry. It is three things at once. It is the demonstration everyone understands without explanation. It is a benchmark: cloth is hard, every folded shirt can be counted, and labs can compare against a published success rate and gap. And it is a market, in laundromats, hotels and, one day, homes. Machine tending, kitting and assembling the next limb follow. Each task gets its own gate: a named task, a success rate, a count (@tab:arc).
+
+== Learning
+
+A pair learns in simulation first, against the measured model of its own two limbs, and then closes the gap on hardware. That is the loop of @fig:loop applied to a task. Folding needs cloth in the simulator, and phyz has it: position-based cloth, soft bodies and cables, and finite-element soft bodies, on a development branch. What is not yet shown is a gradient through cloth contact, the piece that would let a folding policy, and the pair's own geometry, be optimized against the gap. Folding is gated on it.
 
 == Division
 
@@ -1355,6 +1367,8 @@ A pair is also the cell of this plan: the smallest unit that can make more of it
 + A pair assembles a limb from cut plates and purchased actuators, and the limb passes the Limb test.
 + A pair tends the mill and router that cut those plates, and winds and pots its own rana stators.
 + A pair builds a pair, with the bought fraction falling each generation.
+
+Replication is a capability the product grows into, not the reason it exists.
 
 Then come the hard parts. Actuators end to end: magnets stay bought until a ferrite rana is validated, and bearings stay bought longest. Boards: a pair at a pick-and-place machine (@tab:boards). Silicon: loon-hdl would describe an inference chip, and rune (maskless lithography) would make it at a node a lab can own. Energy: the first pair that runs on panels it made. Silicon is not parked; a machine that reproduces off-planet cannot depend on anyone's fab.
 
@@ -1380,11 +1394,11 @@ rose is the humanoid we will build. The name is the thesis: past tense of rise, 
     columns: (auto, auto, auto, 1fr, 1fr),
     align: (left + top, right + top, right + top, left + top, left + top),
     table.header([*Size*], [*Height*], [*Mass*], [*Anchor*], [*State*]),
-    [mini], [1,200 mm], [18.0 kg], [Booster K1 class], [The only size verified end to end: single-leg 90° squat needs 33 N·m of 60 available; packing check passes],
-    [pro], [1,750 mm], [\~55.5 kg (est.)], [A standard adult], [Larger knee and ankle actuators needed; packing check blocked on missing actuator drawings],
-    [max], [2,000 mm], [64.3 kg], [Taller and broader], [rana joints throughout; 1.2 kWh at 48 V; interfaces frozen before geometry],
+    [mini], [1,200 mm], [18.0 kg], [K1 size], [The only size verified end to end: single-leg 90° squat needs 33 N·m of 60 available; packing check passes],
+    [full], [1,750 mm], [\~55.5 kg (est.)], [Human size], [Larger knee and ankle actuators needed; packing check blocked on missing actuator drawings],
+    [mega], [2,000 mm], [64.3 kg], [Industrial], [rana joints throughout; 1.2 kWh at 48 V; interfaces frozen before geometry],
   ),
-  caption: [#lead[The rose line] (modeled) @rose2026line. Masses and holds are model outputs; pro's mass is scaled from a smaller actuator, not measured.],
+  caption: [#lead[The rose line] (modeled) @rose2026line. Masses and holds are model outputs; full's mass is scaled from a smaller actuator, not measured.],
 ) <tab:rose>
 
 #figure(
@@ -1393,12 +1407,14 @@ rose is the humanoid we will build. The name is the thesis: past tense of rise, 
     image("images-native/rose_pro_iso.png", height: 2.6in),
     image("images-native/rose_max_iso.png", height: 3.0in),
   ),
-  caption: [#lead[rose mini, pro and max] (modeled), each rendered at the height its CAD was drawn, not yet at the sizes in @tab:rose. The three do not yet share one design language; bringing mini and max into pro's bent sheet is open work.],
+  caption: [#lead[rose mini, full and mega] (modeled), each rendered at the height its CAD was drawn, not yet at the sizes in @tab:rose. The three do not yet share one design language; bringing mini and mega into full's bent sheet is open work.],
 ) <fig:rose>
 
-In this plan, rose's arms are limbs: a humanoid is a pair on legs, with a torso that carries the blade bay and two packs (@sec:power). The current drawings still carry four-degree-of-freedom arms on purchased actuators. Replacing them with two limbs, and the legs' purchased actuators with rana where it wins, is open work. Its \$15,000 target is the G1's price class @unitree2024g1, and it waits for rana.
+In this plan, rose's arms are limbs, full stop: a humanoid is a pair on legs, with a torso that carries the blade bay and two packs (@sec:power). Each rose takes the limb of its size: mini takes limb mini, full takes limb full, mega takes limb mega. The current drawings still carry four-degree-of-freedom arms on purchased actuators; replacing them with limbs, and the legs' purchased actuators with rana where it wins, is open work.
 
-One finding already shapes rana. Sized to jump, rose max is limited by speed, not torque. At peak current every rana delivers the same \~1.3 kW of mechanical power, set by the 48 V bus and a 30 A current limit, so a bigger rana buys torque, not power. A higher-voltage leg drive or series elastics, not a larger motor, is the lever for jumping.
+rose mini does not wait for the pair to sell. It starts now, in parallel, on purchased actuators and limb mini, because the K1 has shown the limits of a body we did not build. Body overlaps Pair; it does not follow it. rose full's \$15,000 target is the G1's price class @unitree2024g1, and it waits for rana.
+
+One finding already shapes rana. Sized to jump, rose mega is limited by speed, not torque. At peak current every rana delivers the same \~1.3 kW of mechanical power, set by the 48 V bus and a 30 A current limit, so a bigger rana buys torque, not power. A higher-voltage leg drive or series elastics, not a larger motor, is the lever for jumping.
 
 == ipse
 
@@ -1438,6 +1454,10 @@ ipse also carries a self-probe from the start. It is an instrument that will lat
 = City <sec:city>
 
 *A fleet and its pairs work a city.* The fleet that began as one litter pilot covers a city's sidewalks. Pairs in the city build, repair and recycle that fleet. The city twin, the wodl world of its streets, is kept current by the robots that work them, and its visual sim-to-real gap is measured weekly on real pavement. The city, not us, decides what work the robots do.
+
+What a city buys is two things in one contract: clean streets, and the map that comes from working them. Pricing is open, and will be set with the first city, not before it.
+
+It is also the nearest good in this plan. A block with no litter on it. A pothole reported the morning it opens, a dark streetlight the night it fails. Free wifi at every dock, logging nothing. A city whose map belongs to the city. None of that waits for the Moon.
 
 
 
@@ -1643,7 +1663,9 @@ It does so with things that can be checked: a limb on purchased actuators, desig
 
 Everything after Limb is a goal and is labeled as one. Three commitments do not wait for any gate: we will never be Flock Safety; everything that can be open is open; and the system's refusals are logged and never trained away.
 
-Humanity does not get to space on rockets alone. It gets there when the machines that make machines can be carried in a seed and trusted to grow. Today that seed is one person, one humanoid, one mill and a specification. The specification is the part that can spread. Robots that build robots have to be made the way any robot is: one measured unit at a time, starting now.
+Humanity does not get to space on rockets alone. It gets there when the machines that make machines can be carried in a seed and trusted to grow. Today that seed is one person, one humanoid, one mill and a specification. The specification is the part that can spread.
+
+Imagine where it leads. Clean streets in every city, mapped for the people who live there. Tables where tired work is done by arms that never tire and never hurt anyone. Pairs on the Moon building pairs from its own dust. And, around our star, a lineage of machines that learned on a sidewalk how to help, how to stop, and how to say no. Robots that build robots have to be made the way any robot is: one measured unit at a time, starting now.
 
 
 == Now

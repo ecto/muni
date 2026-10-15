@@ -29,6 +29,13 @@ or the hardware mockups. Newest first within a date.
 | D17 | **The ladder is Limb, Pair, Body, City, Planet, Moon, Mars, Sun. A pair (two limbs on any table) is the cell: it works, and it builds limbs, so it builds pairs.** The bench, bay standard, aisle, hall and lexicon are cut; the seed survives as the Moon concept. | One part everywhere: a limb is a product, half of a pair and an arm of a body. Homogeneity simplifies hardware, software, standards and replication. | Bench/aisle/hall cells with spines, bays and tenders. |
 | D18 | **The paper runs in four parts: Why, Foundations, The stages, Honesty.** Laconic section titles. | Each stage reads as a whole; standards and rules come before the stages that use them. | Topic-ordered sections. |
 
+| D19 | **Sizes are mini (K1 size), full (human size), mega (industrial), for both limbs and rose.** rose's arms are limbs, full stop; each rose takes the limb of its size. | Homogeneity per size class; today's fork v9 is limb full. | 4-DoF purpose-built humanoid arms; pro/max naming. |
+| D20 | **The pair is a product first.** First buyers: labs and builders. First task: folding laundry, as demo, benchmark and market at once. | Replication is a capability the product grows into. | — |
+| D21 | **Pairs learn sim-first in phyz.** Cloth exists in phyz (XPBD, VBD on a branch); a gradient through cloth contact is not yet shown, and folding is gated on it. | The loop applied to a task. | Teleop-first learning. |
+| D22 | **rose mini starts now, in parallel, on limb mini.** Body overlaps Pair. | The K1 shows the limits of a bought body. | Waiting for pairs to sell. |
+| D23 | **City sells clean streets and the map, bundled; pricing stays open.** | Set with the first city. | Per-mile pricing in the paper. |
+| D24 | **The reader should finish with: this is real, I want in, awe, trust, hope.** Hope lives in War, City and the ending; far stages stay poetic. | — | Engineering detail for Planet through Sun. |
+
 ## Corrections found in review
 
 - The K1's onboard computer is **not a Jetson**. The perception machine is a
