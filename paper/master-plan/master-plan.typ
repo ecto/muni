@@ -632,6 +632,14 @@ Five years ago this plan would have needed a factory before it needed a customer
 
 The result is that one person can now write every layer between a parameter in a source file and a measured joint torque. Ten years ago that took a company the size of a robot OEM. The specification is written to be carried by more hands than one, and everything in it that can be open is open.
 
+= War <sec:war>
+
+There has not been a year without war in our lifetimes. The longest-running count of armed conflict, kept since 1946, has never recorded a year with none @gleditsch2002armed. #text(fill: c-warn)[[TODO: the events of 2026, the Epstein files and Iran, in your words: what they showed you about who decides, and who pays.]]
+
+Many wars are fought over what is scarce: land, water, fuel, minerals, and the labor to work them. A machine that builds the next machine attacks scarcity at its root. So does power collected rather than taken. A world where machines make machines, on energy no one has to seize, has less to fight over.
+
+That is a hope, not a law. The same machines could make war cheaper, and robots are already being built for it. That is why our first commitment is that nothing we build is made or sold to harm a person, or sold for weapons or military use (@sec:safety), and why the commitment is written before the plan rather than after it.
+
 = The problem <sec:problem>
 
 == Made by hand
