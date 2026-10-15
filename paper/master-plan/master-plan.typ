@@ -467,13 +467,8 @@
   #v(1fr)
 ]}
 
-// Abstract (single column)
-#if not web {page(columns: 1, margin: (x: 0.75in, top: 1.1in, bottom: 1.05in))[
-  #block(width: 4.9in)[
-  #heading(outlined: false, numbering: none)[Abstract]
-  #set text(size: 10pt)
-  #set par(leading: 0.8em, spacing: 1.25em)
-
+// Abstract: one text, two layouts
+#let abstract-text = [
   This is a specification for how humanity gets to space: not by one heroic launch, but by machines that make the next machine, each one measured, until the bought fraction falls to zero and a seed of them can go where no supply chain reaches. It starts on a sidewalk in Ohio.
 
   Robots are expensive because people make them. A prototype actuator we designed is estimated at \$1,086 to have built, before its gear teeth are cut; about two thirds of that is outsourced machining, on perhaps \$60–90 of raw metal (estimates). The difference is labor, coordination and margin. A machine that can make more of itself attacks that markup directly. So does a design process that measures the sim-to-real gap on every unit and feeds it back into the design as a gradient.
@@ -484,8 +479,36 @@
 
   Limb, the first stage, closes on exact gates (proposed targets): ten limbs sold at 40% gross margin, each with its tool-point error measured and under 2 mm RMS, and our actuator beating the purchased one by 20% on a named dyno metric, or dropped. Seven more stages follow, each a step up in scale: Pair, two limbs at any table, and a pair that builds a pair; Body, a pair on legs that fits its own model; City, a fleet and its pairs work a city; Planet, lineages on their own power; Moon, a seed grows a pair, with a lifeline; Mars, the same seed, lifeline cut; and Sun, a swarm of collectors around our star. They are goals, not results, and they are the point. Progress is one number, electrons under management: the mean power drawn by machines we built, in service. Today it is zero watts. The body-schema claim that opens Body will be preregistered, with its falsifier, before its hardware run. Every number here is cited, or labeled as an estimate or a model output.
 ]
+#if web {
+  html.elem("section", attrs: (class: "abstract", id: "abstract"), {
+    html.elem("h2", attrs: (class: "abstract-title"), [Abstract])
+    abstract-text
+  })
+} else {page(columns: 1, margin: (x: 0.75in, top: 1.1in, bottom: 1.05in))[
+  #block(width: 4.9in)[
+  #heading(outlined: false, numbering: none)[Abstract]
+  #set text(size: 10pt)
+  #set par(leading: 0.8em, spacing: 1.25em)
+
+  #abstract-text
+]
 ]}
 
+
+// Web contents: the outline as a linked list, parts as labels
+#if web {
+  context {
+    let hs = query(heading.where(outlined: true)).filter(h => h.level <= 2)
+    html.elem("nav", attrs: (class: "toc", id: "contents", "aria-label": "Contents"), {
+      html.elem("h2", attrs: (class: "toc-title"), [Contents])
+      html.elem("ol", for h in hs {
+        let cls = if h.supplement == [Part] { "toc-part" } else if h.level == 1 { "toc-l1" } else { "toc-l2" }
+        let num = if h.numbering != none and h.supplement != [Part] { html.elem("span", attrs: (class: "toc-num"), numbering(if h.supplement == [Appendix] { "A.1" } else { "1.1" }, ..counter(heading).at(h.location()))) }
+        html.elem("li", attrs: (class: cls), link(h.location(), [#num#html.elem("span", attrs: (class: "toc-text"), h.body)]))
+      })
+    })
+  }
+}
 
 // Table of contents (single column)
 #if not web {page(columns: 1, margin: (x: 0.75in, top: 1.1in, bottom: 1.05in))[
