@@ -244,19 +244,6 @@
 
   Arm, the first stage, closes on exact gates (proposed targets): ten arms sold at 40% gross margin, each with its tool-point error measured and under 2 mm RMS; our actuator beating the purchased one by 20% on a named dyno metric; a cell assembling an arm that passes the same test with under half its cost bought. Seven more stages follow, each a step up in scale: Body, a robot that fits its own model; Cell, a cell that builds the cell; City, a fleet and its cells work a city; Planet, lineages on their own power; Moon, a seed grows a cell, with a lifeline; Mars, the same seed, lifeline cut; and Sun, a swarm of collectors around our star. They are goals, not results, and they are the point. Progress is one number, electrons under management: the mean power drawn by machines we built, in service. Today it is zero watts. The body-schema claim that opens Body will be preregistered, with its falsifier, before its hardware run. Every number here is cited, or labeled as an estimate or a model output.
 ]
-#place(top + right, dy: 0.2em, block(width: 2.1in)[
-#frame(width: 100%, inset: 0.8em, fill: c-surface)[
-  #set text(size: s-sm)
-  #set align(left)
-  #set par(spacing: 1.2em, leading: 0.8em)
-  #text(size: s-md)[Arm, bench and pilot inquiries] \
-  #v(0.3em)
-  The first steps need early arm and bench buyers who will share measured data,
-  and a municipal partner for a one-city, one-task litter pilot. \
-  #v(0.3em)
-  #text(font: mono, size: s-xs)[#link("mailto:info@muni.works")[info\@muni.works] · #link("https://muni.works")[muni.works]]
-]
-])
 ]
 
 
@@ -559,7 +546,9 @@ The result is that one person can now write every layer between a parameter in a
 
 = Overview <sec:glance>
 
-The plan climbs from one arm to a lineage of machines powered by the sun (@fig:glance). Each rung is a machine the rung before it can build, and each is counted on one axis, the power our machines draw in service. Only Arm is a plan; the rest are goals (@sec:arc).
+We are building machines that build machines, and measuring every one. Each unit ships with its sim-to-real gap: the difference between what our physics engine predicted and what the built machine did. That gap is the product, because a machine that can check its own work is the first step to a machine that can make the next one. The score is one number, the power drawn by the machines we built, in service.
+
+The plan climbs in eight stages, each a step up in scale and each built by the one before it (@fig:glance). Only the first, Arm, is a plan. The rest are goals (@sec:arc).
 
 #figure(
   cetz.canvas(length: 1cm, {
@@ -642,7 +631,56 @@ The plan climbs from one arm to a lineage of machines powered by the sun (@fig:g
   caption: [#lead[The plan, from arm to sun.] Top: the eight stages, each a step up in scale and each built by the one before it. Bottom: electrons under management (@sec:eum) by stage, as orders of magnitude, not targets, against humanity's power use and the Kardashev scale @kardashev1964 @sagan1973cosmic @ei2024review. Only Arm is a plan.],
 ) <fig:glance>
 
-The paper is organized around one loop (@fig:loop). The design is written as source code. It is simulated in a physics engine that can be differentiated, built by machines we control, and measured. The difference between them, measured minus predicted, is what we call the gap. It is the most valuable number in the system, because it is the one thing nobody can compute in advance. Here it is written down as a product specification: every arm will ship with its sim-to-real gap stated.
+== Why each stage leads to the next
+
+Each stage pays for the next and teaches it something it could not learn otherwise (@tab:flywheel).
+
+#figure(
+  table(
+    columns: (auto, 1fr, 1fr, 1fr),
+    align: (left + top, left + top, left + top, left + top),
+    table.header([*Stage*], [*Delivers*], [*Pays forward*], [*Gate, in short*]),
+    [Arm], [Arms, benches, a litter pilot], [Revenue; the first measured gaps; duty cycles that size rana], [≥ 10 arms at ≥ 40% margin; ≤ 2 mm RMS on each],
+    [Body], [Robots that fit their own model; co-designed parts], [A gradient from the gap to the design], [Body-schema fit beats persistence by 20%],
+    [Cell], [Cells that build cells], [A falling bought fraction; cheaper arms and bodies], [A copy passes its receipts at ≤ 20% bought],
+    [City], [A city's fleet and its twin], [Contracts; real duty at scale; a world to train in], [A city renews for ≥ 12 months],
+    [Planet], [Lineages on their own power], [A measured doubling time; collectors], [≥ 1 year on collectors it made],
+    [Moon], [A seed grows a cell, with a lifeline], [Local material; launch-mass lessons], [A bench ≥ 50% local by mass],
+    [Mars], [The same seed, lifeline cut], [Autonomy with no one to ask], [0 human commands to a receipt],
+    [Sun], [A swarm of collectors], [—], [Reported as power and doubling time],
+  ),
+  caption: [#lead[The flywheel.] Each stage funds and builds the next. Gates are abbreviated; the full conditions are in @tab:arc. *Proposed targets, to be confirmed by the author.*],
+) <tab:flywheel>
+
+== Three numbers
+
+Three numbers track the whole plan (@fig:dash). Today none of them is good, and the paper says so.
+
+#figure(
+  cetz.canvas(length: 1cm, {
+    import cetz.draw: *
+    let cards = (
+      ("The gap", "—", "mm RMS, per unit", "No arm built yet. First reading: the first arm, against its model."),
+      ("Electrons under management", "0 W", "mean, in service", "Nothing we built is in service. The K1 is counted beside it, not in it."),
+      ("Doubling time", "—", "per lineage", "No cell exists. First reading: Cell, over three generations."),
+    )
+    let w = 5.4
+    let g = 0.35
+    for (i, (name, val, unit, note)) in cards.enumerate() {
+      let x = i * (w + g)
+      rect((x, 0), (x + w, 3.1), fill: c-surface, stroke: 0.6pt + c-line-hi)
+      content((x + 0.3, 2.85), anchor: "north-west", text(font: mono-m, size: s-xs, fill: c-label, upper(name)))
+      content((x + 0.3, 2.25), anchor: "north-west", text(font: mono-m, size: 22pt, fill: c-text, val))
+      content((x + 0.3, 1.2), anchor: "north-west", text(font: mono, size: s-xs, fill: c-label, upper(unit)))
+      content((x + 0.3, 0.8), anchor: "north-west", box(width: (w - 0.6) * 1cm, text(size: s-xs, fill: c-label, note)))
+    }
+  }),
+  caption: [#lead[The dashboard, October 2026.] The gap per unit (@fig:loop), electrons under management (@sec:eum) and doubling time (@sec:replication). We will publish each one when it first has a value, and every time it changes.],
+) <fig:dash>
+
+== The loop
+
+Every number comes from one loop (@fig:loop): design in source code, simulate in a physics engine that can be differentiated, build, measure, and feed the gap back into the design. Each stage removes a person from one more edge of it (@tab:loopstate).
 
 #figure(
   diagram(
@@ -665,69 +703,26 @@ The paper is organized around one loop (@fig:loop). The design is written as sou
   caption: [#lead[The loop, read clockwise.] The small labels name the tool at each step. The software projects are listed in @tab:stack, and the dyno is a planned actuator test stand that does not exist yet. Each later stage of the plan removes a human from one more edge. In Arm the gradient edge is a person reading the gap and redesigning by hand.],
 ) <fig:loop>
 
-Arm has three steps over roughly three years. Each step closes on a gate, and every gate is exact: a number, a unit, a method and a pass condition (@tab:gates) @mr2026masterplan. Arm has to earn the rest of the specification: it funds the long bets and closes the loop for the first time. Seven further stages follow, each a step up in scale, and together the eight are what we call the arc (@sec:arc, @tab:arc). They are goals, not results, and they are why Arm exists.
+== Where we are
 
-+ *Arms.* Build an arm worth buying on RobStride actuators. The actuator is a commodity. Our edge is everything around it: geometry checked against real loads, a measured model of every unit, a controller trained against that model, and a stated sim-to-real gap on every arm.
-+ *Own the actuator, where it wins.* Arm revenue funds rana and torc. A purchased joint is replaced only where rana wins on a measured metric. Dropping rana is a valid outcome, not a failure.
-+ *The machine that builds the machine.* Arms tend the cell that makes arms. The rose humanoid follows, on rana legs with two of our arms, at a cost the first two steps paid to learn.
+Arm is the current stage, in three steps (@sec:arm-stage). Step 1, an arm worth buying on purchased actuators, is under way. Step 2 owns the actuator only where ours wins on the dyno. Step 3 has arms tend the cell that makes arms. The next three results, each published whatever it shows:
 
-#figure(
-  cetz.canvas(length: 1cm, {
-    import cetz.draw: *
-    let steps = (
-      ([Step 1 · Arms], [arm on RobStride\ litter pilot · first bench]),
-      ([Step 2 · Actuator], [rana + torc on the dyno\ replace where it wins]),
-      ([Step 3 · The cell], [arms tend the cell that\ makes arms; rose follows]),
-    )
-    let gates = (
-      ([Gate 1], [≥ 10 arms sold at ≥ 40% gross margin; TCP error ≤ 2.0 mm RMS on every arm]),
-      ([Gate 2], [rana ≥ 1.2 × RS04 on a named dyno metric; rose walks 100 m, 5 of 5]),
-      ([Gate 3], [cell-built arm passes gate 1's test; bought ≤ 50% of cost]),
-    )
-    let bw = 3.9
-    let pitch = 5.6
-    // the time axis
-    line((0, 0), (18.4, 0), stroke: 0.6pt + c-line-hi, mark: (end: "straight", size: 0.18))
-    content((0, -0.45), anchor: "north-west", caps(size: s-xs)[Evidence, not dates →])
-    for i in range(3) {
-      let x = i * pitch
-      rect((x, 0.35), (x + bw, 1.95), fill: c-surface, stroke: if i == 0 { 1pt + c-text } else { 0.6pt + c-line-hi })
-      content((x + 0.2, 1.8), anchor: "north-west", text(font: sans-sb, size: s-sm, steps.at(i).at(0)))
-      content((x + 0.2, 1.25), anchor: "north-west", text(size: s-sm, fill: c-label, steps.at(i).at(1)))
-      line((x, 0), (x + bw, 0), stroke: 2pt + if i == 0 { c-text } else { c-line-hi })
-      // gate diamond at the end of the step
-      let gx = x + bw + 0.9
-      line((gx, 0.28), (gx + 0.28, 0), (gx, -0.28), (gx - 0.28, 0), close: true, fill: c-bg, stroke: 0.9pt + c-text)
-      content((gx - 0.9, -0.5), anchor: "north-west", box(width: 3.4cm, {
-        set par(leading: 0.45em)
-        caps(size: s-xs, fill: c-text, font: mono-sb, gates.at(i).at(0))
-        linebreak()
-        text(size: s-sm, fill: c-label, gates.at(i).at(1))
-      }))
-    }
-    content((0, 2.35), anchor: "south-west", caps(size: s-xs)[Now · year 1])
-    content((15.1, 2.35), anchor: "south-east", caps(size: s-xs)[\~year 3])
-  }),
-  caption: [#lead[Arm as a timeline.] Three steps, each closed by a gate (diamond) that is evidence, not a date @mr2026masterplan. Gates abbreviated; the full conditions are in @tab:gates. Step 1 is the current step.],
-) <fig:steps>
++ The first built arm's reach, hold and sag, against its model (@tab:arm).
++ rana's first dyno run, against its predicted 36 N·m peak.
++ The preregistration of the K1 body-schema fit, before the fit runs.
 
-#figure(
-  table(
-    columns: (auto, 1fr, 1fr, 1fr),
-    align: (left + top, left + top, left + top, left + top),
-    table.header([*Gate*], [*Number and unit*], [*Method*], [*Pass if*]),
-    [1a · Arms sell], [Arms delivered to outside buyers (count); gross margin (%) after materials, labor, test and warranty], [Invoices and cost ledger, trailing 12 months], [≥ 10 arms and ≥ 40%],
-    [1b · Gap stated], [Tool-point (TCP) position error, model vs measured (mm RMS), 50 fixed poses, unloaded and at 1.0 kg], [Probe tip against a calibrated fixture plate, per arm], [≤ 2.0 mm RMS on every arm shipped, printed on its receipt],
-    [1c · Pilot renews], [Renewal term (months) after a ≥ 3-month trial; contact incidents with a person (count)], [Signed renewal; incident log], [≥ 12 months and 0 incidents],
-    [2a · rana wins], [Continuous stall torque per kg (N·m/kg) or per dollar of 100-unit cost (N·m/\$), rana vs RS04], [Same dyno, same 345 × 345 mm heat-sink plate, 25 °C, 30 min thermal steady state], [≥ 1.20 × RS04 on at least one of the two],
-    [2b · rose walks], [Distance (m) on level pavement carrying two arms; falls (count)], [5 trials, logged], [100 m, 0 falls in 5 of 5],
-    [3a · The cell builds an arm], [Cell-assembled arm's TCP error (mm RMS); human touch time (min)], [Gate 1b test; time log], [≤ 2.0 mm RMS and ≤ 30 min],
-    [3b · Bought fraction], [Bought share of that arm's cost (%)], [Receipts per build], [≤ 50%],
-    [3c · A second product pays], [Units of a second product (count); gross margin (%)], [As gate 1a], [≥ 10 units and ≥ 40%],
-  ),
-  caption: [#lead[Arm gates.] *Proposed targets, to be confirmed by the author.* The same thresholds are used everywhere in this paper. Today 1b's 1.0 kg test load sits under the arm's modeled 1.27 kg continuous hold.],
-  placement: auto, scope: "parent",
-) <tab:gates>
+== What we need
+
+Early buyers for the arm and the bench who will share measured data. A municipal partner for a one-city, one-task litter pilot. Collaborators who want to check the numbers or build the layers. Write to #link("mailto:info@muni.works")[info\@muni.works].
+
+== What would prove us wrong
+
+- *Arms do not sell at margin.* Fewer than ten arms at 40% gross margin means Arm cannot fund the rest.
+- *The gap does not close.* If built arms cannot hold 2 mm RMS against their own model, the loop has nothing to learn from.
+- *A cell cannot build an arm cheaply.* If a cell-built arm still needs more than half its cost bought, Cell is out of reach.
+- *Gradients do not survive real contact.* If the body-schema fit cannot beat persistence on hardware, Body's method fails.
+
+Each of these is a gate in @tab:gates or @tab:arc, and we will publish the ones we miss.
 
 = Design principles <sec:principles>
 
@@ -1564,6 +1559,72 @@ One number runs through every stage: *electrons under management* (EUM), in watt
   }),
   caption: [#lead[The arc.] Eight stages, each a step up in scale; one loop, one number. Each stage contains the one before it, and each removes a person from one more edge of the loop. Only Arm is a plan. Watts are electrons under management (@sec:eum), as orders of magnitude, not targets @mr2026masterplan.],
 ) <fig:arc>
+
+== Arm <sec:arm-stage>
+
+*Arms that ship with their gap.* Arm has three steps over roughly three years. Each step closes on a gate, and every gate is exact: a number, a unit, a method and a pass condition (@tab:gates) @mr2026masterplan. Arm has to earn the rest of the specification: it funds the long bets and closes the loop for the first time. Seven further stages follow, each a step up in scale, and together the eight are what we call the arc (@sec:arc, @tab:arc). They are goals, not results, and they are why Arm exists.
+
++ *Arms.* Build an arm worth buying on RobStride actuators. The actuator is a commodity. Our edge is everything around it: geometry checked against real loads, a measured model of every unit, a controller trained against that model, and a stated sim-to-real gap on every arm.
++ *Own the actuator, where it wins.* Arm revenue funds rana and torc. A purchased joint is replaced only where rana wins on a measured metric. Dropping rana is a valid outcome, not a failure.
++ *The machine that builds the machine.* Arms tend the cell that makes arms. The rose humanoid follows, on rana legs with two of our arms, at a cost the first two steps paid to learn.
+
+#figure(
+  cetz.canvas(length: 1cm, {
+    import cetz.draw: *
+    let steps = (
+      ([Step 1 · Arms], [arm on RobStride\ litter pilot · first bench]),
+      ([Step 2 · Actuator], [rana + torc on the dyno\ replace where it wins]),
+      ([Step 3 · The cell], [arms tend the cell that\ makes arms; rose follows]),
+    )
+    let gates = (
+      ([Gate 1], [≥ 10 arms sold at ≥ 40% gross margin; TCP error ≤ 2.0 mm RMS on every arm]),
+      ([Gate 2], [rana ≥ 1.2 × RS04 on a named dyno metric; rose walks 100 m, 5 of 5]),
+      ([Gate 3], [cell-built arm passes gate 1's test; bought ≤ 50% of cost]),
+    )
+    let bw = 3.9
+    let pitch = 5.6
+    // the time axis
+    line((0, 0), (18.4, 0), stroke: 0.6pt + c-line-hi, mark: (end: "straight", size: 0.18))
+    content((0, -0.45), anchor: "north-west", caps(size: s-xs)[Evidence, not dates →])
+    for i in range(3) {
+      let x = i * pitch
+      rect((x, 0.35), (x + bw, 1.95), fill: c-surface, stroke: if i == 0 { 1pt + c-text } else { 0.6pt + c-line-hi })
+      content((x + 0.2, 1.8), anchor: "north-west", text(font: sans-sb, size: s-sm, steps.at(i).at(0)))
+      content((x + 0.2, 1.25), anchor: "north-west", text(size: s-sm, fill: c-label, steps.at(i).at(1)))
+      line((x, 0), (x + bw, 0), stroke: 2pt + if i == 0 { c-text } else { c-line-hi })
+      // gate diamond at the end of the step
+      let gx = x + bw + 0.9
+      line((gx, 0.28), (gx + 0.28, 0), (gx, -0.28), (gx - 0.28, 0), close: true, fill: c-bg, stroke: 0.9pt + c-text)
+      content((gx - 0.9, -0.5), anchor: "north-west", box(width: 3.4cm, {
+        set par(leading: 0.45em)
+        caps(size: s-xs, fill: c-text, font: mono-sb, gates.at(i).at(0))
+        linebreak()
+        text(size: s-sm, fill: c-label, gates.at(i).at(1))
+      }))
+    }
+    content((0, 2.35), anchor: "south-west", caps(size: s-xs)[Now · year 1])
+    content((15.1, 2.35), anchor: "south-east", caps(size: s-xs)[\~year 3])
+  }),
+  caption: [#lead[Arm as a timeline.] Three steps, each closed by a gate (diamond) that is evidence, not a date @mr2026masterplan. Gates abbreviated; the full conditions are in @tab:gates. Step 1 is the current step.],
+) <fig:steps>
+
+#figure(
+  table(
+    columns: (auto, 1fr, 1fr, 1fr),
+    align: (left + top, left + top, left + top, left + top),
+    table.header([*Gate*], [*Number and unit*], [*Method*], [*Pass if*]),
+    [1a · Arms sell], [Arms delivered to outside buyers (count); gross margin (%) after materials, labor, test and warranty], [Invoices and cost ledger, trailing 12 months], [≥ 10 arms and ≥ 40%],
+    [1b · Gap stated], [Tool-point (TCP) position error, model vs measured (mm RMS), 50 fixed poses, unloaded and at 1.0 kg], [Probe tip against a calibrated fixture plate, per arm], [≤ 2.0 mm RMS on every arm shipped, printed on its receipt],
+    [1c · Pilot renews], [Renewal term (months) after a ≥ 3-month trial; contact incidents with a person (count)], [Signed renewal; incident log], [≥ 12 months and 0 incidents],
+    [2a · rana wins], [Continuous stall torque per kg (N·m/kg) or per dollar of 100-unit cost (N·m/\$), rana vs RS04], [Same dyno, same 345 × 345 mm heat-sink plate, 25 °C, 30 min thermal steady state], [≥ 1.20 × RS04 on at least one of the two],
+    [2b · rose walks], [Distance (m) on level pavement carrying two arms; falls (count)], [5 trials, logged], [100 m, 0 falls in 5 of 5],
+    [3a · The cell builds an arm], [Cell-assembled arm's TCP error (mm RMS); human touch time (min)], [Gate 1b test; time log], [≤ 2.0 mm RMS and ≤ 30 min],
+    [3b · Bought fraction], [Bought share of that arm's cost (%)], [Receipts per build], [≤ 50%],
+    [3c · A second product pays], [Units of a second product (count); gross margin (%)], [As gate 1a], [≥ 10 units and ≥ 40%],
+  ),
+  caption: [#lead[Arm gates.] *Proposed targets, to be confirmed by the author.* The same thresholds are used everywhere in this paper. Today 1b's 1.0 kg test load sits under the arm's modeled 1.27 kg continuous hold.],
+  placement: auto, scope: "parent",
+) <tab:gates>
 
 == Body
 
