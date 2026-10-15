@@ -264,10 +264,30 @@
   #set text(font: sans, weight: 400, size: 9pt, number-width: "tabular")
   #set par(leading: 0.6em, justify: false)
   #set outline.entry(fill: none)
-  #show outline.entry: it => { let l1 = it.level == 1; block(above: if l1 {1.0em} else {0.55em}, below: 0em, link(it.element.location(), { h(if l1 {0em} else {2.6em}); box(width: 2.6em, text(font: mono-m, size: s-xs, fill: c-label, tracking: track, if it.prefix() != none { it.prefix() })); text(font: if l1 {sans-m} else {sans}, fill: if l1 {c-text} else {c-label}, it.body()); h(1fr); text(font: mono, size: s-sm, fill: c-label, it.page()) })) }
+  #show outline.entry: it => {
+    let l1 = it.level == 1
+    let num = if it.prefix() != none { it.prefix() } else { [] }
+    let pg = text(font: mono, size: s-xs, fill: c-label, number-width: "tabular", it.page())
+    set par(leading: 0.5em)
+    // cap-height top edges, so a small mono number and a larger title line up on their first line
+    set text(top-edge: "cap-height", bottom-edge: "baseline")
+    block(above: if l1 { 1.25em } else { 0.62em }, below: 0em, breakable: false, link(it.element.location(),
+      if l1 {
+        grid(columns: (2.2em, 1fr, 2.4em), align: (left + top, left + top, right + bottom),
+          text(font: mono-m, size: s-xs, fill: c-label, tracking: track, num),
+          text(font: sans-m, size: 9.5pt, fill: c-text, it.body()),
+          pg)
+      } else {
+        grid(columns: (2.2em, 2.4em, 1fr, 2.4em), align: (left + top, left + top, left + top, right + bottom),
+          [],
+          text(font: mono, size: 6pt, fill: c-label, tracking: track, num),
+          text(font: sans, size: 8.5pt, fill: c-label, it.body()),
+          pg)
+      }))
+  }
   #text(font: sans-sb, size: s-lg)[Contents]
   #v(0.6em)
-  #columns(2, gutter: 2.4em, outline(
+  #columns(2, gutter: 3.2em, outline(
     title: none,
     indent: 0em,
     depth: 2,
