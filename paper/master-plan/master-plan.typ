@@ -794,6 +794,10 @@ Many wars are fought over what is scarce: land, water, fuel, minerals, and the l
 
 That is a hope, not a law. The same machines could make war cheaper, and robots are already being built for it. That is why our first commitment is that nothing we build is made or sold to harm a person, or sold for weapons or military use (@sec:safety), and why the commitment is written before the plan rather than after it.
 
+War is also the plainest reason to live on more than one planet. Every person, every library and every machine we have ever made is on one world, and that world holds about twelve thousand nuclear warheads @fas2025status. A civilization on one planet can end in an afternoon. One on two cannot.
+
+People will not go first. Machines will. Mars is seven months away and light takes minutes to cross the gap, so nothing there can be built by hand or by remote control. It has to be built by machines that build machines: pairs that land with a seed, make collectors and shelter from local rock, and grow a cell that passes its receipts before the first person leaves Earth (@sec:mars). When people arrive, the work of staying alive will already be under way. The Moon is the rehearsal; Mars is the point.
+
 We still choose hope. Every machine in this plan is a bet that the next century can be one of plenty rather than of taking: that what people have fought over can be made, and made by machines that will not be turned against them.
 
 = Problem <sec:problem>
@@ -1730,7 +1734,7 @@ The seed is the smallest thing that can grow a pair: one pair, a mill and a rout
 
 = Mars <sec:mars>
 
-*The same seed, lifeline cut.* Mars is about seven months away and 3–22 light-minutes out, too far for remote hands, so the pair runs with no human commands between landing and its receipt. Moon and Mars add problems Pair never meets (launch mass, radiation, thermal cycling, extracting metal from regolith), and the Earth tests of @sec:moon only begin on them.
+*The same seed, lifeline cut.* Mars is about seven months away and 3–22 light-minutes out, too far for remote hands, so the pair runs with no human commands between landing and its receipt. Moon and Mars add problems Pair never meets (launch mass, radiation, thermal cycling, extracting metal from regolith), and the Earth tests of @sec:moon only begin on them. Mars is where machines go first, so that people can follow: by the time a person lands, pairs will have built shelter, collectors and the means to make more of themselves (@sec:war).
 
 *Gate.* A second pair with 0 human commands between landing and its receipt. Full conditions for every stage are in @tab:arc.
 
