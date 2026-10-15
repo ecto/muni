@@ -317,3 +317,92 @@
 /* in columns there is no margin to hang a number in: the appendix label sits above its title, as in the PDF */
 .post .back-matter :is(h2, h3) > .sec-num { position: static; display: block; margin-bottom: 0.4rem; text-transform: uppercase; letter-spacing: 0.12em; }
 .post .back-matter h2 > .sec-num::before { content: "Appendix "; }
+
+/* ─── The rail: a scrollbar with a map in it ─────────────────────────────
+   Earth at the top, the Sun at the end, the reader as the cover's probe.
+   Parts are the cover's cyan diamonds; sections are ticks. */
+html.post-rail-on { scrollbar-width: none; }
+html.post-rail-on::-webkit-scrollbar { display: none; }
+.post-rail {
+  position: fixed;
+  z-index: 40;
+  top: 4.5rem;
+  bottom: 2rem;
+  right: 1.1rem;
+  width: 1.4rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+  font-family: var(--p-mono);
+}
+.post-rail-end { font-size: 0.56rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--p-label); opacity: 0.6; }
+.post-rail-earth { color: #00f0ff; }
+.post-rail-sun { color: var(--p-sel); }
+.post-rail-track { position: relative; flex: 1; width: 100%; cursor: pointer; touch-action: none; }
+.post-rail-track::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+  background: linear-gradient(to bottom, rgba(0, 240, 255, 0.35), var(--p-line-hi) 12%, var(--p-line-hi) 88%, rgba(255, 95, 0, 0.45));
+}
+/* the path already travelled */
+.post-rail-trail {
+  position: absolute;
+  top: 0;
+  left: calc(50% - 0.5px);
+  width: 1px;
+  background: linear-gradient(to bottom, rgba(255, 95, 0, 0.1), var(--p-sel));
+  box-shadow: 0 0 6px rgba(255, 95, 0, 0.5);
+}
+.post-rail-mark { position: absolute; left: 50%; transform: translate(-50%, -50%); display: block; padding: 0.3rem 0.45rem; }
+.post-rail-mark::before { content: ""; display: block; width: 7px; height: 1px; background: var(--p-label); opacity: 0.55; transition: width 0.2s, opacity 0.2s; }
+.post-rail-mark.is-part::before { width: 6px; height: 6px; background: none; border: 1px solid #00f0ff; transform: rotate(45deg); opacity: 0.85; }
+.post-rail-mark:hover::before,
+.post-rail-mark.is-current::before { opacity: 1; width: 11px; }
+.post-rail-mark.is-part:hover::before { width: 6px; box-shadow: 0 0 6px rgba(0, 240, 255, 0.7); }
+.post-rail-mark:focus-visible { outline: 1px solid var(--p-sel); outline-offset: 2px; }
+/* labels slide out to the left of the rail */
+.post-rail-tip,
+.post-rail-now {
+  position: absolute;
+  right: calc(100% + 0.5rem);
+  top: 50%;
+  transform: translate(0.3rem, -50%);
+  white-space: nowrap;
+  padding: 0.28rem 0.55rem;
+  border: 1px solid var(--p-line-hi);
+  border-radius: 999px;
+  background: rgba(11, 9, 7, 0.92);
+  backdrop-filter: blur(6px);
+  font-family: var(--p-sans);
+  font-size: 0.74rem;
+  color: var(--p-text);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+.post-rail-tip b,
+.post-rail-now b { margin-right: 0.45rem; font-family: var(--p-mono); font-weight: 400; font-size: 0.66rem; color: var(--p-label); }
+.post-rail-mark:hover .post-rail-tip,
+.post-rail-mark:focus-visible .post-rail-tip { opacity: 1; transform: translate(0, -50%); }
+/* the probe: the cover's orange dot with its glow */
+.post-rail-probe {
+  position: absolute;
+  left: 50%;
+  width: 7px;
+  height: 7px;
+  margin: -3.5px 0 0 -3.5px;
+  border-radius: 50%;
+  background: #fff4e8;
+  box-shadow: 0 0 0 2px rgba(255, 95, 0, 0.9), 0 0 12px 3px rgba(255, 95, 0, 0.55);
+  pointer-events: none;
+}
+.post-rail.is-awake .post-rail-now { opacity: 1; transform: translate(0, -50%); }
+.post-rail:hover .post-rail-now { opacity: 0; }
+@media (prefers-reduced-motion: reduce) {
+  .post-rail-tip, .post-rail-now, .post-rail-mark::before { transition: none; }
+}

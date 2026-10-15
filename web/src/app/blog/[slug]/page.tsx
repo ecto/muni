@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Footer, FloatingHeader } from "@/components/layout";
 import { PostCover } from "@/components/blog/PostCover";
+import { PostRail } from "@/components/blog/PostRail";
 import { formatDate, getPost, getPostHtml, posts } from "@/lib/posts";
 import "@/styles/post.css";
 
@@ -40,6 +41,7 @@ export default function PostPage({ params }: { params: { slug: string } }) {
       </PostCover>
       {/* Compiled from the Typst source by `npm run posts`; the same file builds the PDF. */}
       <article className="post" dangerouslySetInnerHTML={{ __html: html }} />
+      <PostRail />
       <div className="landing-footer">
         <div className="landing-container">
           <Footer />
