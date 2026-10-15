@@ -643,7 +643,7 @@
 
 #pagebreak(weak: true)
 
-= Scale <sec:kardashev>
+= Peace <sec:kardashev>
 
 In 1964 the astronomer Nikolai Kardashev proposed ranking civilizations by the power they command @kardashev1964. A Type I civilization uses the energy available on its planet, a Type II its star's, and a Type III its galaxy's. Carl Sagan turned the types into a continuous scale for a power $P$ in watts, which puts Type I at 10#super[16] W and Type II at 10#super[26] W @sagan1973cosmic:
 
@@ -676,8 +676,11 @@ Humanity used about 620 EJ of primary energy in 2023 @ei2024review: a mean of ab
     }
     // the sun
     let es = calc.log(3.828e26, base: 10)
-    circle((X(es), 0.55), radius: 0.22, fill: c-sel, stroke: none)
-    content((X(es) - 0.32, 0.55), anchor: "east", text(font: mono-m, size: 5.5pt, fill: c-text)[THE SUN])
+    circle((X(es), 0.6), radius: 0.34, fill: c-sel, stroke: none)
+    content((X(es) - 0.45, 0.6), anchor: "east", text(font: mono-m, size: 5.5pt, fill: c-text)[THE SUN])
+    // the earth, at a planet's energy
+    circle((X(16), 0.6), radius: 0.17, fill: rgb("#2f7bff"), stroke: none)
+    content((X(16) + 0.28, 0.6), anchor: "west", text(font: mono-m, size: 5.5pt, fill: c-text)[THE EARTH])
     // humanity, primary energy (estimates)
     let hist = ((1800, 6.4e11), (1900, 1.37e12), (1950, 3.25e12), (2000, 1.33e13), (2023, 1.96e13))
     let prev = none
@@ -704,7 +707,7 @@ Every earlier step up the scale came from a machine that made energy or work che
 #colfig(
   cetz.canvas(length: 1cm, {
     import cetz.draw: *
-    let steps = (("fire, farming", "food → muscle"), ("steam", "heat → work"), ("electricity", "work, anywhere"), ("transistor", "control, almost free"), ("making machines", "still by hand"))
+    let steps = (("fire, farming", "food → muscle"), ("steam", "heat → work"), ("electricity", "work, anywhere"), ("transistor", "control, almost free"), ("intelligence", "machines that make machines"))
     let w = 1.62
     let h = 0.55
     for (i, (n, what)) in steps.enumerate() {
@@ -716,7 +719,7 @@ Every earlier step up the scale came from a machine that made energy or work che
     }
     content((4 * w + (w - 0.08) / 2, 1.5), text(font: mono-m, size: 5.5pt, fill: c-sel)[NEXT?])
   }),
-  caption: [#lead[Each climb made one thing cheap.] The step not yet taken is making the machines themselves.],
+  caption: [#lead[Each climb made one thing cheap.] The next is intelligence: machines that make the machines.],
 ) <fig:stairs>
 
 Getting off the planet is now mostly that problem. Launch has become cheap. Reusable rockets cut the cost of reaching low Earth orbit from about \$54,500 per kg on the Space Shuttle to about \$2,700 per kg on a Falcon 9 @csis2022launch. What stays expensive is everything a settlement needs when it arrives, and the people needed to make it. A civilization does not climb toward Type II by launching factories. It climbs by sending a seed that can grow one.
@@ -768,8 +771,8 @@ Getting off the planet is now mostly that problem. Launch has become cheap. Reus
 This plan gives that climb one number of its own, electrons under management (@sec:eum): the power drawn by machines we built, in service, measured on the same axis as the Kardashev scale. Today it is zero.
 
 == What changed <sec:why>
-#colfig(
-  cetz.canvas(length: 1cm, {
+#figure(
+  align(center, cetz.canvas(length: 1.35cm, {
     import cetz.draw: *
     // exploded actuator, oblique: discs along one axis
     let parts = (("driver", 0.0, 1.55, c-raised), ("encoder", 1.1, 1.55, c-surface), ("stator", 2.2, 1.9, c-raised), ("rotor", 3.3, 1.9, c-surface), ("planetary", 4.4, 1.7, c-raised), ("output", 5.5, 1.3, c-surface))
@@ -780,11 +783,11 @@ This plan gives that climb one number of its own, electrons under management (@s
       if n == "stator" { for a in range(12) { let t = a * 30deg; circle((x + 0.45 * r * 0.75 * calc.cos(t), 1.9 + r * 0.75 * calc.sin(t)), radius: (0.06, 0.12), fill: c-text, stroke: none) } }
       if n == "planetary" { for a in range(3) { let t = a * 120deg + 90deg; circle((x + 0.45 * 0.9 * calc.cos(t), 1.9 + 0.9 * calc.sin(t)), radius: (0.12, 0.3), fill: none, stroke: 0.6pt + c-text) } }
       if n == "output" { circle(c, radius: (0.16, 0.36), fill: c-sel, stroke: none) }
-      content((x, 1.9 - r - 0.2), anchor: "north", text(font: mono-m, size: 5pt, fill: c-label, upper(n)))
+      content((x, 1.9 - r - 0.2), anchor: "north", text(font: mono-m, size: 6.5pt, fill: c-label, upper(n)))
     }
     line((-0.8, 1.9), (6.4, 1.9), stroke: (paint: c-info.transparentize(50%), thickness: 0.4pt, dash: "dashed"))
-    content((6.6, 1.9), anchor: "west", text(font: mono-m, size: 5.5pt, fill: c-text)[CAN · 48 V])
-  }),
+    content((6.6, 1.9), anchor: "west", text(font: mono-m, size: 7pt, fill: c-text)[CAN · 48 V])
+  })),
   caption: [#lead[An actuator, from a catalog.] Motor, planetary reduction, encoder and driver in one housing, exploded. Schematic.],
 ) <fig:actuator>
 
@@ -792,8 +795,8 @@ Five years ago this plan would have needed a factory before it needed a customer
 
 *Integrated actuators became a catalog item.* Quasi-direct-drive actuators, with motor, planetary reduction, encoder and driver in one housing, are now sold off the shelf by several Chinese vendors. RobStride's range includes the RS00, RS02, RS04 and RS06, each with a published manual, outline drawing and CAN interface @robstride2026manual. A limb uses six of them. Retail prices for the family run roughly \$70–170 for the small units and more for the large ones (our estimate from retail listings, not a quote). The design idea does not depend on RobStride, but the v9 drawings do: motor mounts, bolt patterns and screw lengths are taken from RobStride's manual drawings @rose2026forkv9, so another vendor's motor means new drawings. What matters is that a 120 N·m peak joint (RS04 @robstride2026manual) can be bought with its driver attached.
 
-#colfig(
-  cetz.canvas(length: 1cm, {
+#figure(
+  align(center, cetz.canvas(length: 1.1cm, {
     import cetz.draw: *
     // timeline
     let y = 0
@@ -801,8 +804,8 @@ Five years ago this plan would have needed a factory before it needed a customer
     let ev = ((0.3, "DEC 2025", "bvr0 drives"), (2.5, "2026", "the stack grows"), (4.7, "2026", "K1 bought"), (6.9, "OCT 2026", "this plan"))
     for (x, d, t) in ev {
       circle((x, y), radius: 0.07, fill: c-text, stroke: none)
-      content((x, y - 0.18), anchor: "north", text(font: mono-m, size: 5.5pt, fill: c-label, d))
-      content((x, y - 0.48), anchor: "north", text(size: s-xs, fill: c-text, t))
+      content((x, y - 0.18), anchor: "north", text(font: mono-m, size: 7pt, fill: c-label, d))
+      content((x, y - 0.48), anchor: "north", text(size: 7pt, fill: c-text, t))
     }
     // one stack fanning out
     let sx = 0.3
@@ -810,29 +813,27 @@ Five years ago this plan would have needed a factory before it needed a customer
     let layers = ("loon", "vcad", "phyz", "kerf")
     for (i, l) in layers.enumerate() {
       rect((sx - 0.1, 1.15 + i * 0.6), (sx + 1.6, 1.6 + i * 0.6), fill: c-raised, stroke: none)
-      content((sx + 0.75, 1.375 + i * 0.6), text(font: mono-m, size: s-xs, fill: c-text, l))
+      content((sx + 0.75, 1.375 + i * 0.6), text(font: mono-m, size: 7pt, fill: c-text, l))
     }
-    content((sx + 0.75, 3.75), anchor: "south", text(font: mono-m, size: 5.5pt, fill: c-label)[ONE STACK])
+    content((sx + 0.75, 3.75), anchor: "south", text(font: mono-m, size: 7pt, fill: c-label)[ONE STACK])
     let outs = ((3.25, "rover", "retired", c-label), (2.3, "humanoid", "rose, K1", c-text), (1.35, "pair", "builds limbs", c-text))
     let x = 5.6
     for (ty, n, w, col) in outs {
       line((sx + 1.75, 2.3), (x - 1.0, ty), stroke: (paint: c-label, thickness: 0.6pt, dash: if n == "rover" { "dotted" } else { none }), mark: (end: "straight", size: 0.12))
       rect((x - 1.0, ty - 0.38), (x + 1.4, ty + 0.38), fill: if n == "rover" { none } else { c-surface }, stroke: if n == "pair" { 1pt + c-sel } else { 0.6pt + c-line-hi })
-      content((x - 0.85, ty), anchor: "west", text(font: sans-m, size: s-sm, fill: col, n))
-      content((x + 1.3, ty), anchor: "east", text(size: 5.5pt, fill: c-label, w))
+      content((x - 0.85, ty), anchor: "west", text(font: sans-m, size: 8.5pt, fill: col, n))
+      content((x + 1.3, ty), anchor: "east", text(size: 7pt, fill: c-label, w))
     }
-  }),
+  })),
   caption: [#lead[One stack, three bodies.] Tools written to build one rover do not care what they design. Pointed at a humanoid, or at a pair of arms that builds arms, they work the same way.],
 ) <fig:story>
 
 *Flat-sheet fabrication fits on a desk.* Every structural plate of the v9 arm except the 1/4" foot is cut from 1/8" (3.175 mm) 5052 aluminum. The parts nest on three 15 × 15 inch sheets and one 12 × 12 inch sheet, and they are laid out for a 390 mm desktop router bed @rose2026forkv9. The same files go to SendCutSend or to a local supplier without change. A machine that can be built from flat sheet and purchased actuators can, in principle, be built by another such machine. That is the premise of Pair.
 
-#colfig(
-  cetz.canvas(length: 1cm, {
+#figure(
+  align(center, cetz.canvas(length: 0.85cm, {
     import cetz.draw: *
-    let S = 6.0
-    rect((0, 0), (S, S), fill: c-surface, stroke: 0.7pt + c-line-hi)
-    // link plates: long rounded bars with bearing bores and bolt circles
+    // the v9 arm's plates, nested on its real sheet set: three 15 in sheets and one 12 in
     let link(x0, y0, x1, y1, w) = {
       let dx = x1 - x0
       let dy = y1 - y0
@@ -845,27 +846,33 @@ Five years ago this plan would have needed a factory before it needed a customer
       arc((x0 - nx, y0 - ny), start: calc.atan2(-nx, -ny), delta: -180deg, radius: w / 2, stroke: 0.6pt + c-text)
       for q in ((x0, y0), (x1, y1)) {
         circle(q, radius: w * 0.22, fill: c-bg, stroke: 0.5pt + c-text)
-        for a in range(6) { let t = a * 60deg; circle((q.at(0) + w * 0.34 * calc.cos(t), q.at(1) + w * 0.34 * calc.sin(t)), radius: 0.03, fill: c-text, stroke: none) }
+        for a in range(6) { let t = a * 60deg; circle((q.at(0) + w * 0.34 * calc.cos(t), q.at(1) + w * 0.34 * calc.sin(t)), radius: 0.025, fill: c-text, stroke: none) }
       }
     }
-    link(0.9, 0.9, 5.1, 0.9, 1.1)
-    link(0.9, 2.3, 5.1, 2.3, 1.1)
-    link(0.9, 3.7, 3.6, 3.7, 0.9)
-    link(0.9, 4.95, 3.6, 4.95, 0.9)
-    link(4.6, 3.5, 4.6, 5.3, 0.8)
-    // a kerf path being cut
-    line((0.35, 0.35), (0.35, 5.65), stroke: (paint: c-sel, thickness: 0.9pt, dash: "dotted"))
-    circle((0.35, 4.4), radius: 0.09, fill: c-sel, stroke: none)
-    line((0, -0.35), (S, -0.35), stroke: 0.5pt + c-info, mark: (start: "straight", end: "straight", size: 0.1))
-    content((S / 2, -0.45), anchor: "north", text(font: mono-m, size: 5.5pt, fill: c-info)[15 IN · 1/8" 5052])
-  }),
-  caption: [#lead[Plate, cut on a desk.] Fork plates nested on one sheet, with bearing bores and bolt circles; the router's path in orange. Schematic.],
+    let S = 3.6
+    let sheets = (
+      (0.0, S, ((0.55, 0.55, 3.05, 0.55, 0.7), (0.55, 1.4, 3.05, 1.4, 0.7), (0.55, 2.25, 2.2, 2.25, 0.6), (0.55, 3.05, 2.2, 3.05, 0.6), (2.85, 2.1, 2.85, 3.1, 0.55))),
+      (S + 0.35, S, ((0.55, 0.55, 3.05, 0.55, 0.7), (0.55, 1.4, 3.05, 1.4, 0.7), (0.55, 2.3, 3.05, 2.3, 0.7), (0.55, 3.1, 2.4, 3.1, 0.5))),
+      (2 * (S + 0.35), S, ((0.5, 0.5, 2.0, 0.5, 0.55), (0.5, 1.25, 2.0, 1.25, 0.55), (0.5, 2.0, 2.0, 2.0, 0.55), (0.5, 2.75, 2.0, 2.75, 0.55), (2.7, 0.5, 2.7, 3.1, 0.6))),
+      (3 * (S + 0.35), S * 12 / 15, ((0.5, 0.5, 2.3, 0.5, 0.55), (0.5, 1.3, 2.3, 1.3, 0.55), (0.5, 2.15, 1.7, 2.15, 0.5))),
+    )
+    for (i, (x, w, parts)) in sheets.enumerate() {
+      rect((x, 0), (x + w, w), fill: c-surface, stroke: 0.7pt + c-line-hi)
+      for (a, b, c, d, t) in parts { if a + 0.3 < w and c < w { link(x + a, b, x + c, d, t) } }
+      content((x + w / 2, -0.15), anchor: "north", text(font: mono-m, size: 6.5pt, fill: c-info, tracking: track, upper(if w == S [15 × 15 in] else [12 × 12 in])))
+    }
+    // the router's path on the first sheet
+    line((0.2, 0.2), (0.2, S - 0.2), (S - 0.2, S - 0.2), stroke: (paint: c-sel, thickness: 0.9pt, dash: "dotted"))
+    circle((0.2, 2.6), radius: 0.08, fill: c-sel, stroke: none)
+    content((4 * (S + 0.35) - 0.35, S + 0.15), anchor: "south-east", text(font: mono-m, size: 6.5pt, fill: c-label, tracking: track, upper[1/8 in 5052 · a 390 mm desktop router bed]))
+  })),
+  caption: [#lead[Plates, cut on a desk.] The arm's plates nested on three 15 in sheets and one 12 in sheet, with bearing bores and bolt circles; the router's path in orange. Schematic.],
 ) <fig:plate>
 
 *We own the whole stack, and it can take gradients through contact.* Most robotics teams build on a stack they do not control: a simulator from one company, a CAD tool from another, a learning framework from a third, glued together and re-glued every time one of them changes. Every seam between them is a place where the sim-to-real gap hides, and where no gradient can pass. We wrote ours, from the language parts are written in down to the physics (@fig:elements), so one gradient can run from a measured robot back to a parameter in a source file. Its physics engine, phyz, computes exact gradients of a simulated motion with respect to physical parameters such as mass and inertia. That includes contact, the hard case and the one that matters for anything with feet or fingers: its contact adjoint differentiates the same physics the forward pass runs @ipse2026brief. In simulation, on synthetic motion, it has recovered five of a K1 humanoid's inertial parameters from ±20% error to machine precision (sphere feet; @sec:schema). Domain randomization @tobin2017domain, the usual alternative, can make a policy robust to a gap. It cannot take the gap's gradient.
 
-#colfig(
-  cetz.canvas(length: 1cm, {
+#figure(
+  align(center, cetz.canvas(length: 1.45cm, {
     import cetz.draw: *
     // a loss landscape over two parameters, and descent to the true value
     let c = (4.2, 2.1)
@@ -875,52 +882,56 @@ Five years ago this plan would have needed a factory before it needed a customer
     let path = ((0.4, 3.6), (1.6, 3.15), (2.6, 2.75), (3.3, 2.45), (3.8, 2.25), (4.05, 2.15), (4.2, 2.1))
     line(..path, stroke: 1pt + c-sel)
     for (k, q) in path.enumerate() { circle(q, radius: if k == 0 { 0.09 } else { 0.05 }, fill: if k == 0 { c-text } else { c-sel }, stroke: none) }
-    content((0.4, 3.78), anchor: "south-west", text(font: mono-m, size: 5.5pt, fill: c-text)[START · ±20%])
-    content((c.at(0) + 0.15, c.at(1) - 0.12), anchor: "north-west", text(font: mono-m, size: 5.5pt, fill: c-sel)[TRUE MASS])
+    content((0.4, 3.78), anchor: "south-west", text(font: mono-m, size: 7pt, fill: c-text)[START · ±20%])
+    content((c.at(0) + 0.15, c.at(1) - 0.12), anchor: "north-west", text(font: mono-m, size: 7pt, fill: c-sel)[TRUE MASS])
     // the foot and the contact that makes it hard
     rect((7.6, 0.5), (8.6, 0.72), fill: c-text, stroke: none)
     line((7.2, 0.5), (9.0, 0.5), stroke: 0.7pt + c-label)
     for k in range(7) { line((7.25 + k * 0.25, 0.5), (7.1 + k * 0.25, 0.32), stroke: 0.4pt + c-label) }
     line((8.1, 0.72), (8.1, 1.6), stroke: 1.4pt + c-text)
     line((8.1, 0.5), (8.1, 1.25), stroke: 0.9pt + c-info, mark: (end: "straight", size: 0.1))
-    content((8.25, 1.2), anchor: "west", text(font: mono-m, size: 5.5pt, fill: c-info)[∂F/∂θ])
-    content((8.1, 0.2), anchor: "north", text(font: mono-m, size: 5pt, fill: c-label)[CONTACT])
-  }),
+    content((8.25, 1.2), anchor: "west", text(font: mono-m, size: 7pt, fill: c-info)[∂F/∂θ])
+    content((8.1, 0.2), anchor: "north", text(font: mono-m, size: 6.5pt, fill: c-label)[CONTACT])
+  })),
   caption: [#lead[One stack, gradients through contact.] Descent on two inertial parameters, from ±20% error to the true value, with the gradient passing through the foot's contact. In simulation only.],
 ) <fig:gradient>
 
 *Humanoids reached the price of a used car.* Unitree announced its G1 at \$16,000 in 2024 @unitree2024g1. We bought a Booster K1 (95 cm, 19.5 kg, 22 degrees of freedom, force-controlled joints) as the reference body for our mind research @booster2025k1. A humanoid that a small company can buy, break, and instrument changes who can do the research.
 
-#colfig(
-  cetz.canvas(length: 1cm, {
+#figure(
+  align(center, cetz.canvas(length: 1.3cm, {
     import cetz.draw: *
     // a humanoid with a height mark, a price tag, and the tools that make it ours
     let x = 1.6
-    circle((x, 3.35), radius: 0.28, fill: c-surface, stroke: 0.8pt + c-text)
-    rect((x - 0.42, 1.95), (x + 0.42, 3.0), fill: c-surface, stroke: 0.8pt + c-text, radius: 0.08)
-    line((x - 0.42, 2.9), (x - 0.75, 2.0), (x - 0.6, 1.5), stroke: 1.6pt + c-text)
-    line((x + 0.42, 2.9), (x + 0.75, 2.0), (x + 0.6, 1.5), stroke: 1.6pt + c-text)
-    line((x - 0.2, 1.95), (x - 0.25, 1.0), (x - 0.3, 0.1), stroke: 1.8pt + c-text)
-    line((x + 0.2, 1.95), (x + 0.25, 1.0), (x + 0.3, 0.1), stroke: 1.8pt + c-text)
+    let body = (paint: c-text, thickness: 2.2pt, cap: "round", join: "round")
+    circle((x, 3.32), radius: 0.26, fill: c-surface, stroke: 0.9pt + c-text)
+    line((x, 3.06), (x, 2.95), stroke: body)
+    rect((x - 0.36, 1.95), (x + 0.36, 2.95), fill: c-surface, stroke: 0.9pt + c-text, radius: 0.12)
+    line((x - 0.42, 2.85), (x - 0.62, 2.25), (x - 0.58, 1.6), stroke: body)
+    line((x + 0.42, 2.85), (x + 0.62, 2.25), (x + 0.58, 1.6), stroke: body)
+    line((x - 0.18, 1.95), (x - 0.22, 1.05), (x - 0.24, 0.18), stroke: body)
+    line((x + 0.18, 1.95), (x + 0.22, 1.05), (x + 0.24, 0.18), stroke: body)
+    line((x - 0.4, 0.1), (x - 0.14, 0.1), stroke: body)
+    line((x + 0.14, 0.1), (x + 0.4, 0.1), stroke: body)
     // height
     line((0.4, 0.1), (0.4, 3.63), stroke: 0.5pt + c-info, mark: (start: "straight", end: "straight", size: 0.1))
-    content((0.25, 1.85), anchor: "east", text(font: mono-m, size: 5.5pt, fill: c-info)[95 CM])
+    content((0.25, 1.85), anchor: "east", text(font: mono-m, size: 7pt, fill: c-info)[95 CM])
     // price tag
-    line((x + 0.6, 1.5), (3.3, 1.5), stroke: 0.5pt + c-label)
+    line((x + 0.6, 1.6), (3.3, 1.5), stroke: 0.5pt + c-label)
     rect((3.3, 1.2), (4.9, 1.8), fill: c-sel, stroke: none, radius: 0.06)
-    content((4.1, 1.5), text(font: mono-sb, size: 6.5pt, fill: c-sel-ink)[\$16,000])
-    content((4.1, 1.0), text(size: 5pt, fill: c-label)[Unitree G1, 2024])
+    content((4.1, 1.5), text(font: mono-sb, size: 9pt, fill: c-sel-ink)[\$16,000])
+    content((4.1, 1.0), text(size: 6.5pt, fill: c-label)[Unitree G1, 2024])
     // buy, break, instrument
     let tags = ((5.8, "BUY"), (7.0, "BREAK"), (8.3, "INSTRUMENT"))
     for (k, (tx, t)) in tags.enumerate() {
       circle((tx, 2.9), radius: 0.32, fill: none, stroke: 0.7pt + c-line-hi)
-      content((tx, 2.35), anchor: "north", text(font: mono-m, size: 5pt, fill: c-label, t))
+      content((tx, 2.35), anchor: "north", text(font: mono-m, size: 6.5pt, fill: c-label, t))
     }
     content((5.8, 2.9), text(font: mono-m, size: 7pt, fill: c-text)[\$])
     line((6.85, 2.75), (7.15, 3.05), stroke: 0.9pt + c-text)
     line((6.85, 3.05), (7.15, 2.75), stroke: 0.9pt + c-text)
     line((8.1, 2.8), (8.3, 3.0), (8.45, 2.85), (8.55, 3.05), stroke: 0.9pt + c-info)
-  }),
+  })),
   caption: [#lead[A humanoid, for a car's price.] A body a small company can buy, break and instrument.],
 ) <fig:humanoid>
 
@@ -954,10 +965,6 @@ This year made it plain. On February 28 the United States and Israel went to war
 
 Many wars are fought over what is scarce: land, water, fuel, minerals, and the labor to work them. A machine that builds the next machine attacks scarcity at its root. So does power collected rather than taken. A world where machines make machines, on energy no one has to seize, has less to fight over.
 
-That is a hope, not a law. The same machines could make war cheaper, and robots are already being built for it. That is why our first commitment is that nothing we build is made or sold to harm a person, or sold for weapons or military use (@sec:safety), and why the commitment is written before the plan rather than after it.
-
-War is also the plainest reason to live on more than one planet. Every person, every library and every machine we have ever made is on one world, and that world holds about twelve thousand nuclear warheads @fas2025status. A civilization on one planet can end in an afternoon. One on two cannot.
-
 #figure(
   cetz.canvas(length: 1cm, {
     import cetz.draw: *
@@ -977,21 +984,30 @@ War is also the plainest reason to live on more than one planet. Every person, e
       }
     }
     content((ex, ey), text(font: mono-m, size: s-xs, fill: c-info, tracking: track, upper[Earth]))
-    content((ex, ey - er - 1.35), anchor: "north", text(font: mono, size: s-xs, fill: c-label)[one dot = 100 warheads])
+    content((ex, ey - er - 1.35), anchor: "north", text(font: mono, size: s-xs, fill: c-label)[one red dot = 100 warheads · ≈ 12,000])
+    // what is at stake, listed beside the planet
+    let stake = ([8 billion people], [every library], [every machine], [every gene bank])
+    for (k, t) in stake.enumerate() {
+      content((ex + er + 1.55, 0.9 - k * 0.42), anchor: "west", text(font: sans, size: 6.5pt, fill: c-text, t))
+    }
+    line((ex + er + 1.4, 1.05), (ex + er + 1.4, -0.45), stroke: 0.5pt + c-line-hi)
     // Mars: no people yet, machines first
     let (mx, my, mr) = (14.6, 0, 0.62)
     circle((mx, my), radius: mr, fill: c-surface, stroke: 0.8pt + c-fault.transparentize(0%))
     content((mx, my), text(font: mono-m, size: s-xs, fill: c-text, tracking: track, upper[Mars]))
     // the transfer, drawn in the cover's orange
-    bezier((ex + er + 1.3, 0.5), (mx - mr - 0.2, 0.3), (8, 2.6), (11.5, 2.4), stroke: (paint: c-sel, thickness: 1pt, dash: "dashed"), mark: (end: ">", fill: c-sel))
-    content((8.9, 2.45), anchor: "south", text(font: mono, size: s-xs, fill: c-label)[≈ 7 months · light 3–22 min])
+    bezier((ex + 1.0, er + 1.0), (mx - mr - 0.2, 0.3), (7, 3.2), (11.5, 2.6), stroke: (paint: c-sel, thickness: 1pt, dash: "dashed"), mark: (end: ">", fill: c-sel))
+    content((9.6, 2.75), anchor: "south-west", text(font: mono, size: s-xs, fill: c-label)[≈ 7 months · light 3–22 min])
     content((mx, my - mr - 0.25), anchor: "north", text(size: s-xs, fill: c-label)[machines first])
   }),
-  caption: [#lead[One world holds everything.] Earth carries every person and about twelve thousand nuclear warheads @fas2025status. A second world, built first by machines, means no single afternoon can end us.],
+  caption: [#lead[One world holds everything.] Every person, every library and every machine we have made is on one planet, beside about twelve thousand nuclear warheads @fas2025status. A civilization on one planet can end in an afternoon. One on two cannot, and on the second, machines go first.],
 ) <fig:twoworlds>
 
+That is a hope, not a law. The same machines could make war cheaper, and robots are already being built for it. That is why our first commitment is that nothing we build is made or sold to harm a person, or sold for weapons or military use (@sec:safety), and why the commitment is written before the plan rather than after it.
 
-People will not go first. Machines will. Mars is seven months away and light takes minutes to cross the gap, so nothing there can be built by hand or by remote control. It has to be built by machines that build machines: pairs that land with a seed, make collectors and shelter from local rock, and grow pairs that pass their receipts before the first person leaves Earth (@sec:mars). When people arrive, the work of staying alive will already be under way. The Moon is the rehearsal; Mars is the point.
+
+
+War is also the plainest reason to live on more than one planet (@fig:twoworlds). People will not go first. Machines will. Mars is seven months away and light takes minutes to cross the gap, so nothing there can be built by hand or by remote control. It has to be built by machines that build machines: pairs that land with a seed, make collectors and shelter from local rock, and grow pairs that pass their receipts before the first person leaves Earth (@sec:mars). When people arrive, the work of staying alive will already be under way. The Moon is the rehearsal; Mars is the point.
 
 We still choose hope. Every machine in this plan is a bet that the next century can be one of plenty rather than of taking: that what people have fought over can be made, and made by machines that will not be turned against them.
 
@@ -1040,8 +1056,6 @@ The *idiot index* of a part is its cost divided by the cost of its raw materials
   caption: [#lead[rana-100 prototype bill of materials, drawn to scale] @rana2026bom. All prices are estimates, not binding quotes. The bracketed span is outsourced machining; the amber bar below is our estimate of the metal inside it, on the same axis, and is not part of the BOM.],
 ) <fig:rana>
 
-About two thirds of the cost is machining that someone else does, on metal worth an estimated \$60–90. The idiot index of the manufactured parts is roughly 8–12 (estimate). At volume the index falls, but it falls by moving labor into tooling and supply chains. That is what a robot OEM does, and it is why a humanoid still costs as much as a used car.
-
 #mathfig(
   [$ I = C_"part" / C_"materials" approx (\$717) / (\$60 "–" 90) approx 8 "–" 12 $],
   cetz.canvas(length: 1.3cm, {
@@ -1057,6 +1071,9 @@ About two thirds of the cost is machining that someone else does, on metal worth
   }),
   [#lead[The idiot index.] Cost over raw-material cost, for the manufactured parts of rana-100 (housing, magnetic steel, gear blanks) in @fig:rana. Estimates.],
 ) <fig:eq-idiot>
+
+About two thirds of the cost is machining that someone else does, on metal worth an estimated \$60–90. The idiot index of the manufactured parts is roughly 8–12 (estimate). At volume the index falls, but it falls by moving labor into tooling and supply chains. That is what a robot OEM does, and it is why a humanoid still costs as much as a used car.
+
 
 
 The same structure repeats one level up. A limb's materials are about \$2,000, of which about \$1,200 is the six purchased actuators @mr2026masterplan. The plates are cheap. The actuators are someone else's margin. Owning the actuator is Limb's second step (@sec:arm), and we take that step only where rana wins on a measured metric.
@@ -1283,30 +1300,6 @@ Each stage pays for the next and teaches it something it could not learn otherwi
 
 Three numbers track the whole plan (@fig:dash). Today none of them is good, and we say so.
 
-== Loop
-
-#figure(
-  diagram(
-    node-stroke: n-stroke,
-    edge-corner-radius: none,
-    edge-stroke: 0.7pt + c-label,
-    spacing: (30mm, 9mm),
-    node((0, 0), [*Design*\ #text(fill: c-label, size: s-sm)[loon source → vcad]], shape: sqnode, fill: n-fill, width: 38mm, name: <d>),
-    node((2, 0), [*Simulate*\ #text(fill: c-label, size: s-sm)[phyz, wodl world]], shape: sqnode, fill: n-fill, width: 38mm, name: <s>),
-    node((2, 2), [*Build*\ #text(fill: c-label, size: s-sm)[kerf, a pair]], shape: sqnode, fill: n-fill, width: 38mm, name: <b>),
-    node((0, 2), [*Measure*\ #text(fill: c-label, size: s-sm)[dyno, cameras, K1]], shape: sqnode, fill: n-fill, width: 38mm, name: <m>),
-    node((1, 1), [*Gap*\ measured − predicted\ #text(fill: c-label, size: s-sm)[published on every unit]], shape: sqnode, fill: c-surface, stroke: 1.2pt + c-sel, width: 40mm, name: <g>),
-    edge(<d>, <s>, "-|>", text(size: s-sm, fill: c-label)[parameters θ]),
-    edge(<s>, <b>, "-|>", text(size: s-sm, fill: c-label)[prediction], label-side: left),
-    edge(<b>, <m>, "-|>", text(size: s-sm, fill: c-label)[built unit]),
-    edge(<m>, (0, 1), <g>, "-|>"),
-    edge(<g>, (1, 0.5), (0, 0.5), <d>, "-|>", text(size: s-sm, fill: c-text)[gradient ∂J/∂θ], label-pos: 0.5, label-side: right),
-  ),
-  caption: [#lead[The loop, read clockwise.] The small labels name the tool at each step. The software projects are listed in @fig:elements, and the dyno is a planned actuator test stand that does not exist yet. Each later stage of the plan removes a human from one more edge. In Limb the gradient edge is a person reading the gap and redesigning by hand.],
-) <fig:loop>
-
-Every number comes from one loop (@fig:loop): design in source code, simulate in a physics engine that can be differentiated, build, measure, and feed the gap back into the design. Each stage removes a person from one more edge of it (@tab:loopstate).
-
 #part("II", "What", art: art-what())[What every stage shares: the principles, the stack, the standards and the rules.]
 
 = Principles <sec:principles>
@@ -1401,6 +1394,28 @@ Most robots are assembled from other people's tools. The body is drawn in a CAD 
 
 Our projects bond like atoms in a molecule (@fig:bonds). loon is the nucleus: parts, worlds and, one day, chips are written in it. tang carries the math that every engine shares. A vcad part is a wodl body is a phyz collider, without an export in between, so a quantity defined once stays defined everywhere. Four rules keep the bonds clean: engines never depend on vcad, and vcad never depends on an app; engines read wodl, not each other; there is one GPU device; and units are millimeters, with Z up, everywhere.
 
+
+Every number in this plan comes from one loop (@fig:loop): design in loon source, simulate in phyz, build with kerf, measure the built unit, and feed the gap back into the design as a gradient. Each stage removes a person from one more edge of it (@tab:loopstate).
+
+#figure(
+  diagram(
+    node-stroke: n-stroke,
+    edge-corner-radius: none,
+    edge-stroke: 0.7pt + c-label,
+    spacing: (30mm, 9mm),
+    node((0, 0), [*Design*\ #text(fill: c-label, size: s-sm)[loon source → vcad]], shape: sqnode, fill: n-fill, width: 38mm, name: <d>),
+    node((2, 0), [*Simulate*\ #text(fill: c-label, size: s-sm)[phyz, wodl world]], shape: sqnode, fill: n-fill, width: 38mm, name: <s>),
+    node((2, 2), [*Build*\ #text(fill: c-label, size: s-sm)[kerf, a pair]], shape: sqnode, fill: n-fill, width: 38mm, name: <b>),
+    node((0, 2), [*Measure*\ #text(fill: c-label, size: s-sm)[dyno, cameras, K1]], shape: sqnode, fill: n-fill, width: 38mm, name: <m>),
+    node((1, 1), [*Gap*\ measured − predicted\ #text(fill: c-label, size: s-sm)[published on every unit]], shape: sqnode, fill: c-surface, stroke: 1.2pt + c-sel, width: 40mm, name: <g>),
+    edge(<d>, <s>, "-|>", text(size: s-sm, fill: c-label)[parameters θ]),
+    edge(<s>, <b>, "-|>", text(size: s-sm, fill: c-label)[prediction], label-side: left),
+    edge(<b>, <m>, "-|>", text(size: s-sm, fill: c-label)[built unit]),
+    edge(<m>, (0, 1), <g>, "-|>"),
+    edge(<g>, (1, 0.5), (0, 0.5), <d>, "-|>", text(size: s-sm, fill: c-text)[gradient ∂J/∂θ], label-pos: 0.5, label-side: right),
+  ),
+  caption: [#lead[The loop, read clockwise.] The small labels name the tool at each step. The software projects are listed in @fig:elements, and the dyno is a planned actuator test stand that does not exist yet. Each later stage of the plan removes a human from one more edge. In Limb the gradient edge is a person reading the gap and redesigning by hand.],
+) <fig:loop>
 
 The payoff is a gradient that crosses the whole molecule. A task loss in ipse passes through phyz's contact adjoint, into vcad geometry, and out to a number in loon source, with no translation at any hop. Part of that chain runs today, in simulation: on a test model, a phyz rollout gradient passes through a ground-contact model into a vcad geometry parameter and agrees with finite differences. Joining the two ends is co-design work for Body @pond2026strategy. A chain of separate tools struggles to do this however good each tool is, because the gradient stops at the first export. That is the one bet the stack makes, and it is why we built it rather than bought it.
 
