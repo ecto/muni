@@ -48,7 +48,7 @@ describe("ErrorBoundary", () => {
   });
 
   it("recovers when try again is clicked", () => {
-    const { rerender } = render(
+    render(
       <ErrorBoundary>
         <ThrowingComponent shouldThrow={true} />
       </ErrorBoundary>

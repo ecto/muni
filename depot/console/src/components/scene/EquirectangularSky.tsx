@@ -97,7 +97,6 @@ function computeFrustumPlacement(cal: CameraCalibration) {
 function CameraProjection({ cameraId }: { cameraId: number }) {
   const materialRef = useRef<MeshBasicMaterial | null>(null);
   const textureRef = useRef<Texture | null>(null);
-  const geometryRef = useRef<PlaneGeometry | null>(null);
   const [hasTexture, setHasTexture] = useState(false);
   const boundVideoRef = useRef<HTMLVideoElement | null>(null);
 
@@ -108,14 +107,10 @@ function CameraProjection({ cameraId }: { cameraId: number }) {
   }, [cameraId]);
 
   // Create geometry matching frustum size
-  const geometry = useMemo(() => {
-    if (geometryRef.current) {
-      geometryRef.current.dispose();
-    }
-    const geo = new PlaneGeometry(planeW, planeH);
-    geometryRef.current = geo;
-    return geo;
-  }, [planeW, planeH]);
+  const geometry = useMemo(() => new PlaneGeometry(planeW, planeH), [planeW, planeH]);
+
+  // Dispose previous geometry when it's replaced or on unmount
+  useEffect(() => () => geometry.dispose(), [geometry]);
 
   // Poll for the sidebar's video element and create VideoTexture from it
   useFrame(() => {
@@ -156,10 +151,6 @@ function CameraProjection({ cameraId }: { cameraId: number }) {
       if (textureRef.current) {
         textureRef.current.dispose();
         textureRef.current = null;
-      }
-      if (geometryRef.current) {
-        geometryRef.current.dispose();
-        geometryRef.current = null;
       }
     };
   }, []);

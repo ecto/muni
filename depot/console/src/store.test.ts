@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { useConsoleStore } from "./store";
-import { Mode, InputSource } from "@/lib/types";
+import { Mode, InputSource, type RoverInfo } from "@/lib/types";
 
 describe("ConsoleStore", () => {
   beforeEach(() => {
@@ -16,10 +16,19 @@ describe("ConsoleStore", () => {
     });
 
     it("setRovers updates the rover list", () => {
-      const rovers = [
-        { id: "frog-0", name: "frog-0", address: "10.0.0.1", port: 4852, lastSeen: Date.now() },
+      const rovers: RoverInfo[] = [
+        {
+          id: "frog-0",
+          name: "frog-0",
+          rtcAddress: "ws://10.0.0.1:4852",
+          online: true,
+          batteryVoltage: 48,
+          lastPose: { x: 0, y: 0, theta: 0, roll: 0, pitch: 0 },
+          mode: Mode.Idle,
+          lastSeen: Date.now(),
+        },
       ];
-      useConsoleStore.getState().setRovers(rovers as any);
+      useConsoleStore.getState().setRovers(rovers);
       expect(useConsoleStore.getState().rovers).toHaveLength(1);
       expect(useConsoleStore.getState().rovers[0].id).toBe("frog-0");
     });
