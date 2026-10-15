@@ -43,12 +43,12 @@
 // so mono matches sans x-height at the same point size: ratio 1:1.
 #let s-xs = 6.5pt
 #let s-sm = 7.5pt
-#let body-size = 10pt
+#let body-size = 9pt
 // body weight: "400" Regular, "450" Plex Sans Text, "300" Light (override: --input body=300)
 #let body-variant = sys.inputs.at("body", default: "400")
 #let body-font = if body-variant == "450" { ("IBM Plex Sans Text", "IBM Plex Sans") } else { sans }
 #let body-weight = int(body-variant)
-#let s-md = 11.5pt
+#let s-md = 10.5pt
 #let s-lg = 13pt
 #let s-xl = 16pt
 #let s-display = 44pt
@@ -79,20 +79,16 @@
 #set page(
   paper: "us-letter",
   fill: c-bg,
-  margin: (x: 1.25in, top: 0.8in, bottom: 0.75in),
+  margin: (x: 1.85in, top: 0.8in, bottom: 0.75in),
   columns: 1,
   numbering: "1",
   header: context {
     if counter(page).get().first() > 1 {
       grid(columns: (1fr, auto), caps[Robots that build robots], caps[Municipal Robotics])
-      v(-0.35em)
-      line(length: 100%, stroke: 0.5pt + c-line)
     }
   },
   footer: context {
     if counter(page).get().first() > 1 {
-      line(length: 100%, stroke: 0.5pt + c-line)
-      v(-0.35em)
       grid(columns: (1fr, auto, 1fr),
         caps[Rev 1.0 · October 2026],
         text(font: mono-m, size: s-xs, fill: c-label, number-width: "tabular")[#{ let n = counter(page).get().first(); if n < 10 { "0" + str(n) } else { str(n) } } / #counter(page).final().first()],
@@ -110,7 +106,6 @@
 #show heading: set text(weight: "regular", fill: c-text)
 #let numlabel(it) = text(font: mono-m, size: s-xs, fill: c-label, tracking: track, { if it.numbering == "A.1" and it.level == 1 { upper("Appendix ") }; counter(heading).display(it.numbering) })
 #show heading.where(level: 1): it => block(above: 2.2em, below: 1.1em, sticky: true, width: 100%, {
-  context if here().position().y > 0.75in + 2pt { line(length: 100%, stroke: 0.6pt + c-line-hi); v(0.15em) }
   if it.numbering != none { numlabel(it); v(-0.35em) }
   text(font: sans-sb, size: s-lg, tracking: -0.01em, it.body)
 })
@@ -171,7 +166,8 @@
 }
 
 // Column-width figure that stays in flow
-#show figure: it => if it.scope == "parent" { show figure.caption: c => align(left, block(width: 72%, c)); it } else { it }
+// Wide figures break out of the text column into both margins; their captions stay on the text measure
+#show figure: it => if it.scope == "parent" { pad(x: -1.15in, { show figure.caption: c => pad(x: 1.15in, align(left, c)); it }) } else { it }
 #show figure.where(kind: table): it => { show table: t => align(left, t); it }
 
 
