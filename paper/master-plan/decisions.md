@@ -19,8 +19,7 @@ or the hardware mockups. Newest first within a date.
 | D10 | **Board library, own vs buy.** Own first: BMS (safety and EUM instrument) and the bay coupler / spine hub (the standard). Next: blade carriers and backplanes. Step 2: torc. All designs open; PCB fab and assembly stay bought through chapter 2; a pick-and-place bay is a chapter-3 milestone. | Own the boards that define a standard or a measurement first. | — |
 | D11 | **moth uses the same bus, CAN and blade standard, with its own lighter pack.** | A 2.65 kg, 468 Wh pack only suits a heavy-lift drone. | moth carrying the humanoid pack. |
 
-| D12 | **moth has three markets: street perception, kino's directed camera, and drone defense (interception).** | One body, three revenue paths; the cheapest test that the standards are body-agnostic. | — |
-| D13 | **The "not by force" commitment changes from "no weapons or military use" to "nothing made or sold to harm a person".** moth may intercept uncrewed aircraft and be sold to the federal and military agencies allowed to; never armed against people or crewed aircraft. Street and kino data never go to defense customers; no moth imagery leaves a street drone, only facts. | Interception is a weapon against aircraft; say so and draw the line rather than leave a contradiction. US counter-UAS mitigation is limited to authorized federal agencies (10 U.S.C. §130i, 6 U.S.C. §124n). | Keeping the military ban and leaving defense out; ISR (surveillance) work. |
+| D12 | **moth has two markets: street perception and kino's directed camera. No military use, no defense work, never armed.** The safety commitment "no sales for weapons or military use" stands unchanged. No moth imagery leaves a street drone, only facts. | One body, two markets; the cheapest test that the standards are body-agnostic. | Drone defense (interception), considered and dropped 2026-10-15. |
 
 ## Corrections found in review
 

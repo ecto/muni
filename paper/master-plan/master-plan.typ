@@ -515,7 +515,7 @@ The stack is a tree rooted at one language, loon (@tab:stack). Build order runs 
     [Body], [rose], [Humanoid line: mini, pro, max], [in progress],
     [Body], [K1], [Booster K1, 22 DoF: reference body, in hand], [in hand],
     [Body], [pack · blade], [One battery and one compute module for every body], [mockup],
-    [Body], [moth], [Drone: street perception, kino camera, drone defense], [proposed],
+    [Body], [moth], [Drone: street perception, kino's movable camera], [proposed],
     [Apps], [kino], [Live director: cuts between cameras, moves a drone], [exists],
     [Mind], [ipse], [Developmental mind on a real K1], [in progress],
     [Silicon], [loon-hdl, rune, chip], [HDL, maskless lithography, inference chip], [chapter 3],
@@ -1064,27 +1064,26 @@ The pilot does not automate interaction with the public beyond yielding and stop
 
 = moth: a drone on the same standards <sec:moth>
 
-moth is a drone. It has three markets, and one body serves all of them @mr2026decisions:
+moth is a drone with two markets, served by one body @mr2026decisions:
 
 - *Street perception.* It flies ahead of the K1 or rose to find litter, potholes, blocked curb ramps and dark streetlights, and builds the street map from above (@sec:muni).
 - *Directed camera.* kino, our live-director software, watches every camera at an event and cuts between them; a drone is the one camera it can move. kino exists and drives a bought drone today; moth would replace it.
-- *Drone defense.* moth intercepts uncrewed aircraft. It is never armed against people or crewed aircraft (@sec:safety).
+
+moth is not sold for military use or armed in any form (@sec:safety).
 
 moth is also the cheapest check that the standards in @sec:power are body-agnostic. It is a one-blade body on the 36–60 V bus with CAN-FD for management, running the same ipse seams as a humanoid. It carries its own lighter pack: the 2.65 kg humanoid pack only suits a heavy-lift airframe.
 
 *Stricter rules over a street.* A camera drone over a residential street is the thing people fear, whatever it strips on board. So the street rules of @sec:muni are tightened for moth: no imagery leaves the drone. Only facts do (a pothole here, litter there, a dark light), and the delayed pictures the ground robots may release are not made from moth's camera.
 
-*Separate lines.* Interception is a weapon against aircraft, and in the United States intercepting a drone is restricted by law to authorized federal agencies (our understanding of 10 U.S.C. §130i and 6 U.S.C. §124n, not legal advice). Its customers are therefore federal and military, never cities. The interceptor and the street drone share the bus, pack and blade standards. They do not share data: nothing a street or kino drone records goes to a defense customer, and nothing from a defense deployment trains a street model.
-
 Nothing of moth is built. Its airframe, pack and mass budget are not designed, and whether one \~150 g blade fits its mass budget is open.
 
-= Safety: designed not to harm people <sec:safety>
+= Safety: designed not to be a weapon <sec:safety>
 
 == What every robot inherits
 
-Nothing we build should be turnable against a person, whether by force, by data or by instruction. These commitments carry forward to any acquirer @mr2026masterplan:
+Nothing we build can be turned against a person, whether by force, by data or by instruction. These commitments carry forward to any acquirer @mr2026masterplan:
 
-- *Not by force.* Nothing we build is made or sold to harm a person. moth may intercept uncrewed aircraft, and may be sold to the federal and military agencies allowed to do that; it is never armed against people or crewed aircraft (@sec:moth). An earlier draft of this paper banned all military sales. We changed it deliberately, to allow drone defense and nothing else.
+- *Not by force.* No sales for weapons or military use.
 - *Not by data.* Never be Flock Safety (@sec:muni). Not negotiable.
 - *Not by instruction.* ipse keeps its standing constraints (@sec:mind).
 - *No unearned claims.* Every claim about a product ships with the number behind it, labeled measured, modeled or estimated.
@@ -1110,7 +1109,7 @@ ISO/TS 15066 was written for industrial cobots. For a humanoid on a public sidew
     [Electronics], [Current limits set in torc hardware, not firmware], [#status("label", "Planned") v9 uses RobStride firmware current limits], [Reflashing],
     [Interfaces], [A gripper by design; no trigger lines at the tool], [#status("info", "Designed") only the EL05's CAN + 48 V and a camera pair], [Casual modification],
     [Mind], [ipse can refuse; refusals are logged, never trained against], [#status("label", "Planned") ipse is K1 research, not on the arm], [Misuse by instruction],
-    [Terms], [Sales terms ban use against people; fleet and defense buyers vetted], [#status("label", "Planned") no terms written], [Resale, mostly],
+    [Terms], [Sales terms ban weapons use; fleet buyers vetted], [#status("label", "Planned") no terms written], [Resale, mostly],
   ),
   caption: [#lead[Safety layers, what exists on the v9 arm today, and what each layer would survive] @mr2026masterplan. Today the arm has only a design-level interface layer and vendor firmware current limits; it is not physically incapable of harm.],
 ) <tab:safety>
@@ -1179,7 +1178,6 @@ The risks below are the ones a buyer or an investor should weigh. Each response 
     [Bought humanoid (Booster K1)], [Vendor support ends], [The K1 is a control, not a dependency; rose is the body measured against it (@sec:mind)],
     [Breadth across many projects], [Chapter gates slip], [Projects not needed by chapter 1 wait for their chapter (@tab:stack)],
     [rana never beats bought actuators], [Dyno results], [Keep buying RobStride. Dropping rana is a valid outcome],
-    [Defense work undermines trust with cities], [A city or partner declines over moth's interceptor], [Separate data and customers (@sec:moth); interception of aircraft only, never people],
     [Sidewalk incident; legal fit of the Lakewood pilot], [An incident, or the city declines], [See @sec:safety and @sec:muni. The specific response is open, pending decision],
   ),
   caption: [#lead[Risks and responses.] Responses are those stated elsewhere in this paper; the pilot row is undecided.],
