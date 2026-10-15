@@ -503,7 +503,7 @@
 
 #part("I", "Why", art: art-why(), bleed: true)[Where this comes from, why it matters, and the whole plan on a few pages.]
 
-= Note <sec:story>
+= Intro <sec:story>
 
 #block(inset: (left: 0em), {
   set text(size: 10.5pt)
@@ -607,20 +607,48 @@ Every earlier step up the scale came from a machine that made energy or work che
 Getting off the planet is now mostly that problem. Launch has become cheap. Reusable rockets cut the cost of reaching low Earth orbit from about \$54,500 per kg on the Space Shuttle to about \$2,700 per kg on a Falcon 9 @csis2022launch. What stays expensive is everything a settlement needs when it arrives, and the people needed to make it. A civilization does not climb toward Type II by launching factories. It climbs by sending a seed that can grow one.
 
 
-#colfig(
+#figure(
   cetz.canvas(length: 1cm, {
     import cetz.draw: *
-    let rows = (("Space Shuttle", 54500), ("Falcon 9", 2720), ("Falcon Heavy", 1410))
-    let k = 6.0 / 54500
-    for (i, (n, v)) in rows.enumerate() {
-      let y = -i * 0.62
-      content((1.9, y + 0.2), anchor: "east", text(size: s-sm, fill: c-text, n))
-      rect((2.05, y), (2.05 + calc.max(v * k, 0.04), y + 0.4), fill: if i == 0 { c-raised } else { c-sel }, stroke: none)
-      let lab = "$" + str(calc.floor(v / 1000)) + "," + (if calc.rem(v, 1000) < 100 { "0" } else { "" }) + (if calc.rem(v, 1000) < 10 { "0" } else { "" }) + str(calc.rem(v, 1000)) + " / kg"
-      content((2.05 + v * k + 0.12, y + 0.2), anchor: "west", text(font: mono-m, size: s-xs, fill: c-text, lab))
+    // x: first flight year 1960-2030; y: log10 $/kg, 2 to 5
+    let W = 15.5
+    let H = 6.0
+    let X(yr) = (yr - 1960) / 70 * W
+    let Y(v) = (calc.log(v, base: 10) - 2) / 3 * H
+    // grid
+    for e in (2, 3, 4, 5) {
+      line((0, Y(calc.pow(10, e))), (W, Y(calc.pow(10, e))), stroke: 0.35pt + c-line)
+      content((-0.15, Y(calc.pow(10, e))), anchor: "east", text(font: mono, size: 5.5pt, fill: c-label)[\$10#super[#str(e)]])
     }
+    for yr in (1960, 1970, 1980, 1990, 2000, 2010, 2020, 2030) {
+      content((X(yr), -0.2), anchor: "north", text(font: mono, size: 5.5pt, fill: c-label, str(yr)))
+    }
+    content((W, -0.6), anchor: "north-east", text(font: mono, size: 5.5pt, fill: c-label)[FIRST FLIGHT · USD PER KG TO LOW EARTH ORBIT (LOG)])
+    // vehicles (approximate, inflation-adjusted, CSIS)
+    let v = (
+      (1967, 5400, "Saturn V", "north-east", 0.12, -0.12),
+      (1981, 54500, "Space Shuttle", "south-west", 0.15, 0.1),
+      (1996, 9000, "Ariane 5", "south-west", 0.15, 0.08),
+      (2002, 13000, "Delta IV Heavy", "south-west", 0.15, 0.08),
+      (2010, 2720, "Falcon 9", "north-east", -0.15, -0.1),
+      (2018, 1410, "Falcon Heavy", "north-east", -0.15, -0.1),
+    )
+    let reusable = (2010, 2018)
+    // trend from shuttle to falcon heavy
+    line((X(1981), Y(54500)), (X(2010), Y(2720)), (X(2018), Y(1410)), stroke: (paint: c-sel.transparentize(30%), thickness: 1pt))
+    line((X(2018), Y(1410)), (X(2028), Y(200)), stroke: (paint: c-sel.transparentize(40%), thickness: 1pt, dash: "dashed"))
+    for (yr, val, name, anc, dx, dy) in v {
+      let q = (X(yr), Y(val))
+      circle(q, radius: 0.1, fill: if reusable.contains(yr) { c-sel } else { c-text }, stroke: none)
+      content((q.at(0) + dx, q.at(1) + dy), anchor: anc, text(size: s-xs, fill: c-text, name))
+    }
+    // starship target, hollow
+    let q = (X(2028), Y(200))
+    circle(q, radius: 0.12, fill: c-bg, stroke: 1pt + c-sel)
+    content((q.at(0) - 0.15, q.at(1) + 0.1), anchor: "south-east", text(size: s-xs, fill: c-label)[Starship, target])
+    content((X(1999), Y(25000)), anchor: "west", text(font: mono-m, size: 5.5pt, fill: c-sel)[REUSE])
   }),
-  caption: [#lead[Cost to reach low Earth orbit, per kg] (approximate, CSIS @csis2022launch). Launch fell about twentyfold. The settlement at the other end has not.],
+  caption: [#lead[Cost to reach low Earth orbit, per kg, by first flight] (approximate, inflation-adjusted @csis2022launch). Filled orange: reusable boosters. The hollow point is a stated target, not a result. Launch fell about fortyfold from the Shuttle to Falcon Heavy. The cost of what a settlement needs on arrival has not moved.],
 ) <fig:launch>
 
 This plan gives that climb one number of its own, electrons under management (@sec:eum): the power drawn by machines we built, in service, measured on the same axis as the Kardashev scale. Today it is zero.
@@ -629,87 +657,128 @@ This plan gives that climb one number of its own, electrons under management (@s
 
 Five years ago this plan would have needed a factory before it needed a customer. Four things changed.
 
-#figure(
-  {
-    let panel(title, body) = block(width: 100%, stack(spacing: 0.5em,
-      text(font: mono-sb, size: s-xs, fill: c-text, upper(title)),
-      body))
-    grid(columns: (1fr,) * 4, column-gutter: 1.2em,
-      // 1. actuator in a catalog
-      panel([Actuators, from a catalog], cetz.canvas(length: 1cm, {
-        import cetz.draw: *
-        let c = (1.9, 1.6)
-        circle(c, radius: 1.35, fill: c-surface, stroke: 0.7pt + c-line-hi)
-        circle(c, radius: 1.05, fill: none, stroke: (paint: c-label, thickness: 0.5pt, dash: "dotted"))
-        circle(c, radius: 0.72, fill: c-raised, stroke: 0.5pt + c-line-hi)
-        for k in range(3) {
-          let a = k * 120deg + 90deg
-          circle((c.at(0) + 0.42 * calc.cos(a), c.at(1) + 0.42 * calc.sin(a)), radius: 0.22, fill: c-surface, stroke: 0.5pt + c-label)
-        }
-        circle(c, radius: 0.16, fill: c-sel, stroke: none)
-        content((c.at(0) + 1.45, c.at(1) + 1.05), anchor: "west", text(size: 5pt, fill: c-label)[motor])
-        content((c.at(0) + 1.45, c.at(1) + 0.55), anchor: "west", text(size: 5pt, fill: c-label)[planetary])
-        content((c.at(0) + 1.45, c.at(1) + 0.05), anchor: "west", text(size: 5pt, fill: c-label)[encoder])
-        content((c.at(0) + 1.45, c.at(1) - 0.45), anchor: "west", text(size: 5pt, fill: c-label)[driver])
-        content((c.at(0), -0.05), anchor: "north", text(font: mono-m, size: 5.5pt, fill: c-text)[ONE HOUSING · CAN · 48 V])
-      })),
-      // 2. flat sheet on a desk
-      panel([Plate, cut on a desk], cetz.canvas(length: 1cm, {
-        import cetz.draw: *
-        rect((0, 0.25), (3.2, 3.45), fill: c-surface, stroke: 0.7pt + c-line-hi)
-        let parts = ((0.15, 0.4, 1.45, 1.05), (0.15, 1.2, 1.45, 1.85), (0.15, 2.0, 0.95, 3.3), (1.1, 2.0, 1.9, 3.3), (1.6, 0.4, 3.05, 1.0), (1.6, 1.15, 3.05, 1.85), (2.05, 2.0, 3.05, 3.3))
-        for (x0, y0, x1, y1) in parts {
-          rect((x0, y0), (x1, y1), fill: c-raised, stroke: 0.4pt + c-label, radius: 0.08)
-          circle(((x0 + x1) / 2, (y0 + y1) / 2), radius: 0.07, fill: c-bg, stroke: none)
-        }
-        content((1.6, 0.1), anchor: "north", text(font: mono-m, size: 5.5pt, fill: c-text)[15 × 15 IN · 1/8" 5052])
-      })),
-      // 3. gradient through contact
-      panel([Gradients through contact], cetz.canvas(length: 1cm, {
-        import cetz.draw: *
-        // loss curve: start at +20% error, descend to 0
-        line((0.2, 0.4), (3.3, 0.4), stroke: 0.6pt + c-line-hi)
-        line((0.2, 0.4), (0.2, 3.3), stroke: 0.6pt + c-line-hi)
-        let pts = ()
-        for i in range(0, 31) {
-          let t = i / 30
-          pts.push((0.25 + t * 3.0, 0.45 + 2.7 * calc.exp(-5.5 * t)))
-        }
-        line(..pts, stroke: 1.2pt + c-sel)
-        circle(pts.at(0), radius: 0.07, fill: c-text, stroke: none)
-        content((pts.at(0).at(0) + 0.12, pts.at(0).at(1)), anchor: "west", text(size: 5pt, fill: c-label)[±20% mass error])
-        content((3.3, 0.55), anchor: "south-east", text(size: 5pt, fill: c-label)[machine precision])
-        content((1.75, 0.25), anchor: "north", text(font: mono-m, size: 5.5pt, fill: c-text)[STEPS OF ∂J/∂θ · SIM])
-      })),
-      // 4. a humanoid at the price of a used car
-      panel([A humanoid, for a car's price], cetz.canvas(length: 1cm, {
-        import cetz.draw: *
-        let x = 1.0
-        circle((x, 3.0), radius: 0.22, fill: c-surface, stroke: 0.7pt + c-text)
-        rect((x - 0.33, 1.75), (x + 0.33, 2.7), fill: c-surface, stroke: 0.7pt + c-text, radius: 0.06)
-        line((x - 0.33, 2.6), (x - 0.62, 1.85), stroke: 1.4pt + c-text)
-        line((x + 0.33, 2.6), (x + 0.62, 1.85), stroke: 1.4pt + c-text)
-        line((x - 0.16, 1.75), (x - 0.2, 0.45), stroke: 1.6pt + c-text)
-        line((x + 0.16, 1.75), (x + 0.2, 0.45), stroke: 1.6pt + c-text)
-        // price tag
-        line((x + 0.62, 1.85), (2.0, 1.85), stroke: 0.5pt + c-label)
-        rect((2.0, 1.55), (3.35, 2.15), fill: c-sel, stroke: none, radius: 0.05)
-        content((2.675, 1.85), text(font: mono-sb, size: 6pt, fill: c-sel-ink)[\$16,000])
-        content((2.675, 1.35), text(size: 5pt, fill: c-label)[Unitree G1, 2024])
-        content((1.75, 0.25), anchor: "north", text(font: mono-m, size: 5.5pt, fill: c-text)[BUY · BREAK · INSTRUMENT])
-      })),
-    )
-  },
-  caption: [#lead[Four things changed.] Integrated actuators are sold from a catalog @robstride2026manual; an arm's plates nest on a few sheets cut on a desk @rose2026forkv9; gradients pass through contact in our physics engine, so far in simulation @ipse2026brief; and a humanoid costs about as much as a used car @unitree2024g1. Schematic, not to scale.],
-) <fig:inflection>
+
 
 *Integrated actuators became a catalog item.* Quasi-direct-drive actuators, with motor, planetary reduction, encoder and driver in one housing, are now sold off the shelf by several Chinese vendors. RobStride's range includes the RS00, RS02, RS04 and RS06, each with a published manual, outline drawing and CAN interface @robstride2026manual. Our arm uses six of them. Retail prices for the family run roughly \$70–170 for the small units and more for the large ones (our estimate from retail listings, not a quote). The design idea does not depend on RobStride, but the v9 drawings do: motor mounts, bolt patterns and screw lengths are taken from RobStride's manual drawings @rose2026forkv9, so another vendor's motor means new drawings. What matters is that a 120 N·m peak joint (RS04 @robstride2026manual) can be bought with its driver attached.
 
+#colfig(
+  cetz.canvas(length: 1cm, {
+    import cetz.draw: *
+    // exploded actuator, oblique: discs along one axis
+    let parts = (("driver", 0.0, 1.55, c-raised), ("encoder", 1.1, 1.55, c-surface), ("stator", 2.2, 1.9, c-raised), ("rotor", 3.3, 1.9, c-surface), ("planetary", 4.4, 1.7, c-raised), ("output", 5.5, 1.3, c-surface))
+    for (k, (n, x, r, col)) in parts.enumerate() {
+      let c = (x, 1.9)
+      // a disc seen edge-on at an angle: ellipse
+      circle(c, radius: (0.45 * r, r), fill: col, stroke: 0.7pt + c-label)
+      if n == "stator" { for a in range(12) { let t = a * 30deg; circle((x + 0.45 * r * 0.75 * calc.cos(t), 1.9 + r * 0.75 * calc.sin(t)), radius: (0.06, 0.12), fill: c-text, stroke: none) } }
+      if n == "planetary" { for a in range(3) { let t = a * 120deg + 90deg; circle((x + 0.45 * 0.9 * calc.cos(t), 1.9 + 0.9 * calc.sin(t)), radius: (0.12, 0.3), fill: none, stroke: 0.6pt + c-text) } }
+      if n == "output" { circle(c, radius: (0.16, 0.36), fill: c-sel, stroke: none) }
+      content((x, 1.9 - r - 0.2), anchor: "north", text(font: mono-m, size: 5pt, fill: c-label, upper(n)))
+    }
+    line((-0.8, 1.9), (6.4, 1.9), stroke: (paint: c-info.transparentize(50%), thickness: 0.4pt, dash: "dashed"))
+    content((6.6, 1.9), anchor: "west", text(font: mono-m, size: 5.5pt, fill: c-text)[CAN · 48 V])
+  }),
+  caption: [#lead[An actuator, from a catalog.] Motor, planetary reduction, encoder and driver in one housing, exploded. Schematic.],
+) <fig:actuator>
+
 *Flat-sheet fabrication fits on a desk.* Every structural plate of the v9 arm except the 1/4" foot is cut from 1/8" (3.175 mm) 5052 aluminum. The parts nest on three 15 × 15 inch sheets and one 12 × 12 inch sheet, and they are laid out for a 390 mm desktop router bed @rose2026forkv9. The same files go to SendCutSend or to a local supplier without change. A machine that can be built from flat sheet, standard extrusion and purchased actuators can, in principle, be built by another such machine. That is the premise of Pair.
+
+#colfig(
+  cetz.canvas(length: 1cm, {
+    import cetz.draw: *
+    let S = 6.0
+    rect((0, 0), (S, S), fill: c-surface, stroke: 0.7pt + c-line-hi)
+    // link plates: long rounded bars with bearing bores and bolt circles
+    let link(x0, y0, x1, y1, w) = {
+      let dx = x1 - x0
+      let dy = y1 - y0
+      let L = calc.sqrt(dx * dx + dy * dy)
+      let nx = -dy / L * w / 2
+      let ny = dx / L * w / 2
+      line((x0 + nx, y0 + ny), (x1 + nx, y1 + ny), stroke: 0.6pt + c-text)
+      line((x0 - nx, y0 - ny), (x1 - nx, y1 - ny), stroke: 0.6pt + c-text)
+      arc((x1 + nx, y1 + ny), start: calc.atan2(nx, ny), delta: -180deg, radius: w / 2, stroke: 0.6pt + c-text)
+      arc((x0 - nx, y0 - ny), start: calc.atan2(-nx, -ny), delta: -180deg, radius: w / 2, stroke: 0.6pt + c-text)
+      for q in ((x0, y0), (x1, y1)) {
+        circle(q, radius: w * 0.22, fill: c-bg, stroke: 0.5pt + c-text)
+        for a in range(6) { let t = a * 60deg; circle((q.at(0) + w * 0.34 * calc.cos(t), q.at(1) + w * 0.34 * calc.sin(t)), radius: 0.03, fill: c-text, stroke: none) }
+      }
+    }
+    link(0.9, 0.9, 5.1, 0.9, 1.1)
+    link(0.9, 2.3, 5.1, 2.3, 1.1)
+    link(0.9, 3.7, 3.6, 3.7, 0.9)
+    link(0.9, 4.95, 3.6, 4.95, 0.9)
+    link(4.6, 3.5, 4.6, 5.3, 0.8)
+    // a kerf path being cut
+    line((0.35, 0.35), (0.35, 5.65), stroke: (paint: c-sel, thickness: 0.9pt, dash: "dotted"))
+    circle((0.35, 4.4), radius: 0.09, fill: c-sel, stroke: none)
+    line((0, -0.35), (S, -0.35), stroke: 0.5pt + c-info, mark: (start: "straight", end: "straight", size: 0.1))
+    content((S / 2, -0.45), anchor: "north", text(font: mono-m, size: 5.5pt, fill: c-info)[15 IN · 1/8" 5052])
+  }),
+  caption: [#lead[Plate, cut on a desk.] Fork plates nested on one sheet, with bearing bores and bolt circles; the router's path in orange. Schematic.],
+) <fig:plate>
 
 *We can now take gradients through contact.* Our physics engine, phyz, computes exact gradients of a simulated motion with respect to physical parameters such as mass and inertia. That includes contact, the hard case and the one that matters for anything with feet or fingers: its contact adjoint differentiates the same physics the forward pass runs @ipse2026brief. In simulation, on synthetic motion, it has recovered five of a K1 humanoid's inertial parameters from ±20% error to machine precision (sphere feet; @sec:schema). Domain randomization @tobin2017domain, the usual alternative, can make a policy robust to a gap. It cannot take the gap's gradient.
 
+#colfig(
+  cetz.canvas(length: 1cm, {
+    import cetz.draw: *
+    // a loss landscape over two parameters, and descent to the true value
+    let c = (4.2, 2.1)
+    for (k, r) in (0.35, 0.8, 1.3, 1.85, 2.45, 3.1).enumerate() {
+      circle(c, radius: (r * 1.35, r * 0.62), fill: none, stroke: (paint: c-info.transparentize(20% + k * 12%), thickness: 0.55pt))
+    }
+    let path = ((0.4, 3.6), (1.6, 3.15), (2.6, 2.75), (3.3, 2.45), (3.8, 2.25), (4.05, 2.15), (4.2, 2.1))
+    line(..path, stroke: 1pt + c-sel)
+    for (k, q) in path.enumerate() { circle(q, radius: if k == 0 { 0.09 } else { 0.05 }, fill: if k == 0 { c-text } else { c-sel }, stroke: none) }
+    content((0.4, 3.78), anchor: "south-west", text(font: mono-m, size: 5.5pt, fill: c-text)[START · ±20%])
+    content((c.at(0) + 0.15, c.at(1) - 0.12), anchor: "north-west", text(font: mono-m, size: 5.5pt, fill: c-sel)[TRUE MASS])
+    // the foot and the contact that makes it hard
+    rect((7.6, 0.5), (8.6, 0.72), fill: c-text, stroke: none)
+    line((7.2, 0.5), (9.0, 0.5), stroke: 0.7pt + c-label)
+    for k in range(7) { line((7.25 + k * 0.25, 0.5), (7.1 + k * 0.25, 0.32), stroke: 0.4pt + c-label) }
+    line((8.1, 0.72), (8.1, 1.6), stroke: 1.4pt + c-text)
+    line((8.1, 0.5), (8.1, 1.25), stroke: 0.9pt + c-info, mark: (end: "straight", size: 0.1))
+    content((8.25, 1.2), anchor: "west", text(font: mono-m, size: 5.5pt, fill: c-info)[∂F/∂θ])
+    content((8.1, 0.2), anchor: "north", text(font: mono-m, size: 5pt, fill: c-label)[CONTACT])
+  }),
+  caption: [#lead[Gradients through contact.] Descent on two inertial parameters, from ±20% error to the true value, with the gradient passing through the foot's contact. In simulation only.],
+) <fig:gradient>
+
 *Humanoids reached the price of a used car.* Unitree announced its G1 at \$16,000 in 2024 @unitree2024g1. We bought a Booster K1 (95 cm, 19.5 kg, 22 degrees of freedom, force-controlled joints) as the reference body for our mind research @booster2025k1. A humanoid that a small company can buy, break, and instrument changes who can do the research.
+
+#colfig(
+  cetz.canvas(length: 1cm, {
+    import cetz.draw: *
+    // a humanoid with a height mark, a price tag, and the tools that make it ours
+    let x = 1.6
+    circle((x, 3.35), radius: 0.28, fill: c-surface, stroke: 0.8pt + c-text)
+    rect((x - 0.42, 1.95), (x + 0.42, 3.0), fill: c-surface, stroke: 0.8pt + c-text, radius: 0.08)
+    line((x - 0.42, 2.9), (x - 0.75, 2.0), (x - 0.6, 1.5), stroke: 1.6pt + c-text)
+    line((x + 0.42, 2.9), (x + 0.75, 2.0), (x + 0.6, 1.5), stroke: 1.6pt + c-text)
+    line((x - 0.2, 1.95), (x - 0.25, 1.0), (x - 0.3, 0.1), stroke: 1.8pt + c-text)
+    line((x + 0.2, 1.95), (x + 0.25, 1.0), (x + 0.3, 0.1), stroke: 1.8pt + c-text)
+    // height
+    line((0.4, 0.1), (0.4, 3.63), stroke: 0.5pt + c-info, mark: (start: "straight", end: "straight", size: 0.1))
+    content((0.25, 1.85), anchor: "east", text(font: mono-m, size: 5.5pt, fill: c-info)[95 CM])
+    // price tag
+    line((x + 0.6, 1.5), (3.3, 1.5), stroke: 0.5pt + c-label)
+    rect((3.3, 1.2), (4.9, 1.8), fill: c-sel, stroke: none, radius: 0.06)
+    content((4.1, 1.5), text(font: mono-sb, size: 6.5pt, fill: c-sel-ink)[\$16,000])
+    content((4.1, 1.0), text(size: 5pt, fill: c-label)[Unitree G1, 2024])
+    // buy, break, instrument
+    let tags = ((5.8, "BUY"), (7.0, "BREAK"), (8.3, "INSTRUMENT"))
+    for (k, (tx, t)) in tags.enumerate() {
+      circle((tx, 2.9), radius: 0.32, fill: none, stroke: 0.7pt + c-line-hi)
+      content((tx, 2.35), anchor: "north", text(font: mono-m, size: 5pt, fill: c-label, t))
+    }
+    content((5.8, 2.9), text(font: mono-m, size: 7pt, fill: c-text)[\$])
+    line((6.85, 2.75), (7.15, 3.05), stroke: 0.9pt + c-text)
+    line((6.85, 3.05), (7.15, 2.75), stroke: 0.9pt + c-text)
+    line((8.1, 2.8), (8.3, 3.0), (8.45, 2.85), (8.55, 3.05), stroke: 0.9pt + c-info)
+  }),
+  caption: [#lead[A humanoid, for a car's price.] A body a small company can buy, break and instrument.],
+) <fig:humanoid>
 
 The result is that one person can now write every layer between a parameter in a source file and a measured joint torque. Ten years ago that took a company the size of a robot OEM. The specification is written to be carried by more hands than one, and everything in it that can be open is open.
 
