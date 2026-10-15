@@ -82,7 +82,9 @@
 #set page(
   paper: "us-letter",
   fill: c-bg,
-  margin: (x: 1.85in, top: 0.8in, bottom: 0.75in),
+  margin: (x: 1.85in, top: 1.1in, bottom: 1.05in),
+  header-ascent: 0.45in,
+  footer-descent: 0.45in,
   columns: 1,
   numbering: "1",
   header: context {
@@ -225,7 +227,7 @@
 ]
 
 // Abstract (single column)
-#page(columns: 1, margin: (x: 0.75in, top: 0.8in, bottom: 0.75in))[
+#page(columns: 1, margin: (x: 0.75in, top: 1.1in, bottom: 1.05in))[
   #block(width: 4.9in)[
   #heading(outlined: false, numbering: none)[Abstract]
   #set text(size: 10pt)
@@ -258,7 +260,7 @@
 
 
 // Table of contents (single column)
-#page(columns: 1, margin: (x: 0.75in, top: 0.8in, bottom: 0.75in))[
+#page(columns: 1, margin: (x: 0.75in, top: 1.1in, bottom: 1.05in))[
   #set text(font: sans, weight: 400, size: 9pt, number-width: "tabular")
   #set par(leading: 0.6em, justify: false)
   #set outline.entry(fill: none)
