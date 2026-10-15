@@ -21,6 +21,8 @@
   font-family: var(--p-sans);
   min-height: 100vh;
   color-scheme: dark;
+  /* full-bleed art is sized to 100vw, which includes the scrollbar; clip the overhang */
+  overflow-x: clip;
 }
 
 /* the site's global sheet sets mono and display faces on bare elements; the post uses Plex throughout */
@@ -136,7 +138,7 @@
 .post .part h2 { margin: 0.4rem 0 0.6rem; font-size: clamp(2.2rem, 6vw, 3.2rem); letter-spacing: -0.02em; }
 .post .part-lede { color: var(--p-label); font-size: 1.15rem; }
 .post .part-art { margin: auto calc(50% - 50vw) 0; padding-top: 2rem; overflow: hidden; }
-.post .part-art svg { display: block; width: 100%; height: auto; }
+.post .part-art > svg { display: block; width: 100% !important; height: auto !important; }
 
 /* the intro letter gets a page of its own */
 .post #part-i + h2 { margin-top: 0; padding-top: 22svh; }
