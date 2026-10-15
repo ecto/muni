@@ -786,7 +786,9 @@ The result is that one person can now write every layer between a parameter in a
 
 = War <sec:war>
 
-There has not been a year without war in our lifetimes. The longest-running count of armed conflict, kept since 1946, has never recorded a year with none @gleditsch2002armed. #text(fill: c-warn)[[TODO: the events of 2026, the Epstein files and Iran, in your words: what they showed you about who decides, and who pays.]]
+There has not been a year without war in our lifetimes. The longest-running count of armed conflict, kept since 1946, has never recorded a year with none @gleditsch2002armed.
+
+This year made it plain. On February 28 the United States and Israel went to war with Iran. A conditional ceasefire came in April, but in October a blockade still holds, tankers are still struck in the Strait of Hormuz, and oil trades above \$100 a barrel @britannica2026iran @globalsecurity2026iran. That winter the Justice Department released some three million pages of the Epstein files, weeks after the law's deadline, and survivors' lawyers said the release exposed the names of the very people it was meant to protect @cbs2026epstein @ohchr2026epstein. Both showed the same thing. A few people decide, and the people who pay are rarely in the room.
 
 Many wars are fought over what is scarce: land, water, fuel, minerals, and the labor to work them. A machine that builds the next machine attacks scarcity at its root. So does power collected rather than taken. A world where machines make machines, on energy no one has to seize, has less to fight over.
 
