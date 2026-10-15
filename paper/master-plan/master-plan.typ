@@ -84,15 +84,15 @@
   numbering: "1",
   header: context {
     if counter(page).get().first() > 1 {
-      grid(columns: (1fr, auto), caps[Robots that build robots], caps[Municipal Robotics])
+      pad(x: -1.15in, grid(columns: (1fr, auto), caps[Robots that build robots], caps[Municipal Robotics]))
     }
   },
   footer: context {
     if counter(page).get().first() > 1 {
-      grid(columns: (1fr, auto, 1fr),
+      pad(x: -1.15in, grid(columns: (1fr, auto, 1fr),
         caps[Rev 1.0 · October 2026],
         text(font: mono-m, size: s-xs, fill: c-label, number-width: "tabular")[#{ let n = counter(page).get().first(); if n < 10 { "0" + str(n) } else { str(n) } } / #counter(page).final().first()],
-        align(right, caps[Whitepaper]))
+        align(right, caps[Whitepaper])))
     }
   },
 )
@@ -106,13 +106,14 @@
 #show heading: set text(weight: "regular", fill: c-text)
 #let numlabel(it) = text(font: mono-m, size: s-xs, fill: c-label, tracking: track, { if it.numbering == "A.1" and it.level == 1 { upper("Appendix ") }; counter(heading).display(it.numbering) })
 #show heading.where(level: 1): it => block(above: 2.2em, below: 1.1em, sticky: true, width: 100%, {
-  if it.numbering != none { numlabel(it); v(-0.35em) }
+  if it.numbering != none { place(left, dx: -1.15in, dy: 0.32em, box(width: 1.0in, align(right, numlabel(it)))) }
   text(font: sans-sb, size: s-lg, tracking: -0.01em, it.body)
 })
 #show heading.where(level: 2): it => block(above: 1.65em, below: 0.55em, inset: (bottom: 0.3em), sticky: true, {
   if it.numbering == none { return text(font: sans-m, size: s-md, it.body) }
   set par(justify: false)
-  grid(columns: (2.9em, 1fr), align: (left + top, left), pad(top: 0.3em, numlabel(it)), text(font: sans-m, size: s-md, it.body))
+  place(left, dx: -1.15in, dy: 0.22em, box(width: 1.0in, align(right, numlabel(it))))
+  text(font: sans-m, size: s-md, it.body)
 })
 #show heading.where(level: 3): it => block(above: 1.65em, below: 0.55em, inset: (bottom: 0.3em), sticky: true, text(font: sans-sb, size: body-size, it.body))
 #show raw: set text(font: mono, size: 1em)
