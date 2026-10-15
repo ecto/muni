@@ -43,12 +43,12 @@
 // so mono matches sans x-height at the same point size: ratio 1:1.
 #let s-xs = 6.5pt
 #let s-sm = 7.5pt
-#let body-size = 9pt
+#let body-size = 10pt
 // body weight: "400" Regular, "450" Plex Sans Text, "300" Light (override: --input body=300)
 #let body-variant = sys.inputs.at("body", default: "400")
 #let body-font = if body-variant == "450" { ("IBM Plex Sans Text", "IBM Plex Sans") } else { sans }
 #let body-weight = int(body-variant)
-#let s-md = 10.5pt
+#let s-md = 11.5pt
 #let s-lg = 13pt
 #let s-xl = 16pt
 #let s-display = 44pt
@@ -79,8 +79,8 @@
 #set page(
   paper: "us-letter",
   fill: c-bg,
-  margin: (x: 0.55in, top: 0.75in, bottom: 0.72in),
-  columns: 2,
+  margin: (x: 1.25in, top: 0.8in, bottom: 0.75in),
+  columns: 1,
   numbering: "1",
   header: context {
     if counter(page).get().first() > 1 {
@@ -225,11 +225,11 @@
 ]
 
 // Abstract (single column)
-#page(columns: 1)[
+#page(columns: 1, margin: (x: 0.75in, top: 0.8in, bottom: 0.75in))[
   #block(width: 4.9in)[
   #heading(outlined: false, numbering: none)[Abstract]
-  #set text(size: s-md)
-  #set par(leading: 0.86em, spacing: 1.4em)
+  #set text(size: 10pt)
+  #set par(leading: 0.8em, spacing: 1.25em)
 
   This is a specification for how humanity gets to space: not by one heroic launch, but by machines that make the next machine, each one measured, until the bought fraction falls to zero and a seed of them can go where no supply chain reaches. It starts on a sidewalk in Ohio.
 
@@ -258,8 +258,8 @@
 
 
 // Table of contents (single column)
-#page(columns: 1)[
-  #set text(font: sans, weight: 400, size: body-size, number-width: "tabular")
+#page(columns: 1, margin: (x: 0.75in, top: 0.8in, bottom: 0.75in))[
+  #set text(font: sans, weight: 400, size: 9pt, number-width: "tabular")
   #set par(leading: 0.6em, justify: false)
   #set outline.entry(fill: none)
   #show outline.entry: it => { let l1 = it.level == 1; block(above: if l1 {1.0em} else {0.55em}, below: 0em, link(it.element.location(), { h(if l1 {0em} else {2.6em}); box(width: 2.6em, text(font: mono-m, size: s-xs, fill: c-label, tracking: track, if it.prefix() != none { it.prefix() })); text(font: if l1 {sans-m} else {sans}, fill: if l1 {c-text} else {c-label}, it.body()); h(1fr); text(font: mono, size: s-sm, fill: c-label, it.page()) })) }
@@ -1042,7 +1042,7 @@ The cell design is the one life ran. A bench is a cell: its bays are organelles,
 - *Apoptosis.* A bay that fails its receipts is to be decommissioned and stripped by the tenders, with its parts returned to stock. Without this, a hall fills up with broken bays.
 
 #colfig(
-  image("images-native/seed_iso.png", width: 100%),
+  image("images-native/seed_iso.png", width: 70%),
   caption: [#lead[Seed concept] (modeled). bench, design store, bought parts, collector and battery, hopper and sinter station, and a second bench frame under construction @mr2026cells. The bench shown is an earlier 1500 × 1000 × 1000 mm concept, not the first bench of @fig:bench.],
 ) <fig:seed>
 
@@ -1053,7 +1053,7 @@ The cell design is the one life ran. A bench is a cell: its bays are organelles,
 One arm does three jobs: it is sold as a table arm, it is the tender's hands in every cell, and it is a limb for the rose humanoid. Its design idea is that *every pitch joint is a fork* @rose2026forkv9. The parent link holds the motor's stator between its two side plates. The child straddles the parent, with one plate bolted to the output and the other riding a plain bearing on a hollow sleeve on the joint axis. Parent and child share one centerline, so no joint is offset and there is no offset elbow to twist the arm. Cables pass through the hollow sleeves, so they only twist and never loop outside the arm. The name comes from where the design lives. rose fork v9 is the ninth revision of the fork concept, drawn in the rose humanoid repository as a table arm that is also rose's arm @rose2026forkv9. In this paper "the arm" means this design, and "rose" on its own means the humanoid line (@tab:stack), whose \$15,000 target assumes rana (step 2).
 
 #colfig(
-  image("images-dark/fork-v9-lines.png", width: 100%),
+  image("images-dark/fork-v9-lines.png", width: 60%),
   caption: [#lead[The arm, rose fork v9.] six joints, every plate 1/8" 5052 except the 1/4" foot, every motor mounted by its back face. Render from the arm repository @rose2026forkv9.],
 ) <fig:arm>
 
