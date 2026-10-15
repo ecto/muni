@@ -525,71 +525,9 @@
   text(font: mono-m, size: s-xs, fill: c-label, tracking: track)[CLEVELAND · OCTOBER 2026]
 })
 
-#colfig(
-  cetz.canvas(length: 1cm, {
-    import cetz.draw: *
-    // timeline
-    let y = 0
-    line((0, y), (8.2, y), stroke: 0.7pt + c-line-hi, mark: (end: "straight", size: 0.14))
-    let ev = ((0.3, "DEC 2025", "bvr0 drives"), (2.5, "2026", "the stack grows"), (4.7, "2026", "K1 bought"), (6.9, "OCT 2026", "this plan"))
-    for (x, d, t) in ev {
-      circle((x, y), radius: 0.07, fill: c-text, stroke: none)
-      content((x, y - 0.18), anchor: "north", text(font: mono-m, size: 5.5pt, fill: c-label, d))
-      content((x, y - 0.48), anchor: "north", text(size: s-xs, fill: c-text, t))
-    }
-    // one stack fanning out
-    let sx = 0.3
-    rect((sx - 0.25, 1.0), (sx + 1.75, 3.6), fill: c-surface, stroke: 0.6pt + c-line-hi)
-    let layers = ("loon", "vcad", "phyz", "kerf")
-    for (i, l) in layers.enumerate() {
-      rect((sx - 0.1, 1.15 + i * 0.6), (sx + 1.6, 1.6 + i * 0.6), fill: c-raised, stroke: none)
-      content((sx + 0.75, 1.375 + i * 0.6), text(font: mono-m, size: s-xs, fill: c-text, l))
-    }
-    content((sx + 0.75, 3.75), anchor: "south", text(font: mono-m, size: 5.5pt, fill: c-label)[ONE STACK])
-    let outs = ((3.25, "rover", "retired", c-label), (2.3, "humanoid", "rose, K1", c-text), (1.35, "pair", "builds limbs", c-text))
-    let x = 5.6
-    for (ty, n, w, col) in outs {
-      line((sx + 1.75, 2.3), (x - 1.0, ty), stroke: (paint: c-label, thickness: 0.6pt, dash: if n == "rover" { "dotted" } else { none }), mark: (end: "straight", size: 0.12))
-      rect((x - 1.0, ty - 0.38), (x + 1.4, ty + 0.38), fill: if n == "rover" { none } else { c-surface }, stroke: if n == "pair" { 1pt + c-sel } else { 0.6pt + c-line-hi })
-      content((x - 0.85, ty), anchor: "west", text(font: sans-m, size: s-sm, fill: col, n))
-      content((x + 1.3, ty), anchor: "east", text(size: 5.5pt, fill: c-label, w))
-    }
-  }),
-  caption: [#lead[One stack, three bodies.] Tools written to build one rover do not care what they design. Pointed at a humanoid, or at a pair of arms that builds arms, they work the same way.],
-) <fig:story>
 
-== Status
 
-Most of what this paper describes is *proposed*, not operational. @tab:status separates them. Throughout the paper, "modeled" means a number comes from our own CAD, kinematics or load scripts and has not been measured on hardware. "Measured" is reserved for results from our own hardware, and this paper reports none yet. Vendor ratings and public data are cited as sourced.
 
-#figure(
-  table(
-    columns: (auto, auto, 1fr),
-    align: (left + horizon, left + horizon, left + horizon),
-    table.header([*Item*], [*Maturity*], [*Note*]),
-    table.cell(colspan: 3, inset: (top: 9pt, bottom: 3pt, x: 6pt), stroke: none, text(font: mono-m, size: s-xs, fill: c-label, tracking: track)[IN HAND]),
-    [Booster K1], pips(3), [Bought @booster2025k1],
-    [CNC mill], pips(3), [Bought],
-    [Software stack], pips(3), [In use, not finished (@tab:stack)],
-    table.cell(colspan: 3, inset: (top: 9pt, bottom: 3pt, x: 6pt), stroke: none, text(font: mono-m, size: s-xs, fill: c-label, tracking: track)[DESIGNED]),
-    [Limb full (fork v9)], pips(2), [Ready to cut @rose2026forkv9],
-    [Gripper v2], pips(2), [CAD and force model @mr2026gripper],
-    [rana actuator], pips(2), [\$1,086 est. per unit @rana2026bom],
-    [K1 body-schema fit], pips(2, sim: true), [Works in simulation; not on hardware @ipse2026brief],
-    table.cell(colspan: 3, inset: (top: 9pt, bottom: 3pt, x: 6pt), stroke: none, text(font: mono-m, size: s-xs, fill: c-label, tracking: track)[CONCEPT]),
-    [Pair], pips(1), [Mount not designed],
-    [rose mini], pips(1), [Geometry in progress @rose2026line],
-    [Pack, blade, boards], pips(1), [Mockups @mr2026battery @mr2026compute],
-    [Litter reacher], pips(1), [The K1 has not grasped litter],
-    [Lakewood pilot], pips(1), [No agreement],
-    [moth], pips(1), [Not designed],
-    [Actuator dyno], pips(1), [Does not exist],
-    [Seed], pips(1), [Concept only],
-    [Body through Sun], pips(0), [Goals, not claims],
-  ),
-  placement: auto,
-  caption: [#lead[Where everything stands] (October 2026). Pips: concept, designed, built, measured. #box(baseline: 0.1em, box(width: 0.62em, height: 0.62em, radius: 50%, stroke: 0.8pt + c-info)) shown in simulation only. Nothing is yet measured on hardware.],
-) <tab:status>
 
 = Scale <sec:kardashev>
 
@@ -1027,6 +965,39 @@ Each is argued where it is used. They are collected here so that they can be quo
 = Stack <sec:stack>
 
 == One language
+
+#colfig(
+  cetz.canvas(length: 1cm, {
+    import cetz.draw: *
+    // timeline
+    let y = 0
+    line((0, y), (8.2, y), stroke: 0.7pt + c-line-hi, mark: (end: "straight", size: 0.14))
+    let ev = ((0.3, "DEC 2025", "bvr0 drives"), (2.5, "2026", "the stack grows"), (4.7, "2026", "K1 bought"), (6.9, "OCT 2026", "this plan"))
+    for (x, d, t) in ev {
+      circle((x, y), radius: 0.07, fill: c-text, stroke: none)
+      content((x, y - 0.18), anchor: "north", text(font: mono-m, size: 5.5pt, fill: c-label, d))
+      content((x, y - 0.48), anchor: "north", text(size: s-xs, fill: c-text, t))
+    }
+    // one stack fanning out
+    let sx = 0.3
+    rect((sx - 0.25, 1.0), (sx + 1.75, 3.6), fill: c-surface, stroke: 0.6pt + c-line-hi)
+    let layers = ("loon", "vcad", "phyz", "kerf")
+    for (i, l) in layers.enumerate() {
+      rect((sx - 0.1, 1.15 + i * 0.6), (sx + 1.6, 1.6 + i * 0.6), fill: c-raised, stroke: none)
+      content((sx + 0.75, 1.375 + i * 0.6), text(font: mono-m, size: s-xs, fill: c-text, l))
+    }
+    content((sx + 0.75, 3.75), anchor: "south", text(font: mono-m, size: 5.5pt, fill: c-label)[ONE STACK])
+    let outs = ((3.25, "rover", "retired", c-label), (2.3, "humanoid", "rose, K1", c-text), (1.35, "pair", "builds limbs", c-text))
+    let x = 5.6
+    for (ty, n, w, col) in outs {
+      line((sx + 1.75, 2.3), (x - 1.0, ty), stroke: (paint: c-label, thickness: 0.6pt, dash: if n == "rover" { "dotted" } else { none }), mark: (end: "straight", size: 0.12))
+      rect((x - 1.0, ty - 0.38), (x + 1.4, ty + 0.38), fill: if n == "rover" { none } else { c-surface }, stroke: if n == "pair" { 1pt + c-sel } else { 0.6pt + c-line-hi })
+      content((x - 0.85, ty), anchor: "west", text(font: sans-m, size: s-sm, fill: col, n))
+      content((x + 1.3, ty), anchor: "east", text(size: 5.5pt, fill: c-label, w))
+    }
+  }),
+  caption: [#lead[One stack, three bodies.] Tools written to build one rover do not care what they design. Pointed at a humanoid, or at a pair of arms that builds arms, they work the same way.],
+) <fig:story>
 
 The stack is a tree rooted at one language, loon (@tab:stack). Build order runs down the tree, and the gradient runs back up it @pond2026strategy.
 
@@ -1711,6 +1682,39 @@ A lineage that can collect a star's light would be the most powerful thing anyon
 #part("IV", "Well,", art: art-well())[What we do not know, what could prove us wrong, and what happens next.]
 
 = Unknowns <sec:limits>
+
+== Today
+
+Most of what this paper describes is *proposed*, not operational. @tab:status separates them. Throughout the paper, "modeled" means a number comes from our own CAD, kinematics or load scripts and has not been measured on hardware. "Measured" is reserved for results from our own hardware, and this paper reports none yet. Vendor ratings and public data are cited as sourced.
+
+#figure(
+  table(
+    columns: (auto, auto, 1fr),
+    align: (left + horizon, left + horizon, left + horizon),
+    table.header([*Item*], [*Maturity*], [*Note*]),
+    table.cell(colspan: 3, inset: (top: 9pt, bottom: 3pt, x: 6pt), stroke: none, text(font: mono-m, size: s-xs, fill: c-label, tracking: track)[IN HAND]),
+    [Booster K1], pips(3), [Bought @booster2025k1],
+    [CNC mill], pips(3), [Bought],
+    [Software stack], pips(3), [In use, not finished (@tab:stack)],
+    table.cell(colspan: 3, inset: (top: 9pt, bottom: 3pt, x: 6pt), stroke: none, text(font: mono-m, size: s-xs, fill: c-label, tracking: track)[DESIGNED]),
+    [Limb full (fork v9)], pips(2), [Ready to cut @rose2026forkv9],
+    [Gripper v2], pips(2), [CAD and force model @mr2026gripper],
+    [rana actuator], pips(2), [\$1,086 est. per unit @rana2026bom],
+    [K1 body-schema fit], pips(2, sim: true), [Works in simulation; not on hardware @ipse2026brief],
+    table.cell(colspan: 3, inset: (top: 9pt, bottom: 3pt, x: 6pt), stroke: none, text(font: mono-m, size: s-xs, fill: c-label, tracking: track)[CONCEPT]),
+    [Pair], pips(1), [Mount not designed],
+    [rose mini], pips(1), [Geometry in progress @rose2026line],
+    [Pack, blade, boards], pips(1), [Mockups @mr2026battery @mr2026compute],
+    [Litter reacher], pips(1), [The K1 has not grasped litter],
+    [Lakewood pilot], pips(1), [No agreement],
+    [moth], pips(1), [Not designed],
+    [Actuator dyno], pips(1), [Does not exist],
+    [Seed], pips(1), [Concept only],
+    [Body through Sun], pips(0), [Goals, not claims],
+  ),
+  placement: auto,
+  caption: [#lead[Where everything stands] (October 2026). Pips: concept, designed, built, measured. #box(baseline: 0.1em, box(width: 0.62em, height: 0.62em, radius: 50%, stroke: 0.8pt + c-info)) shown in simulation only. Nothing is yet measured on hardware.],
+) <tab:status>
 
 == Claims
 
