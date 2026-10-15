@@ -1404,48 +1404,102 @@ Every body runs on one unregulated DC bus of *36–60 V*. Every load must accept
 Beside the power runs one management bus, CAN-FD, for presence, power control and telemetry. Bulk data (cameras, logs, the twin) travels over Ethernet. There is no separate hardwired e-stop loop, and other humanoids do not carry one either. Pulling a pack is the hard stop: its connector's last-mating pin is the power enable.
 
 == Pack
-#figure(
-  diagram(
-    node-stroke: n-stroke,
-    edge-corner-radius: none,
-    edge-stroke: 0.7pt + c-label,
-    spacing: (14mm, 7mm),
-    node((1.5, 0), [*loon*], shape: sqnode, fill: n-fill, name: <loon>),
-    node((0.5, 0), [*tang*], shape: sqnode, fill: n-fill, name: <tang>),
-    node((0.5, 1), [vcad], shape: sqnode, fill: n-fill, name: <vcad>),
-    node((2.5, 1), [loom], shape: sqnode, fill: n-fill, name: <hdl>),
-    node((0, 2), [wodl / kosm], shape: sqnode, fill: n-fill, name: <wodl>),
-    node((1, 2), [phyz], shape: sqnode, fill: n-fill, name: <phyz>),
-    node((0, 3), [iris], shape: sqnode, fill: n-fill, name: <iris>),
-    node((2.5, 2), [rune], shape: sqnode, fill: n-fill, name: <rune>),
-    node((1, 3), [kerf], shape: sqnode, fill: n-fill, name: <kerf>),
-    node((2.5, 3), [chyp], shape: sqnode, fill: n-fill, name: <chyp>),
-    node((0, 4), [rana · torc], shape: sqnode, fill: n-fill, name: <rana>),
-    node((1, 4), [arm · rose · K1], shape: sqnode, fill: n-fill, name: <body>),
-    node((2.5, 4), [ipse], shape: sqnode, fill: n-fill, name: <ipse>),
-    edge(<loon>, (1.5, 1), <vcad>, "-|>"),
-    edge(<tang>, (1, 0), <phyz>, "-|>"),
-    edge(<loon>, (2.5, 0), <hdl>, "-|>"),
-    edge(<vcad>, (0, 1), <wodl>, "-|>"),
-    edge(<wodl>, <phyz>, "-|>"),
-    edge(<wodl>, <iris>, "-|>"),
-    edge(<hdl>, <rune>, "-|>"),
-    edge(<phyz>, <kerf>, "-|>"),
-    edge(<rune>, <chyp>, "-|>"),
-    edge(<kerf>, (1, 3.5), (0, 3.5), <rana>, "-|>"),
-    edge(<kerf>, <body>, "-|>"),
-    edge(<rana>, <body>, "-|>"),
-    edge(<chyp>, <ipse>, "-|>"),
-    edge(<ipse>, <body>, "<|-|>"),
-    edge(<body>, (1.6, 4), (1.6, 2), <phyz>, "--|>", stroke: 1.2pt + c-sel),
-    edge(<phyz>, (1.6, 2), (1.6, 1.4), (0.7, 1.4), (0.7, 1), <vcad>, "--|>", stroke: 1.2pt + c-sel),
-    edge(<vcad>, (0.5, 0.6), (1.9, 0.6), (1.9, 0), <loon>, "--|>", stroke: 1.2pt + c-sel),
-    node((1.95, 3), text(size: s-sm, fill: c-text)[gradient\ (measured\ body → θ)], stroke: none),
-  ),
-  caption: [#lead[The stack as a tree.] Solid edges are build order, not code dependencies. The dashed edge is the gradient returning from a measured body, through phyz and vcad, to the source parameters.],
-) <fig:tree>
 
 There is one battery: a 13S2P pack of Molicel P50B 21700 cells, *468 Wh* and about *2.65 kg* (estimate) @mr2026battery @molicel2023p50b. The same pack goes in a body, a pair, a charging dock, the rack's UPS and the seed. A humanoid carries two of them (A and B, 936 Wh), one in each flank of the torso, and swaps them itself. Its hand draws pack A sideways onto a passive dock rail while pack B keeps the robot powered, then pushes a fresh pack home. The dock is rails, pads and a charger, with no actuators. A swap takes about a minute and leaves the robot powered, so runtime is set by dock capacity, not by the pack.
+
+#figure(
+  cetz.canvas(length: 1cm, {
+    import cetz.draw: *
+    let amber = fam.power.color
+    let k = 0.55 // depth seen from slightly above: a horizontal circle draws as an ellipse k high
+    let P(x, y, z) = (x, z + k * y)
+    // a box seen front and top
+    let bx(x0, x1, y0, y1, z0, z1, fill: c-surface, stroke: 0.7pt + c-line-hi) = {
+      rect(P(x0, y0, z0), P(x1, y0, z1), fill: fill, stroke: stroke)
+      line(P(x0, y0, z1), P(x0, y1, z1), P(x1, y1, z1), P(x1, y0, z1), fill: fill, stroke: stroke, close: true)
+    }
+    // one upright 21700 cell
+    let r = 0.3
+    let cell(x, y, z0, z1, col) = {
+      let (cx, b) = P(x, y, z0)
+      let (_, t) = P(x, y, z1)
+      rect((cx - r, b), (cx + r, t), fill: c-raised, stroke: none)
+      line((cx - r, b), (cx - r, t), stroke: 0.6pt + col.transparentize(30%))
+      line((cx + r, b), (cx + r, t), stroke: 0.6pt + col.transparentize(30%))
+      arc((cx + r, b), start: 0deg, stop: -180deg, radius: (r, r * k), stroke: 0.6pt + col.transparentize(30%))
+      circle((cx, t), radius: (r, r * k), fill: c-surface, stroke: 0.7pt + col)
+      circle((cx, t), radius: (r * 0.42, r * k * 0.42), fill: col.transparentize(55%), stroke: none)
+    }
+    // 13 positions in a 4-5-4 nest: one cell of each series group per tier
+    let pitch = 0.68
+    let rows = ((1.2, (-1.5, -0.5, 0.5, 1.5)), (0.6, (-2, -1, 0, 1, 2)), (0, (-1.5, -0.5, 0.5, 1.5)))
+    let tier(z0, z1) = for (y, xs) in rows { for x in xs { cell(x * pitch, y, z0, z1, amber) } }
+    let (xa, xb, ya, yb) = (-1.8, 1.8, -0.4, 1.6)
+    // exploded, bottom to top
+    bx(xa, xb, ya, yb, 0, 0.22)
+    tier(0.75, 2.45)
+    tier(3.5, 5.2)
+    bx(xa + 0.1, xb - 0.1, ya + 0.1, yb - 0.1, 6.15, 6.22, fill: amber.transparentize(70%), stroke: 0.6pt + amber)
+    bx(xa + 0.15, xb - 0.15, ya + 0.15, yb - 0.15, 7.35, 7.48, fill: c-surface, stroke: 0.7pt + c-info)
+    for (cx, cy) in ((-0.8, 0.5), (0.2, 0.8), (0.9, 0.3)) { bx(cx - 0.18, cx + 0.18, cy - 0.12, cy + 0.12, 7.48, 7.54, fill: c-info.transparentize(60%), stroke: none) }
+    bx(xa, xb, ya, yb, 8.75, 9.05)
+    bx(-0.75, 0.75, 0.15, 0.95, 9.05, 9.5, fill: c-raised, stroke: 0.7pt + c-text)
+    for x in (-0.38, 0.38) { rect(P(x - 0.16, 0.15, 9.13), P(x + 0.16, 0.15, 9.42), fill: c-sel, stroke: none) }
+    for x in (-0.6, -0.5, 0.5, 0.6) { rect(P(x - 0.03, 0.15, 9.2), P(x + 0.03, 0.15, 9.35), fill: c-text, stroke: none) }
+    // labels, right of the stack
+    let lx = 2.6
+    let lab(z, head, body) = {
+      line(P(xb + 0.05, 0.6, z), (lx - 0.1, z + 0.33), stroke: 0.4pt + c-line-hi)
+      content((lx, z + 0.33), anchor: "west", {
+        text(font: mono-m, size: 5pt, fill: c-label, tracking: track, upper(head)); h(0.6em)
+        text(font: sans, size: 6pt, fill: c-text, body)
+      })
+    }
+    lab(9.6, [Connector], [Anderson SBS 75X: 2 power, 4 mate-last])
+    lab(8.95, [Lid], [the only face that mates])
+    lab(7.9, [BMS], [protects, talks CAN, logs EUM])
+    lab(6.6, [Busbars], [join each cell to its twin])
+    lab(4.6, [13 cells], [one from each series group])
+    lab(1.85, [13 more], [their parallel twins: 13S2P])
+    lab(0.25, [Tray], [])
+    content((0, -0.55), anchor: "north", text(font: mono-m, size: 5.5pt, fill: amber, tracking: track, upper[26 × P50B · 468 Wh · ≈ 2.65 kg]))
+
+    // the swap: a torso, front view, schematic
+    let ox = 11.6
+    let (tw, th) = (3.0, 4.6)
+    let ty = 2.2
+    line((ox - tw / 2, ty + th), (ox + tw / 2, ty + th), (ox + tw / 2 - 0.3, ty), (ox - tw / 2 + 0.3, ty), close: true, fill: c-surface, stroke: 0.8pt + fam.body.color)
+    rect((ox - 0.55, ty + 0.9), (ox + 0.55, ty + 3.9), fill: c-raised, stroke: 0.6pt + c-line-hi)
+    content((ox, ty + 2.4), text(font: mono-m, size: 5pt, fill: c-label, tracking: track, upper[core\ bay]))
+    // pack B home
+    rect((ox + 0.75, ty + 1.0), (ox + 1.25, ty + 3.8), fill: amber.transparentize(25%), stroke: 0.7pt + amber)
+    content((ox + 1.0, ty + 2.4), text(font: sans-sb, size: 7pt, fill: c-sel-ink, "B"))
+    // pack A, drawn out onto the dock rail
+    let ax = ox - tw / 2 - 1.9
+    rect((ox - 1.25, ty + 1.0), (ox - 0.75, ty + 3.8), fill: none, stroke: (paint: amber, thickness: 0.6pt, dash: (2pt, 2pt)))
+    rect((ax - 0.25, ty + 1.0), (ax + 0.25, ty + 3.8), fill: amber.transparentize(25%), stroke: 0.7pt + amber)
+    content((ax, ty + 2.4), text(font: sans-sb, size: 7pt, fill: c-sel-ink, "A"))
+    line((ax - 0.9, ty + 0.85), (ox - tw / 2 + 0.15, ty + 0.85), stroke: 1.4pt + c-line-hi)
+    for x in (ax - 0.75, ax + 0.35) { line((x, ty + 0.85), (x, ty + 0.2), stroke: 1pt + c-line-hi) }
+    bezier((ox - 1.0, ty + 4.15), (ax + 0.1, ty + 4.15), (ox - 1.2, ty + 5.0), (ax + 0.2, ty + 5.0), stroke: 1pt + c-sel, mark: (end: ">", fill: c-sel, size: 0.16))
+    content((ox - 1.9, ty + 5.25), anchor: "south", text(font: mono-m, size: 5pt, fill: c-label, tracking: track, upper[The hand slides A out]))
+    content((ax, ty + 0.1), anchor: "north", text(font: mono-m, size: 5pt, fill: c-label, tracking: track, upper[dock rail]))
+    content((ox + 1.95, ty + 2.4), anchor: "west", text(font: mono-m, size: 5pt, fill: c-label, tracking: track, upper[B keeps\ it powered]))
+    content((ox - 1.1, -0.55), anchor: "north", text(font: mono-m, size: 5.5pt, fill: amber, tracking: track, upper[two packs · 936 Wh · a swap in ≈ 1 min]))
+
+    // the voltage window, under both
+    let (v0, v1, W, vx, vy) = (34, 62, 14.4, 0.6, -1.6)
+    let V(v) = vx + (v - v0) / (v1 - v0) * W
+    rect((V(36), vy - 0.22), (V(60), vy + 0.22), fill: c-surface, stroke: 0.6pt + c-line-hi)
+    rect((V(39), vy - 0.22), (V(54.6), vy + 0.22), fill: amber.transparentize(55%), stroke: 0.8pt + amber)
+    line((V(46.8), vy - 0.34), (V(46.8), vy + 0.34), stroke: 1pt + c-text)
+    for (v, t, a) in ((36, [36 V bus floor], "north"), (39, [39 empty], "south"), (46.8, [46.8 nominal], "south"), (54.6, [54.6 full], "south"), (60, [60 V bus ceiling], "north")) {
+      content((V(v), if a == "south" { vy + 0.4 } else { vy - 0.4 }), anchor: a, text(font: mono, size: 5pt, fill: c-label, t))
+    }
+    content((vx - 0.15, vy), anchor: "east", text(font: mono-m, size: 5pt, fill: c-label, tracking: track, upper[volts]))
+  }),
+  caption: [#lead[The pack] (illustrative; the pack is not designed). Left: one pack, exploded. Two tiers of 13 cells make 13S2P; the BMS on top measures what the machine draws. Right: a humanoid swaps its own packs, one at a time, so it never loses power. Bottom: the pack's whole range sits inside the bus window of every body (@sec:power).],
+) <fig:pack>
 
 The pack is also the EUM instrument. EUM (@sec:eum) is defined at each machine's main power input, logged at ≥ 1 Hz, and every pack's BMS measures exactly that. If the BMS logs it, electrons under management are measured for free on every robot and dock we build.
 
