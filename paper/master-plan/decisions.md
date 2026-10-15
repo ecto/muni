@@ -36,6 +36,7 @@ or the hardware mockups. Newest first within a date.
 | D23 | **City sells clean streets and the map, bundled; pricing stays open.** | Set with the first city. | Per-mile pricing in the paper. |
 | D24 | **The reader should finish with: this is real, I want in, awe, trust, hope.** Hope lives in War, City and the ending; far stages stay poetic. | — | Engineering detail for Planet through Sun. |
 | D25 | **Stages are four-letter places, one scale: Desk → Shop → Road → City → Home → Moon → Mars → Star** (were Limb, Pair, Body, City, Planet, Moon, Mars, Sun). | Product names no longer double as stage names; each stage is a place, farther from home than the last. | Curb, Walk (street stage); Gaia, Land (planet stage); Sun, Halo (last stage). |
+| D26 | **48 V everywhere, tools included.** Tools are bus devices: 48 V and CAN-FD through a wrist coupler when held by a robot; a *brick* (half a pack, 13S1P, 234 Wh) when not. First tools: drill/driver (torc clutch) and leaf blower. | One voltage simplifies every board; a pack splits into two bricks with nothing new. | A 15S pack of three 18 V-class bricks (cordless-tool compatible), dropped to keep 48 V. |
 
 ## Corrections found in review
 

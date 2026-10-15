@@ -1710,6 +1710,57 @@ Bus, pack and core need a small set of boards. We own a board first when it defi
 
 Every board design is open. Printed-circuit fabrication and assembly stay bought through Road. Boards are, with magnets, bearings and chips, part of the bought fraction that falls last, and a pair at a pick-and-place machine that assembles our own boards is a Shop milestone (@sec:pair).
 
+#if not web { pagebreak(weak: true) }
+== Tools <sec:tools>
+
+A humanoid's tools are bus devices. A drill or a blower in a robot's hand takes power and commands through a coupler at the wrist, 48 V and CAN-FD, and carries no battery of its own. Away from a robot, or for a person, a tool takes a *brick*: half a pack. The pack's 13S2P is two 13S1P strings, so a brick is 13 cells, 46.8 V, 234 Wh and about 1.3 kg (estimate). It needs no new voltage, cell, charger or dock: two bricks clip together into a pack, and a pack comes apart into two bricks.
+
+#figure(
+  align(center, cetz.canvas(length: 1cm, {
+    import cetz.draw: *
+    let amber = fam.power.color
+    // the pack comes apart into two bricks
+    let cells(x, y, n) = for i in range(n) { circle((x + i * 0.3, y), radius: 0.12, fill: c-surface, stroke: 0.6pt + amber) }
+    rect((0, 0.55), (4.1, 1.45), stroke: (paint: amber, thickness: 0.6pt, dash: (2pt, 2pt)))
+    cells(0.25, 1.15, 13)
+    cells(0.25, 0.85, 13)
+    content((2.05, 1.65), anchor: "south", text(font: mono-m, size: 6.3pt, fill: c-label, tracking: track, upper[pack · 13S2P · 468 Wh]))
+    line((2.05, 0.45), (2.05, -0.15), stroke: 0.8pt + c-sel, mark: (end: ">", fill: c-sel, size: 0.12))
+    for (k, y) in ((0, -0.55), (1, -1.25)) {
+      rect((0.1, y - 0.25), (4.0, y + 0.25), fill: c-raised, stroke: 0.8pt + amber)
+      cells(0.25, y, 13)
+    }
+    content((2.05, -1.7), anchor: "north", text(font: mono-m, size: 6.3pt, fill: amber, tracking: track, upper[two bricks · 13S1P · 234 Wh each]))
+    // the wrist coupler: one bus
+    let cx = 6.6
+    rect((cx - 0.55, -0.3), (cx + 0.55, 0.9), fill: c-surface, stroke: 0.8pt + fam.body.color)
+    content((cx, 1.1), anchor: "south", text(font: mono-m, size: 6.3pt, fill: c-label, tracking: track, upper[wrist coupler]))
+    for (y, t) in ((0.55, [48 V]), (0.05, [CAN-FD])) { content((cx, y), text(font: mono-m, size: 6.3pt, fill: c-text, t)) }
+    line((4.2, -0.55), (cx - 0.6, 0.1), stroke: (paint: c-line-hi, thickness: 0.6pt, dash: (2pt, 2pt)))
+    content((5.3, -1.05), anchor: "north", text(font: sans, size: 6.5pt, fill: c-label)[or a brick, away from a robot])
+    // the tools
+    let tx = 9.6
+    // drill: body, handle, chuck
+    rect((tx, 0.4), (tx + 1.5, 0.85), fill: c-surface, stroke: 0.8pt + c-text, radius: 0.08)
+    rect((tx + 1.5, 0.5), (tx + 1.85, 0.75), fill: c-raised, stroke: 0.7pt + c-text)
+    line((tx + 1.85, 0.625), (tx + 2.4, 0.625), stroke: 1pt + c-text)
+    line((tx + 0.35, 0.4), (tx + 0.55, -0.45), (tx + 0.9, -0.45), (tx + 0.8, 0.4), close: true, fill: c-surface, stroke: 0.8pt + c-text)
+    content((tx + 1.2, -0.7), anchor: "north", box(align(center, { text(font: sans-sb, size: 8pt, fill: c-text)[drill/driver]; linebreak(); text(font: sans, size: 6.5pt, fill: c-label)[torc clutch, every torque logged] })))
+    // blower: body and tube
+    let bx = 13.6
+    circle((bx, 0.35), radius: 0.5, fill: c-surface, stroke: 0.8pt + c-text)
+    line((bx + 0.35, 0.1), (bx + 2.4, -0.35), stroke: (paint: c-text, thickness: 4pt, cap: "round"))
+    line((bx + 0.35, 0.1), (bx + 2.4, -0.35), stroke: (paint: c-surface, thickness: 2.4pt, cap: "round"))
+    line((bx - 0.1, 0.85), (bx + 0.35, 1.05), (bx + 0.7, 0.75), stroke: 1pt + c-text)
+    content((bx + 1.0, -0.7), anchor: "north", box(align(center, { text(font: sans-sb, size: 8pt, fill: c-text)[leaf blower]; linebreak(); text(font: sans, size: 6.5pt, fill: c-label)[≈ 14 min a brick, 28 a pack] })))
+    line((cx + 0.6, 0.3), (tx - 0.2, 0.6), stroke: 0.8pt + c-sel, mark: (end: ">", fill: c-sel, size: 0.12))
+  })),
+  caption: [#lead[One voltage, cell to tool.] A pack comes apart into two bricks; a tool runs from a robot's wrist on the bus, or from a brick on its own. Illustrative; neither tool is designed, and the blower's draw is an estimate.],
+) <fig:tools>
+
+Two tools come first. A *drill/driver* uses a brushless motor run by torc, so its clutch is software: every screw is driven to a torque, and the torque is logged with the unit it went into. A *leaf blower* is the first street tool, for Road and City work; 48 V is already where the strongest cordless blowers sit. At about 1 kW (estimate), a blower runs about 14 minutes on a brick and 28 on a pack, and a humanoid swaps either in about a minute (@sec:power).
+
+
 = Safety <sec:safety>
 
 == Inheritance
