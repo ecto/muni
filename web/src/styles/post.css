@@ -14,7 +14,10 @@
   --p-warn: #ffd400;
   --p-sans: "IBM Plex Sans", "Helvetica Neue", system-ui, sans-serif;
   --p-mono: "IBM Plex Mono", ui-monospace, "SF Mono", monospace;
-  --p-measure: 36rem;
+  /* one rhythm: running text shares one line height; headings and labels a tighter one */
+  --p-lh: 1.6;
+  --p-lh-tight: 1.2;
+  --p-measure: 34rem;
   --p-wide: 46rem;
   background: var(--p-bg);
   color: var(--p-text);
@@ -59,7 +62,7 @@
 }
 .post-cover h1 {
   margin: 0.9rem 0 0;
-  font-size: clamp(2.6rem, 7vw, 4.6rem);
+  font-size: clamp(2.4rem, 6.5vw, 4.2rem);
   font-weight: 600;
   line-height: 1;
   letter-spacing: -0.025em;
@@ -67,7 +70,8 @@
 }
 .post-subtitle {
   margin: 1.1rem 0 0;
-  font-size: 1.15rem;
+  font-size: 1.05rem;
+  line-height: var(--p-lh);
   color: var(--p-label);
 }
 /* byline: under the subtitle, quiet, with the PDF as the one control */
@@ -77,7 +81,7 @@
   align-items: center;
   gap: 0.5rem 1.4rem;
   margin-top: 2.2rem;
-  font-size: 0.95rem;
+  font-size: 0.88rem;
   color: var(--p-label);
 }
 .post-byline .by { color: var(--p-text); font-weight: 500; }
@@ -102,8 +106,8 @@
   max-width: var(--p-measure);
   margin: 0 auto;
   padding: 0 1.25rem 6rem;
-  font-size: 1.05rem;
-  line-height: 1.68;
+  font-size: 0.95rem;
+  line-height: var(--p-lh);
 }
 .post p { margin: 0 0 1.1em; }
 .post a { color: var(--p-text); font-weight: inherit; text-underline-offset: 3px; }
@@ -112,15 +116,16 @@
 .post a[role="doc-biblioref"] { color: var(--p-label); text-decoration: none; }
 .post h2 {
   margin: 3.4rem 0 1rem;
-  font-size: 1.47rem;
+  font-size: 1.37rem;
   font-weight: 600;
-  line-height: 1.2;
+  line-height: var(--p-lh-tight);
   letter-spacing: -0.01em;
   text-wrap: balance;
 }
 .post h3 {
   margin: 2.4rem 0 0.6rem;
-  font-size: 1.15rem;
+  font-size: 1.05rem;
+  line-height: var(--p-lh-tight);
   font-weight: 500;
 }
 /* lists as in the PDF: small grey mono numbers without a period; small square bullets */
@@ -133,10 +138,11 @@
   content: counter(item);
   position: absolute;
   left: 0;
-  top: 0.3em;
+  top: 0;
   font-family: var(--p-mono);
   font-size: 0.72em;
-  line-height: 1.6;
+  /* the number's line box matches the text's, so their lines align */
+  line-height: calc(var(--p-lh) / 0.72);
   color: var(--p-label);
   font-variant-numeric: tabular-nums;
 }
@@ -144,7 +150,7 @@
   content: "";
   position: absolute;
   left: 0.15em;
-  top: 0.68em;
+  top: calc((var(--p-lh) * 1em - 0.36em) / 2);
   width: 0.36em;
   height: 0.36em;
   background: var(--p-label);
@@ -188,7 +194,7 @@
 }
 .post .part:first-child { margin-top: 0; }
 .post .part h2 { margin: 0.4rem 0 0.6rem; font-size: clamp(2.2rem, 6vw, 3.2rem); letter-spacing: -0.02em; }
-.post .part-lede { color: var(--p-label); font-size: 1.15rem; }
+.post .part-lede { color: var(--p-label); font-size: 1.05rem; line-height: var(--p-lh); }
 .post .part-art { margin: auto calc(50% - 50vw) 0; padding-top: 2rem; overflow: hidden; }
 .post .part-art > svg { display: block; width: 100% !important; height: auto !important; }
 
@@ -197,14 +203,14 @@
 .post .toc { min-height: 100vh; min-height: 100svh; padding-top: 18svh; padding-bottom: 8svh; }
 .post .abstract-title,
 .post .toc-title { margin: 0 0 1.4rem; font-size: 1.35rem; font-weight: 600; letter-spacing: -0.01em; }
-.post .abstract p { font-size: 1.02rem; line-height: 1.7; }
+.post .abstract p { font-size: inherit; }
 
 .post .toc { max-width: var(--p-wide); margin-inline: calc((var(--p-measure) - min(var(--p-wide), 100vw - 2.5rem)) / 2); }
 .post .toc ol { columns: 2 18rem; column-gap: 3.5rem; padding: 0; margin: 0; counter-reset: part; }
 .post .toc li { padding: 0; margin: 0; break-inside: avoid; }
 .post .toc li::before { content: none; }
 /* the PDF's contents: tight leading, medium sections, light grey subsections, tiny tracked numbers */
-.post .toc a { display: grid; grid-template-columns: 2.1rem 1fr; align-items: baseline; padding: 0.04rem 0; line-height: 1.3; font-size: 0.86rem; color: var(--p-text); text-decoration: none; font-weight: 400; }
+.post .toc a { display: grid; grid-template-columns: 2.1rem 1fr; align-items: baseline; padding: 0.06rem 0; line-height: var(--p-lh-tight); font-size: 0.86rem; color: var(--p-text); text-decoration: none; font-weight: 400; }
 .post .toc a:hover .toc-text { color: var(--p-sel); }
 .post .toc-num { font-family: var(--p-mono); font-size: 0.62rem; font-weight: 400; letter-spacing: 0.08em; color: var(--p-label); font-variant-numeric: tabular-nums; }
 .post .toc-l1 { margin-top: 0.5rem !important; }
@@ -226,7 +232,7 @@
 .post figure { margin: 2.6rem 0; }
 .post figure.wide { margin-inline: calc((var(--p-measure) - min(var(--p-wide), 100vw - 2.5rem)) / 2); }
 .post figure > svg { display: block; width: 100%; height: auto; border-radius: 2px; }
-.post figcaption { margin-top: 0.8rem; font-size: 0.86rem; line-height: 1.55; color: var(--p-label); }
+.post figcaption { margin-top: 0.8rem; font-size: 0.8rem; line-height: var(--p-lh); color: var(--p-label); }
 .post figure:has(> table) figcaption { margin: 0 0 0.7rem; }
 .post .fig-label { margin-right: 0.5em; color: var(--p-text); }
 
@@ -236,7 +242,8 @@
   overflow-x: auto;
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.86rem;
+  font-size: 0.8rem;
+  line-height: var(--p-lh);
   font-variant-numeric: tabular-nums;
 }
 .post th,
