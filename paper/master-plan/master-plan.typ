@@ -718,7 +718,7 @@ Five years ago this plan would have needed a factory before it needed a customer
   caption: [#lead[Plate, cut on a desk.] Fork plates nested on one sheet, with bearing bores and bolt circles; the router's path in orange. Schematic.],
 ) <fig:plate>
 
-*We can now take gradients through contact.* Our physics engine, phyz, computes exact gradients of a simulated motion with respect to physical parameters such as mass and inertia. That includes contact, the hard case and the one that matters for anything with feet or fingers: its contact adjoint differentiates the same physics the forward pass runs @ipse2026brief. In simulation, on synthetic motion, it has recovered five of a K1 humanoid's inertial parameters from ±20% error to machine precision (sphere feet; @sec:schema). Domain randomization @tobin2017domain, the usual alternative, can make a policy robust to a gap. It cannot take the gap's gradient.
+*We own the whole stack, and it can take gradients through contact.* Most robotics teams build on a stack they do not control: a simulator from one company, a CAD tool from another, a learning framework from a third, glued together and re-glued every time one of them changes. Every seam between them is a place where the sim-to-real gap hides, and where no gradient can pass. We wrote ours, from the language parts are written in down to the physics (@tab:stack), so one gradient can run from a measured robot back to a parameter in a source file. Its physics engine, phyz, computes exact gradients of a simulated motion with respect to physical parameters such as mass and inertia. That includes contact, the hard case and the one that matters for anything with feet or fingers: its contact adjoint differentiates the same physics the forward pass runs @ipse2026brief. In simulation, on synthetic motion, it has recovered five of a K1 humanoid's inertial parameters from ±20% error to machine precision (sphere feet; @sec:schema). Domain randomization @tobin2017domain, the usual alternative, can make a policy robust to a gap. It cannot take the gap's gradient.
 
 #colfig(
   cetz.canvas(length: 1cm, {
@@ -742,7 +742,7 @@ Five years ago this plan would have needed a factory before it needed a customer
     content((8.25, 1.2), anchor: "west", text(font: mono-m, size: 5.5pt, fill: c-info)[∂F/∂θ])
     content((8.1, 0.2), anchor: "north", text(font: mono-m, size: 5pt, fill: c-label)[CONTACT])
   }),
-  caption: [#lead[Gradients through contact.] Descent on two inertial parameters, from ±20% error to the true value, with the gradient passing through the foot's contact. In simulation only.],
+  caption: [#lead[One stack, gradients through contact.] Descent on two inertial parameters, from ±20% error to the true value, with the gradient passing through the foot's contact. In simulation only.],
 ) <fig:gradient>
 
 *Humanoids reached the price of a used car.* Unitree announced its G1 at \$16,000 in 2024 @unitree2024g1. We bought a Booster K1 (95 cm, 19.5 kg, 22 degrees of freedom, force-controlled joints) as the reference body for our mind research @booster2025k1. A humanoid that a small company can buy, break, and instrument changes who can do the research.
