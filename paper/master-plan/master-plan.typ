@@ -153,12 +153,12 @@
   it
 }
 
-#set figure(placement: top, scope: "parent", gap: 0.85em)
-#show figure: set block(above: 1.6em, below: 1.6em)
+#set figure(placement: top, scope: "parent", gap: 1.1em)
+#show figure: set block(above: 2.8em, below: 2.8em)
 #show figure: set text(hyphenate: false, font: sans, weight: 400)
 #show table: set text(weight: 400)
 #show heading: set text(font: sans, weight: 400, hyphenate: false)
-#set place(clearance: 1.8em)
+#set place(clearance: 3em)
 // short lead phrase of a caption, set in Medium
 #let lead(body) = text(font: sans-m, fill: c-text, body)
 // citations: superscript numbers in the label grey, so they never read as exponents
@@ -174,7 +174,7 @@
 
 // Column-width figure that stays in flow
 // Wide figures break out of the text column into both margins; their captions stay on the text measure
-#show figure: it => if it.scope == "parent" { pad(x: -1.15in, { show figure.caption: c => pad(x: 1.15in, align(left, c)); it }) } else { it }
+#show figure: it => if it.scope == "parent" { block(above: 2.8em, below: 2.8em, pad(x: -1.15in, top: 1.4em, bottom: 0.6em, { show figure.caption: c => pad(x: 1.15in, align(left, c)); it })) } else { it }
 #show figure.where(kind: table): it => { show table: t => align(left, t); it }
 
 
