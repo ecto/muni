@@ -76,6 +76,9 @@
 
 #set document(title: "Robots that build robots", author: "Cam Pedersen (Municipal Robotics)")
 
+// how far the header and footer reach past the text, to sit 0.7in from the page edge
+#let hf-out() = { let m = page.margin; let l = if type(m) == dictionary { m.at("left", default: m.at("x", default: 0.75in)) } else { 0.75in }; calc.max(0in, l - 0.7in) }
+
 #set page(
   paper: "us-letter",
   fill: c-bg,
@@ -84,12 +87,12 @@
   numbering: "1",
   header: context {
     if counter(page).get().first() > 1 {
-      pad(x: -1.15in, grid(columns: (1fr, auto), caps[Robots that build robots], caps[Municipal Robotics]))
+      pad(x: -hf-out(), grid(columns: (1fr, auto), caps[Robots that build robots], caps[Municipal Robotics]))
     }
   },
   footer: context {
     if counter(page).get().first() > 1 {
-      pad(x: -1.15in, grid(columns: (1fr, auto, 1fr),
+      pad(x: -hf-out(), grid(columns: (1fr, auto, 1fr),
         caps[Rev 1.0 · October 2026],
         text(font: mono-m, size: s-xs, fill: c-label, number-width: "tabular")[#{ let n = counter(page).get().first(); if n < 10 { "0" + str(n) } else { str(n) } } / #counter(page).final().first()],
         align(right, caps[Whitepaper])))
@@ -125,7 +128,7 @@
 #set list(marker: text(font: mono, fill: c-label)[–], indent: 0em, body-indent: 0.7em, spacing: 1.15em)
 #show list: set par(justify: false)
 #show enum: set par(justify: false)
-#set enum(numbering: n => text(font: mono-m, fill: c-label, str(n) + "."), indent: 0em, body-indent: 0.7em, spacing: 1.15em)
+#set enum(numbering: n => text(font: mono-m, size: s-sm, fill: c-label, number-width: "tabular", str(n)), indent: 0em, body-indent: 0.9em, spacing: 1.15em)
 
 // Tables: mono on a grid, hairlines between rows, line_hi above and below, tracked-caps header
 #set table(stroke: (x, y) => (
