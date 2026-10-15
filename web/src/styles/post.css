@@ -56,8 +56,7 @@
 .post .fig-label {
   font-family: var(--p-mono);
   font-size: 0.72rem;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+  letter-spacing: 0.02em;
   color: var(--p-label);
 }
 .post-cover h1 {
@@ -117,11 +116,57 @@
   font-size: 1.15rem;
   font-weight: 500;
 }
+/* lists as in the PDF: small grey mono numbers without a period; small square bullets */
 .post ul,
-.post ol { margin: 0 0 1.2em; padding-left: 1.4em; }
-.post li { margin: 0 0 0.5em; }
-.post ul { list-style: square; }
-.post li::marker { color: var(--p-label); font-family: var(--p-mono); font-size: 0.85em; }
+.post ol { margin: 0 0 1.2em; padding: 0; list-style: none; }
+.post ol { counter-reset: item; }
+.post li { position: relative; margin: 0 0 0.55em; padding-left: 1.5em; }
+.post ol > li { counter-increment: item; }
+.post ol > li::before {
+  content: counter(item);
+  position: absolute;
+  left: 0;
+  top: 0.3em;
+  font-family: var(--p-mono);
+  font-size: 0.72em;
+  line-height: 1.6;
+  color: var(--p-label);
+  font-variant-numeric: tabular-nums;
+}
+.post ul > li::before {
+  content: "";
+  position: absolute;
+  left: 0.15em;
+  top: 0.68em;
+  width: 0.36em;
+  height: 0.36em;
+  background: var(--p-label);
+}
+
+/* section numbers hang to the left of the heading, small and grey, as in the PDF */
+.post :is(h2, h3) { position: relative; }
+.post .sec-num {
+  position: absolute;
+  right: calc(100% + 1.1rem);
+  top: 0.5em;
+  font-family: var(--p-mono);
+  font-size: 0.72rem;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  color: var(--p-label);
+  white-space: nowrap;
+}
+@media (max-width: 52rem) {
+  .post .sec-num { position: static; display: block; margin-bottom: 0.45rem; }
+}
+/* in prose, a reference's number reads as plain text */
+.post a .sec-num, .post p .sec-num { position: static; font: inherit; color: inherit; letter-spacing: 0; }
+
+/* the letter's signature */
+.post .signature { margin-top: 2.2em; display: grid; gap: 0.2em; }
+.post .sig-name { font-weight: 500; }
+.post .sig-place { font-family: var(--p-mono); font-size: 0.78rem; color: var(--p-label); }
 .post .math svg { display: inline-block; vertical-align: -0.2em; height: 1.05em; width: auto; }
 
 /* part dividers: a label, a title, a lede and the part's illustration */
@@ -168,8 +213,7 @@
   font-family: var(--p-mono);
   font-size: 0.68rem;
   font-weight: 500;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+  letter-spacing: 0.02em;
   color: var(--p-label);
   border-bottom-color: var(--p-line-hi);
 }
@@ -193,7 +237,7 @@
 .blog-list { list-style: none; margin: 0; padding: 0; }
 .blog-list li { border-top: 1px solid var(--p-line); }
 .blog-list a { display: grid; gap: 0.35rem; padding: 1.4rem 0; color: inherit; text-decoration: none; }
-.blog-list time { font-family: var(--p-mono); font-size: 0.72rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--p-label); }
+.blog-list time { font-family: var(--p-mono); font-size: 0.72rem; letter-spacing: 0.02em; color: var(--p-label); }
 .blog-list-title { font-size: 1.5rem; font-weight: 600; letter-spacing: -0.01em; }
 .blog-list a:hover .blog-list-title { color: var(--p-sel); }
 .blog-list-desc { color: var(--p-label); }

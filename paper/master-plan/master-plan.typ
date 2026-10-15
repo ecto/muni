@@ -120,7 +120,9 @@
 #set text(font: body-font, weight: body-weight, size: body-size, fill: c-text, fallback: false, lang: "en", region: "us", hyphenate: false, costs: (runt: 1000%, widow: 200%, orphan: 200%))
 #set columns(gutter: 0.27in)
 #set par(justify: false, leading: lead-gap, spacing: 1.4em, linebreaks: "optimized")
-#set heading(numbering: "1.1")
+// in HTML the number is its own span, so the stylesheet can hang it like the PDF does
+#let web-num(pattern) = if web { (..n) => html.elem("span", attrs: (class: "sec-num"), numbering(pattern, ..n)) } else { pattern }
+#set heading(numbering: web-num("1.1"))
 #show strong: set text(font: sans-sb)
 #show link: set text(fill: c-text)
 #show heading: set text(weight: "regular", fill: c-text)
@@ -343,7 +345,7 @@
   let wide = it.gap != 1.09em
   let framed = it.kind != table or lab in web-framed-tables
   let body = if framed { html.frame(block(width: if wide { 7.1in } else { 4.8in }, fill: c-bg, inset: 6pt, it.body)) } else { it.body }
-  let cap = if it.caption != none { html.elem("figcaption", [#html.elem("span", attrs: (class: "fig-label"))[#it.supplement #context it.counter.display(it.numbering)] #it.caption.body]) }
+  let cap = if it.caption != none { html.elem("figcaption", [#html.elem("span", attrs: (class: "fig-label"))[#{ if it.kind == table [Table] else [Fig] } #context it.counter.display(it.numbering)] #it.caption.body]) }
   html.elem("figure", attrs: (id: lab, class: if wide { "wide" } else { "narrow" }), if it.kind == table { cap; body } else { body; cap })
 }
 #show figure: it => if web { web-figure(it) } else if it.gap != 1.09em { block(above: 1.9em, below: 1.9em, pad(x: -1.15in, top: 2.0em, bottom: 0em, { show figure.caption: c => pad(x: 1.15in, align(left, c)); it })) } else { it }
@@ -543,9 +545,8 @@
 
   Read it to check it, or to join it.]
   v(1.4em)
-  text(font: sans-m, size: s-md)[Cam Pedersen]
-  linebreak()
-  text(font: mono-m, size: s-xs, fill: c-label, tracking: track)[CLEVELAND · OCTOBER 2026]
+  let sig = { text(font: sans-m, size: s-md)[Cam Pedersen]; linebreak(); text(font: mono-m, size: s-xs, fill: c-label, tracking: track)[#upper[Cleveland · October 2026]] }
+  if web { html.elem("p", attrs: (class: "signature"), [#html.elem("span", attrs: (class: "sig-name"))[Cam Pedersen] #html.elem("span", attrs: (class: "sig-place"))[Cleveland · October 2026]]) } else { sig }
 })
 
 
@@ -1912,7 +1913,7 @@ Early buyers for the limb and the pair who will share measured data. A municipal
 #set page(columns: 2, margin: (x: 0.75in, top: 1.1in, bottom: 1.05in))
 #set columns(gutter: 0.3in)
 #counter(heading).update(0)
-#set heading(numbering: "A.1", supplement: [Appendix])
+#set heading(numbering: web-num("A.1"), supplement: [Appendix])
 // in two columns every figure stays inside its column (the 1.09em gap marks it narrow)
 #set figure(gap: 1.09em)
 // in two columns there is no margin to hang the label in: it sits above the title
