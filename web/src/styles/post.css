@@ -1,0 +1,183 @@
+/* Blog posts compiled from Typst. The body arrives as plain semantic HTML with
+   figures as inline SVG; this sheet gives it the paper's look: warm black, IBM
+   Plex, a 36rem measure, and wide figures that break out of it. */
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap");
+
+.post-page {
+  --p-bg: #0b0907;
+  --p-surface: #15110d;
+  --p-line: #2a2119;
+  --p-line-hi: #4a3a2a;
+  --p-text: #e8e1d2;
+  --p-label: #a08d70;
+  --p-sel: #ff5f00;
+  --p-warn: #ffd400;
+  --p-sans: "IBM Plex Sans", "Helvetica Neue", system-ui, sans-serif;
+  --p-mono: "IBM Plex Mono", ui-monospace, "SF Mono", monospace;
+  --p-measure: 36rem;
+  --p-wide: 46rem;
+  background: var(--p-bg);
+  color: var(--p-text);
+  font-family: var(--p-sans);
+  min-height: 100vh;
+  color-scheme: dark;
+}
+
+/* the site's global sheet sets mono and display faces on bare elements; the post uses Plex throughout */
+.post-page :is(p, h1, h2, h3, li, figcaption, td, th, time, span, a, ol, ul) { font-family: var(--p-sans); }
+.post-page :is(.post-kicker, .post-meta, .post-meta *, .part-label, .fig-label, .blog-list time, thead th) { font-family: var(--p-mono); }
+
+/* cover: the live solar system, text over it */
+.post-cover {
+  position: relative;
+  height: min(88vh, 54rem);
+  min-height: 34rem;
+  overflow: hidden;
+  border-bottom: 1px solid var(--p-line);
+}
+.post-cover-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.post-cover-text {
+  position: relative;
+  max-width: var(--p-wide);
+  margin: 0 auto;
+  padding: 7.5rem 1.25rem 0;
+}
+.post-kicker,
+.post-meta,
+.post .part-label,
+.post .fig-label {
+  font-family: var(--p-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--p-label);
+}
+.post-cover h1 {
+  margin: 0.9rem 0 0;
+  font-size: clamp(2.6rem, 7vw, 4.6rem);
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.025em;
+  text-wrap: balance;
+}
+.post-subtitle {
+  margin: 1.1rem 0 0;
+  font-size: 1.15rem;
+  color: var(--p-label);
+}
+.post-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  max-width: var(--p-measure);
+  margin: 2rem auto 0;
+  padding-inline: 1.25rem;
+}
+.post-meta a {
+  color: var(--p-text);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* the body */
+.post {
+  max-width: var(--p-measure);
+  margin: 0 auto;
+  padding: 1rem 1.25rem 6rem;
+  font-size: 1.05rem;
+  line-height: 1.68;
+}
+.post p { margin: 0 0 1.1em; }
+.post a { color: var(--p-text); text-underline-offset: 3px; }
+.post strong { font-weight: 600; }
+.post sup { font-size: 0.68em; line-height: 0; }
+.post a[role="doc-biblioref"] { color: var(--p-label); text-decoration: none; }
+.post h2 {
+  margin: 3.4rem 0 1rem;
+  font-size: 1.6rem;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+}
+.post h3 {
+  margin: 2.4rem 0 0.6rem;
+  font-size: 1.15rem;
+  font-weight: 500;
+}
+.post ul,
+.post ol { margin: 0 0 1.2em; padding-left: 1.4em; }
+.post li { margin: 0 0 0.5em; }
+.post ul { list-style: square; }
+.post li::marker { color: var(--p-label); font-family: var(--p-mono); font-size: 0.85em; }
+.post .math svg { display: inline-block; vertical-align: -0.2em; height: 1.05em; width: auto; }
+
+/* part dividers: a label, a title, a lede and the part's illustration */
+.post .part {
+  margin: 5rem 0 3rem;
+  padding-top: 2.5rem;
+  border-top: 1px solid var(--p-line);
+}
+.post .part h2 { margin: 0.4rem 0 0.6rem; font-size: clamp(2.2rem, 6vw, 3.2rem); letter-spacing: -0.02em; }
+.post .part-lede { color: var(--p-label); font-size: 1.15rem; }
+.post .part-art { margin: 1.5rem calc(50% - 50vw) 0; overflow: hidden; }
+.post .part-art svg { display: block; width: 100%; height: auto; max-height: 26rem; }
+
+/* figures: drawn ones arrive as inline SVG; wide ones break out of the measure */
+.post figure { margin: 2.6rem 0; }
+.post figure.wide { margin-inline: calc((var(--p-measure) - min(var(--p-wide), 100vw - 2.5rem)) / 2); }
+.post figure > svg { display: block; width: 100%; height: auto; border-radius: 2px; }
+.post figcaption { margin-top: 0.8rem; font-size: 0.86rem; line-height: 1.55; color: var(--p-label); }
+.post figure:has(> table) figcaption { margin: 0 0 0.7rem; }
+.post .fig-label { margin-right: 0.5em; color: var(--p-text); }
+
+/* real tables, for the plain ones */
+.post figure > table {
+  display: block;
+  overflow-x: auto;
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.86rem;
+  font-variant-numeric: tabular-nums;
+}
+.post th,
+.post td { padding: 0.45rem 0.6rem; text-align: left; vertical-align: top; border-bottom: 1px solid var(--p-line); }
+.post thead th,
+.post tr:first-child th {
+  font-family: var(--p-mono);
+  font-size: 0.68rem;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--p-label);
+  border-bottom-color: var(--p-line-hi);
+}
+.post td:first-child { font-weight: 500; }
+
+/* references */
+.post [role="doc-bibliography"],
+.post section:last-of-type ol { font-size: 0.85rem; color: var(--p-label); }
+
+/* a plotter wipe as each figure enters; figures are visible without script */
+.post .draw-pending { clip-path: inset(0 100% 0 0); }
+.post .draw-in { clip-path: inset(0 0 0 0); transition: clip-path 1.4s cubic-bezier(0.16, 1, 0.3, 1); }
+@media (prefers-reduced-motion: reduce) {
+  .post .draw-pending { clip-path: none; }
+}
+
+/* blog index */
+.blog-index { max-width: var(--p-measure); margin: 0 auto; padding: 9rem 1.25rem 6rem; }
+.blog-index h1 { margin: 0; font-size: 3rem; font-weight: 600; letter-spacing: -0.02em; }
+.blog-index-lede { color: var(--p-label); margin: 0.8rem 0 3rem; }
+.blog-list { list-style: none; margin: 0; padding: 0; }
+.blog-list li { border-top: 1px solid var(--p-line); }
+.blog-list a { display: grid; gap: 0.35rem; padding: 1.4rem 0; color: inherit; text-decoration: none; }
+.blog-list time { font-family: var(--p-mono); font-size: 0.72rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--p-label); }
+.blog-list-title { font-size: 1.5rem; font-weight: 600; letter-spacing: -0.01em; }
+.blog-list a:hover .blog-list-title { color: var(--p-sel); }
+.blog-list-desc { color: var(--p-label); }

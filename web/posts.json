@@ -1,0 +1,12 @@
+[
+  {
+    "slug": "master-plan",
+    "title": "Robots that build robots",
+    "subtitle": "What would it take for a machine to make the next one?",
+    "date": "2026-10-15",
+    "author": "Cam Pedersen",
+    "description": "The Municipal Robotics master plan: one part, measured everywhere, from a limb on a table to a swarm of collectors around the sun.",
+    "root": "../paper/master-plan",
+    "source": "master-plan.typ"
+  }
+]

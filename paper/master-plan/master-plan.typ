@@ -5,6 +5,12 @@
 #import "@preview/cetz:0.4.2"
 #import "@preview/fletcher:0.5.7" as fletcher: diagram, node, edge
 
+// One source, two outputs. `typst compile --features html --format html --input target=html`
+// builds the web post; without the input it builds the PDF.
+#let web = sys.inputs.at("target", default: "pdf") == "html"
+// math has no HTML form yet: draw it as inline SVG
+#show math.equation: it => if web { html.elem("span", attrs: (class: "math"), html.frame(it)) } else { it }
+
 // ---- colour roles ([light]) ------------------------------------------------
 // Page is warm black, full bleed; renders come from vcad-render --theme dark, flattened onto `bg` and trimmed (images-native/).
 #let c-bg      = rgb("#0b0907")   // warm black, full bleed
@@ -119,17 +125,18 @@
 #show link: set text(fill: c-text)
 #show heading: set text(weight: "regular", fill: c-text)
 #let numlabel(it) = text(font: mono-m, size: s-xs, fill: c-label, tracking: track, { if it.numbering == "A.1" and it.level == 1 { upper("Appendix ") }; counter(heading).display(it.numbering) })
-#show heading.where(level: 1): it => if it.supplement == [Part] { block(above: 0em, below: 0.9em, text(font: sans-sb, size: 26pt, tracking: -0.02em, it.body)) } else { block(above: 2.2em, below: 1.1em, sticky: true, width: 100%, {
+#show heading.where(level: 1): it => if web { it } else if it.supplement == [Part] { block(above: 0em, below: 0.9em, text(font: sans-sb, size: 26pt, tracking: -0.02em, it.body)) } else { block(above: 2.2em, below: 1.1em, sticky: true, width: 100%, {
   if it.numbering != none { place(left, dx: -1.15in, dy: 0.32em, box(width: 1.0in, align(right, numlabel(it)))) }
   text(font: sans-sb, size: s-lg, tracking: -0.01em, it.body)
 }) }
-#show heading.where(level: 2): it => block(above: 1.65em, below: 0.55em, inset: (bottom: 0.3em), sticky: true, {
+#show heading.where(level: 2): it => if web { it } else { block(above: 1.65em, below: 0.55em, inset: (bottom: 0.3em), sticky: true, {
   if it.numbering == none { return text(font: sans-m, size: s-md, it.body) }
   set par(justify: false)
   place(left, dx: -1.15in, dy: 0.22em, box(width: 1.0in, align(right, numlabel(it))))
   text(font: sans-m, size: s-md, it.body)
-})
-#show heading.where(level: 3): it => block(above: 1.65em, below: 0.55em, inset: (bottom: 0.3em), sticky: true, text(font: sans-sb, size: body-size, it.body))
+}) }
+
+#show heading.where(level: 3): it => if web { it } else { block(above: 1.65em, below: 0.55em, inset: (bottom: 0.3em), sticky: true, text(font: sans-sb, size: body-size, it.body)) }
 #show raw: set text(font: mono, size: 1em)
 // Keep numbers with their units, and short expressions, on one line
 #let unit-re = "(mm|kg|g|N·m|N·s|N|kN|W|kW|Hz|ms|s|m|cm|in|V)\\b"
@@ -306,7 +313,14 @@
   content((0, 5.6), anchor: "south", text(font: mono-m, size: 5.5pt, fill: c-warn, tracking: track)[THE GAP = MEASURED − PREDICTED])
 })
 
-#let part(n, title, art: none, bleed: false, lede) = {
+#let part(n, title, art: none, bleed: false, lede) = if web {
+  html.elem("section", attrs: (class: "part", id: "part-" + lower(n)), {
+    html.elem("p", attrs: (class: "part-label"), "Part " + n)
+    heading(level: 1, numbering: none, supplement: [Part], outlined: true, title)
+    html.elem("p", attrs: (class: "part-lede"), lede)
+    if art != none { html.elem("div", attrs: (class: "part-art"), html.frame(block(width: 8.5in, height: 4.2in, clip: true, fill: c-bg, align(center + bottom, art)))) }
+  })
+} else {
   pagebreak(weak: true)
   if art != none {
     if bleed { place(bottom + center, dy: 1.05in, box(width: 8.5in, height: 6.4in, clip: true, align(center + bottom, art))) } else { place(bottom + center, dy: -0.1in, box(width: 8.5in, height: 5.2in, clip: true, align(center + bottom, art))) }
@@ -322,8 +336,18 @@
 // Wide figures break out of the text column into both margins; their captions stay on the text measure
 // debug: report each figure's page and y when built with --input figpos=1
 #show figure: it => { if sys.inputs.at("figpos", default: "0") == "1" { context [#metadata((page: here().position().page, y: here().position().y.pt(), kind: repr(it.kind), lab: if it.has("label") { str(it.label) } else { "" }, cap: if it.caption != none { repr(it.caption.body).slice(0, calc.min(60, repr(it.caption.body).len())) } else { "" })) <figpos>] }; it }
-#show figure: it => if it.gap != 1.09em { block(above: 1.9em, below: 1.9em, pad(x: -1.15in, top: 2.0em, bottom: 0em, { show figure.caption: c => pad(x: 1.15in, align(left, c)); it })) } else { it }
-#show figure.where(kind: table): it => { show table: t => align(left, t); it }
+// Web figures: drawn bodies become inline SVG via html.frame; plain tables stay real <table>s.
+#let web-framed-tables = ("tab:status", "tab:safety", "tab:evidence", "tab:flywheel")
+#let web-figure(it) = {
+  let lab = if it.has("label") { str(it.label) } else { "" }
+  let wide = it.gap != 1.09em
+  let framed = it.kind != table or lab in web-framed-tables
+  let body = if framed { html.frame(block(width: if wide { 7.1in } else { 4.8in }, fill: c-bg, inset: 6pt, it.body)) } else { it.body }
+  let cap = if it.caption != none { html.elem("figcaption", [#html.elem("span", attrs: (class: "fig-label"))[#it.supplement #context it.counter.display(it.numbering)] #it.caption.body]) }
+  html.elem("figure", attrs: (id: lab, class: if wide { "wide" } else { "narrow" }), if it.kind == table { cap; body } else { body; cap })
+}
+#show figure: it => if web { web-figure(it) } else if it.gap != 1.09em { block(above: 1.9em, below: 1.9em, pad(x: -1.15in, top: 2.0em, bottom: 0em, { show figure.caption: c => pad(x: 1.15in, align(left, c)); it })) } else { it }
+#show figure.where(kind: table): it => if web { it } else { show table: t => align(left, t); it }
 
 
 #let colfig(body, caption: none) = figure(body, caption: caption, placement: none, scope: "column", gap: 1.09em)
@@ -333,7 +357,7 @@
 #let n-stroke = 0.7pt + c-line-hi
 
 // Title page (single column). The one flame: the trajectory in the cover art.
-#page(columns: 1, margin: (x: 0.75in, top: 0.7in, bottom: 0.65in))[
+#if not web {page(columns: 1, margin: (x: 0.75in, top: 0.7in, bottom: 0.65in))[
   // Cover art: the inner solar system in a tilted plan view, an Earth → Mars → Jupiter
   // gravity-assist trajectory, and the Sun–Earth Lagrange points. Schematic, not to scale.
   #place(top + left, dx: -0.75in, dy: -0.7in, box(width: 8.5in, height: 11in, clip: true, place(center + horizon, dy: 1.9in, cetz.canvas(length: 1cm, {
@@ -439,10 +463,10 @@
   #v(0.7em)
   #text(size: s-lg, fill: c-label)[What would it take for a machine to make the next one?]
   #v(1fr)
-]
+]}
 
 // Abstract (single column)
-#page(columns: 1, margin: (x: 0.75in, top: 1.1in, bottom: 1.05in))[
+#if not web {page(columns: 1, margin: (x: 0.75in, top: 1.1in, bottom: 1.05in))[
   #block(width: 4.9in)[
   #heading(outlined: false, numbering: none)[Abstract]
   #set text(size: 10pt)
@@ -458,11 +482,11 @@
 
   Limb, the first stage, closes on exact gates (proposed targets): ten limbs sold at 40% gross margin, each with its tool-point error measured and under 2 mm RMS, and our actuator beating the purchased one by 20% on a named dyno metric, or dropped. Seven more stages follow, each a step up in scale: Pair, two limbs at any table, and a pair that builds a pair; Body, a pair on legs that fits its own model; City, a fleet and its pairs work a city; Planet, lineages on their own power; Moon, a seed grows a pair, with a lifeline; Mars, the same seed, lifeline cut; and Sun, a swarm of collectors around our star. They are goals, not results, and they are the point. Progress is one number, electrons under management: the mean power drawn by machines we built, in service. Today it is zero watts. The body-schema claim that opens Body will be preregistered, with its falsifier, before its hardware run. Every number here is cited, or labeled as an estimate or a model output.
 ]
-]
+]}
 
 
 // Table of contents (single column)
-#page(columns: 1, margin: (x: 0.75in, top: 1.1in, bottom: 1.05in))[
+#if not web {page(columns: 1, margin: (x: 0.75in, top: 1.1in, bottom: 1.05in))[
   #set text(font: sans, weight: 400, size: 9pt, number-width: "tabular")
   #set par(leading: 0.6em, justify: false)
   #set outline.entry(fill: none)
@@ -498,7 +522,7 @@
     indent: 0em,
     depth: 2,
   ))
-]
+]}
 
 #part("I", "Why", art: art-why(), bleed: true)[Where this comes from, why it matters, and the whole plan on a few pages.]
 
@@ -1892,10 +1916,10 @@ Early buyers for the limb and the pair who will share measured data. A municipal
 // in two columns every figure stays inside its column (the 1.09em gap marks it narrow)
 #set figure(gap: 1.09em)
 // in two columns there is no margin to hang the label in: it sits above the title
-#show heading.where(level: 1): it => block(above: 1.6em, below: 0.9em, sticky: true, {
+#show heading.where(level: 1): it => if web { it } else { block(above: 1.6em, below: 0.9em, sticky: true, {
   if it.numbering != none { block(below: 0.45em, numlabel(it)) }
   text(font: sans-sb, size: s-lg, tracking: -0.01em, it.body)
-})
+}) }
 #show figure: set block(breakable: true)
 
 = Gates <app:gates>
