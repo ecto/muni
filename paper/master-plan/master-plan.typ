@@ -57,19 +57,19 @@
   (11, "limb", "body", "designed", "the arm: product, half a pair", "limb"),
   (12, "hand", "body", "designed", "485 g gripper", "limb"),
   (13, "pair", "body", "concept", "two limbs, any table", "pair"),
-  (14, "rose", "body", "concept", "humanoid: mini, full, mega", "body"),
+  (14, "Rose", "body", "concept", "humanoid: mini, full, mega", "body"),
   (15, "moth", "body", "concept", "street-perception drone", "city"),
   (16, "seed", "body", "concept", "a pair, packed to go", "moon"),
   (17, "pack", "power", "concept", "one battery, every body", "body"),
   (18, "core", "power", "concept", "one compute module", "body"),
   (19, "nerv", "power", "concept", "bus, hub and BMS boards", "body"),
-  (20, "ipse", "mind", "exists", "developmental mind", "body"),
+  (20, "Ipse", "mind", "exists", "developmental mind", "body"),
   (21, "loom", "silicon", "concept", "hardware description", "planet"),
   (22, "rune", "silicon", "concept", "maskless lithography", "planet"),
   (23, "chyp", "silicon", "concept", "inference chip", "planet"),
 )
 // product names colored wherever they appear in running text
-#let brand-names = elements.filter(e => e.at(1) not in ("hand",)).map(e => (e.at(1), e.at(2)))
+#let brand-names = elements.filter(e => e.at(1) not in ("hand",)).map(e => (lower(e.at(1)), e.at(2)))
 #let brand-color(name) = { let m = brand-names.find(n => n.at(0) == name); if m != none { fam.at(m.at(1)).color } }
 #let brand-family(name) = { let m = brand-names.find(n => n.at(0) == lower(name)); if m != none { m.at(1) } }
 // every product name takes its family color, in any case: limb, Limb (the stage) and LIMB alike
@@ -541,7 +541,7 @@
 
   Robots are expensive because people make them. A prototype actuator we designed is estimated at \$1,086 to have built, before its gear teeth are cut; about two thirds of that is outsourced machining, on perhaps \$60–90 of raw metal (estimates). The difference is labor, coordination and margin. A machine that can make more of itself attacks that markup directly. So does a design process that measures the sim-to-real gap on every unit and feeds it back into the design as a gradient.
 
-  Municipal Robotics is one person, Cam Pedersen. What exists today is a Booster K1 humanoid, the software stack, a CNC mill and this plan. The stack spans the loop: a source language for parts, a CAD kernel, a differentiable physics engine with a contact adjoint, an actuator, an arm, and ipse, a developmental learning system for the K1. Its key result exists only in simulation: five of the K1’s inertial parameters, started at ±20% error, recovered to machine precision by gradient descent through contact.
+  Municipal Robotics is one person, Cam Pedersen. What exists today is a Booster K1 humanoid, the software stack, a CNC mill and this plan. The stack spans the loop: a source language for parts, a CAD kernel, a differentiable physics engine with a contact adjoint, an actuator, an arm, and Ipse, a developmental learning system for the K1. Its key result exists only in simulation: five of the K1’s inertial parameters, started at ±20% error, recovered to machine precision by gradient descent through contact.
 
   The plan is built from one part. A limb is a six-axis arm on purchased RobStride actuators (\$5,000 list, \~\$2,000 materials), designed and ready to cut, none built yet. Two limbs bolted to any table make a pair (\$12,000 list, target), which can fold laundry, tend a machine or build the next limb. A humanoid is a pair on legs. Our models put the limb's reach at 786 mm with our 485 g gripper and its continuous hold straight out at 1.27 kg. The municipal work is a proposed litter pilot in Lakewood, Ohio, with no agreement in place; the method, a reacher on the K1’s wrist, is under design, and the K1 has not grasped litter yet.
 
@@ -816,7 +816,7 @@ Five years ago this plan would have needed a factory before it needed a customer
       content((sx + 0.75, 1.375 + i * 0.6), text(font: mono-m, size: 7pt, fill: c-text, l))
     }
     content((sx + 0.75, 3.75), anchor: "south", text(font: mono-m, size: 7pt, fill: c-label)[ONE STACK])
-    let outs = ((3.25, "rover", "retired", c-label), (2.3, "humanoid", "rose, K1", c-text), (1.35, "pair", "builds limbs", c-text))
+    let outs = ((3.25, "rover", "retired", c-label), (2.3, "humanoid", "Rose, K1", c-text), (1.35, "pair", "builds limbs", c-text))
     let x = 5.6
     for (ty, n, w, col) in outs {
       line((sx + 1.75, 2.3), (x - 1.0, ty), stroke: (paint: c-label, thickness: 0.6pt, dash: if n == "rover" { "dotted" } else { none }), mark: (end: "straight", size: 0.12))
@@ -1417,7 +1417,7 @@ Every number in this plan comes from one loop (@fig:loop): design in loon source
   caption: [#lead[The loop, read clockwise.] The small labels name the tool at each step. The software projects are listed in @fig:elements, and the dyno is a planned actuator test stand that does not exist yet. Each later stage of the plan removes a human from one more edge. In Limb the gradient edge is a person reading the gap and redesigning by hand.],
 ) <fig:loop>
 
-The payoff is a gradient that crosses the whole molecule. A task loss in ipse passes through phyz's contact adjoint, into vcad geometry, and out to a number in loon source, with no translation at any hop. Part of that chain runs today, in simulation: on a test model, a phyz rollout gradient passes through a ground-contact model into a vcad geometry parameter and agrees with finite differences. Joining the two ends is co-design work for Body @pond2026strategy. A chain of separate tools struggles to do this however good each tool is, because the gradient stops at the first export. That is the one bet the stack makes, and it is why we built it rather than bought it.
+The payoff is a gradient that crosses the whole molecule. A task loss in Ipse passes through phyz's contact adjoint, into vcad geometry, and out to a number in loon source, with no translation at any hop. Part of that chain runs today, in simulation: on a test model, a phyz rollout gradient passes through a ground-contact model into a vcad geometry parameter and agrees with finite differences. Joining the two ends is co-design work for Body @pond2026strategy. A chain of separate tools struggles to do this however good each tool is, because the gradient stops at the first export. That is the one bet the stack makes, and it is why we built it rather than bought it.
 
 #figure(
   cetz.canvas(length: 1cm, {
@@ -1434,7 +1434,7 @@ The payoff is a gradient that crosses the whole molecule. A task loss in ipse pa
     )
     let r = 0.52
     for (a, b) in bonds { line(at.at(a), at.at(b), stroke: 0.6pt + c-line-hi) }
-    // the gradient: from a task loss in ipse back to a number in loon source
+    // the gradient: from a task loss in Ipse back to a number in loon source
     let path = ("ipse", "phyz", "vcad", "loon")
     for k in range(path.len() - 1) {
       let (p, q) = (at.at(path.at(k)), at.at(path.at(k + 1)))
@@ -1445,7 +1445,7 @@ The payoff is a gradient that crosses the whole molecule. A task loss in ipse pa
       line((p.at(0) + u.at(0) * (r + 0.08) + n.at(0), p.at(1) + u.at(1) * (r + 0.08) + n.at(1)), (q.at(0) - u.at(0) * (r + 0.1) + n.at(0), q.at(1) - u.at(1) * (r + 0.1) + n.at(1)), stroke: 1.3pt + c-sel, mark: (end: ">", fill: c-sel, size: 0.18))
     }
     for (name, pos) in at.pairs() {
-      let e = elements.find(e => e.at(1) == name)
+      let e = elements.find(e => lower(e.at(1)) == name)
       let col = fam.at(e.at(2)).color
       let exists = e.at(3) == "exists"
       circle(pos, radius: r, fill: if exists { col } else { c-bg }, stroke: if e.at(3) == "concept" { (paint: col, thickness: 0.8pt, dash: (2pt, 2pt)) } else { 0.9pt + col })
@@ -1453,7 +1453,7 @@ The payoff is a gradient that crosses the whole molecule. A task loss in ipse pa
     }
     content((5.0, -0.2), anchor: "north", text(font: mono-m, size: 5pt, fill: c-sel, tracking: track, upper[gradient]))
   }),
-  caption: [#lead[The stack as a molecule.] Each bond is a dependency; color is family, fill is maturity, as in @fig:elements. The orange path is the gradient the stack exists to carry: from a task loss in ipse, through phyz's contact adjoint and vcad geometry, back to a number in loon source.],
+  caption: [#lead[The stack as a molecule.] Each bond is a dependency; color is family, fill is maturity, as in @fig:elements. The orange path is the gradient the stack exists to carry: from a task loss in Ipse, through phyz's contact adjoint and vcad geometry, back to a number in loon source.],
 ) <fig:bonds>
 
 == Who is in the loop
@@ -1499,7 +1499,7 @@ Every body runs on one unregulated DC bus of *36–60 V*. Every load must accept
     [Humanoid load], [\~460 W mean walking; \~2.0 kW realistic peak], [Estimate],
     [Humanoid runtime], [\~1.7 h walking, \~2.2 h standing pick work, per A+B pair], [Estimate],
   ),
-  caption: [#lead[The pack] @mr2026battery. Every body we build uses it. The runtime figures assume a rose-class body with two limbs.],
+  caption: [#lead[The pack] @mr2026battery. Every body we build uses it. The runtime figures assume a Rose-class body with two limbs.],
 ) <tab:pack>
 
 Beside the power runs one management bus, CAN-FD, for presence, power control and telemetry. Bulk data (cameras, logs, the twin) travels over Ethernet. There is no separate hardwired e-stop loop, and other humanoids do not carry one either. Pulling a pack is the hard stop: its connector's last-mating pin is the power enable.
@@ -1628,7 +1628,7 @@ The pack is also the EUM instrument. EUM (@sec:eum) is defined at each machine's
 
 Compute comes in one module, the *core*: a 132 × 76 × 20 mm carrier on a 3 mm aluminum spine that is both its rail and its heat path, with one rear connector carrying the bus, gigabit Ethernet and CAN-FD @mr2026compute. The same core slides into a 10-inch rack chassis (eight per 2U, fan-cooled) or into a humanoid's torso bay (up to three, conduction-cooled into cold walls with a fan over the fins). A core identifies itself and its power class over I²C before the host powers it: 20 W for a Raspberry Pi CM5 carrier, 30 W for a Jetson-class carrier.
 
-How a body uses its slots follows the seams ipse already has (@sec:mind). The fast layers, S0 (whole-body tracking, 50 Hz today, 200 Hz target) and S1 (skills and contact planning, 50 Hz), are deadline-bound and must run on the body. The slow layer, S2 (intent and the world model, 1–5 Hz), may run on the body or off it, and if it is lost, S1 finishes the current skill and stands @ipse2026brief. So:
+How a body uses its slots follows the seams Ipse already has (@sec:mind). The fast layers, S0 (whole-body tracking, 50 Hz today, 200 Hz target) and S1 (skills and contact planning, 50 Hz), are deadline-bound and must run on the body. The slow layer, S2 (intent and the world model, 1–5 Hz), may run on the body or off it, and if it is lost, S1 finishes the current skill and stands @ipse2026brief. So:
 
 - *Slot 1* always holds a GPU core running S0, S1, the abstract state bus and perception, isolated at real-time priority. Nothing else is allowed on it. On the K1, vendor processes share the perception computer, and worst-case walk inference has been seen at 13.7–15.8 ms against a 0.24 ms median off the robot (session notes, probably preemption).
 - *Slots 2 and 3* run S2 when fitted. A full body thinks offline.
@@ -1636,7 +1636,7 @@ How a body uses its slots follows the seams ipse already has (@sec:mind). The fa
 
 Whether a body thinks onboard or leans on the rack is then a slot count, not an architecture. The rack is the same standard at larger scale: a 9U, 450 mm deep frame with a GPU node for training and the twin, two core chassis, and two 48 V supplies feeding a vertical busbar, about 1 kW in all (estimate) @mr2026compute.
 
-*rose against the K1.* rose should out-think the K1: CUDA, real-time scheduling, and our own code from the carrier up. That claim gets the same treatment as every other one. The same ipse build runs on both bodies, and we report S0 tick jitter, inference latency and where S2 ran, per body. rose is first run with one core, close to the K1’s compute, then with more, so the effect of compute is measured one variable at a time.
+*Rose against the K1.* Rose should out-think the K1: CUDA, real-time scheduling, and our own code from the carrier up. That claim gets the same treatment as every other one. The same Ipse build runs on both bodies, and we report S0 tick jitter, inference latency and where S2 ran, per body. Rose is first run with one core, close to the K1’s compute, then with more, so the effect of compute is measured one variable at a time.
 
 The open question is the size of S2. A 16 GB Orin NX core may hold it; a Thor-class module would not fit a 20 mm core.
 
@@ -1669,7 +1669,7 @@ Nothing we build can be turned against a person, whether by force, by data or by
 
 - *Not by force.* No sales for weapons or military use.
 - *Not by data.* Never be Flock Safety (@sec:city). Not negotiable.
-- *Not by instruction.* ipse keeps its standing constraints (@sec:mind).
+- *Not by instruction.* Ipse keeps its standing constraints (@sec:mind).
 - *No unearned claims.* Every claim about a product ships with the number behind it, labeled measured, modeled or estimated.
 - *No careless displacement.* Start with work nobody is doing, and say plainly what changes when the robots arrive.
 
@@ -1692,7 +1692,7 @@ ISO/TS 15066 was written for industrial cobots. For a humanoid on a public sidew
     [Mechanism], [Slip clutches and compliant joints that yield above a set torque], [#status("label", "Planned") none in v9], [Reflashing],
     [Electronics], [Current limits set in torc hardware, not firmware], [#status("label", "Planned") v9 uses RobStride firmware current limits], [Reflashing],
     [Interfaces], [A gripper by design; no trigger lines at the tool], [#status("info", "Designed") only the EL05’s CAN + 48 V and a camera pair], [Casual modification],
-    [Mind], [ipse can refuse; refusals are logged, never trained against], [#status("label", "Planned") ipse is K1 research, not on the limb], [Misuse by instruction],
+    [Mind], [Ipse can refuse; refusals are logged, never trained against], [#status("label", "Planned") Ipse is K1 research, not on the limb], [Misuse by instruction],
     [Terms], [Sales terms ban weapons use; fleet buyers vetted], [#status("label", "Planned") no terms written], [Resale, mostly],
   ),
   caption: [#lead[Safety layers, what exists on the limb today, and what each layer would survive] @mr2026masterplan. Today the limb has only a design-level interface layer and vendor firmware current limits; it is not physically incapable of harm.],
@@ -1802,16 +1802,16 @@ The second headline number is the time a lineage of pairs takes to double what i
 
 == Sizes
 
-The limb comes in the same three sizes as rose. *Limb mini* is K1 size, for rose mini and for light pairs. *Limb full* is human size: the rose fork v9 described below, and the limb this paper means when it says "limb". *Limb mega* is industrial, for heavy pairs and rose mega. All three share one design, the fork, written as one loon source with size as a parameter. Only limb full is drawn; mini and mega are scaled from it and not yet checked against their actuators.
+The limb comes in the same three sizes as Rose. *Limb mini* is K1 size, for Rose mini and for light pairs. *Limb full* is human size: the Rose fork v9 described below, and the limb this paper means when it says "limb". *Limb mega* is industrial, for heavy pairs and Rose mega. All three share one design, the fork, written as one loon source with size as a parameter. Only limb full is drawn; mini and mega are scaled from it and not yet checked against their actuators.
 
 == Arm
 
 #colfig(
   image("images-dark/fork-v9-lines.png", width: 60%),
-  caption: [#lead[The arm, rose fork v9.] Six joints, every plate 1/8" 5052 except the 1/4" foot, every motor mounted by its back face. Render from the arm repository @rose2026forkv9.],
+  caption: [#lead[The arm, Rose fork v9.] Six joints, every plate 1/8" 5052 except the 1/4" foot, every motor mounted by its back face. Render from the arm repository @rose2026forkv9.],
 ) <fig:arm>
 
-One arm does three jobs: it is sold on its own, it is half of every pair, and it is an arm of the rose humanoid. Its design idea is that *every pitch joint is a fork* @rose2026forkv9. The parent link holds the motor's stator between its two side plates. The child straddles the parent, with one plate bolted to the output and the other riding a plain bearing on a hollow sleeve on the joint axis. Parent and child share one centerline, so no joint is offset and there is no offset elbow to twist the arm. Cables pass through the hollow sleeves, so they only twist and never loop outside the arm. The name comes from where the design lives. rose fork v9 is the ninth revision of the fork concept, drawn in the rose humanoid repository as a table arm that is also rose's arm @rose2026forkv9. In this paper "the arm" means this design, and "rose" on its own means the humanoid line (@fig:elements), whose \$15,000 target assumes rana (@sec:rana).
+One arm does three jobs: it is sold on its own, it is half of every pair, and it is an arm of the Rose humanoid. Its design idea is that *every pitch joint is a fork* @rose2026forkv9. The parent link holds the motor's stator between its two side plates. The child straddles the parent, with one plate bolted to the output and the other riding a plain bearing on a hollow sleeve on the joint axis. Parent and child share one centerline, so no joint is offset and there is no offset elbow to twist the arm. Cables pass through the hollow sleeves, so they only twist and never loop outside the arm. The name comes from where the design lives. Rose fork v9 is the ninth revision of the fork concept, drawn in the Rose humanoid repository as a table arm that is also Rose's arm @rose2026forkv9. In this paper "the arm" means this design, and "Rose" on its own means the humanoid line (@fig:elements), whose \$15,000 target assumes rana (@sec:rana).
 
 #figure(
   table(
@@ -1836,7 +1836,7 @@ One arm does three jobs: it is sold on its own, it is half of every pair, and it
     [Interference, 209 poses], [None], [Swept in CAD],
     [Build state], [Ready to cut], [None built yet],
   ),
-  caption: [#lead[rose fork v9 specification.] Every number is a model output; none has been measured on a built arm. Arm-model jaws are the simpler tool in the arm's own model, two flat jaw plates on the same EL05, and are lighter than gripper v2.],
+  caption: [#lead[Rose fork v9 specification.] Every number is a model output; none has been measured on a built arm. Arm-model jaws are the simpler tool in the arm's own model, two flat jaw plates on the same EL05, and are lighter than gripper v2.],
 ) <tab:arm>
 
 *Why holding sets the limit.* Holding a pose is a stall, and a stalled actuator is limited by heat, not by peak torque. The vendor's stall-continuous ratings are well below the rotating ratings. For the RS04 at the shoulder, the joint that sets the limit, the manual gives 28.5 N·m stall-continuous against 40 N·m rotating, measured on a 345 × 345 mm aluminum heat-sink plate @robstride2026manual. On a 220 × 200 mm plate, about the size of the fork's parent plates, the manual rates it at 35 N·m rotating. We derate the stall figure by the same 35/40, to 25 N·m (estimate). The hold numbers in @tab:arm use that figure, with the arm straight out, which is the worst pose. Bent working poses hold more. With RobStride's ratings, about 1.25–1.5 kg continuous straight out is close to the limit at this reach without springs, because the shoulder carries the whole arm. The earlier v4/v5 iterations reached the same ceiling @rose2026forkv9.
@@ -1885,7 +1885,7 @@ The actuators are about 60% of a limb's materials (\~\$1,200 of \~\$2,000). That
     table.header([*Product*], [*List*], [*Materials*], [*Margin*], [*Contents*]),
     [Limb], [\$5,000], [\~\$2,000], [60%], [Six RobStride joints (\~\$1,200), plates, harness, gripper],
     [Pair], [\$12,000], [\~\$4,400], [63%], [Two limbs, a table plate, a pair hub, a camera pair, a core],
-    [rose], [\$15,000], [not costed], [–], [A pair on legs. Needs rana at a few hundred dollars per joint],
+    [Rose], [\$15,000], [not costed], [–], [A pair on legs. Needs rana at a few hundred dollars per joint],
   ),
   caption: [#lead[Prices and margin on materials] @mr2026masterplan. List prices are targets, not quotes; materials are estimates. Margin here is list less materials, a ceiling on gross margin: labor, test, warranty, shipping and overhead are not yet known and will reduce it.],
 ) <tab:prices>
@@ -1905,7 +1905,7 @@ The actuators are about 60% of a limb's materials (\~\$1,200 of \~\$2,000). That
   caption: [#lead[Limb margin sensitivity and break-even] (estimate, from the figures above). A limb's economics are mostly the actuator's economics.],
 ) <tab:sens>
 
-Until rana succeeds or is abandoned, the limb business depends on one supplier's pricing. We do not expect the rose price (\$15,000, the G1’s price class @unitree2024g1) to be reachable on purchased actuators (estimate; the rose bill of materials is not costed in this paper). That is why it waits for rana.
+Until rana succeeds or is abandoned, the limb business depends on one supplier's pricing. We do not expect the Rose price (\$15,000, the G1’s price class @unitree2024g1) to be reachable on purchased actuators (estimate; the Rose bill of materials is not costed in this paper). That is why it waits for rana.
 
 Vendors rarely say at what pose or duty cycle a rated payload holds. Our 1.27 kg is a modeled continuous hold at full extension, the worst case; bent working poses hold more. If you need a proven arm now, a commercial one will likely serve you sooner.
 
@@ -1963,13 +1963,13 @@ Then come the hard parts. Actuators end to end: magnets stay bought until a ferr
 
 == Bought
 
-We bought a Booster K1 rather than building first. It is 95 cm tall, weighs 19.5 kg, and has 22 degrees of freedom (6 per leg, 4 per arm, 2 in the head). It has force-controlled joints with dual encoders, an RGBD camera and a microphone array @booster2025k1. Its perception computer is a Qualcomm QCS8550 (6 cores, 10 GB, Adreno GPU, Hexagon DSP, no CUDA), beside a separate motion computer that runs the vendor's control; we measured this on the robot, and it differs from the vendor summary we first relied on @ipse2026deploy. A commercial body has known kinematics and a known-good build, so it serves as a *control*: every later body, including rose, is measured against it.
+We bought a Booster K1 rather than building first. It is 95 cm tall, weighs 19.5 kg, and has 22 degrees of freedom (6 per leg, 4 per arm, 2 in the head). It has force-controlled joints with dual encoders, an RGBD camera and a microphone array @booster2025k1. Its perception computer is a Qualcomm QCS8550 (6 cores, 10 GB, Adreno GPU, Hexagon DSP, no CUDA), beside a separate motion computer that runs the vendor's control; we measured this on the robot, and it differs from the vendor summary we first relied on @ipse2026deploy. A commercial body has known kinematics and a known-good build, so it serves as a *control*: every later body, including Rose, is measured against it.
 
-The K1 has two jobs. In a proposed Lakewood pilot it would pick up litter (@sec:city); it has not grasped litter yet. In the lab it is the body for ipse, a developmental research program. The two share hardware, software and one rule: every claim ships with the number that supports it.
+The K1 has two jobs. In a proposed Lakewood pilot it would pick up litter (@sec:city); it has not grasped litter yet. In the lab it is the body for Ipse, a developmental research program. The two share hardware, software and one rule: every claim ships with the number that supports it.
 
-== rose
+== Rose
 
-rose is the humanoid we will build. The name is the thesis: past tense of rise, the one that stood up. It is a line of three sizes, each anchored to something real (@tab:rose). Every rose shares one design language: bent 3 mm 5052 sheet as primary structure, cut flat and folded, with no machined blocks; an exposed skeleton for the limbs against a shaped torso that is itself the structure; contact geometry on the feet only @rose2026line.
+Rose is the humanoid we will build. The name is the thesis: past tense of rise, the one that stood up. It is a line of three sizes, each anchored to something real (@tab:rose). Every Rose shares one design language: bent 3 mm 5052 sheet as primary structure, cut flat and folded, with no machined blocks; an exposed skeleton for the limbs against a shaped torso that is itself the structure; contact geometry on the feet only @rose2026line.
 
 #figure(
   table(
@@ -1980,28 +1980,28 @@ rose is the humanoid we will build. The name is the thesis: past tense of rise, 
     [full], [1,750 mm], [\~55.5 kg (est.)], [Human size], [Larger knee and ankle actuators needed; packing check blocked on missing actuator drawings],
     [mega], [2,000 mm], [64.3 kg], [Industrial], [rana joints throughout; 1.2 kWh at 48 V; interfaces frozen before geometry],
   ),
-  caption: [#lead[The rose line] (modeled) @rose2026line. Masses and holds are model outputs; full's mass is scaled from a smaller actuator, not measured.],
+  caption: [#lead[The Rose line] (modeled) @rose2026line. Masses and holds are model outputs; full's mass is scaled from a smaller actuator, not measured.],
 ) <tab:rose>
 
-In this plan, rose's arms are limbs, full stop: a humanoid is a pair on legs, with a torso that carries the core bay and two packs (@sec:power). Each rose takes the limb of its size: mini takes limb mini, full takes limb full, mega takes limb mega. The current drawings still carry four-degree-of-freedom arms on purchased actuators; replacing them with limbs, and the legs' purchased actuators with rana where it wins, is open work.
+In this plan, Rose's arms are limbs, full stop: a humanoid is a pair on legs, with a torso that carries the core bay and two packs (@sec:power). Each Rose takes the limb of its size: mini takes limb mini, full takes limb full, mega takes limb mega. The current drawings still carry four-degree-of-freedom arms on purchased actuators; replacing them with limbs, and the legs' purchased actuators with rana where it wins, is open work.
 
-rose mini does not wait for the pair to sell. It starts now, in parallel, on purchased actuators and limb mini, because the K1 has shown the limits of a body we did not build. Body overlaps Pair; it does not follow it. rose full's \$15,000 target is the G1’s price class @unitree2024g1, and it waits for rana.
+Rose mini does not wait for the pair to sell. It starts now, in parallel, on purchased actuators and limb mini, because the K1 has shown the limits of a body we did not build. Body overlaps Pair; it does not follow it. Rose full's \$15,000 target is the G1’s price class @unitree2024g1, and it waits for rana.
 
-One finding already shapes rana. Sized to jump, rose mega is limited by speed, not torque. At peak current every rana delivers the same \~1.3 kW of mechanical power, set by the 48 V bus and a 30 A current limit, so a bigger rana buys torque, not power. A higher-voltage leg drive or series elastics, not a larger motor, is the lever for jumping.
+One finding already shapes rana. Sized to jump, Rose mega is limited by speed, not torque. At peak current every rana delivers the same \~1.3 kW of mechanical power, set by the 48 V bus and a 30 A current limit, so a bigger rana buys torque, not power. A higher-voltage leg drive or series elastics, not a larger motor, is the lever for jumping.
 
-== ipse
+== Ipse
 #figure(
   grid(columns: 3, gutter: 1.5em, align: bottom,
     image("images-native/rose_mini_iso.png", height: 1.25in),
     image("images-native/rose_pro_iso.png", height: 1.45in),
     image("images-native/rose_max_iso.png", height: 1.65in),
   ),
-  caption: [#lead[rose mini, full and mega] (modeled), each rendered at the height its CAD was drawn, not yet at the sizes in @tab:rose. The three do not yet share one design language; bringing mini and mega into full's bent sheet is open work.],
+  caption: [#lead[Rose mini, full and mega] (modeled), each rendered at the height its CAD was drawn, not yet at the sizes in @tab:rose. The three do not yet share one design language; bringing mini and mega into full's bent sheet is open work.],
 ) <fig:rose>
 
-ipse matters to this plan for two reasons: it produces Body's first claim, a body that fits its own model (@sec:schema), and it is the layer in @tab:safety that can refuse an instruction.
+Ipse matters to this plan for two reasons: it produces Body's first claim, a body that fits its own model (@sec:schema), and it is the layer in @tab:safety that can refuse an instruction.
 
-ipse (Interoceptive Predictive Self-Emergence) is a scaffold for growing a mind on a K1 over months of lived experience @ipse2026brief. The name states the project's hypothesis, not a result. It is not a robot control stack. Its architecture is a world model with fast and slow latents; interoception (battery, joint temperature, motor current, IMU) enters as observation rather than reward. Its simulation runs in phyz, on bodies authored in vcad; no MuJoCo or Isaac is involved.
+Ipse (Interoceptive Predictive Self-Emergence) is a scaffold for growing a mind on a K1 over months of lived experience @ipse2026brief. The name states the project's hypothesis, not a result. It is not a robot control stack. Its architecture is a world model with fast and slow latents; interoception (battery, joint temperature, motor current, IMU) enters as observation rather than reward. Its simulation runs in phyz, on bodies authored in vcad; no MuJoCo or Isaac is involved.
 
 Its standing constraints are quoted here because they bind the company, not just the research @ipse2026brief:
 
@@ -2010,13 +2010,13 @@ Its standing constraints are quoted here because they bind the company, not just
 - "Do not optimize for consciousness indicators." Indicator lists such as Butlin et al. @butlin2023consciousness are used as an audit at phase boundaries, never as a training target.
 - "Grown, not built." When a behavior is missing, the first question is what experience would produce it.
 
-One limit is hardware. The K1’s perception computer has no CUDA, its idle vendor stack holds about two of its six cores, and an onboard vision-language model has no measured headroom @ipse2026deploy. So the work is split along ipse's own seams (@sec:compute). Drives, memory, workspace and refusal stay on the robot; a cloud model is an amplifier it uses @ipse2026brief.
+One limit is hardware. The K1’s perception computer has no CUDA, its idle vendor stack holds about two of its six cores, and an onboard vision-language model has no measured headroom @ipse2026deploy. So the work is split along Ipse's own seams (@sec:compute). Drives, memory, workspace and refusal stay on the robot; a cloud model is an amplifier it uses @ipse2026brief.
 
 We do not name the robot. The design brief says it "should not be named by us": it gets a name when it has earned one or arrives at one. Until then it is "the K1".
 
 == Self <sec:schema>
 
-The first claim of Body is ipse's Phase 1 milestone. It is the body-schema result, not the world model @ipse2026brief @pond2026strategy.
+The first claim of Body is Ipse's Phase 1 milestone. It is the body-schema result, not the world model @ipse2026brief @pond2026strategy.
 
 *Claim.* The K1 starts from the vendor's model of its own body, which is known to be wrong in places. From its own exploratory movements (motor babbling), and by gradient descent through phyz's contact model, it fits a body schema: its own masses and inertias. The fitted schema must predict held-out motion better than persistence (the baseline defined in the falsifier below) and must match the CAD ground truth. We publish the residual between the two as the *measured body schema*.
 
@@ -2028,9 +2028,9 @@ The first claim of Body is ipse's Phase 1 milestone. It is the body-schema resul
 
 *Falsifier.* If the fitted model cannot beat *persistence* ("the next state is the current state") on the R1 capture harness at the stated horizons, the claim fails. Persistence is the bar because on a mostly still body at \~49 Hz it is nearly right. A model with low error has shown nothing until it beats persistence.
 
-ipse also carries a self-probe from the start. It is an instrument that will later test whether the model forms a self-representation that holds across behaviors. It runs now so its metric has a history @ipse2026brief. We make no claim about what it will show.
+Ipse also carries a self-probe from the start. It is an instrument that will later test whether the model forms a self-representation that holds across behaviors. It runs now so its metric has a history @ipse2026brief. We make no claim about what it will show.
 
-*Gate.* Preregistered hardware body-schema fit: held-out joint-position error ≤ 0.8 × persistence at 0.1 s and 0.5 s, and fitted link masses within ±5% of weighed parts. rose walks 100 m on level pavement carrying two limbs, 0 falls in 5 of 5. A gradient co-designed part beats its hand-designed predecessor by ≥ 10% on its named objective (@tab:arc).
+*Gate.* Preregistered hardware body-schema fit: held-out joint-position error ≤ 0.8 × persistence at 0.1 s and 0.5 s, and fitted link masses within ±5% of weighed parts. Rose walks 100 m on level pavement carrying two limbs, 0 falls in 5 of 5. A gradient co-designed part beats its hand-designed predecessor by ≥ 10% on its named objective (@tab:arc).
 
 = City <sec:city>
 
@@ -2046,7 +2046,7 @@ Litter pickup would put robots on every block every week. Most litter goes uncol
 
 Lakewood is a first-ring suburb of Cleveland with 49,517 residents in 5.5 square miles of land @census2024lakewood, about 9,000 people per square mile. It is among the most densely populated cities in Ohio, with more than 180 miles of sidewalk @lakewood2024sidewalks. Our earlier paper used it as the reference case for sidewalk snow clearing @muni2025whitepaper. It is small enough to model whole as a city twin, and its streets are dense enough that a few robots would see a lot of pavement.
 
-How the K1 picks up litter is not settled. The current concept, under design, is a *reacher*: a \~450 mm tube mounted on the K1’s wrist with gripper v2 jaws at its tip, an EL05 at the wrist end driving the jaws through a pushrod, a bag on a back frame, and a dock that is a bin, a charger and a public wifi point at once. The reacher keeps the K1 upright: it picks from standing, without squatting. Later, rose takes over for two-handed and squatting work.
+How the K1 picks up litter is not settled. The current concept, under design, is a *reacher*: a \~450 mm tube mounted on the K1’s wrist with gripper v2 jaws at its tip, an EL05 at the wrist end driving the jaws through a pushrod, a bag on a back frame, and a dock that is a bin, a charger and a public wifi point at once. The reacher keeps the K1 upright: it picks from standing, without squatting. Later, Rose takes over for two-handed and squatting work.
 
 The concept has four open checks, none done yet:
 
@@ -2055,7 +2055,7 @@ The concept has four open checks, none done yet:
 - *A grasp set:* the litter the reacher must pick (cans, bottles, wrappers, cups), with a success rate per item.
 - *Behavior around people:* yield, stop, and never reach toward a person.
 
-Outdoor grasping, year-round, would give two things the lab cannot. It would produce the duty cycles that will size rana. And it would put the ipse body on a street, where the gap would be measured on real pavement.
+Outdoor grasping, year-round, would give two things the lab cannot. It would produce the duty cycles that will size rana. And it would put the Ipse body on a street, where the gap would be measured on real pavement.
 
 == Map
 
@@ -2081,21 +2081,21 @@ These are design rules for the street pilot; none of the street pipeline is buil
 - *No selling or sharing of data that tracks anyone,* and no police access to people-tracking data, because we will not hold any. Street maps, potholes, ramps and litter counts are the city's to use.
 - *We map the city, not the people.* People and cars are removed on the robot before street imagery is written to storage. Pictures are released delayed; live facts (a pothole, ice) can be fresh.
 
-*ipse's experience store.* ipse preserves its experience store, versioned, always (@sec:mind). That does not conflict with the line above: the store keeps the robot's own body history in full, and what it keeps from a public street passes through the same on-robot filter first, so it holds scenes, not identities or tracks. The robot's safety log, needed for incident review, follows the same rule; its retention period is not yet decided.
+*Ipse's experience store.* Ipse preserves its experience store, versioned, always (@sec:mind). That does not conflict with the line above: the store keeps the robot's own body history in full, and what it keeps from a public street passes through the same on-robot filter first, so it holds scenes, not identities or tracks. The robot's safety log, needed for incident review, follows the same rule; its retention period is not yet decided.
 
 *Open, so anyone can check.* Everything that can be open is open: our software, our designs, the firmware on hardware we control, and our data formats. The K1 runs Booster's firmware, which is not ours and is not open; on the K1 the check stops at our own code.
 
 == Scope
 
-The pilot does not automate interaction with the public beyond yielding and stopping. It does not enter private property, and it does not touch sharps, hazardous waste or anything a person is holding. Remote assistance may be a product feature, but data from it never trains ipse @mr2026masterplan. *Proposed scope, pending confirmation:* this list is a draft and has not been agreed internally or with any city.
+The pilot does not automate interaction with the public beyond yielding and stopping. It does not enter private property, and it does not touch sharps, hazardous waste or anything a person is holding. Remote assistance may be a product feature, but data from it never trains Ipse @mr2026masterplan. *Proposed scope, pending confirmation:* this list is a draft and has not been agreed internally or with any city.
 
 == moth <sec:moth>
 
-moth is a drone for street perception @mr2026decisions. It flies ahead of the K1 or rose to find litter, potholes, blocked curb ramps and dark streetlights, and builds the street map from above.
+moth is a drone for street perception @mr2026decisions. It flies ahead of the K1 or Rose to find litter, potholes, blocked curb ramps and dark streetlights, and builds the street map from above.
 
 moth is not sold for military use or armed in any form (@sec:safety).
 
-moth is also the cheapest check that the standards in @sec:power are body-agnostic. It is a one-core body on the 36–60 V bus with CAN-FD for management, running the same ipse seams as a humanoid. It carries its own lighter pack: the 2.65 kg humanoid pack only suits a heavy-lift airframe.
+moth is also the cheapest check that the standards in @sec:power are body-agnostic. It is a one-core body on the 36–60 V bus with CAN-FD for management, running the same Ipse seams as a humanoid. It carries its own lighter pack: the 2.65 kg humanoid pack only suits a heavy-lift airframe.
 
 *The same street rules.* Mapping needs imagery, so moth's imagery leaves the drone, under the rules of @sec:city: people and cars are removed on the drone before anything is written to storage, pictures are released delayed, and nothing links a person, car or device across frames, places or days. A camera over a residential street is what people fear most, so moth's filter gets its own published test: how often a person or plate survives it, measured on held-out street footage.
 
@@ -2225,7 +2225,7 @@ Most of what this paper describes is *proposed*, not operational. @tab:status se
     [K1 body-schema fit], pips(2, sim: true), [Works in simulation; not on hardware @ipse2026brief],
     table.cell(colspan: 3, inset: (top: 9pt, bottom: 3pt, x: 6pt), stroke: none, text(font: mono-m, size: s-xs, fill: c-label, tracking: track)[CONCEPT]),
     [Pair], pips(1), [Mount not designed],
-    [rose mini], pips(1), [Geometry in progress @rose2026line],
+    [Rose mini], pips(1), [Geometry in progress @rose2026line],
     [Pack, core, nerv], pips(1), [Mockups @mr2026battery @mr2026compute],
     [Litter reacher], pips(1), [The K1 has not grasped litter],
     [Lakewood pilot], pips(1), [No agreement],
@@ -2241,7 +2241,7 @@ Most of what this paper describes is *proposed*, not operational. @tab:status se
 
 This paper does not claim that any machine we have built makes copies of itself. None does. It does not claim that the stages after Limb will happen on any schedule. It does not claim emergence, general intelligence, or consciousness for any system. The mind research described in @sec:mind will preregister a narrow claim about the robot's body schema and treats everything beyond it as an open question.
 
-Some words come from the ipse design brief. They name parts of a research architecture, not established properties. "Mind" is the project's word for its learning system. "Refuse" and "reluctance" name behavior the architecture is designed to allow and to log, not a separate module. "Drives" are predictions about preferred internal states. "Self-Emergence" states the hypothesis the self-probe will test. None of these words is a claim about experience.
+Some words come from the Ipse design brief. They name parts of a research architecture, not established properties. "Mind" is the project's word for its learning system. "Refuse" and "reluctance" name behavior the architecture is designed to allow and to log, not a separate module. "Drives" are predictions about preferred internal states. "Self-Emergence" states the hypothesis the self-probe will test. None of these words is a claim about experience.
 
 It does not claim our actuator is better than a purchased one. Limb's second step exists to find out on an actuator dynamometer (the dyno), which is planned and not yet built, and dropping our actuator is a valid outcome.
 
@@ -2265,7 +2265,7 @@ Four results would prove the plan wrong:
     table.header([*Risk*], [*What would show it*], [*What we do*]),
     [One actuator supplier (RobStride)], [A price or lead-time change], [rana, which replaces a RobStride joint only once it is validated (@sec:rana, @tab:sens)],
     [Limb hold too small for buyers (1.27 kg straight out, modeled)], [Buyers decline at that rating], [Rate the hold by pose, since bent poses hold more, and design the springs (@sec:arm)],
-    [Bought humanoid (Booster K1)], [Vendor support ends], [The K1 is a control, not a dependency; rose is the body measured against it (@sec:mind)],
+    [Bought humanoid (Booster K1)], [Vendor support ends], [The K1 is a control, not a dependency; Rose is the body measured against it (@sec:mind)],
     [Breadth across many projects], [Stage gates slip], [Projects not needed in Limb wait for their stage (@fig:elements)],
     [rana never beats bought actuators], [Dyno results], [Keep buying RobStride. Dropping rana is a valid outcome],
     [Sidewalk incident; legal fit of the Lakewood pilot], [An incident, or the city declines], [See @sec:safety and @sec:city. The specific response is open, pending decision],
@@ -2281,7 +2281,7 @@ Each open item is limited by one of four things. Sorting them shows which can be
 
 *Software.* Three items: the per-limb controllers and their stated sim-to-real gap; the world format wodl and the iris layer, both new in the stack (@fig:elements); and the K1 body-schema fit, done in simulation but not yet on hardware (@tab:status).
 
-*Hardware revision.* The straight-out continuous hold of about 1.27 kg (modeled) is set by the shoulder; raising it needs a counterbalance spring (@sec:arm). The clock-spring cassettes for the roll joints are drawn but not designed. rana's production stator (SMC or tape-wound) is not yet sourced @rana2026bom. The rose torso grows to 214 mm to hold the core bay and two packs @mr2026battery.
+*Hardware revision.* The straight-out continuous hold of about 1.27 kg (modeled) is set by the shoulder; raising it needs a counterbalance spring (@sec:arm). The clock-spring cassettes for the roll joints are drawn but not designed. rana's production stator (SMC or tape-wound) is not yet sourced @rana2026bom. The Rose torso grows to 214 mm to hold the core bay and two packs @mr2026battery.
 
 *Physics.* A hold is a stall and is limited by heat, not peak torque. Payload falls with reach. Off Earth, light-time delay rules out direct remote control.
 
@@ -2289,7 +2289,7 @@ Each open item is limited by one of four things. Sorting them shows which can be
 
 == Timeline
 
-We give dates only for Limb, and those are approximate: two steps over roughly three years, each gated on evidence. rose mini starts now, in parallel, but no stage after Limb has a date, Body included.
+We give dates only for Limb, and those are approximate: two steps over roughly three years, each gated on evidence. Rose mini starts now, in parallel, but no stage after Limb has a date, Body included.
 
 What we can say:
 
@@ -2309,7 +2309,7 @@ What we can say:
     [#status("info", "Demonstrated in simulation")], [K1 inertial recovery (synthetic data, sphere feet, T-pose) from ±20% to machine precision; K1 stands 10 s, recovers from 8 N·s push],
     [#status("info", "Modeled (our CAD and scripts)")], [Limb reach, mass, holds, sag, ranges; gripper force and mass],
     [#status("warn", "Estimated")], [Limb and pair materials; RS04 stall derate for the fork's plates; rana BOM line items and the \$1,086 total; rana raw-material cost and idiot index; RobStride retail prices; margins and sensitivity; limb peak power; K1 and pair power draw (EUM baseline)],
-    [#status("label", "Target")], [List prices: limb \$5,000, pair \$12,000, rose \$15,000; all gate thresholds (@tab:arc), proposed],
+    [#status("label", "Target")], [List prices: limb \$5,000, pair \$12,000, Rose \$15,000; all gate thresholds (@tab:arc), proposed],
     [#status("label", "Hypothesis with a stated falsifier")], [The hardware body-schema result],
     [#status("label", "Goal, not a claim")], [Body through Sun and their watt figures, including any self-replication; the litter reacher concept],
   ), align(left, text(font: mono, size: s-xs, fill: c-label)[#caps(font: mono-sb)[Status key] #h(0.5em) #status("ok", "ok") measured or sourced #h(0.6em) #status("info", "info") model output #h(0.6em) #status("warn", "warn") estimate #h(0.6em) #status("label", "label") target, hypothesis or goal #h(0.6em) #status("fault", "fault") failed or unreachable])) },
@@ -2376,7 +2376,7 @@ Every stage closes on gates of the same form: a number, a unit, a method and a p
     table.header([*Stage*], [*Gate: number, method, pass condition*], [*EUM, order*]),
     [Limb (yrs 1–3)], [≥ 10 limbs sold to outside buyers at ≥ 40% gross margin, after materials, labor, test and warranty (invoices, trailing 12 months). Tool-point error ≤ 2.0 mm RMS on every limb shipped: 50 fixed poses, unloaded and at 1.0 kg, probe against a calibrated plate, printed on its receipt. rana ≥ 1.2 × RS04 in continuous stall torque per kg or per dollar, on one dyno at 25 °C, or rana is dropped], [0 W → 10 kW],
     [Pair], [A pair at a customer's table completes a named task (for example, folding 50 garments) at ≥ 95% success. A pair assembles a limb that passes the Limb test in ≤ 30 min of human touch time. A pair builds a pair that passes its receipts at ≤ 20% bought cost, with bought share falling over 3 generations and a commanded shutdown drill passed in each], [100 kW],
-    [Body], [Preregistered hardware body-schema fit: held-out joint-position error ≤ 0.8 × persistence at 0.1 s and 0.5 s, and fitted link masses within ±5% of weighed parts. rose walks 100 m on level pavement carrying two limbs, 0 falls in 5 of 5. A gradient co-designed part beats its hand-designed predecessor by ≥ 10% on its named objective], [1 MW],
+    [Body], [Preregistered hardware body-schema fit: held-out joint-position error ≤ 0.8 × persistence at 0.1 s and 0.5 s, and fitted link masses within ±5% of weighed parts. Rose walks 100 m on level pavement carrying two limbs, 0 falls in 5 of 5. A gradient co-designed part beats its hand-designed predecessor by ≥ 10% on its named objective], [1 MW],
     [City], [The litter pilot renews for ≥ 12 months after a ≥ 3-month trial, with 0 contact incidents. A city renews fleet and twin for ≥ 12 months. ≥ 90% of fleet repairs done by pairs in the city, by receipts], [10 MW],
     [Planet], [A lineage runs ≥ 1 year on collectors it made; doubling time measured over ≥ 3 generations; bought share ≤ 5% of cost], [1 GW],
     [Moon], [A seed builds a pair that passes the Earth receipts, ≥ 50% of its mass from local material, with remote approval only], [1 kW],

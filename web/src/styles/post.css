@@ -15,10 +15,11 @@
   --p-sans: "IBM Plex Sans", "Helvetica Neue", system-ui, sans-serif;
   --p-mono: "IBM Plex Mono", ui-monospace, "SF Mono", monospace;
   /* one rhythm: running text shares one line height; headings and labels a tighter one */
-  --p-lh: 1.6;
+  /* the PDF sets 9pt Plex on a 4.8in column (38.4 em) with lines 1.54 em apart; the web keeps those ratios */
+  --p-lh: 1.54;
   --p-lh-tight: 1.2;
-  --p-measure: 34rem;
-  --p-wide: 46rem;
+  --p-measure: 35.575rem; /* 37.8em of 0.875rem text plus 2.5rem of padding: breaks lines where the PDF does */
+  --p-wide: 49.7rem;    /* wide figures: 7.1in against the 4.8in column */
   background: var(--p-bg);
   color: var(--p-text);
   font-family: var(--p-sans);
@@ -106,10 +107,10 @@
   max-width: var(--p-measure);
   margin: 0 auto;
   padding: 0 1.25rem 6rem;
-  font-size: 0.95rem;
+  font-size: 0.875rem;
   line-height: var(--p-lh);
 }
-.post p { margin: 0 0 1.1em; }
+.post p { margin: 0 0 0.56em; text-wrap: pretty; } /* PDF paragraph spacing 1.4em, less the 0.84em leading */
 .post a { color: var(--p-text); font-weight: inherit; text-underline-offset: 3px; }
 .post strong { font-weight: 600; }
 .post sup { font-size: 0.68em; line-height: 0; }
@@ -232,7 +233,7 @@
 .post figure { margin: 2.6rem 0; }
 .post figure.wide { margin-inline: calc((var(--p-measure) - min(var(--p-wide), 100vw - 2.5rem)) / 2); }
 .post figure > svg { display: block; width: 100%; height: auto; border-radius: 2px; }
-.post figcaption { margin-top: 0.8rem; font-size: 0.8rem; line-height: var(--p-lh); color: var(--p-label); }
+.post figcaption { margin-top: 0.8rem; font-size: 0.73rem; line-height: var(--p-lh); color: var(--p-label); }
 .post figure:has(> table) figcaption { margin: 0 0 0.7rem; }
 .post .fig-label { margin-right: 0.5em; color: var(--p-text); }
 
@@ -242,7 +243,7 @@
   overflow-x: auto;
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.8rem;
+  font-size: 0.73rem;
   line-height: var(--p-lh);
   font-variant-numeric: tabular-nums;
 }
