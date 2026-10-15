@@ -195,7 +195,7 @@
 #let n-fill = c-surface
 #let n-stroke = 0.7pt + c-line-hi
 
-// Title page (single column). The one flame: the orange rule under the title.
+// Title page (single column). The one flame: the trajectory in the cover art.
 #page(columns: 1, margin: (x: 0.75in, top: 0.7in, bottom: 0.65in))[
   // Cover art: the inner solar system in a tilted plan view, an Earth → Mars → Jupiter
   // gravity-assist trajectory, and the Sun–Earth Lagrange points. Schematic, not to scale.
@@ -206,9 +206,19 @@
     let tilt = 0.5
     let zoom = 2.05
     let P(r, a) = (cx + zoom * r * calc.cos(a), cy + zoom * tilt * r * calc.sin(a))
-    let orbit(r, w, col) = {
-      let pts = range(0, 181).map(k => P(r, k * 2deg))
-      line(..pts, close: true, stroke: w + col)
+    // orbits fade with distance: the far half (y > 0) is dim and drawn behind the sun
+    let orbit(r, w, col, far: true) = {
+      let n = 72
+      for k in range(n) {
+        let a = k * 360deg / n
+        let b = (k + 1) * 360deg / n
+        let mid = (a + b) / 2
+        let back = calc.sin(mid) > 0
+        if back == far {
+          let depth = (1 - calc.sin(mid)) / 2
+          line(P(r, a), P(r, b), stroke: (paint: col.transparentize(78% - 70% * depth), thickness: w * (0.6 + 0.8 * depth)))
+        }
+      }
     }
     // faint star field
     let seed = 7
@@ -221,14 +231,14 @@
     }
     // orbits: Mercury, Venus, Earth, Mars, Jupiter (radii compressed)
     let rs = (1.15, 1.85, 2.75, 3.85, 7.9)
-    for (k, r) in rs.enumerate() {
-      orbit(r, if k == 2 { 0.7pt } else { 0.45pt }, if k == 2 { c-line-hi.lighten(25%) } else { c-line-hi })
-    }
+    let ocol(k) = if k == 2 { c-label } else { c-line-hi.lighten(30%) }
+    for (k, r) in rs.enumerate() { orbit(r, if k == 2 { 0.8pt } else { 0.55pt }, ocol(k), far: true) }
     // the sun, with a soft glow
     for (k, g) in ((0.95, 92%), (0.7, 85%), (0.5, 72%), (0.36, 50%)).enumerate() {
       circle((cx, cy), radius: g.at(0), fill: c-sel.transparentize(g.at(1)), stroke: none)
     }
     circle((cx, cy), radius: 0.26, fill: c-sel, stroke: none)
+    for (k, r) in rs.enumerate() { orbit(r, if k == 2 { 0.8pt } else { 0.55pt }, ocol(k), far: false) }
     // the trajectory: Earth departure, Mars flyby, out to Jupiter
     let smooth(t) = t * t * (3 - 2 * t)
     let a0 = 165deg
@@ -246,19 +256,20 @@
       traj.push(P(r, a))
     }
     for (w, a) in ((5pt, 88%), (2.6pt, 72%)) { line(..traj, stroke: (paint: c-sel.transparentize(a), thickness: w, cap: "round", join: "round")) }
-    line(..traj, stroke: (paint: c-sel, thickness: 0.9pt, cap: "round", join: "round"))
+    line(..traj.slice(0, 40), stroke: (paint: c-sel.transparentize(80%), thickness: 9pt, cap: "round", join: "round"))
+    line(..traj, stroke: (paint: c-sel, thickness: 1.1pt, cap: "round", join: "round"))
     // planets
     let planet(r, a, rad, col, name, dx: 0.18, dy: 0.18, anchor: "south-west") = {
       let q = P(r, a)
       circle(q, radius: rad * 2.4, fill: col.transparentize(85%), stroke: none)
       circle(q, radius: rad, fill: col, stroke: none)
-      content((q.at(0) + dx, q.at(1) + dy), anchor: anchor, text(font: mono-m, size: 5.5pt, fill: c-label, tracking: 0.08em, upper(name)))
+      if name != "" { content((q.at(0) + dx, q.at(1) + dy), anchor: anchor, text(font: mono-m, size: 5.5pt, fill: c-label, tracking: 0.08em, upper(name))) }
     }
-    planet(1.15, 120deg, 0.05, c-label, "Mercury")
-    planet(1.85, 60deg, 0.075, c-text, "Venus")
+    planet(1.15, 120deg, 0.05, c-label, "")
+    planet(1.85, 60deg, 0.075, c-text, "")
     planet(2.75, a0, 0.085, c-info, "Earth", dx: -0.12, dy: 0.2, anchor: "south-east")
     planet(3.85, a1, 0.07, c-fault, "Mars", dx: 0.0, dy: 0.2, anchor: "south")
-    planet(7.9, 118deg, 0.16, c-warn, "Jupiter", dx: 0.35, dy: 0.0, anchor: "west")
+    planet(7.9, 118deg, 0.16, c-warn, "")
     // moon of Earth
     let e = P(2.75, a0)
     circle((e.at(0) + 0.2, e.at(1) + 0.07), radius: 0.025, fill: c-text, stroke: none)
@@ -266,7 +277,6 @@
     let lp(q, name, dx, dy, anchor) = {
       let (x, y) = q
       line((x - 0.07, y), (x, y + 0.07), (x + 0.07, y), (x, y - 0.07), close: true, fill: none, stroke: 0.7pt + c-info)
-      content((x + dx, y + dy), anchor: anchor, text(font: mono-m, size: 5.5pt, fill: c-info, name))
     }
     lp(P(2.4, a0), "L1", 0.12, 0.0, "west")
     lp(P(3.1, a0), "L2", -0.12, 0.0, "east")
@@ -275,7 +285,6 @@
     lp(P(2.75, a0 - 60deg), "L5", 0.0, 0.14, "south")
     // trajectory notes
     let m = P(3.85, a1)
-    content((m.at(0) + 0.1, m.at(1) - 0.3), anchor: "north", text(font: mono-m, size: 5.5pt, fill: c-sel, tracking: 0.08em)[GRAVITY ASSIST])
     let j = traj.at(84)
     content((j.at(0) - 0.2, j.at(1) + 0.25), anchor: "south-east", text(font: mono-m, size: 5.5pt, fill: c-sel, tracking: 0.08em)[TO THE OUTER SYSTEM →])
   }))))
@@ -289,7 +298,7 @@
   #v(0.9em)
   #move(dx: -0.045 * s-display, text(font: sans-sb, size: s-display, tracking: -0.02em)[Robots that\ build robots])
   #v(0.5em)
-  #line(length: 22%, stroke: 2pt + c-sel)
+  #line(length: 22%, stroke: 2pt + c-label)
   #v(0.7em)
   #text(size: s-lg, fill: c-label)[What would it take for a machine to make the next one?]
   #v(1fr)
