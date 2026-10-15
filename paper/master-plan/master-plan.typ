@@ -969,9 +969,9 @@ People will not go first. Machines will. Mars is seven months away and light tak
 
 We still choose hope. Every machine in this plan is a bet that the next century can be one of plenty rather than of taking: that what people have fought over can be made, and made by machines that will not be turned against them.
 
-= Problem <sec:problem>
+= Problems <sec:problem>
 
-== Made by hand
+== Motors
 
 The *idiot index* of a part is its cost divided by the cost of its raw materials. A high index means most of the price is process, not matter. Our prototype actuator, rana-100, shows the problem (@fig:rana; line items in @tab:rana).
 
@@ -1018,13 +1018,19 @@ About two thirds of the cost is machining that someone else does, on metal worth
 
 The same structure repeats one level up. A limb's materials are about \$2,000, of which about \$1,200 is the six purchased actuators @mr2026masterplan. The plates are cheap. The actuators are someone else's margin. Owning the actuator is Limb's second step (@sec:arm), and we take that step only where rana wins on a measured metric.
 
-== The unmeasured gap
+== Math
 
 Every robotics lab has a sim-to-real gap. We know of few that publish it as a number with an error bar, unit by unit. One established response is domain randomization: vary the simulator until a policy tolerates the difference @tobin2017domain. That makes the policy robust to the gap, but it does not by itself measure it.
 
 We treat the gap as the central measurement. It decides whether a design is ready to build, whether a controller is ready to deploy, and whether an actuator is ready to replace a purchased one. It also tells us how much of the loop can run without a person in it. A gap that is not measured cannot be closed, and a loop with an unmeasured gap needs a human in it.
 
-This is where the two halves of the problem meet. The machining in @fig:rana is the part of the cost that a machine making its own parts goes after. The judgment around it is what keeps a person in the loop: whether a part is right, whether a unit is ready, and what to change when it is not. A gap measured on every unit gives a machine something to check against. A gap that can be differentiated says what to change. A gap that is never measured leaves each of those decisions with a person, and the cost of that person stays in every unit.
+== Data
+
+Language models learned from trillions of words that people had already written. Robots have no such store. The largest pooled robot dataset holds about a million episodes, gathered across 22 kinds of robot by more than thirty labs @oxe2023. Most robot data is still made one person-hour at a time, by teleoperation.
+
+What exists also travels badly. An episode records commands and camera frames, but rarely the body that executed them: its friction, its backlash, how far it sagged under load. Data from one arm does not transfer cleanly to another, because the difference between the two bodies was never written down. That makes it the same problem as the one above.
+
+This is where the three problems meet. The machining in @fig:rana is the part of the cost that a machine making its own parts goes after. The judgment around it is what keeps a person in the loop: whether a part is right, whether a unit is ready, and what to change when it is not. A gap measured on every unit gives a machine something to check against, and a gap that can be differentiated says what to change. The same measurement labels every episode with the body that made it, so data gathered on one unit can be corrected for the next. A gap that is never measured leaves each of those decisions with a person, and the cost of that person stays in every unit.
 
 = Overview <sec:glance>
 
