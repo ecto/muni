@@ -29,14 +29,15 @@ export default function PostPage({ params }: { params: { slug: string } }) {
   return (
     <div className="post-page">
       <FloatingHeader />
-      <PostCover title={post.title} subtitle={post.subtitle} />
-      <div className="post-meta">
-        <span>{post.author}</span>
-        <span aria-hidden="true">·</span>
-        <time dateTime={post.date}>{formatDate(post.date)}</time>
-        <span aria-hidden="true">·</span>
-        <a href={`/blog/${post.slug}.pdf`}>PDF</a>
-      </div>
+      <PostCover title={post.title} subtitle={post.subtitle}>
+        <div className="post-meta">
+          <span>{post.author}</span>
+          <span aria-hidden="true">·</span>
+          <time dateTime={post.date}>{formatDate(post.date)}</time>
+          <span aria-hidden="true">·</span>
+          <a href={`/blog/${post.slug}.pdf`}>PDF</a>
+        </div>
+      </PostCover>
       {/* Compiled from the Typst source by `npm run posts`; the same file builds the PDF. */}
       <article className="post" dangerouslySetInnerHTML={{ __html: html }} />
       <PostMotion />

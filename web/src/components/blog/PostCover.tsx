@@ -36,7 +36,7 @@ function trajectory(n: number) {
   return pts;
 }
 
-export function PostCover({ title, subtitle }: { title: string; subtitle: string }) {
+export function PostCover({ title, subtitle, children }: { title: string; subtitle: string; children?: React.ReactNode }) {
   const ref = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -197,6 +197,7 @@ export function PostCover({ title, subtitle }: { title: string; subtitle: string
         <h1>{title}</h1>
         <p className="post-subtitle">{subtitle}</p>
       </div>
+      {children}
     </header>
   );
 }

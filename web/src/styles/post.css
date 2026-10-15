@@ -30,7 +30,8 @@
 /* cover: the live solar system, text over it */
 .post-cover {
   position: relative;
-  height: min(88vh, 54rem);
+  height: 100vh;
+  height: 100svh;
   min-height: 34rem;
   overflow: hidden;
   border-bottom: 1px solid var(--p-line);
@@ -71,11 +72,15 @@
   color: var(--p-label);
 }
 .post-meta {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 2.2rem;
   display: flex;
   flex-wrap: wrap;
   gap: 0.6rem;
-  max-width: var(--p-measure);
-  margin: 2rem auto 0;
+  max-width: var(--p-wide);
+  margin: 0 auto;
   padding-inline: 1.25rem;
 }
 .post-meta a {
@@ -88,7 +93,7 @@
 .post {
   max-width: var(--p-measure);
   margin: 0 auto;
-  padding: 1rem 1.25rem 6rem;
+  padding: 0 1.25rem 6rem;
   font-size: 1.05rem;
   line-height: 1.68;
 }
@@ -118,15 +123,24 @@
 .post .math svg { display: inline-block; vertical-align: -0.2em; height: 1.05em; width: auto; }
 
 /* part dividers: a label, a title, a lede and the part's illustration */
+/* rough paging, as in the PDF: each part divider fills a screen, its art along the bottom */
 .post .part {
-  margin: 5rem 0 3rem;
-  padding-top: 2.5rem;
-  border-top: 1px solid var(--p-line);
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  min-height: 100svh;
+  margin: 0;
+  padding-top: 26svh;
 }
+.post .part:first-child { margin-top: 0; }
 .post .part h2 { margin: 0.4rem 0 0.6rem; font-size: clamp(2.2rem, 6vw, 3.2rem); letter-spacing: -0.02em; }
 .post .part-lede { color: var(--p-label); font-size: 1.15rem; }
-.post .part-art { margin: 1.5rem calc(50% - 50vw) 0; overflow: hidden; }
-.post .part-art svg { display: block; width: 100%; height: auto; max-height: 26rem; }
+.post .part-art { margin: auto calc(50% - 50vw) 0; padding-top: 2rem; overflow: hidden; }
+.post .part-art svg { display: block; width: 100%; height: auto; }
+
+/* the intro letter gets a page of its own */
+.post #part-i + h2 { margin-top: 0; padding-top: 22svh; }
+.post #part-i + h2 + div { min-height: 62svh; padding-bottom: 12svh; }
 
 /* figures: drawn ones arrive as inline SVG; wide ones break out of the measure */
 .post figure { margin: 2.6rem 0; }
