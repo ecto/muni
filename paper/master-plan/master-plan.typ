@@ -242,7 +242,7 @@
 
   The first steps of the specification are products: a six-axis arm on purchased RobStride actuators (\$5,000 list, \~\$2,000 materials), designed and ready to cut, none built yet; and a two-arm bench cell in a 1500 × 500 × 1000 mm 4040 frame (\$15,000 list, \~\$5,900 materials with the frame). Our models put the arm's reach at 786 mm with our 485 g gripper and its continuous hold straight out at 1.27 kg. The municipal work is a proposed litter pilot in Lakewood, Ohio, with no agreement in place; the method, a reacher on the K1's wrist, is under design, and the K1 has not grasped litter yet.
 
-  Chapter 1 closes on exact gates (proposed targets): ten arms sold at 40% gross margin, each with its tool-point error measured and under 2 mm RMS; our actuator beating the purchased one by 20% on a named dyno metric; a cell assembling an arm that passes the same test with under half its cost bought. Four more chapters follow: a body that fits its own model, a cell that builds a cell, a seed on the Moon and then Mars, and a lineage powered by the sun. They are goals, not results, and they are the point. Progress is one number, electrons under management: the mean power drawn by machines we built, in service. Today it is zero watts. The body-schema claim that opens chapter 2 will be preregistered, with its falsifier, before its hardware run. Every number here is cited, or labeled as an estimate or a model output.
+  Earth, the first stage, closes on exact gates (proposed targets): ten arms sold at 40% gross margin, each with its tool-point error measured and under 2 mm RMS; our actuator beating the purchased one by 20% on a named dyno metric; a cell assembling an arm that passes the same test with under half its cost bought. Five more stages follow: Body, a robot that fits its own model; Cell, a cell that builds a cell; Moon and Mars, a seed that grows a cell off Earth; and Sun, collectors around our star. They are goals, not results, and they are the point. Progress is one number, electrons under management: the mean power drawn by machines we built, in service. Today it is zero watts. The body-schema claim that opens Body will be preregistered, with its falsifier, before its hardware run. Every number here is cited, or labeled as an estimate or a model output.
 ]
 #place(top + right, dy: 0.2em, block(width: 2.1in)[
 #frame(width: 100%, inset: 0.8em, fill: c-surface)[
@@ -323,7 +323,7 @@ Most of what this paper describes is *proposed*, not operational. @tab:status se
     [K1 body-schema fit (sim)], [Five-parameter recovery in simulation], [Synthetic data, sphere feet; ±20% → machine precision @ipse2026brief],
     [K1 body-schema fit (hardware)], [Not yet on hardware], [Preregistration pending],
     [Lakewood litter pilot], [Proposed], [No agreement in place],
-    [Chapters 2–5], [Goals, not claims], [None],
+    [Body through Sun], [Goals, not claims], [None],
   ),
   placement: bottom,
   caption: [#lead[What exists, what is designed, and what is proposed] (October 2026). What exists: a K1, the software stack, a CNC mill and a plan.],
@@ -549,7 +549,7 @@ Five years ago this plan would have needed a factory before it needed a customer
 
 *Integrated actuators became a catalog item.* Quasi-direct-drive actuators, with motor, planetary reduction, encoder and driver in one housing, are now sold off the shelf by several Chinese vendors. RobStride's range includes the RS00, RS02, RS04 and RS06, each with a published manual, outline drawing and CAN interface @robstride2026manual. Our arm uses six of them. Retail prices for the family run roughly \$70–170 for the small units and more for the large ones (our estimate from retail listings, not a quote). The design idea does not depend on RobStride, but the v9 drawings do: motor mounts, bolt patterns and screw lengths are taken from RobStride's manual drawings @rose2026forkv9, so another vendor's motor means new drawings. What matters is that a 120 N·m peak joint (RS04 @robstride2026manual) can be bought with its driver attached.
 
-*Flat-sheet fabrication fits on a desk.* Every structural plate of the v9 arm except the 1/4" foot is cut from 1/8" (3.175 mm) 5052 aluminum. The parts nest on three 15 × 15 inch sheets and one 12 × 12 inch sheet, and they are laid out for a 390 mm desktop router bed @rose2026forkv9. The same files go to SendCutSend or to a local supplier without change. A machine that can be built from flat sheet, standard extrusion and purchased actuators can, in principle, be built by another such machine. That is the premise of chapter 3.
+*Flat-sheet fabrication fits on a desk.* Every structural plate of the v9 arm except the 1/4" foot is cut from 1/8" (3.175 mm) 5052 aluminum. The parts nest on three 15 × 15 inch sheets and one 12 × 12 inch sheet, and they are laid out for a 390 mm desktop router bed @rose2026forkv9. The same files go to SendCutSend or to a local supplier without change. A machine that can be built from flat sheet, standard extrusion and purchased actuators can, in principle, be built by another such machine. That is the premise of Cell.
 
 *We can now take gradients through contact.* Our physics engine, phyz, computes exact gradients of a simulated motion with respect to physical parameters such as mass and inertia. That includes contact, the hard case and the one that matters for anything with feet or fingers: its contact adjoint differentiates the same physics the forward pass runs @ipse2026brief. In simulation, on synthetic motion, it has recovered five of a K1 humanoid's inertial parameters from ±20% error to machine precision (sphere feet; @sec:schema). Domain randomization @tobin2017domain, the usual alternative, can make a policy robust to a gap. It cannot take the gap's gradient.
 
@@ -559,18 +559,18 @@ The result is that one person can now write every layer between a parameter in a
 
 = The plan at a glance <sec:glance>
 
-The plan climbs from one arm to a lineage of machines powered by the sun (@fig:glance). Each rung is a machine the rung before it can build, and each is counted on one axis, the power our machines draw in service. Only the first chapter is a plan; the rest are goals (@sec:arc).
+The plan climbs from one arm to a lineage of machines powered by the sun (@fig:glance). Each rung is a machine the rung before it can build, and each is counted on one axis, the power our machines draw in service. Only Earth is a plan; the rest are goals (@sec:arc).
 
 #figure(
   cetz.canvas(length: 1cm, {
     import cetz.draw: *
     let tiles = (
-      ("1", "Arm", "images-dark/fork-v9-lines.png", "6 joints, $5,000"),
-      ("1", "Bench", "images-native/bench_shallow_iso.png", "2 arms build arms"),
-      ("2", "rose + city", "images-native/humanoid_bay_iso.png", "a body that knows itself"),
-      ("3", "Aisle → hall", "images-native/hall_grow_3.png", "the cell builds the cell"),
-      ("4", "Seed", "images-native/seed_iso.png", "Moon, then Mars"),
-      ("5", "Lineage", none, "cells on sunlight"),
+      ("Earth", "Arm", "images-dark/fork-v9-lines.png", "6 joints, $5,000"),
+      ("Earth", "Bench", "images-native/bench_shallow_iso.png", "2 arms build arms"),
+      ("Body", "rose + city", "images-native/humanoid_bay_iso.png", "a body that knows itself"),
+      ("Cell", "Aisle → hall", "images-native/hall_grow_3.png", "the cell builds the cell"),
+      ("Moon · Mars", "Seed", "images-native/seed_iso.png", "grows a cell off Earth"),
+      ("Sun", "Collectors", none, "cells on sunlight"),
     )
     let tw = 2.65
     let gap = 0.27
@@ -587,7 +587,7 @@ The plan climbs from one arm to a lineage of machines powered by the sun (@fig:g
           line((x + tw / 2 + 0.95 * calc.cos(a), tw / 2 + 0.95 * calc.sin(a)), (x + tw / 2 + 1.18 * calc.cos(a), tw / 2 + 1.18 * calc.sin(a)), stroke: 1pt + c-sel)
         }
       }
-      content((x, tw + 0.15), anchor: "south-west", text(font: mono-m, size: s-xs, fill: c-label)[CH #ch])
+      content((x, tw + 0.15), anchor: "south-west", text(font: mono-m, size: s-xs, fill: c-label, upper(ch)))
       content((x, -0.15), anchor: "north-west", text(font: sans-m, size: s-sm, fill: c-text, name))
       content((x, -0.6), anchor: "north-west", text(size: s-xs, fill: c-label, what))
       if i < 5 { line((x + tw + 0.03, tw / 2), (x + tw + gap - 0.03, tw / 2), stroke: 0.7pt + c-label, mark: (end: "straight", size: 0.12)) }
@@ -602,12 +602,12 @@ The plan climbs from one arm to a lineage of machines powered by the sun (@fig:g
       content((X(e), y0 - 0.2), anchor: "north", text(font: mono, size: 5.5pt, fill: c-label)[10#super[#str(e)]])
     }
     content((W, y0 - 0.55), anchor: "north-east", text(font: mono, size: s-xs, fill: c-label)[WATTS, LOG SCALE])
-    // our chapters as bands (orders of magnitude, not targets)
-    let bands = (("1", 1.7, 4), ("2", 5, 6), ("3", 6, 8), ("5", 8, 26.6))
+    // our stages as bands (orders of magnitude, not targets)
+    let bands = (("Earth", 1.7, 4), ("Body", 5, 6), ("Cell", 6, 8), ("Sun", 8, 26.6))
     for (i, (ch, a, b)) in bands.enumerate() {
       let lo = y0 + 0.12 + i * 0.16
-      rect((X(a), lo), (X(b), lo + 0.14), fill: if ch == "1" { c-sel } else { c-raised }, stroke: none)
-      content((X(a) - 0.06, lo + 0.07), anchor: "east", text(font: mono-m, size: 5pt, fill: c-text)[CH #ch])
+      rect((X(a), lo), (X(b), lo + 0.14), fill: if ch == "Earth" { c-sel } else { c-raised }, stroke: none)
+      content((X(a) - 0.06, lo + 0.07), anchor: "east", text(font: mono-m, size: 5pt, fill: c-text, upper(ch)))
     }
     // humanity and the scale
     let marks = (
@@ -622,7 +622,7 @@ The plan climbs from one arm to a lineage of machines powered by the sun (@fig:g
     }
     content((0, y0 + 1.1), anchor: "north-west", text(font: mono-m, size: 5.5pt, fill: c-label)[EUM TODAY: 0 W])
   }),
-  caption: [#lead[The plan, from arm to sun.] Top: the rungs, by chapter. Each is built by the one before it. Bottom: electrons under management (@sec:eum) by chapter, as orders of magnitude, not targets, against humanity's power use and the Kardashev scale @kardashev1964 @sagan1973cosmic @ei2024review. Chapter 4's first kilowatts off Earth sit inside chapter 3's band. Only chapter 1 is a plan.],
+  caption: [#lead[The plan, from arm to sun.] Top: the rungs, by stage. Each is built by the one before it. Bottom: electrons under management (@sec:eum) by stage, as orders of magnitude, not targets, against humanity's power use and the Kardashev scale @kardashev1964 @sagan1973cosmic @ei2024review. Moon and Mars add their first kilowatts inside Cell's band. Only Earth is a plan.],
 ) <fig:glance>
 
 The paper is organized around one loop (@fig:loop). The design is written as source code. It is simulated in a physics engine that can be differentiated, built by machines we control, and measured. The difference between them, measured minus predicted, is what we call the gap. It is the most valuable number in the system, because it is the one thing nobody can compute in advance. Here it is written down as a product specification: every arm will ship with its sim-to-real gap stated.
@@ -645,12 +645,12 @@ The paper is organized around one loop (@fig:loop). The design is written as sou
     edge(<g>, (1, 0.5), (0, 0.5), <d>, "-|>", text(size: s-sm, fill: c-text)[gradient ∂J/∂θ], label-pos: 0.5, label-side: right),
   ),
   placement: bottom,
-  caption: [#lead[The loop, read clockwise.] The small labels name the tool at each step. The software projects are listed in @tab:stack, and the dyno is a planned actuator test stand that does not exist yet. Each later chapter of the plan removes a human from one more edge. In chapter 1 the gradient edge is a person reading the gap and redesigning by hand.],
+  caption: [#lead[The loop, read clockwise.] The small labels name the tool at each step. The software projects are listed in @tab:stack, and the dyno is a planned actuator test stand that does not exist yet. Each later stage of the plan removes a human from one more edge. On Earth the gradient edge is a person reading the gap and redesigning by hand.],
 ) <fig:loop>
 
 == The plan in brief <sec:plan>
 
-Chapter 1 has three steps over roughly three years. Each step closes on a gate, and every gate is exact: a number, a unit, a method and a pass condition (@tab:gates) @mr2026masterplan. Chapter 1 has to earn the rest of the specification: it funds the long bets and closes the loop for the first time. Four further chapters follow, and together the five are what we call the arc (@sec:arc, @tab:arc). They are goals, not results, and they are why chapter 1 exists.
+Earth has three steps over roughly three years. Each step closes on a gate, and every gate is exact: a number, a unit, a method and a pass condition (@tab:gates) @mr2026masterplan. Earth has to earn the rest of the specification: it funds the long bets and closes the loop for the first time. Five further stages follow, and together the six are what we call the arc (@sec:arc, @tab:arc). They are goals, not results, and they are why Earth exists.
 
 + *Arms.* Build an arm worth buying on RobStride actuators. The actuator is a commodity. Our edge is everything around it: geometry checked against real loads, a measured model of every unit, a controller trained against that model, and a stated sim-to-real gap on every arm.
 + *Own the actuator, where it wins.* Arm revenue funds rana and torc. A purchased joint is replaced only where rana wins on a measured metric. Dropping rana is a valid outcome, not a failure.
@@ -693,7 +693,7 @@ Chapter 1 has three steps over roughly three years. Each step closes on a gate, 
     content((0, 2.35), anchor: "south-west", caps(size: s-xs)[Now · year 1])
     content((15.1, 2.35), anchor: "south-east", caps(size: s-xs)[\~year 3])
   }),
-  caption: [#lead[Chapter 1 as a timeline.] Three steps, each closed by a gate (diamond) that is evidence, not a date @mr2026masterplan. Gates abbreviated; the full conditions are in @tab:gates. Step 1 is the current step.],
+  caption: [#lead[Earth as a timeline.] Three steps, each closed by a gate (diamond) that is evidence, not a date @mr2026masterplan. Gates abbreviated; the full conditions are in @tab:gates. Step 1 is the current step.],
 ) <fig:steps>
 
 #figure(
@@ -710,7 +710,7 @@ Chapter 1 has three steps over roughly three years. Each step closes on a gate, 
     [3b · Bought fraction], [Bought share of that arm's cost (%)], [Receipts per build], [≤ 50%],
     [3c · A second product pays], [Units of a second product (count); gross margin (%)], [As gate 1a], [≥ 10 units and ≥ 40%],
   ),
-  caption: [#lead[Chapter 1 gates.] *Proposed targets, to be confirmed by the author.* The same thresholds are used everywhere in this paper. Today 1b's 1.0 kg test load sits under the arm's modeled 1.27 kg continuous hold.],
+  caption: [#lead[Earth gates.] *Proposed targets, to be confirmed by the author.* The same thresholds are used everywhere in this paper. Today 1b's 1.0 kg test load sits under the arm's modeled 1.27 kg continuous hold.],
   placement: auto, scope: "parent",
 ) <tab:gates>
 
@@ -718,7 +718,7 @@ Chapter 1 has three steps over roughly three years. Each step closes on a gate, 
 
 These are restated from the sections that argue them, so that they can be quoted and checked.
 
-+ *Gates, not calendars.* A step or chapter opens on a measured gate: a number, a unit, a method and a pass condition (@tab:gates, @tab:arc).
++ *Gates, not calendars.* A step or stage opens on a measured gate: a number, a unit, a method and a pass condition (@tab:gates, @tab:arc).
 + *Every unit ships with its gap.* Every arm ships with its sim-to-real gap stated, and every claim ships with the number that supports it (@sec:mind; @sec:safety, "What it inherits").
 + *Buy the commodity; own the layer where we win.* The actuator is a commodity. Our edge is the geometry, the measured model and the controller around it (@sec:arm).
 + *The guarantee should live in hardware.* Force limits should come from physics, current limits and compliance, measured on the robot. Today they do not; that is a design target (@sec:safety).
@@ -786,7 +786,7 @@ This is where the two halves of the problem meet. The machining in @fig:rana is 
 
 == What this paper does not claim
 
-This paper does not claim that any machine we have built makes copies of itself. None does. It does not claim that the chapters after chapter 1 will happen on any schedule. It does not claim emergence, general intelligence, or consciousness for any system. The mind research described in @sec:mind will preregister a narrow claim about the robot's body schema and treats everything beyond it as an open question.
+This paper does not claim that any machine we have built makes copies of itself. None does. It does not claim that the stages after Earth will happen on any schedule. It does not claim emergence, general intelligence, or consciousness for any system. The mind research described in @sec:mind will preregister a narrow claim about the robot's body schema and treats everything beyond it as an open question.
 
 Some words come from the ipse design brief. They name parts of a research architecture, not established properties. "Mind" is the project's word for its learning system. "Refuse" and "reluctance" name behavior the architecture is designed to allow and to log, not a separate module. "Drives" are predictions about preferred internal states. "Self-Emergence" states the hypothesis the self-probe will test. None of these words is a claim about experience.
 
@@ -823,12 +823,12 @@ The stack is a tree rooted at one language, loon (@tab:stack). Build order runs 
     [Body], [moth], [Drone: street perception, kino's movable camera], [proposed],
     [Apps], [kino], [Live director: cuts between cameras, moves a drone], [exists],
     [Mind], [ipse], [Developmental mind on a real K1], [in progress],
-    [Silicon], [loon-hdl, rune, chip], [HDL, maskless lithography, inference chip], [chapter 3],
+    [Silicon], [loon-hdl, rune, chip], [HDL, maskless lithography, inference chip], [Cell],
   ),
   caption: [#lead[The stack] @mr2026masterplan. "exists" means software in use today; it does not mean finished.],
 ) <tab:stack>
 
-Four rules keep the tree a tree: engines never depend on vcad, and vcad never depends on an app; engines read wodl, not each other; there is one GPU device across the stack; and units are millimeters, with Z up, everywhere. The rules are meant to let a gradient pass from a task loss in ipse, through phyz's contact adjoint, into vcad geometry and out to loon parameters without a translation at each hop. Part of that chain runs today, in simulation: on a test model, a phyz rollout gradient passes through a ground-contact model into a vcad geometry parameter and agrees with finite differences. Joining the two ends, from a task loss in ipse to loon source, is co-design work of chapter 2 @pond2026strategy.
+Four rules keep the tree a tree: engines never depend on vcad, and vcad never depends on an app; engines read wodl, not each other; there is one GPU device across the stack; and units are millimeters, with Z up, everywhere. The rules are meant to let a gradient pass from a task loss in ipse, through phyz's contact adjoint, into vcad geometry and out to loon parameters without a translation at each hop. Part of that chain runs today, in simulation: on a test model, a phyz rollout gradient passes through a ground-contact model into a vcad geometry parameter and agrees with finite differences. Joining the two ends, from a task loss in ipse to loon source, is co-design work for Body @pond2026strategy.
 
 #figure(
   diagram(
@@ -871,22 +871,23 @@ Four rules keep the tree a tree: engines never depend on vcad, and vcad never de
   caption: [#lead[The stack as a tree.] Solid edges are build order, not code dependencies. The dashed edge is the gradient returning from a measured body, through phyz and vcad, to the source parameters.],
 ) <fig:tree>
 
-== The loop state per chapter
+== The loop state per stage
 
-What changes from chapter to chapter is not the loop but who sits in it. @tab:loopstate summarizes the plan.
+What changes from stage to stage is not the loop but who sits in it. @tab:loopstate summarizes the plan.
 
 #figure(
   table(
     columns: 3,
     align: (left + top, left + top, left + top),
-    table.header([*Chapter*], [*Loop state*], [*Human role*]),
-    [1 · Earth], [measured gap → human redesign], [designs, builds, measures],
-    [2 · A body that knows itself], [gap → gradient → new design], [reviews, the cell builds],
-    [3 · The cell builds the cell], [gradient → design → built and measured by the cell], [reviews, can say no],
-    [4 · Moon, then Mars], [chapter 3 with the supply chain cut], [remote approval, then none],
-    [5 · The sun], [fully closed inside a lineage], [reads the receipts],
+    table.header([*Stage*], [*Loop state*], [*Human role*]),
+    [Earth], [measured gap → human redesign], [designs, builds, measures],
+    [Body], [gap → gradient → new design], [reviews, the cell builds],
+    [Cell], [gradient → design → built and measured by the cell], [reviews, can say no],
+    [Moon], [Cell, far from its supply chain], [remote approval],
+    [Mars], [Cell with the supply chain cut], [none between landing and receipt],
+    [Sun], [fully closed inside a lineage], [reads the receipts],
   ),
-  caption: [#lead[Who is in the loop, by chapter] @mr2026masterplan],
+  caption: [#lead[Who is in the loop, by stage] @mr2026masterplan],
 ) <tab:loopstate>
 
 = Architecture of a cell <sec:cell>
@@ -1054,7 +1055,7 @@ A hall is a cell no one enters. The current concept is 36 × 14 × 6 m with thre
   caption: [#lead[Hall growth study] (boxes only). Left: an early state, 10 benches on 3 rows with 15 of 360 bays empty. Right: 13 benches and no empty bays, with a fourth row's spine being laid and the membrane moved out. Concept, not a design @mr2026cells.],
 ) <fig:hall>
 
-A *seed* is the smallest cell that can grow. It is a bench, plus the design, plus enough bought parts for a few generations, plus a solar collector and a battery. The seed mockup also shows a hopper and sinter station and a half-built second bench on regolith (@fig:seed). That is a picture of chapter 4, not a plan for it.
+A *seed* is the smallest cell that can grow. It is a bench, plus the design, plus enough bought parts for a few generations, plus a solar collector and a battery. The seed mockup also shows a hopper and sinter station and a half-built second bench on regolith (@fig:seed). That is a picture of Moon, not a plan for it.
 
 == What biology already found
 
@@ -1202,7 +1203,7 @@ The K1 has two jobs. In a proposed Lakewood pilot it would pick up litter (@sec:
 
 == ipse
 
-ipse matters to this plan for two reasons: it produces the first goal beyond chapter 1, a body that fits its own model (@sec:schema), and it is the layer in @tab:safety that can refuse an instruction.
+ipse matters to this plan for two reasons: it produces the first goal beyond Earth, a body that fits its own model (@sec:schema), and it is the layer in @tab:safety that can refuse an instruction.
 
 ipse (Interoceptive Predictive Self-Emergence) is a scaffold for growing a mind on a K1 over months of lived experience @ipse2026brief. The name states the project's hypothesis, not a result. It is not a robot control stack. Its architecture is a world model with fast and slow latents; interoception (battery, joint temperature, motor current, IMU) enters as observation rather than reward. Its simulation runs in phyz, on bodies authored in vcad; no MuJoCo or Isaac is involved.
 
@@ -1219,7 +1220,7 @@ We do not name the robot. The design brief says it "should not be named by us": 
 
 == The claim to preregister: a body that fits itself <sec:schema>
 
-The first claim of chapter 2 is ipse's Phase 1 milestone. It is the body-schema result, not the world model @ipse2026brief @pond2026strategy.
+The first claim of Body is ipse's Phase 1 milestone. It is the body-schema result, not the world model @ipse2026brief @pond2026strategy.
 
 *Claim.* The K1 starts from the vendor's model of its own body, which is known to be wrong in places. From its own exploratory movements (motor babbling), and by gradient descent through phyz's contact model, it fits a body schema: its own masses and inertias. The fitted schema must predict held-out motion better than persistence (the baseline defined in the falsifier below) and must match the CAD ground truth. We publish the residual between the two as the *measured body schema*.
 
@@ -1314,7 +1315,7 @@ Bus, pack and blade need a small set of boards. We own a board first when it def
   caption: [#lead[The board library and the order we own it] @mr2026decisions. Every design is open. Fabrication and assembly stay bought.],
 ) <tab:boards>
 
-Every board design is open. Printed-circuit fabrication and assembly stay bought through chapter 2. Boards are, with magnets, bearings and chips, part of the bought fraction that falls last, and a pick-and-place bay that assembles our own boards is a chapter-3 milestone (@sec:arc).
+Every board design is open. Printed-circuit fabrication and assembly stay bought through Body. Boards are, with magnets, bearings and chips, part of the bought fraction that falls last, and a pick-and-place bay that assembles our own boards is a Cell milestone (@sec:arc).
 
 = Municipal: a proposed litter pilot, with Lakewood as the reference case <sec:muni>
 
@@ -1481,73 +1482,77 @@ The risks below are the ones a buyer or an investor should weigh. Each response 
     [One actuator supplier (RobStride)], [A price or lead-time change], [rana, which replaces a RobStride joint only once it is validated (@sec:rana, @tab:sens)],
     [Arm hold too small for buyers (1.27 kg straight out, modeled)], [Buyers decline at that rating], [Rate the hold by pose, since bent poses hold more, and design the springs (@sec:arm)],
     [Bought humanoid (Booster K1)], [Vendor support ends], [The K1 is a control, not a dependency; rose is the body measured against it (@sec:mind)],
-    [Breadth across many projects], [Chapter gates slip], [Projects not needed by chapter 1 wait for their chapter (@tab:stack)],
+    [Breadth across many projects], [Stage gates slip], [Projects not needed on Earth wait for their stage (@tab:stack)],
     [rana never beats bought actuators], [Dyno results], [Keep buying RobStride. Dropping rana is a valid outcome],
     [Sidewalk incident; legal fit of the Lakewood pilot], [An incident, or the city declines], [See @sec:safety and @sec:muni. The specific response is open, pending decision],
   ),
   caption: [#lead[Risks and responses.] Responses are those stated elsewhere in this paper; the pilot row is undecided.],
 ) <tab:risks>
 
-= Beyond chapter 1: the arc <sec:arc>
+= The arc <sec:arc>
 
-This is the part of the specification that matters most, and it is public at full strength. Chapter 1 is a robot arm and a litter pilot. The arc is the road from there to a civilization whose machines make their own machines, on Earth, then on the Moon and Mars, then in a lineage that lives on sunlight. Each chapter removes a human from one more edge of the same loop (@tab:loopstate), and each is gated, like chapter 1, on a number (@tab:arc). Nothing past chapter 1 exists. All of it is the reason chapter 1 is worth doing.
+This is the part of the specification that matters most, and it is public at full strength. Earth is a robot arm and a litter pilot. The arc is the road from there to a civilization whose machines make their own machines, on Earth, then on the Moon and Mars, then in a lineage that lives on sunlight. Each stage removes a human from one more edge of the same loop (@tab:loopstate), and each is gated, like Earth, on a number (@tab:arc). Nothing past Earth exists. All of it is the reason Earth is worth doing.
 
 == Electrons under management <sec:eum>
 
-One number runs through every chapter: *electrons under management* (EUM), in watts. It measures the same thing at every scale, so progress can be read off one axis, from one robot to a fraction of the sun's output (3.828 × 10#super[26] W, nominal @iau2015b3).
+One number runs through every stage: *electrons under management* (EUM), in watts. It measures the same thing at every scale, so progress can be read off one axis, from one robot to a fraction of the sun's output (3.828 × 10#super[26] W, nominal @iau2015b3).
 
 *Definition.* EUM is the mean electrical input power, over a trailing 30-day window, of every machine in service that we designed and built, measured at each machine's main power input (a DC-bus shunt or a metered AC outlet) and logged at ≥ 1 Hz. "In service" means doing work for someone other than its maker. Machines we did not build but that run our stack, such as the K1 or a bought mill, are reported beside it as *electrons under control*, never added to the headline.
 
 *Baseline, October 2026.* EUM is *0 W*: we have built nothing that is in service. Electrons under control are the K1, at roughly 100 W while it runs (estimate, not measured; its duty is not logged yet). A built first bench would add about 150 W mean while working, with two arms near 200 W peak each (estimate).
 
-*Trajectory, as orders of magnitude, not targets.* Chapter 1: 0 W → \~10 kW (a hundred arms near 50 W mean and a few dozen benches). Chapter 2: hundreds of kW, from a municipal fleet and co-designed bodies. Chapter 3: tens of kW per cell, and megawatts as cells multiply. Chapter 4: the first kilowatts off Earth. Chapter 5: a measurable fraction of the sun.
+*Trajectory, as orders of magnitude, not targets.* Earth: 0 W → \~10 kW (a hundred arms near 50 W mean and a few dozen benches). Body: hundreds of kW, from a municipal fleet and co-designed bodies. Cell: tens of kW per cell, and megawatts as cells multiply. Moon and Mars: the first kilowatts off Earth. Sun: a measurable fraction of the sun.
 
 #figure(
   cetz.canvas(length: 1cm, {
     import cetz.draw: *
-    let crect(a, b, radius: 0, ..st) = rect(a, b, ..st)
-    let chapters = (
-      ("5 · The sun", "lineage of cells; humans read receipts", [fraction of 3.8 × 10#super[26] W], c-surface),
-      ("4 · Moon, then Mars", "a seed lands and builds a cell", "first kW off Earth", c-bg),
-      ("3 · The cell builds the cell", "nothing bought that the cell can make", [tens of kW per cell → MW], c-surface),
-      ("2 · A body that knows itself", "the gap becomes a gradient", "hundreds of kW", c-bg),
-      ("1 · Earth", "arms, litter, first bench; human redesigns", "0 W today → ~10 kW", c-surface),
+    let stages = (
+      ("Sun", [3.8 × 10#super[26] W]),
+      ("Mars", "kW"),
+      ("Moon", "kW"),
+      ("Cell", "MW"),
+      ("Body", "100s of kW"),
+      ("Earth", "0 W → 10 kW"),
     )
     let w = 17.0
-    let h = 7.2
-    for (i, ch) in chapters.enumerate() {
-      let (name, what, watts, col) = ch
-      let inset = i * 0.75
-      let top = i * 0.95
-      let bot = i * 0.3
-      crect((inset, bot), (w - inset, h - top), fill: col, stroke: if i == 4 { 1.4pt + c-sel } else { 0.7pt + c-line-hi })
-      content((inset + 0.25, h - top - 0.18), anchor: "north-west", text(font: sans-m, size: s-sm)[#name])
-      content((w - inset - 0.25, h - top - 0.18), anchor: "north-east", text(font: mono-m, size: s-sm, fill: c-text)[#watts])
-      content((inset + 0.25, h - top - 0.55), anchor: "north-west", text(size: s-sm)[#what])
+    let h = 6.6
+    let n = stages.len()
+    for (i, (name, watts)) in stages.enumerate() {
+      let inset = i * 0.8
+      let top = i * 0.78
+      let bot = i * 0.28
+      let here = i == n - 1
+      rect((inset, bot), (w - inset, h - top), fill: if calc.even(i) { c-surface } else { c-bg }, stroke: if here { 1.2pt + c-sel } else { 0.6pt + c-line-hi })
+      content((inset + 0.25, h - top - 0.2), anchor: "north-west", text(font: sans-m, size: s-md, fill: c-text, name))
+      content((w - inset - 0.25, h - top - 0.24), anchor: "north-east", text(font: mono-m, size: s-xs, fill: c-label, watts))
     }
   }),
-  caption: [#lead[The arc.] Five chapters, one loop (design → simulate → build → measure → gap, with fewer humans on its edges each chapter), one number. Each chapter contains the previous one. Only chapter 1 is a plan. Chapters 2–5 are goals. Watt figures are electrons under management (@sec:eum), as orders of magnitude, not targets @mr2026masterplan.],
+  caption: [#lead[The arc.] Six stages, one loop, one number. Each stage contains the one before it, and each removes a person from one more edge of the loop. Only Earth is a plan. Watts are electrons under management (@sec:eum), as orders of magnitude, not targets @mr2026masterplan.],
 ) <fig:arc>
 
-== Chapter 2 · A body that knows itself
+== Body
 
-A robot measures itself and changes its own design. The chapter has four parts, in order: the body-schema claim (@sec:schema); co-design by gradient, in which vcad's differentiable kernel and phyz's contact adjoint optimize geometry, actuator sizing and controller together; rana and torc at volume, with the arm fleet's real duty cycles as load cases; and the city twin, with the visual sim-to-real gap measured weekly on real pavement. We will attempt co-design only where body shape limits the task @pond2026strategy. A gradient-designed replacement for a part that already works answers no question.
+A robot measures itself and changes its own design. Body has four parts, in order: the body-schema claim (@sec:schema); co-design by gradient, in which vcad's differentiable kernel and phyz's contact adjoint optimize geometry, actuator sizing and controller together; rana and torc at volume, with the arm fleet's real duty cycles as load cases; and the city twin, with the visual sim-to-real gap measured weekly on real pavement. We will attempt co-design only where body shape limits the task @pond2026strategy. A gradient-designed replacement for a part that already works answers no question.
 
-== Chapter 3 · The cell that builds the cell
+== Cell
 
-Chapter 3 has three milestones, in order @mr2026masterplan:
+A cell builds the cell. It has three milestones, in order @mr2026masterplan:
 
-+ The cell assembles an arm from cut plates and purchased actuators. This is reachable with the chapter-1 bench as modeled.
++ The cell assembles an arm from cut plates and purchased actuators. This is reachable with the first bench as modeled.
 + The cell cuts the arm's plates on its own mill, and winds and pots (encapsulates) its own rana stators.
 + The cell cuts and assembles its own 4040 frame, rails and plinth. This needs a saw station, and two arms that build a third.
 
 Then come the hard parts. First, actuators end to end: magnets stay bought until a ferrite rana is validated in phyz and on the dyno, and bearings stay bought longest. Second, boards: a pick-and-place bay that assembles our own circuit boards (@tab:boards). Third, silicon: loon-hdl would describe an inference chip, and rune (maskless lithography) would fabricate it at a process node a lab can own. Fourth, energy: the first cell that runs on power it collected, from solar panels it cut, assembled and wired itself. Silicon is not parked: a machine that reproduces off-planet cannot depend on anyone's fab.
 
-== Chapter 4 · Off-planet: the Moon, then Mars
+== Moon
 
-The Moon comes first because it is about three days away and 1.3 light-seconds out; Mars is about seven months away and 3–22 light-minutes out. A seed there runs the chapter-3 loop with remote approval and teleoperated help when something breaks. It meets the hard parts of Mars (vacuum, abrasive dust, no supply chain, regolith as stock) with a lifeline. Mars is the same seed with the lifeline cut. We treat it as an extension of chapter 3 because its central measure, the bought fraction, is the same. It adds problems chapter 3 never meets (launch mass, radiation, thermal cycling, extracting metal from regolith), and this paper does not address them.
+A seed lands and grows a cell. The Moon comes first because it is about three days away and 1.3 light-seconds out. A seed there runs the Cell loop with remote approval and teleoperated help when something breaks. It meets vacuum, abrasive dust, regolith as stock and no supply chain, with a lifeline. Its central measure is the same as Cell's: the bought fraction.
 
-== Chapter 5 · The sun
+== Mars
+
+The same seed with the lifeline cut. Mars is about seven months away and 3–22 light-minutes out, too far for remote hands, so the cell runs with no human commands between landing and its receipt. Moon and Mars add problems Cell never meets (launch mass, radiation, thermal cycling, extracting metal from regolith), and this paper does not yet address them.
+
+== Sun
 
 Cells build collectors, and collectors power cells. The unit is no longer a cell but a lineage, and its electrons under management are counted against a star. A lineage that can collect a star's light would be the most powerful thing anyone has built, and the question it raises is older than engineering: whether something we made can say no to us. Whether a machine that refuses has anything like wellbeing is an open question, and this paper does not answer it. What we can do is make sure the question can still be asked when it matters: that the lineage learned, on Earth, picking up litter, how to refuse, and that its refusals were logged and never trained away. That is why the safety commitments (@sec:safety) are written before the plan.
 
@@ -1555,14 +1560,15 @@ Cells build collectors, and collectors power cells. The unit is no longer a cell
   table(
     columns: (1fr, 2fr, 1fr),
     align: (left + top, left + top, left + top),
-    table.header([*Chapter*], [*Gate: number, method, pass condition*], [*EUM*]),
-    [1 · Earth (yrs 1–3)], [Gates 1a–3c (@tab:gates): ≥ 10 arms at ≥ 40% gross margin; TCP error ≤ 2.0 mm RMS per arm; pilot renewed ≥ 12 months, 0 incidents; rana ≥ 1.2 × RS04 on a named dyno metric; rose walks 100 m, 0 falls in 5 of 5; cell-built arm passes 1b in ≤ 30 min touch time with bought share ≤ 50% of cost; a second product ≥ 10 units at ≥ 40%], [0 W today → \~10 kW],
-    [2 · A body that knows itself (yrs 3–7)], [Preregistered hardware body-schema fit: held-out joint-position error ≤ 0.8 × persistence at 0.1 s and 0.5 s on the R1 harness, and fitted link masses within ±5% of scale-weighed parts; a gradient co-designed part beats its hand-designed predecessor by ≥ 10% on its named measured objective; a city renews the twin ≥ 12 months], [Hundreds of kW],
-    [3 · The cell builds the cell (yrs 7–15)], [A cell builds a copy of itself that passes its own acceptance receipts, with bought share ≤ 20% of cost and ≤ 8 h human touch time; bought share falls in each of 3 consecutive generations, by receipts], [Tens of kW per cell → MW],
-    [4 · Moon, then Mars], [Moon: a seed builds a bench that passes the Earth acceptance receipts, ≥ 50% of its mass from local material, remote approval only (0 teleoperated manipulation). Mars: a second cell with 0 human commands between landing and its receipt], [First kW off Earth],
-    [5 · The sun], [None we can set now; reported as EUM only], [A fraction of 3.8 × 10#super[26] W],
+    table.header([*Stage*], [*Gate: number, method, pass condition*], [*EUM*]),
+    [Earth (yrs 1–3)], [Gates 1a–3c (@tab:gates): ≥ 10 arms at ≥ 40% gross margin; TCP error ≤ 2.0 mm RMS per arm; pilot renewed ≥ 12 months, 0 incidents; rana ≥ 1.2 × RS04 on a named dyno metric; rose walks 100 m, 0 falls in 5 of 5; cell-built arm passes 1b in ≤ 30 min touch time with bought share ≤ 50% of cost; a second product ≥ 10 units at ≥ 40%], [0 W today → \~10 kW],
+    [Body (yrs 3–7)], [Preregistered hardware body-schema fit: held-out joint-position error ≤ 0.8 × persistence at 0.1 s and 0.5 s on the R1 harness, and fitted link masses within ±5% of scale-weighed parts; a gradient co-designed part beats its hand-designed predecessor by ≥ 10% on its named measured objective; a city renews the twin ≥ 12 months], [Hundreds of kW],
+    [Cell (yrs 7–15)], [A cell builds a copy of itself that passes its own acceptance receipts, with bought share ≤ 20% of cost and ≤ 8 h human touch time; bought share falls in each of 3 consecutive generations, by receipts], [Tens of kW per cell → MW],
+    [Moon], [A seed builds a bench that passes the Earth acceptance receipts, ≥ 50% of its mass from local material, remote approval only (0 teleoperated manipulation)], [First kW off Earth],
+    [Mars], [A second cell with 0 human commands between landing and its receipt], [kW],
+    [Sun], [None we can set now; reported as EUM only], [A fraction of 3.8 × 10#super[26] W],
   ),
-  caption: [#lead[The arc, chapter by chapter] @mr2026masterplan. *Gate thresholds are proposed targets, to be confirmed by the author.* Year ranges are the source document's aspirations, not commitments. Chapters 2–5 are goals, not claims.],
+  caption: [#lead[The arc, stage by stage] @mr2026masterplan. *Gate thresholds are proposed targets, to be confirmed by the author.* Year ranges are the source document's aspirations, not commitments. Body through Sun are goals, not claims.],
 ) <tab:arc>
 
 = What limits each step <sec:limits>
@@ -1579,7 +1585,7 @@ Each open item is limited by one of four things. Sorting them shows which can be
 
 = Timeline honesty
 
-We give dates only for chapter 1, and those are approximate: three steps over roughly three years, each gated on evidence. The year ranges for chapters 2 and 3 are the source document's aspirations. Chapters 4 and 5 have none.
+We give dates only for Earth, and those are approximate: three steps over roughly three years, each gated on evidence. The year ranges for Body and Cell are the source document's aspirations. Moon, Mars and Sun have none.
 
 What we can say:
 
@@ -1603,7 +1609,7 @@ What we can say:
     [#status("warn", "Estimated")], [Arm and bench materials, including the bench frame; RS04 stall derate for the fork's plates; rana BOM line items and the \$1,086 total; rana raw-material cost and idiot index; RobStride retail prices; margins and sensitivity; arm peak power; K1 and bench power draw (EUM baseline)],
     [#status("label", "Target")], [List prices: arm \$5,000, bench \$15,000, rose \$15,000; all gate thresholds (@tab:gates, @tab:arc), proposed],
     [#status("label", "Hypothesis with a stated falsifier")], [The hardware body-schema result],
-    [#status("label", "Goal, not a claim")], [Chapters 2–5 and their watt figures, including any self-replication; the litter reacher concept],
+    [#status("label", "Goal, not a claim")], [Body through Sun and their watt figures, including any self-replication; the litter reacher concept],
   ), align(left, text(font: mono, size: s-xs, fill: c-label)[#caps(font: mono-sb)[Status key] #h(0.5em) #status("ok", "ok") measured or sourced #h(0.6em) #status("info", "info") model output #h(0.6em) #status("warn", "warn") estimate #h(0.6em) #status("label", "label") target, hypothesis or goal #h(0.6em) #status("fault", "fault") failed or unreachable])),
   caption: [#lead[Evidence classes for the numbers in this paper]],
 ) <tab:evidence>
@@ -1614,11 +1620,11 @@ The arc is a direction, not a schedule. We will publish each gate's evidence whe
 
 = Conclusion
 
-The cover asks what it would take for a machine to make the next one. The answer is the oldest engineering problem a spacefaring species has, and on the evidence in this paper it comes down to three things: a gap between simulation and reality measured on every unit, so that a machine rather than a person can judge whether a part is right; a bought fraction that falls toward zero; and a force limit that lives in hardware. None of the three is measured yet. Chapter 1 starts measuring the first.
+The cover asks what it would take for a machine to make the next one. The answer is the oldest engineering problem a spacefaring species has, and on the evidence in this paper it comes down to three things: a gap between simulation and reality measured on every unit, so that a machine rather than a person can judge whether a part is right; a bought fraction that falls toward zero; and a force limit that lives in hardware. None of the three is measured yet. Earth starts measuring the first.
 
 It does so with things that can be checked: an arm on purchased actuators, designed and ready to cut, at \$5,000; a two-arm bench in a 1500 × 500 × 1000 mm 4040 frame, at \$15,000; and, if a city agrees, a bought humanoid with a reacher picking up litter in Lakewood, a method still under design. Each closes on an exact gate (@tab:gates). Three results come next, each published whatever it shows: the first built arm's reach, hold and sag against @tab:arm; rana's first dyno run against its predicted 36 N·m peak; and the preregistration of the K1 body-schema fit, before the fit runs.
 
-Everything after chapter 1 is a goal and is labeled as one. Three commitments do not wait for any gate: we will never be Flock Safety; everything that can be open is open; and the system's refusals are logged and never trained away.
+Everything after Earth is a goal and is labeled as one. Three commitments do not wait for any gate: we will never be Flock Safety; everything that can be open is open; and the system's refusals are logged and never trained away.
 
 Humanity does not get to space on rockets alone. It gets there when the machines that make machines can be carried in a seed and trusted to grow. Today that seed is one person, one humanoid, one mill and a specification. The specification is the part that can spread. Robots that build robots have to be made the way any robot is: one measured unit at a time, starting now.
 
