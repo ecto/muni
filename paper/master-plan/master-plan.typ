@@ -210,26 +210,89 @@
   #line(length: 22%, stroke: 2pt + c-sel)
   #v(0.7em)
   #text(size: s-lg, fill: c-label)[What would it take for a machine to make the next one?]
-  #v(1.2em)
-  #grid(columns: (auto, 1fr), column-gutter: 2.4em,
-    {
-      frame(inset: 6pt, stroke: 0.6pt + c-line-hi, fill: c-bg, image("images-dark/fork-v9-lines.png", height: 4.4in))
-      v(0.5em)
-      block(width: 4.4in + 12pt, text(font: sans, size: s-sm, fill: c-label)[#caps(font: mono-sb, fill: c-text)[Cover]#h(0.7em)#lead[The limb (modeled).] rose fork v9: six joints on purchased actuators, every plate cut from flat aluminum. One limb is a product; two on a table are a pair; two on a body are a humanoid's arms.])
-    },
-    {
-      set par(leading: 0.55em)
-      let ro(l, v, u) = block(below: 1.4em, stroke: (left: 0.6pt + c-line-hi), inset: (left: 0.7em, y: 0.1em), stack(spacing: 0.55em, caps(l), text(font: mono-m, size: s-xl, number-width: "tabular")[#v#text(size: s-sm, fill: c-label)[#nb#u]]))
-      ro[Limb list][\$5,000][usd]
-      ro[Limb materials][\~\$2,000][usd, est.]
-      ro[Pair list][\$12,000][usd]
-      ro[Reach, shoulder → tips][786][mm]
-      ro[Continuous hold][1.27][kg]
-      ro[Gripper at flange][485][g]
-      text(hyphenate: false, caps[Exists today: a Booster K1, the software stack, a CNC mill, a plan. Limb: designed, ready to cut; none built yet. Litter pickup: concept under design. Lakewood pilot: proposed, no agreement.])
-      v(0.4em)
-      text(hyphenate: false, caps[Prices are targets; other values modeled or estimated; none measured on hardware])
-    })
+  #v(1fr)
+  // Cover art: the inner solar system in a tilted plan view, an Earth → Mars → Jupiter
+  // gravity-assist trajectory, and the Sun–Earth Lagrange points. Schematic, not to scale.
+  #align(center, cetz.canvas(length: 1cm, {
+    import cetz.draw: *
+    let cx = 0
+    let cy = 0
+    let tilt = 0.5
+    let zoom = 1.1
+    let P(r, a) = (cx + zoom * r * calc.cos(a), cy + zoom * tilt * r * calc.sin(a))
+    let orbit(r, w, col) = {
+      let pts = range(0, 181).map(k => P(r, k * 2deg))
+      line(..pts, close: true, stroke: w + col)
+    }
+    // faint star field
+    let seed = 7
+    for k in range(70) {
+      seed = calc.rem(seed * 1103515245 + 12345, 2147483648)
+      let x = calc.rem(seed, 1800) / 100 - 9.0
+      seed = calc.rem(seed * 1103515245 + 12345, 2147483648)
+      let y = calc.rem(seed, 1000) / 100 - 5.0
+      circle((x, y), radius: 0.012 + calc.rem(k, 3) * 0.008, fill: c-label.transparentize(40%), stroke: none)
+    }
+    // orbits: Mercury, Venus, Earth, Mars, Jupiter (radii compressed)
+    let rs = (1.15, 1.85, 2.75, 3.85, 7.9)
+    for (k, r) in rs.enumerate() {
+      orbit(r, if k == 2 { 0.7pt } else { 0.45pt }, if k == 2 { c-line-hi.lighten(25%) } else { c-line-hi })
+    }
+    // the sun, with a soft glow
+    for (k, g) in ((0.95, 92%), (0.7, 85%), (0.5, 72%), (0.36, 50%)).enumerate() {
+      circle((cx, cy), radius: g.at(0), fill: c-sel.transparentize(g.at(1)), stroke: none)
+    }
+    circle((cx, cy), radius: 0.26, fill: c-sel, stroke: none)
+    // the trajectory: Earth departure, Mars flyby, out to Jupiter
+    let smooth(t) = t * t * (3 - 2 * t)
+    let a0 = 205deg
+    let a1 = 338deg
+    let a2 = 470deg
+    let traj = ()
+    for k in range(0, 121) {
+      let a = a0 + (a2 - a0) * k / 120
+      let r = if a <= a1 {
+        2.75 + (3.85 - 2.75) * smooth((a - a0) / (a1 - a0))
+      } else {
+        let t = (a - a1) / (a2 - a1)
+        3.85 + (8.4 - 3.85) * calc.pow(t, 1.35)
+      }
+      traj.push(P(r, a))
+    }
+    for (w, a) in ((5pt, 88%), (2.6pt, 72%)) { line(..traj, stroke: (paint: c-sel.transparentize(a), thickness: w, cap: "round", join: "round")) }
+    line(..traj, stroke: (paint: c-sel, thickness: 0.9pt, cap: "round", join: "round"))
+    // planets
+    let planet(r, a, rad, col, name, dx: 0.18, dy: 0.18, anchor: "south-west") = {
+      let q = P(r, a)
+      circle(q, radius: rad * 2.4, fill: col.transparentize(85%), stroke: none)
+      circle(q, radius: rad, fill: col, stroke: none)
+      content((q.at(0) + dx, q.at(1) + dy), anchor: anchor, text(font: mono-m, size: 5.5pt, fill: c-label, tracking: 0.08em, upper(name)))
+    }
+    planet(1.15, 120deg, 0.05, c-label, "Mercury")
+    planet(1.85, 75deg, 0.075, c-text, "Venus")
+    planet(2.75, a0, 0.085, c-info, "Earth", dx: -0.12, dy: 0.16, anchor: "south-east")
+    planet(3.85, a1, 0.07, c-fault, "Mars", dx: 0.2, dy: -0.12, anchor: "north-west")
+    planet(7.9, 98deg, 0.16, c-warn, "Jupiter", dx: 0.3, dy: 0.05, anchor: "west")
+    // moon of Earth
+    let e = P(2.75, a0)
+    circle((e.at(0) + 0.2, e.at(1) + 0.07), radius: 0.025, fill: c-text, stroke: none)
+    // Sun–Earth Lagrange points (L1, L2 exaggerated off Earth)
+    let lp(q, name, dx, dy, anchor) = {
+      let (x, y) = q
+      line((x - 0.07, y), (x, y + 0.07), (x + 0.07, y), (x, y - 0.07), close: true, fill: none, stroke: 0.7pt + c-info)
+      content((x + dx, y + dy), anchor: anchor, text(font: mono-m, size: 5.5pt, fill: c-info, name))
+    }
+    lp(P(2.2, a0), "L1", 0.12, 0.0, "west")
+    lp(P(3.3, a0), "L2", -0.12, 0.0, "east")
+    lp(P(2.75, a0 + 180deg), "L3", 0.14, 0.0, "west")
+    lp(P(2.75, a0 + 60deg), "L4", 0.12, -0.04, "north-west")
+    lp(P(2.75, a0 - 60deg), "L5", 0.0, 0.14, "south")
+    // trajectory notes
+    let m = P(3.85, a1)
+    content((m.at(0) + 0.35, m.at(1) + 0.55), anchor: "south-west", text(font: mono-m, size: 5.5pt, fill: c-sel, tracking: 0.08em)[GRAVITY ASSIST])
+    let j = traj.at(traj.len() - 1)
+    content((j.at(0) - 0.2, j.at(1) + 0.15), anchor: "south-east", text(font: mono-m, size: 5.5pt, fill: c-sel, tracking: 0.08em)[TO THE OUTER SYSTEM])
+  }))
   #v(1fr)
   #line(length: 100%, stroke: 0.6pt + c-line-hi)
   #v(0.6em)
