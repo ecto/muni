@@ -21,6 +21,11 @@ or the hardware mockups. Newest first within a date.
 
 | D12 | **moth has two markets: street perception and kino's directed camera. No military use, no defense work, never armed.** The safety commitment "no sales for weapons or military use" stands unchanged. moth follows the ground robots' street rules: imagery leaves the drone for mapping, with people and cars removed on board and delayed release; its filter's miss rate is measured and published. | One body, two markets; the cheapest test that the standards are body-agnostic. | Drone defense (interception), considered and dropped 2026-10-15. |
 
+| D13 | **Stages climb in scale: Arm, Body, Cell, City, Planet, Moon, Mars, Sun.** Not "chapters". | Each stage is a step up in scale and is built by the one before. | Earth-first framing; numbered chapters. |
+| D14 | **Doubling time is a headline number beside EUM.** | It sets how long the arc takes: ~73 doublings from 10 kW to the sun. | — |
+| D15 | **Replication is licensed per copy, capped in rate, checked against a germ line, drilled for shutdown every generation; no foraging on Earth.** | A self-copying lineage must stay stoppable by people. | Relying on dependence on bought parts alone. |
+| D16 | **Sun is a swarm; power is used where it is collected** (more collectors, cells and computation). No power beamed to Earth. | Locus of energy stated plainly. | Beamed power home. |
+
 ## Corrections found in review
 
 - The K1's onboard computer is **not a Jetson**. The perception machine is a
