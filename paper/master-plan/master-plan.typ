@@ -37,34 +37,34 @@
   mind:    (name: "Mind",    color: c-sel),
   silicon: (name: "Silicon", color: c-label),
 )
-// (number, name, family, maturity, note)
+// (number, name, family, maturity, note, first stage that needs it)
 #let elements = (
-  (1, "loon", "make", "exists", "source language for parts, worlds, hardware"),
-  (2, "tang", "make", "exists", "math, autodiff, the one GPU device"),
-  (3, "vcad", "make", "exists", "BRep CAD, CAM, FEA, parameter gradients"),
-  (4, "kerf", "make", "exists", "design to part, with a receipt"),
-  (5, "wodl", "world", "concept", "world format: bodies, materials, joints, sensors"),
-  (6, "kosm", "world", "exists", "runs wodl worlds"),
-  (7, "phyz", "world", "exists", "physics with a contact adjoint"),
-  (8, "iris", "world", "concept", "renderer and robot cameras"),
-  (9, "rana", "body", "designed", "axial-flux actuator"),
-  (10, "torc", "body", "designed", "motor control"),
-  (11, "limb", "body", "designed", "arm: product, half a pair, rose's arm"),
-  (12, "hand", "body", "designed", "485 g gripper"),
-  (13, "pair", "body", "concept", "two limbs on any table"),
-  (14, "rose", "body", "concept", "humanoid: mini, full, mega"),
-  (15, "moth", "body", "concept", "drone: street perception"),
-  (16, "seed", "body", "concept", "a cell to go"),
-  (17, "pack", "power", "concept", "one battery for every body"),
-  (18, "blade", "power", "concept", "one compute module"),
-  (19, "boards", "power", "concept", "BMS, hub, bus"),
-  (20, "ipse", "mind", "exists", "developmental mind on a real K1"),
-  (21, "loon-hdl", "silicon", "concept", "hardware description"),
-  (22, "rune", "silicon", "concept", "maskless lithography"),
-  (23, "chyp", "silicon", "concept", "inference chip"),
+  (1, "loon", "make", "exists", "source for parts, worlds, chips", "limb"),
+  (2, "tang", "make", "exists", "math, autodiff, one GPU", "limb"),
+  (3, "vcad", "make", "exists", "CAD kernel with gradients", "limb"),
+  (4, "kerf", "make", "exists", "design to part, with a receipt", "limb"),
+  (5, "wodl", "world", "concept", "world format", "pair"),
+  (6, "kosm", "world", "exists", "runs wodl worlds", "limb"),
+  (7, "phyz", "world", "exists", "physics, contact adjoint", "limb"),
+  (8, "iris", "world", "concept", "renderer, robot cameras", "pair"),
+  (9, "rana", "body", "designed", "axial-flux actuator", "limb"),
+  (10, "torc", "body", "designed", "motor control", "limb"),
+  (11, "limb", "body", "designed", "the arm: product, half a pair", "limb"),
+  (12, "hand", "body", "designed", "485 g gripper", "limb"),
+  (13, "pair", "body", "concept", "two limbs, any table", "pair"),
+  (14, "rose", "body", "concept", "humanoid: mini, full, mega", "body"),
+  (15, "moth", "body", "concept", "street-perception drone", "city"),
+  (16, "seed", "body", "concept", "a pair, packed to go", "moon"),
+  (17, "pack", "power", "concept", "one battery, every body", "body"),
+  (18, "core", "power", "concept", "one compute module", "body"),
+  (19, "nerv", "power", "concept", "bus, hub and BMS boards", "body"),
+  (20, "ipse", "mind", "exists", "developmental mind", "body"),
+  (21, "loom", "silicon", "concept", "hardware description", "planet"),
+  (22, "rune", "silicon", "concept", "maskless lithography", "planet"),
+  (23, "chyp", "silicon", "concept", "inference chip", "planet"),
 )
 // product names colored wherever they appear in running text
-#let brand-names = elements.filter(e => e.at(1) not in ("hand", "boards")).map(e => (e.at(1), e.at(2)))
+#let brand-names = elements.filter(e => e.at(1) not in ("hand",)).map(e => (e.at(1), e.at(2)))
 #let brand-color(name) = { let m = brand-names.find(n => n.at(0) == name); if m != none { fam.at(m.at(1)).color } }
 #let brand-family(name) = { let m = brand-names.find(n => n.at(0) == lower(name)); if m != none { m.at(1) } }
 // every product name takes its family color, in any case: limb, Limb (the stage) and LIMB alike
@@ -1221,55 +1221,70 @@ The stack is a tree rooted at one language, loon. Every project in it, software 
 #figure(
   cetz.canvas(length: 1cm, {
     import cetz.draw: *
-    let s = 1.9
-    let g = 0.14
-    // columns: family per column; body takes three
-    let cols = (
-      ("make", (1, 2, 3, 4)),
-      ("world", (5, 6, 7, 8)),
-      ("body", (9, 10)),
-      ("body", (11, 12, 13)),
-      ("body", (14, 15, 16)),
-      ("power", (17, 18, 19)),
-      ("mind", (20,)),
-      ("silicon", (21, 22, 23)),
-    )
+    let s = 1.95   // card
+    let gi = 0.12  // gap inside a family
+    let gf = 0.34  // gap between families
     let byn(n) = elements.find(e => e.at(0) == n)
-    let gapcol(i) = if i in (2, 5, 6, 7) { 0.35 } else { 0 }
-    let x = 0
-    let heads = (:)
-    for (i, (f, ns)) in cols.enumerate() {
-      x += gapcol(i)
-      let col = fam.at(f).color
-      if f not in heads {
-        content((x, 0.55), anchor: "south-west", text(font: mono-m, size: 5.5pt, fill: col, tracking: 0.12em, upper(fam.at(f).name)))
-        heads.insert(f, true)
+    // families left to right; each is a list of columns, read top to bottom in build order
+    let fams = (
+      ("make", ((1, 2, 3, 4),)),
+      ("world", ((5, 6, 7, 8),)),
+      ("body", ((9, 10, 11), (12, 13, 14), (15, 16))),
+      ("power", ((17, 18, 19),)),
+      ("mind", ((20,),)),
+      ("silicon", ((21, 22, 23),)),
+    )
+    // word joiners keep the name-coloring rule off the card's own text
+    let wj(t) = t.clusters().join("\u{2060}")
+    let card(x, y, e, scale: 1, color: none) = {
+      let (num, name, f, mat, note, stage) = e
+      let col = if color != none { color } else { fam.at(f).color }
+      let k = scale
+      let w = s * k
+      let (fl, st, ink, meta) = if mat == "exists" {
+        (col, none, c-sel-ink, c-sel-ink.transparentize(35%))
+      } else if mat == "designed" {
+        (c-surface, 0.9pt + col, col, c-label)
+      } else {
+        (none, (paint: col.transparentize(45%), thickness: 0.7pt, dash: (2pt, 2pt)), col.transparentize(40%), c-label.transparentize(35%))
       }
-      for (r, n) in ns.enumerate() {
-        let (num, name, ff, mat, note) = byn(n)
-        let y = -r * (s + g)
-        let top = (x, y)
-        let st = if mat == "concept" { (paint: col, thickness: 0.7pt, dash: "dashed") } else { 0.8pt + col }
-        let fl = if mat == "exists" { col.transparentize(80%) } else { c-bg }
-        rect((x, y), (x + s, y - s), fill: fl, stroke: st)
-        content((x + 0.12, y - 0.1), anchor: "north-west", text(font: mono, size: 5pt, fill: c-label, str(num)))
-        content((x + 0.14, y - 0.42), anchor: "north-west", text(font: mono-sb, size: if name.len() > 5 { 9pt } else if name.len() > 4 { 12pt } else { 15pt }, tracking: -0.03em, fill: if mat == "concept" { col.transparentize(15%) } else { col }, name))
-        content((x + 0.14, y - s + 0.14), anchor: "south-west", box(width: (s - 0.28) * 1cm, par(leading: 0.35em, text(size: 5pt, fill: c-label, note))))
-      }
-      x += s + g
+      rect((x, y), (x + w, y - w), fill: fl, stroke: st)
+      content((x + 0.13 * k, y - 0.12 * k), anchor: "north-west", text(font: mono-m, size: 5.5pt * k, fill: meta, number-width: "tabular", str(num)))
+      content((x + w - 0.13 * k, y - 0.12 * k), anchor: "north-east", text(font: mono-m, size: 4.6pt * k, fill: meta, tracking: track, wj(upper(stage))))
+      content((x + 0.11 * k, y - 0.5 * k), anchor: "north-west", text(font: mono-sb, size: 18pt * k, tracking: -0.04em, fill: ink, wj(name)))
+      content((x + 0.13 * k, y - w + 0.13 * k), anchor: "south-west", box(width: (w - 0.26 * k) * 1cm, par(leading: 0.32em, text(font: sans, size: 5.2pt * k, fill: meta, note.split(" ").map(wj).join(" ")))))
     }
-    // key
-    let ky = -4 * (s + g) - 0.25
-    let kx = 0
+    let x = 0
+    for (fi, (f, cols)) in fams.enumerate() {
+      if fi > 0 { x += gf }
+      let col = fam.at(f).color
+      let span = cols.len() * s + (cols.len() - 1) * gi
+      content((x, 0.62), anchor: "south-west", text(font: mono-m, size: 5.5pt, fill: col, tracking: track, upper(fam.at(f).name)))
+      line((x, 0.42), (x + span, 0.42), stroke: 0.7pt + col)
+      for (ci, ns) in cols.enumerate() {
+        let cx = x + ci * (s + gi)
+        for (r, n) in ns.enumerate() { card(cx, 0.22 - r * (s + gi), byn(n)) }
+      }
+      x += span
+    }
+    // how to read a card, in the hole under Body
+    let ky = 0.22 - 3 * (s + gi)
+    let kx = 2 * (s + gi) + gf
+    card(kx, ky, ("n", "name", "body", "designed", "what it is", "stage"), color: c-text)
+    let lab(y, t) = content((kx + s + 0.2, y), anchor: "west", text(font: mono-m, size: 5pt, fill: c-label, tracking: track, upper(t)))
+    lab(ky - 0.2, [Order · first stage])
+    lab(ky - 0.85, [Name])
+    lab(ky - s + 0.22, [What it is])
+    // maturity
+    let mx = kx + s + 3.4
     for (k, (lbl, mat)) in (("exists", "exists"), ("designed", "designed"), ("concept", "concept")).enumerate() {
-      let col = c-label
-      let st = if mat == "concept" { (paint: col, thickness: 0.7pt, dash: "dashed") } else { 0.8pt + col }
-      rect((kx, ky), (kx + 0.32, ky - 0.32), fill: if mat == "exists" { col.transparentize(70%) } else { none }, stroke: st)
-      content((kx + 0.45, ky - 0.16), anchor: "west", text(font: mono-m, size: 5.5pt, fill: c-label, tracking: 0.1em, upper(lbl)))
-      kx += 2.3
+      let yy = ky - k * 0.62
+      let (fl, st) = if mat == "exists" { (c-text, none) } else if mat == "designed" { (c-surface, 0.9pt + c-text) } else { (none, (paint: c-text.transparentize(45%), thickness: 0.7pt, dash: (2pt, 2pt))) }
+      rect((mx, yy), (mx + 0.42, yy - 0.42), fill: fl, stroke: st)
+      content((mx + 0.6, yy - 0.21), anchor: "west", text(font: mono-m, size: 5pt, fill: c-label, tracking: track, upper(lbl)))
     }
   }),
-  caption: [#lead[The periodic table of Municipal Robotics] @mr2026masterplan. Every project, by family: Make turns source into parts, World simulates them, Body moves, Power feeds and thinks, Mind learns, Silicon is the far future. Solid tiles are software in use today (in use, not finished), outlined ones are designed or prototyped, dashed ones are concepts. Numbers follow build order. The K1, our bought reference body, is not on the table. In text, each name takes its family's color.],
+  caption: [#lead[The periodic table of Municipal Robotics] @mr2026masterplan. Every project, by family: Make turns source into parts, World simulates them, Body moves, Power feeds and thinks, Mind learns, Silicon is the far future. Solid cards are in use today (in use, not finished), outlined ones are designed or prototyped, dashed ones are concepts. The K1, our bought reference body, is not on the table.],
 ) <fig:elements>
 
 Four rules keep the tree a tree: engines never depend on vcad, and vcad never depends on an app; engines read wodl, not each other; there is one GPU device across the stack; and units are millimeters, with Z up, everywhere. The rules are meant to let a gradient pass from a task loss in ipse, through phyz's contact adjoint, into vcad geometry and out to loon parameters without a translation at each hop. Part of that chain runs today, in simulation: on a test model, a phyz rollout gradient passes through a ground-contact model into a vcad geometry parameter and agrees with finite differences. Joining the two ends, from a task loss in ipse to loon source, is co-design work for Body @pond2026strategy.
@@ -1297,7 +1312,7 @@ What changes from stage to stage is not the loop but who sits in it. @tab:loopst
 
 = Standards <sec:power>
 
-Every machine we build meets the same four standards: a bus, a pack, a blade and a library of boards. They are why a limb, a pair, a humanoid and a drone can share parts, code and repairs. All of it is modeled; none of it is built @mr2026decisions.
+Every machine we build meets the same four standards: a bus, a pack, a core and nerv, a library of boards. They are why a limb, a pair, a humanoid and a drone can share parts, code and repairs. All of it is modeled; none of it is built @mr2026decisions.
 
 == Bus
 
@@ -1331,7 +1346,7 @@ Beside the power runs one management bus, CAN-FD, for presence, power control an
     node((1.5, 0), [*loon*], shape: sqnode, fill: n-fill, name: <loon>),
     node((0.5, 0), [*tang*], shape: sqnode, fill: n-fill, name: <tang>),
     node((0.5, 1), [vcad], shape: sqnode, fill: n-fill, name: <vcad>),
-    node((2.5, 1), [loon-hdl], shape: sqnode, fill: n-fill, name: <hdl>),
+    node((2.5, 1), [loom], shape: sqnode, fill: n-fill, name: <hdl>),
     node((0, 2), [wodl / kosm], shape: sqnode, fill: n-fill, name: <wodl>),
     node((1, 2), [phyz], shape: sqnode, fill: n-fill, name: <phyz>),
     node((0, 3), [iris], shape: sqnode, fill: n-fill, name: <iris>),
@@ -1367,9 +1382,9 @@ There is one battery: a 13S2P pack of Molicel P50B 21700 cells, *468 Wh* and abo
 
 The pack is also the EUM instrument. EUM (@sec:eum) is defined at each machine's main power input, logged at ≥ 1 Hz, and every pack's BMS measures exactly that. If the BMS logs it, electrons under management are measured for free on every robot and dock we build.
 
-Two cautions. The K1 is a bought robot with its own battery, and it cannot take this pack. The pack and the blade bay below are sized for rose, whose torso must grow from 210 to 214 mm wide to hold both packs beside the bay. And NMC in a public sidewalk dock is a choice a city may question. We keep one chemistry for simplicity and will revisit it if that happens.
+Two cautions. The K1 is a bought robot with its own battery, and it cannot take this pack. The pack and the core bay below are sized for rose, whose torso must grow from 210 to 214 mm wide to hold both packs beside the bay. And NMC in a public sidewalk dock is a choice a city may question. We keep one chemistry for simplicity and will revisit it if that happens.
 
-== Blade <sec:compute>
+== Core <sec:compute>
 
 #figure(
   grid(
@@ -1380,26 +1395,26 @@ Two cautions. The K1 is a bought robot with its own battery, and it cannot take 
     image("images-native/humanoid_bay_iso.png", height: 1.8in),
     image("images-native/rack_12u_iso.png", height: 1.8in),
   ),
-  caption: [#lead[The blade and its two hosts] (modeled). Left: one blade, exploded. Center: the humanoid bay, lid lifted and one blade drawn. Right: a 12U rack with a GPU node and three blade chassis. Renders by vcad-render @mr2026compute.],
+  caption: [#lead[The core and its two hosts] (modeled). Left: one core, exploded. Center: the humanoid bay, lid lifted and one core drawn. Right: a 12U rack with a GPU node and three core chassis. Renders by vcad-render @mr2026compute.],
 ) <fig:blade>
 
-Compute comes in one module, the *blade*: a 132 × 76 × 20 mm carrier on a 3 mm aluminum spine that is both its rail and its heat path, with one rear connector carrying the bus, gigabit Ethernet and CAN-FD @mr2026compute. The same blade slides into a 10-inch rack chassis (eight per 2U, fan-cooled) or into a humanoid's torso bay (up to three, conduction-cooled into cold walls with a fan over the fins). A blade identifies itself and its power class over I²C before the host powers it: 20 W for a Raspberry Pi CM5 carrier, 30 W for a Jetson-class carrier.
+Compute comes in one module, the *core*: a 132 × 76 × 20 mm carrier on a 3 mm aluminum spine that is both its rail and its heat path, with one rear connector carrying the bus, gigabit Ethernet and CAN-FD @mr2026compute. The same core slides into a 10-inch rack chassis (eight per 2U, fan-cooled) or into a humanoid's torso bay (up to three, conduction-cooled into cold walls with a fan over the fins). A core identifies itself and its power class over I²C before the host powers it: 20 W for a Raspberry Pi CM5 carrier, 30 W for a Jetson-class carrier.
 
 How a body uses its slots follows the seams ipse already has (@sec:mind). The fast layers, S0 (whole-body tracking, 50 Hz today, 200 Hz target) and S1 (skills and contact planning, 50 Hz), are deadline-bound and must run on the body. The slow layer, S2 (intent and the world model, 1–5 Hz), may run on the body or off it, and if it is lost, S1 finishes the current skill and stands @ipse2026brief. So:
 
-- *Slot 1* always holds a GPU blade running S0, S1, the abstract state bus and perception, isolated at real-time priority. Nothing else is allowed on it. On the K1, vendor processes share the perception computer, and worst-case walk inference has been seen at 13.7–15.8 ms against a 0.24 ms median off the robot (session notes, probably preemption).
+- *Slot 1* always holds a GPU core running S0, S1, the abstract state bus and perception, isolated at real-time priority. Nothing else is allowed on it. On the K1, vendor processes share the perception computer, and worst-case walk inference has been seen at 13.7–15.8 ms against a 0.24 ms median off the robot (session notes, probably preemption).
 - *Slots 2 and 3* run S2 when fitted. A full body thinks offline.
-- *With fewer blades*, S2 runs on the rack over the same seam.
+- *With fewer cores*, S2 runs on the rack over the same seam.
 
-Whether a body thinks onboard or leans on the rack is then a slot count, not an architecture. The rack is the same standard at larger scale: a 9U, 450 mm deep frame with a GPU node for training and the twin, two blade chassis, and two 48 V supplies feeding a vertical busbar, about 1 kW in all (estimate) @mr2026compute.
+Whether a body thinks onboard or leans on the rack is then a slot count, not an architecture. The rack is the same standard at larger scale: a 9U, 450 mm deep frame with a GPU node for training and the twin, two core chassis, and two 48 V supplies feeding a vertical busbar, about 1 kW in all (estimate) @mr2026compute.
 
-*rose against the K1.* rose should out-think the K1: CUDA, real-time scheduling, and our own code from the carrier up. That claim gets the same treatment as every other one. The same ipse build runs on both bodies, and we report S0 tick jitter, inference latency and where S2 ran, per body. rose is first run with one blade, close to the K1’s compute, then with more, so the effect of compute is measured one variable at a time.
+*rose against the K1.* rose should out-think the K1: CUDA, real-time scheduling, and our own code from the carrier up. That claim gets the same treatment as every other one. The same ipse build runs on both bodies, and we report S0 tick jitter, inference latency and where S2 ran, per body. rose is first run with one core, close to the K1’s compute, then with more, so the effect of compute is measured one variable at a time.
 
-The open question is the size of S2. A 16 GB Orin NX blade may hold it; a Thor-class module would not fit a 20 mm blade.
+The open question is the size of S2. A 16 GB Orin NX core may hold it; a Thor-class module would not fit a 20 mm core.
 
 == Boards
 
-Bus, pack and blade need a small set of boards. We own a board first when it defines a standard or makes a measurement, and buy the rest until owning it wins (@tab:boards).
+Bus, pack and core need a small set of boards. We own a board first when it defines a standard or makes a measurement, and buy the rest until owning it wins (@tab:boards).
 
 #figure(
   table(
@@ -1407,8 +1422,8 @@ Bus, pack and blade need a small set of boards. We own a board first when it def
     align: (left + top, left + top, left + top, left + top),
     table.header([*Board*], [*Does*], [*Order*], [*State*]),
     [BMS], [Protects the pack; measures EUM; talks CAN], [Own first], [Not designed],
-    [Pair hub], [48 V + CAN for two limbs, a camera pair and a blade], [Own first], [Not designed],
-    [Blade carriers], [CM5 (20 W) and Jetson (30 W) on the blade standard], [Next], [Mockup],
+    [Pair hub], [48 V + CAN for two limbs, a camera pair and a core], [Own first], [Not designed],
+    [Core carriers], [CM5 (20 W) and Jetson (30 W) on the core standard], [Next], [Mockup],
     [Backplanes], [8-slot rack chassis; 3-slot humanoid bay; switch + CAN], [Next], [Mockup],
     [Arm controller], [Six actuator CAN buses, 48 V distribution, one free bus for the BMS], [Next], [Not designed],
     [torc], [Motor control for rana], [With rana], [Prototype],
@@ -1622,7 +1637,7 @@ The actuators are about 60% of a limb's materials (\~\$1,200 of \~\$2,000). That
     align: (left + top, right + top, right + top, right + top, left + top),
     table.header([*Product*], [*List*], [*Materials*], [*Margin*], [*Contents*]),
     [Limb], [\$5,000], [\~\$2,000], [60%], [Six RobStride joints (\~\$1,200), plates, harness, gripper],
-    [Pair], [\$12,000], [\~\$4,400], [63%], [Two limbs, a table plate, a pair hub, a camera pair, a blade],
+    [Pair], [\$12,000], [\~\$4,400], [63%], [Two limbs, a table plate, a pair hub, a camera pair, a core],
     [rose], [\$15,000], [not costed], [–], [A pair on legs. Needs rana at a few hundred dollars per joint],
   ),
   caption: [#lead[Prices and margin on materials] @mr2026masterplan. List prices are targets, not quotes; materials are estimates. Margin here is list less materials, a ceiling on gross margin: labor, test, warranty, shipping and overhead are not yet known and will reduce it.],
@@ -1651,7 +1666,7 @@ Vendors rarely say at what pose or duty cycle a rated payload holds. Our 1.27 kg
 
 = Pair <sec:pair>
 
-*Two limbs at any table; a pair builds a pair.* Bolt two limbs to a table, add a camera pair and a blade, and the table becomes a workstation. Nothing else changes: no rails, no enclosure, no special room. The same pair folds laundry, tends a mill, sorts parts or assembles the next limb. What it does is software, trained against the measured models of its own two limbs.
+*Two limbs at any table; a pair builds a pair.* Bolt two limbs to a table, add a camera pair and a core, and the table becomes a workstation. Nothing else changes: no rails, no enclosure, no special room. The same pair folds laundry, tends a mill, sorts parts or assembles the next limb. What it does is software, trained against the measured models of its own two limbs.
 
 #figure(
   table(
@@ -1668,7 +1683,7 @@ Vendors rarely say at what pose or duty cycle a rated payload holds. Our 1.27 kg
 
 == Mount
 
-A pair is two limb feet (Ø230 mm, four M6 on Ø190) on one plate that clamps to an ordinary table, with a pair hub between them carrying 48 V and CAN to each limb, a camera pair above the work, and one blade (@sec:power). The plate fixes the distance between the shoulders, so every pair shares one calibrated geometry. Its size, clamp and hub are not designed yet.
+A pair is two limb feet (Ø230 mm, four M6 on Ø190) on one plate that clamps to an ordinary table, with a pair hub between them carrying 48 V and CAN to each limb, a camera pair above the work, and one core (@sec:power). The plate fixes the distance between the shoulders, so every pair shares one calibrated geometry. Its size, clamp and hub are not designed yet.
 
 == Work
 
@@ -1690,7 +1705,7 @@ A pair is also the cell of this plan: the smallest unit that can make more of it
 
 Replication is a capability the product grows into, not the reason it exists.
 
-Then come the hard parts. Actuators end to end: magnets stay bought until a ferrite rana is validated, and bearings stay bought longest. Boards: a pair at a pick-and-place machine (@tab:boards). Silicon: loon-hdl would describe chyp, an inference chip, and rune (maskless lithography) would make it at a node a lab can own. Energy: the first pair that runs on panels it made. Silicon is not parked; a machine that reproduces off-planet cannot depend on anyone's fab.
+Then come the hard parts. Actuators end to end: magnets stay bought until a ferrite rana is validated, and bearings stay bought longest. Boards: a pair at a pick-and-place machine (@tab:boards). Silicon: loom would describe chyp, an inference chip, and rune (maskless lithography) would make it at a node a lab can own. Energy: the first pair that runs on panels it made. Silicon is not parked; a machine that reproduces off-planet cannot depend on anyone's fab.
 
 *Gate.* A pair at a customer's table completes a named task (for example, folding 50 garments) at ≥ 95% success. A pair assembles a limb that passes the Limb test in ≤ 30 min of human touch time. A pair builds a pair that passes its receipts at ≤ 20% bought cost, with bought share falling over 3 generations and a commanded shutdown drill passed in each (@tab:arc).
 
@@ -1721,7 +1736,7 @@ rose is the humanoid we will build. The name is the thesis: past tense of rise, 
   caption: [#lead[The rose line] (modeled) @rose2026line. Masses and holds are model outputs; full's mass is scaled from a smaller actuator, not measured.],
 ) <tab:rose>
 
-In this plan, rose's arms are limbs, full stop: a humanoid is a pair on legs, with a torso that carries the blade bay and two packs (@sec:power). Each rose takes the limb of its size: mini takes limb mini, full takes limb full, mega takes limb mega. The current drawings still carry four-degree-of-freedom arms on purchased actuators; replacing them with limbs, and the legs' purchased actuators with rana where it wins, is open work.
+In this plan, rose's arms are limbs, full stop: a humanoid is a pair on legs, with a torso that carries the core bay and two packs (@sec:power). Each rose takes the limb of its size: mini takes limb mini, full takes limb full, mega takes limb mega. The current drawings still carry four-degree-of-freedom arms on purchased actuators; replacing them with limbs, and the legs' purchased actuators with rana where it wins, is open work.
 
 rose mini does not wait for the pair to sell. It starts now, in parallel, on purchased actuators and limb mini, because the K1 has shown the limits of a body we did not build. Body overlaps Pair; it does not follow it. rose full's \$15,000 target is the G1’s price class @unitree2024g1, and it waits for rana.
 
@@ -1833,11 +1848,11 @@ moth is a drone for street perception @mr2026decisions. It flies ahead of the K1
 
 moth is not sold for military use or armed in any form (@sec:safety).
 
-moth is also the cheapest check that the standards in @sec:power are body-agnostic. It is a one-blade body on the 36–60 V bus with CAN-FD for management, running the same ipse seams as a humanoid. It carries its own lighter pack: the 2.65 kg humanoid pack only suits a heavy-lift airframe.
+moth is also the cheapest check that the standards in @sec:power are body-agnostic. It is a one-core body on the 36–60 V bus with CAN-FD for management, running the same ipse seams as a humanoid. It carries its own lighter pack: the 2.65 kg humanoid pack only suits a heavy-lift airframe.
 
 *The same street rules.* Mapping needs imagery, so moth's imagery leaves the drone, under the rules of @sec:city: people and cars are removed on the drone before anything is written to storage, pictures are released delayed, and nothing links a person, car or device across frames, places or days. A camera over a residential street is what people fear most, so moth's filter gets its own published test: how often a person or plate survives it, measured on held-out street footage.
 
-Nothing of moth is built. Its airframe, pack and mass budget are not designed, and whether one \~150 g blade fits its mass budget is open.
+Nothing of moth is built. Its airframe, pack and mass budget are not designed, and whether one \~150 g core fits its mass budget is open.
 
 *Gate.* The litter pilot renews for ≥ 12 months after a ≥ 3-month trial, with 0 contact incidents. A city renews fleet and twin for ≥ 12 months. ≥ 90% of fleet repairs done by pairs in the city, by receipts (@tab:arc).
 
@@ -1851,7 +1866,7 @@ Nothing of moth is built. Its airframe, pack and mass budget are not designed, a
 
 *A seed grows a pair, with a lifeline.* The Moon comes first because it is about three days away and 1.3 light-seconds out. A seed there runs the Pair loop with remote approval and teleoperated help when something breaks. It meets vacuum, abrasive dust, regolith as stock and no supply chain, with a lifeline. Its central measure is the same as Pair's: the bought fraction.
 
-The seed is the smallest thing that can grow a pair: one pair, a mill and a router, a collector and a pack, the design in its germ line, and enough bought parts for a few generations. Before it flies, each of its hard problems gets a measured gap on Earth: vacuum and thermal cycling, abrasive dust in simulant, and radiation on a blade. A single limb flown as a hosted payload would be the first number off Earth.
+The seed is the smallest thing that can grow a pair: one pair, a mill and a router, a collector and a pack, the design in its germ line, and enough bought parts for a few generations. Before it flies, each of its hard problems gets a measured gap on Earth: vacuum and thermal cycling, abrasive dust in simulant, and radiation on a core. A single limb flown as a hosted payload would be the first number off Earth.
 
 *Gate.* A seed builds a pair that passes the Earth receipts, ≥ 50% of its mass from local material, with remote approval only (@tab:arc).
 
@@ -1904,7 +1919,7 @@ Most of what this paper describes is *proposed*, not operational. @tab:status se
     table.cell(colspan: 3, inset: (top: 9pt, bottom: 3pt, x: 6pt), stroke: none, text(font: mono-m, size: s-xs, fill: c-label, tracking: track)[CONCEPT]),
     [Pair], pips(1), [Mount not designed],
     [rose mini], pips(1), [Geometry in progress @rose2026line],
-    [Pack, blade, boards], pips(1), [Mockups @mr2026battery @mr2026compute],
+    [Pack, core, nerv], pips(1), [Mockups @mr2026battery @mr2026compute],
     [Litter reacher], pips(1), [The K1 has not grasped litter],
     [Lakewood pilot], pips(1), [No agreement],
     [moth], pips(1), [Not designed],
@@ -1959,7 +1974,7 @@ Each open item is limited by one of four things. Sorting them shows which can be
 
 *Software.* Three items: the per-limb controllers and their stated sim-to-real gap; the world format wodl and the iris layer, both new in the stack (@fig:elements); and the K1 body-schema fit, done in simulation but not yet on hardware (@tab:status).
 
-*Hardware revision.* The straight-out continuous hold of about 1.27 kg (modeled) is set by the shoulder; raising it needs a counterbalance spring (@sec:arm). The clock-spring cassettes for the roll joints are drawn but not designed. rana's production stator (SMC or tape-wound) is not yet sourced @rana2026bom. The rose torso grows to 214 mm to hold the blade bay and two packs @mr2026battery.
+*Hardware revision.* The straight-out continuous hold of about 1.27 kg (modeled) is set by the shoulder; raising it needs a counterbalance spring (@sec:arm). The clock-spring cassettes for the roll joints are drawn but not designed. rana's production stator (SMC or tape-wound) is not yet sourced @rana2026bom. The rose torso grows to 214 mm to hold the core bay and two packs @mr2026battery.
 
 *Physics.* A hold is a stall and is limited by heat, not peak torque. Payload falls with reach. Off Earth, light-time delay rules out direct remote control.
 
