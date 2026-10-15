@@ -529,6 +529,8 @@
 
 
 
+#pagebreak(weak: true)
+
 = Scale <sec:kardashev>
 
 In 1964 the astronomer Nikolai Kardashev proposed ranking civilizations by the power they command @kardashev1964. A Type I civilization uses the energy available on its planet, a Type II its star's, and a Type III its galaxy's. Carl Sagan turned the types into a continuous scale, $K = (log_(10) P - 6) \/ 10$ for a power $P$ in watts, which puts Type I at 10#super[16] W and Type II at 10#super[26] W @sagan1973cosmic.
