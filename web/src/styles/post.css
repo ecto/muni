@@ -411,7 +411,7 @@ html.post-rail-on::-webkit-scrollbar { display: none; }
 .post .name { font-weight: inherit; }
 .post .n-make { color: #39ff14; }
 .post .n-world { color: #00f0ff; }
-.post .n-body { color: #ffd400; }
-.post .n-power { color: #ff2052; }
+.post .n-body { color: #ff2052; }
+.post .n-power { color: #ffd400; }
 .post .n-mind { color: #ff5f00; }
 .post .n-silicon { color: #a08d70; }

@@ -32,8 +32,8 @@
 #let fam = (
   make:    (name: "Make",    color: c-ok),
   world:   (name: "World",   color: c-info),
-  body:    (name: "Body",    color: c-warn),
-  power:   (name: "Power",   color: c-fault),
+  body:    (name: "Body",    color: c-fault),
+  power:   (name: "Power",   color: c-warn),
   mind:    (name: "Mind",    color: c-sel),
   silicon: (name: "Silicon", color: c-label),
 )
@@ -66,9 +66,9 @@
 // product names colored wherever they appear in running text
 #let brand-names = elements.filter(e => e.at(1) not in ("hand", "boards")).map(e => (e.at(1), e.at(2)))
 #let brand-color(name) = { let m = brand-names.find(n => n.at(0) == name); if m != none { fam.at(m.at(1)).color } }
-#let brand-family(name) = { let m = brand-names.find(n => n.at(0) == name); if m != none { m.at(1) } }
-// every lowercase product name takes its family color
-#let brand-re = regex("\\b(" + brand-names.map(n => n.at(0)).sorted(key: n => -n.len()).join("|") + ")\\b")
+#let brand-family(name) = { let m = brand-names.find(n => n.at(0) == lower(name)); if m != none { m.at(1) } }
+// every product name takes its family color, in any case: limb, Limb (the stage) and LIMB alike
+#let brand-re = regex("(?i)\\b(" + brand-names.map(n => n.at(0)).sorted(key: n => -n.len()).join("|") + ")\\b")
 #metadata(brand-names) <brand-names>
 // on the web, scripts/build-posts.mjs wraps names in spans (Typst cannot put HTML inside SVG frames)
 #show brand-re: it => if web { it } else { text(fill: fam.at(brand-family(it.text)).color, it) }

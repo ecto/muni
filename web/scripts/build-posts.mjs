@@ -31,7 +31,7 @@ function brandNames(common, src) {
 function colorNames(html, names) {
   if (!names.length) return html;
   const family = new Map(names);
-  const re = new RegExp(`\\b(${[...family.keys()].sort((a, b) => b.length - a.length).map((n) => n.replace(/[-]/g, "\\$&")).join("|")})\\b`, "g");
+  const re = new RegExp(`\\b(${[...family.keys()].sort((a, b) => b.length - a.length).map((n) => n.replace(/[-]/g, "\\$&")).join("|")})\\b`, "gi");
   let skip = 0;
   return html
     .split(/(<[^>]+>)/)
@@ -41,7 +41,7 @@ function colorNames(html, names) {
         if (m) skip += m[1] ? -1 : part.endsWith("/>") ? 0 : 1;
         return part;
       }
-      return skip > 0 ? part : part.replace(re, (n) => `<span class="name n-${family.get(n)}">${n}</span>`);
+      return skip > 0 ? part : part.replace(re, (n) => `<span class="name n-${family.get(n.toLowerCase())}">${n}</span>`);
     })
     .join("");
 }
