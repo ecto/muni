@@ -431,19 +431,14 @@
     line(length: 100%, stroke: 0.5pt + c-line-hi),
     caps[Rev 1.0 · October 2026])
   #v(1.6em)
-  #caps[A specification · from the first arm to the sun]
-  #v(0.9em)
+  #image("images-native/muni-logo.svg", width: 0.95in)
+  #v(1.1em)
   #move(dx: -0.045 * s-display, text(font: sans-sb, size: s-display, tracking: -0.02em)[Robots that\ build robots])
   #v(0.5em)
   #line(length: 22%, stroke: 2pt + c-label)
   #v(0.7em)
   #text(size: s-lg, fill: c-label)[What would it take for a machine to make the next one?]
   #v(1fr)
-  #line(length: 100%, stroke: 0.6pt + c-line-hi)
-  #v(0.6em)
-  #grid(columns: (1fr,) * 3, column-gutter: 1.2em, row-gutter: 1.3em,
-    readout[Author][Cam Pedersen], readout[Place][Cleveland, Ohio], readout[Contact][#link("mailto:info@muni.works")[info\@muni.works]],
-  )
 ]
 
 // Abstract (single column)
@@ -1890,9 +1885,17 @@ Early buyers for the limb and the pair who will share measured data. A municipal
 
 #set figure(placement: none, scope: "column")
 
-#pagebreak()
+#set page(columns: 2, margin: (x: 0.75in, top: 1.1in, bottom: 1.05in))
+#set columns(gutter: 0.3in)
 #counter(heading).update(0)
 #set heading(numbering: "A.1", supplement: [Appendix])
+// in two columns every figure stays inside its column (the 1.09em gap marks it narrow)
+#set figure(gap: 1.09em)
+// in two columns there is no margin to hang the label in: it sits above the title
+#show heading.where(level: 1): it => block(above: 1.6em, below: 0.9em, sticky: true, {
+  if it.numbering != none { block(below: 0.45em, numlabel(it)) }
+  text(font: sans-sb, size: s-lg, tracking: -0.01em, it.body)
+})
 #show figure: set block(breakable: true)
 
 = Gates <app:gates>
