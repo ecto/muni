@@ -28,45 +28,43 @@
 #let c-info    = rgb("#00f0ff")   // neon cyan: model output
 
 // ─── The product line: families, colors, and the elements of the periodic table ───
-// Brand colors are softer than the semantic neons above (estimate, fault, model output),
-// so a product name never reads as a status.
+// Families wear the paper's neons.
 #let fam = (
-  make:    (name: "Make",    color: rgb("#7fe08a")),
-  world:   (name: "World",   color: rgb("#62d6ea")),
-  body:    (name: "Body",    color: rgb("#f4b84a")),
-  power:   (name: "Power",   color: rgb("#ff7272")),
-  mind:    (name: "Mind",    color: rgb("#b79cff")),
-  silicon: (name: "Silicon", color: rgb("#a99a82")),
+  make:    (name: "Make",    color: c-ok),
+  world:   (name: "World",   color: c-info),
+  body:    (name: "Body",    color: c-warn),
+  power:   (name: "Power",   color: c-fault),
+  mind:    (name: "Mind",    color: c-sel),
+  silicon: (name: "Silicon", color: c-label),
 )
-// (number, symbol, name, family, maturity, note)
+// (number, name, family, maturity, note)
 #let elements = (
-  (1, "Lo", "loon", "make", "exists", "source language"),
-  (2, "Tg", "tang", "make", "exists", "math, autodiff"),
-  (3, "Vc", "vcad", "make", "exists", "CAD kernel"),
-  (4, "Kf", "kerf", "make", "exists", "design → part"),
-  (5, "Wd", "wodl", "world", "concept", "world format"),
-  (6, "Ks", "kosm", "world", "exists", "world runtime"),
-  (7, "Pz", "phyz", "world", "exists", "physics, ∂"),
-  (8, "Ir", "iris", "world", "concept", "renderer"),
-  (9, "Ra", "rana", "body", "designed", "actuator"),
-  (10, "Tc", "torc", "body", "designed", "motor control"),
-  (11, "Lm", "limb", "body", "designed", "786 mm arm"),
-  (12, "Hd", "hand", "body", "designed", "485 g gripper"),
-  (13, "Pr", "pair", "body", "concept", "two limbs"),
-  (14, "Rs", "rose", "body", "concept", "humanoid"),
-  (15, "Mo", "moth", "body", "concept", "drone"),
-  (16, "Sd", "seed", "body", "concept", "a cell to go"),
-  (17, "Pk", "pack", "power", "concept", "468 Wh"),
-  (18, "Bl", "blade", "power", "concept", "compute"),
-  (19, "Bd", "boards", "power", "concept", "BMS, hub"),
-  (20, "Ip", "ipse", "mind", "exists", "a mind"),
-  (21, "Kn", "kino", "mind", "exists", "a director"),
-  (22, "Lh", "loon-hdl", "silicon", "concept", "hardware HDL"),
-  (23, "Rn", "rune", "silicon", "concept", "lithography"),
-  (24, "Ch", "chip", "silicon", "concept", "inference"),
+  (1, "loon", "make", "exists", "source language for parts, worlds, hardware"),
+  (2, "tang", "make", "exists", "math, autodiff, the one GPU device"),
+  (3, "vcad", "make", "exists", "BRep CAD, CAM, FEA, parameter gradients"),
+  (4, "kerf", "make", "exists", "design to part, with a receipt"),
+  (5, "wodl", "world", "concept", "world format: bodies, materials, joints, sensors"),
+  (6, "kosm", "world", "exists", "runs wodl worlds"),
+  (7, "phyz", "world", "exists", "physics with a contact adjoint"),
+  (8, "iris", "world", "concept", "renderer and robot cameras"),
+  (9, "rana", "body", "designed", "axial-flux actuator"),
+  (10, "torc", "body", "designed", "motor control"),
+  (11, "limb", "body", "designed", "arm: product, half a pair, rose's arm"),
+  (12, "hand", "body", "designed", "485 g gripper"),
+  (13, "pair", "body", "concept", "two limbs on any table"),
+  (14, "rose", "body", "concept", "humanoid: mini, full, mega"),
+  (15, "moth", "body", "concept", "drone: street perception"),
+  (16, "seed", "body", "concept", "a cell to go"),
+  (17, "pack", "power", "concept", "one battery for every body"),
+  (18, "blade", "power", "concept", "one compute module"),
+  (19, "boards", "power", "concept", "BMS, hub, bus"),
+  (20, "ipse", "mind", "exists", "developmental mind on a real K1"),
+  (21, "loon-hdl", "silicon", "concept", "hardware description"),
+  (22, "rune", "silicon", "concept", "maskless lithography"),
+  (23, "chyp", "silicon", "concept", "inference chip"),
 )
 // product names colored wherever they appear in running text
-#let brand-names = elements.filter(e => e.at(2) not in ("hand", "chip", "boards")).map(e => (e.at(2), e.at(3)))
+#let brand-names = elements.filter(e => e.at(1) not in ("hand", "boards")).map(e => (e.at(1), e.at(2)))
 #let brand-color(name) = { let m = brand-names.find(n => n.at(0) == name); if m != none { fam.at(m.at(1)).color } }
 #let brand-family(name) = { let m = brand-names.find(n => n.at(0) == name); if m != none { m.at(1) } }
 // every lowercase product name takes its family color
@@ -838,7 +836,7 @@ Five years ago this plan would have needed a factory before it needed a customer
   caption: [#lead[Plate, cut on a desk.] Fork plates nested on one sheet, with bearing bores and bolt circles; the router's path in orange. Schematic.],
 ) <fig:plate>
 
-*We own the whole stack, and it can take gradients through contact.* Most robotics teams build on a stack they do not control: a simulator from one company, a CAD tool from another, a learning framework from a third, glued together and re-glued every time one of them changes. Every seam between them is a place where the sim-to-real gap hides, and where no gradient can pass. We wrote ours, from the language parts are written in down to the physics (@tab:stack), so one gradient can run from a measured robot back to a parameter in a source file. Its physics engine, phyz, computes exact gradients of a simulated motion with respect to physical parameters such as mass and inertia. That includes contact, the hard case and the one that matters for anything with feet or fingers: its contact adjoint differentiates the same physics the forward pass runs @ipse2026brief. In simulation, on synthetic motion, it has recovered five of a K1 humanoid's inertial parameters from ±20% error to machine precision (sphere feet; @sec:schema). Domain randomization @tobin2017domain, the usual alternative, can make a policy robust to a gap. It cannot take the gap's gradient.
+*We own the whole stack, and it can take gradients through contact.* Most robotics teams build on a stack they do not control: a simulator from one company, a CAD tool from another, a learning framework from a third, glued together and re-glued every time one of them changes. Every seam between them is a place where the sim-to-real gap hides, and where no gradient can pass. We wrote ours, from the language parts are written in down to the physics (@fig:elements), so one gradient can run from a measured robot back to a parameter in a source file. Its physics engine, phyz, computes exact gradients of a simulated motion with respect to physical parameters such as mass and inertia. That includes contact, the hard case and the one that matters for anything with feet or fingers: its contact adjoint differentiates the same physics the forward pass runs @ipse2026brief. In simulation, on synthetic motion, it has recovered five of a K1 humanoid's inertial parameters from ±20% error to machine precision (sphere feet; @sec:schema). Domain randomization @tobin2017domain, the usual alternative, can make a policy robust to a gap. It cannot take the gap's gradient.
 
 #colfig(
   cetz.canvas(length: 1cm, {
@@ -1135,7 +1133,7 @@ Three numbers track the whole plan (@fig:dash). Today none of them is good, and 
     edge(<m>, (0, 1), <g>, "-|>"),
     edge(<g>, (1, 0.5), (0, 0.5), <d>, "-|>", text(size: s-sm, fill: c-text)[gradient ∂J/∂θ], label-pos: 0.5, label-side: right),
   ),
-  caption: [#lead[The loop, read clockwise.] The small labels name the tool at each step. The software projects are listed in @tab:stack, and the dyno is a planned actuator test stand that does not exist yet. Each later stage of the plan removes a human from one more edge. In Limb the gradient edge is a person reading the gap and redesigning by hand.],
+  caption: [#lead[The loop, read clockwise.] The small labels name the tool at each step. The software projects are listed in @fig:elements, and the dyno is a planned actuator test stand that does not exist yet. Each later stage of the plan removes a human from one more edge. In Limb the gradient edge is a person reading the gap and redesigning by hand.],
 ) <fig:loop>
 
 Every number comes from one loop (@fig:loop): design in source code, simulate in a physics engine that can be differentiated, build, measure, and feed the gap back into the design. Each stage removes a person from one more edge of it (@tab:loopstate).
@@ -1159,33 +1157,61 @@ Each is argued where it is used. They are collected here so that they can be quo
 = Stack <sec:stack>
 
 == One language
-The stack is a tree rooted at one language, loon (@tab:stack). Build order runs down the tree, and the gradient runs back up it @pond2026strategy.
+The stack is a tree rooted at one language, loon. Every project in it, software and hardware, is one element of a single table (@fig:elements), grouped by what it does. Build order runs down the tree, and the gradient runs back up it @pond2026strategy.
 
 #figure(
-  { set text(size: s-xs); set table(inset: (x: 5pt, y: 3.2pt)); table(
-    columns: 4,
-    align: (left + top, left + top, left + top, left + top),
-    table.header([*Layer*], [*Project*], [*What it is*], [*Status*]),
-    [Roots], [loon], [Source language for parts, worlds, hardware], [exists],
-    [Roots], [tang], [Math, autodiff, the one GPU device], [exists],
-    [Design], [vcad], [BRep CAD kernel, CAM, FEA, parameter gradients], [exists],
-    [World], [wodl], [World description: bodies, materials, joints, sensors, provenance], [new],
-    [World], [kosm], [Runtime that runs wodl worlds], [exists, re-placed],
-    [Engines], [phyz], [Differentiable physics with a contact adjoint], [exists],
-    [Engines], [iris], [Renderer and robot cameras (from kosm-render)], [new],
-    [Make], [kerf], [Design to manufactured part, with a receipt], [exists],
-    [Hardware], [rana · torc], [Axial-flux actuators, motor control], [prototype],
-    [Hardware], [limb], [Arm module: product, half a pair, humanoid arm], [designed (v9)],
-    [Hardware], [rose], [Humanoid line: mini, full, mega], [in progress],
-    [Hardware], [K1], [Booster K1, 22 DoF: reference body, in hand], [in hand],
-    [Hardware], [pack · blade], [One battery and one compute module for every body], [mockup],
-    [Hardware], [moth], [Drone: street perception, kino's movable camera], [proposed],
-    [Apps], [kino], [Live director: cuts between cameras, moves a drone], [exists],
-    [Mind], [ipse], [Developmental mind on a real K1], [in progress],
-    [Silicon], [loon-hdl, rune, chip], [HDL, maskless lithography, inference chip], [planned],
-  ) },
-  caption: [#lead[The stack] @mr2026masterplan. "exists" means software in use today; it does not mean finished.],
-) <tab:stack>
+  cetz.canvas(length: 1cm, {
+    import cetz.draw: *
+    let s = 1.9
+    let g = 0.14
+    // columns: family per column; body takes three
+    let cols = (
+      ("make", (1, 2, 3, 4)),
+      ("world", (5, 6, 7, 8)),
+      ("body", (9, 10)),
+      ("body", (11, 12, 13)),
+      ("body", (14, 15, 16)),
+      ("power", (17, 18, 19)),
+      ("mind", (20,)),
+      ("silicon", (21, 22, 23)),
+    )
+    let byn(n) = elements.find(e => e.at(0) == n)
+    let gapcol(i) = if i in (2, 5, 6, 7) { 0.35 } else { 0 }
+    let x = 0
+    let heads = (:)
+    for (i, (f, ns)) in cols.enumerate() {
+      x += gapcol(i)
+      let col = fam.at(f).color
+      if f not in heads {
+        content((x, 0.55), anchor: "south-west", text(font: mono-m, size: 5.5pt, fill: col, tracking: 0.12em, upper(fam.at(f).name)))
+        heads.insert(f, true)
+      }
+      for (r, n) in ns.enumerate() {
+        let (num, name, ff, mat, note) = byn(n)
+        let y = -r * (s + g)
+        let top = (x, y)
+        let st = if mat == "concept" { (paint: col, thickness: 0.7pt, dash: "dashed") } else { 0.8pt + col }
+        let fl = if mat == "exists" { col.transparentize(80%) } else { c-bg }
+        rect((x, y), (x + s, y - s), fill: fl, stroke: st)
+        content((x + 0.12, y - 0.1), anchor: "north-west", text(font: mono, size: 5pt, fill: c-label, str(num)))
+        content((x + 0.14, y - 0.42), anchor: "north-west", text(font: sans-sb, size: if name.len() > 5 { 10pt } else if name.len() > 4 { 12.5pt } else { 15pt }, tracking: -0.02em, fill: if mat == "concept" { col.transparentize(15%) } else { col }, name))
+        content((x + 0.14, y - s + 0.14), anchor: "south-west", box(width: (s - 0.28) * 1cm, par(leading: 0.35em, text(size: 5pt, fill: c-label, note))))
+      }
+      x += s + g
+    }
+    // key
+    let ky = -4 * (s + g) - 0.25
+    let kx = 0
+    for (k, (lbl, mat)) in (("exists", "exists"), ("designed", "designed"), ("concept", "concept")).enumerate() {
+      let col = c-label
+      let st = if mat == "concept" { (paint: col, thickness: 0.7pt, dash: "dashed") } else { 0.8pt + col }
+      rect((kx, ky), (kx + 0.32, ky - 0.32), fill: if mat == "exists" { col.transparentize(70%) } else { none }, stroke: st)
+      content((kx + 0.45, ky - 0.16), anchor: "west", text(font: mono-m, size: 5.5pt, fill: c-label, tracking: 0.1em, upper(lbl)))
+      kx += 2.3
+    }
+  }),
+  caption: [#lead[The periodic table of Municipal Robotics] @mr2026masterplan. Every project, by family: Make turns source into parts, World simulates them, Body moves, Power feeds and thinks, Mind learns, Silicon is the far future. Solid tiles are software in use today (in use, not finished), outlined ones are designed or prototyped, dashed ones are concepts. Numbers follow build order. The K1, our bought reference body, is not on the table. In text, each name takes its family's color.],
+) <fig:elements>
 
 Four rules keep the tree a tree: engines never depend on vcad, and vcad never depends on an app; engines read wodl, not each other; there is one GPU device across the stack; and units are millimeters, with Z up, everywhere. The rules are meant to let a gradient pass from a task loss in ipse, through phyz's contact adjoint, into vcad geometry and out to loon parameters without a translation at each hop. Part of that chain runs today, in simulation: on a test model, a phyz rollout gradient passes through a ground-contact model into a vcad geometry parameter and agrees with finite differences. Joining the two ends, from a task loss in ipse to loon source, is co-design work for Body @pond2026strategy.
 
@@ -1209,63 +1235,6 @@ Four rules keep the tree a tree: engines never depend on vcad, and vcad never de
 ) <tab:loopstate>
 
 What changes from stage to stage is not the loop but who sits in it. @tab:loopstate summarizes the plan.
-
-Every part of the stack and every product is one element of a single table (@fig:elements), grouped by what it does.
-
-#figure(
-  cetz.canvas(length: 1cm, {
-    import cetz.draw: *
-    let s = 1.9
-    let g = 0.14
-    // columns: family per column; body takes three
-    let cols = (
-      ("make", (1, 2, 3, 4)),
-      ("world", (5, 6, 7, 8)),
-      ("body", (9, 10)),
-      ("body", (11, 12, 13)),
-      ("body", (14, 15, 16)),
-      ("power", (17, 18, 19)),
-      ("mind", (20, 21)),
-      ("silicon", (22, 23, 24)),
-    )
-    let byn(n) = elements.find(e => e.at(0) == n)
-    let gapcol(i) = if i in (2, 5, 6, 7) { 0.35 } else { 0 }
-    let x = 0
-    let heads = (:)
-    for (i, (f, ns)) in cols.enumerate() {
-      x += gapcol(i)
-      let col = fam.at(f).color
-      if f not in heads {
-        content((x, 0.55), anchor: "south-west", text(font: mono-m, size: 5.5pt, fill: col, tracking: 0.12em, upper(fam.at(f).name)))
-        heads.insert(f, true)
-      }
-      for (r, n) in ns.enumerate() {
-        let (num, sym, name, ff, mat, note) = byn(n)
-        let y = -r * (s + g)
-        let top = (x, y)
-        let st = if mat == "concept" { (paint: col, thickness: 0.7pt, dash: "dashed") } else { 0.8pt + col }
-        let fl = if mat == "exists" { col.transparentize(80%) } else { c-bg }
-        rect((x, y), (x + s, y - s), fill: fl, stroke: st)
-        content((x + 0.12, y - 0.1), anchor: "north-west", text(font: mono, size: 5pt, fill: c-label, str(num)))
-        content((x + 0.14, y - 0.5), anchor: "north-west", text(font: sans-sb, size: 16pt, fill: if mat == "concept" { col.transparentize(15%) } else { col }, sym))
-        content((x + 0.14, y - s + 0.5), anchor: "south-west", text(font: sans-m, size: 6.5pt, fill: c-text, name))
-        content((x + 0.14, y - s + 0.14), anchor: "south-west", text(size: 5pt, fill: c-label, note))
-      }
-      x += s + g
-    }
-    // key
-    let ky = -4 * (s + g) - 0.25
-    let kx = 0
-    for (k, (lbl, mat)) in (("exists", "exists"), ("designed", "designed"), ("concept", "concept")).enumerate() {
-      let col = c-label
-      let st = if mat == "concept" { (paint: col, thickness: 0.7pt, dash: "dashed") } else { 0.8pt + col }
-      rect((kx, ky), (kx + 0.32, ky - 0.32), fill: if mat == "exists" { col.transparentize(70%) } else { none }, stroke: st)
-      content((kx + 0.45, ky - 0.16), anchor: "west", text(font: mono-m, size: 5.5pt, fill: c-label, tracking: 0.1em, upper(lbl)))
-      kx += 2.3
-    }
-  }),
-  caption: [#lead[The periodic table of Municipal Robotics.] Every product, by family: Make turns source into parts, World simulates them, Body moves, Power feeds and thinks, Mind learns, Silicon is the far future. Solid tiles exist today, outlined ones are designed, dashed ones are concepts. Numbers follow build order. In text, each name takes its family's color.],
-) <fig:elements>
 
 = Standards <sec:power>
 
@@ -1309,7 +1278,7 @@ Beside the power runs one management bus, CAN-FD, for presence, power control an
     node((0, 3), [iris], shape: sqnode, fill: n-fill, name: <iris>),
     node((2.5, 2), [rune], shape: sqnode, fill: n-fill, name: <rune>),
     node((1, 3), [kerf], shape: sqnode, fill: n-fill, name: <kerf>),
-    node((2.5, 3), [chip], shape: sqnode, fill: n-fill, name: <chip>),
+    node((2.5, 3), [chyp], shape: sqnode, fill: n-fill, name: <chyp>),
     node((0, 4), [rana · torc], shape: sqnode, fill: n-fill, name: <rana>),
     node((1, 4), [arm · rose · K1], shape: sqnode, fill: n-fill, name: <body>),
     node((2.5, 4), [ipse], shape: sqnode, fill: n-fill, name: <ipse>),
@@ -1321,11 +1290,11 @@ Beside the power runs one management bus, CAN-FD, for presence, power control an
     edge(<wodl>, <iris>, "-|>"),
     edge(<hdl>, <rune>, "-|>"),
     edge(<phyz>, <kerf>, "-|>"),
-    edge(<rune>, <chip>, "-|>"),
+    edge(<rune>, <chyp>, "-|>"),
     edge(<kerf>, (1, 3.5), (0, 3.5), <rana>, "-|>"),
     edge(<kerf>, <body>, "-|>"),
     edge(<rana>, <body>, "-|>"),
-    edge(<chip>, <ipse>, "-|>"),
+    edge(<chyp>, <ipse>, "-|>"),
     edge(<ipse>, <body>, "<|-|>"),
     edge(<body>, (1.6, 4), (1.6, 2), <phyz>, "--|>", stroke: 1.2pt + c-sel),
     edge(<phyz>, (1.6, 2), (1.6, 1.4), (0.7, 1.4), (0.7, 1), <vcad>, "--|>", stroke: 1.2pt + c-sel),
@@ -1521,7 +1490,7 @@ The limb comes in the same three sizes as rose. *Limb mini* is K1 size, for rose
   caption: [#lead[The arm, rose fork v9.] Six joints, every plate 1/8" 5052 except the 1/4" foot, every motor mounted by its back face. Render from the arm repository @rose2026forkv9.],
 ) <fig:arm>
 
-One arm does three jobs: it is sold on its own, it is half of every pair, and it is an arm of the rose humanoid. Its design idea is that *every pitch joint is a fork* @rose2026forkv9. The parent link holds the motor's stator between its two side plates. The child straddles the parent, with one plate bolted to the output and the other riding a plain bearing on a hollow sleeve on the joint axis. Parent and child share one centerline, so no joint is offset and there is no offset elbow to twist the arm. Cables pass through the hollow sleeves, so they only twist and never loop outside the arm. The name comes from where the design lives. rose fork v9 is the ninth revision of the fork concept, drawn in the rose humanoid repository as a table arm that is also rose's arm @rose2026forkv9. In this paper "the arm" means this design, and "rose" on its own means the humanoid line (@tab:stack), whose \$15,000 target assumes rana (@sec:rana).
+One arm does three jobs: it is sold on its own, it is half of every pair, and it is an arm of the rose humanoid. Its design idea is that *every pitch joint is a fork* @rose2026forkv9. The parent link holds the motor's stator between its two side plates. The child straddles the parent, with one plate bolted to the output and the other riding a plain bearing on a hollow sleeve on the joint axis. Parent and child share one centerline, so no joint is offset and there is no offset elbow to twist the arm. Cables pass through the hollow sleeves, so they only twist and never loop outside the arm. The name comes from where the design lives. rose fork v9 is the ninth revision of the fork concept, drawn in the rose humanoid repository as a table arm that is also rose's arm @rose2026forkv9. In this paper "the arm" means this design, and "rose" on its own means the humanoid line (@fig:elements), whose \$15,000 target assumes rana (@sec:rana).
 
 #figure(
   table(
@@ -1662,7 +1631,7 @@ A pair is also the cell of this plan: the smallest unit that can make more of it
 
 Replication is a capability the product grows into, not the reason it exists.
 
-Then come the hard parts. Actuators end to end: magnets stay bought until a ferrite rana is validated, and bearings stay bought longest. Boards: a pair at a pick-and-place machine (@tab:boards). Silicon: loon-hdl would describe an inference chip, and rune (maskless lithography) would make it at a node a lab can own. Energy: the first pair that runs on panels it made. Silicon is not parked; a machine that reproduces off-planet cannot depend on anyone's fab.
+Then come the hard parts. Actuators end to end: magnets stay bought until a ferrite rana is validated, and bearings stay bought longest. Boards: a pair at a pick-and-place machine (@tab:boards). Silicon: loon-hdl would describe chyp, an inference chip, and rune (maskless lithography) would make it at a node a lab can own. Energy: the first pair that runs on panels it made. Silicon is not parked; a machine that reproduces off-planet cannot depend on anyone's fab.
 
 *Gate.* A pair at a customer's table completes a named task (for example, folding 50 garments) at ≥ 95% success. A pair assembles a limb that passes the Limb test in ≤ 30 min of human touch time. A pair builds a pair that passes its receipts at ≤ 20% bought cost, with bought share falling over 3 generations and a commanded shutdown drill passed in each (@tab:arc).
 
@@ -1774,7 +1743,7 @@ The robots would map the streets while they work. Two products come out of the m
 - *Live facts:* a pothole, a blocked curb ramp, ice, a dark streetlight.
 - *Delayed pictures*, with people and cars removed before anything leaves the robot.
 
-The same map would become a wodl world (@tab:stack) of the city, so the robots would train on the streets they work.
+The same map would become a wodl world (@fig:elements) of the city, so the robots would train on the streets they work.
 
 == Docks
 
@@ -1801,10 +1770,7 @@ The pilot does not automate interaction with the public beyond yielding and stop
 
 == moth <sec:moth>
 
-moth is a drone with two markets, served by one body @mr2026decisions:
-
-- *Street perception.* It flies ahead of the K1 or rose to find litter, potholes, blocked curb ramps and dark streetlights, and builds the street map from above.
-- *Directed camera.* kino, our live-director software, watches every camera at an event and cuts between them; a drone is the one camera it can move. kino exists and drives a bought drone today; moth would replace it.
+moth is a drone for street perception @mr2026decisions. It flies ahead of the K1 or rose to find litter, potholes, blocked curb ramps and dark streetlights, and builds the street map from above.
 
 moth is not sold for military use or armed in any form (@sec:safety).
 
@@ -1870,7 +1836,7 @@ Most of what this paper describes is *proposed*, not operational. @tab:status se
     table.cell(colspan: 3, inset: (top: 9pt, bottom: 3pt, x: 6pt), stroke: none, text(font: mono-m, size: s-xs, fill: c-label, tracking: track)[IN HAND]),
     [Booster K1], pips(3), [Bought @booster2025k1],
     [CNC mill], pips(3), [Bought],
-    [Software stack], pips(3), [In use, not finished (@tab:stack)],
+    [Software stack], pips(3), [In use, not finished (@fig:elements)],
     table.cell(colspan: 3, inset: (top: 9pt, bottom: 3pt, x: 6pt), stroke: none, text(font: mono-m, size: s-xs, fill: c-label, tracking: track)[DESIGNED]),
     [Limb full (fork v9)], pips(2), [Ready to cut @rose2026forkv9],
     [Gripper v2], pips(2), [CAD and force model @mr2026gripper],
@@ -1919,7 +1885,7 @@ Four results would prove the plan wrong:
     [One actuator supplier (RobStride)], [A price or lead-time change], [rana, which replaces a RobStride joint only once it is validated (@sec:rana, @tab:sens)],
     [Limb hold too small for buyers (1.27 kg straight out, modeled)], [Buyers decline at that rating], [Rate the hold by pose, since bent poses hold more, and design the springs (@sec:arm)],
     [Bought humanoid (Booster K1)], [Vendor support ends], [The K1 is a control, not a dependency; rose is the body measured against it (@sec:mind)],
-    [Breadth across many projects], [Stage gates slip], [Projects not needed in Limb wait for their stage (@tab:stack)],
+    [Breadth across many projects], [Stage gates slip], [Projects not needed in Limb wait for their stage (@fig:elements)],
     [rana never beats bought actuators], [Dyno results], [Keep buying RobStride. Dropping rana is a valid outcome],
     [Sidewalk incident; legal fit of the Lakewood pilot], [An incident, or the city declines], [See @sec:safety and @sec:city. The specific response is open, pending decision],
   ),
@@ -1932,7 +1898,7 @@ Each is a gate (@tab:arc), and we will publish the ones we miss. The risks below
 
 Each open item is limited by one of four things. Sorting them shows which can be fixed by work and which cannot.
 
-*Software.* Three items: the per-limb controllers and their stated sim-to-real gap; the world format wodl and the iris layer, both new in the stack (@tab:stack); and the K1 body-schema fit, done in simulation but not yet on hardware (@tab:status).
+*Software.* Three items: the per-limb controllers and their stated sim-to-real gap; the world format wodl and the iris layer, both new in the stack (@fig:elements); and the K1 body-schema fit, done in simulation but not yet on hardware (@tab:status).
 
 *Hardware revision.* The straight-out continuous hold of about 1.27 kg (modeled) is set by the shoulder; raising it needs a counterbalance spring (@sec:arm). The clock-spring cassettes for the roll joints are drawn but not designed. rana's production stator (SMC or tape-wound) is not yet sourced @rana2026bom. The rose torso grows to 214 mm to hold the blade bay and two packs @mr2026battery.
 
