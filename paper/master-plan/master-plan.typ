@@ -898,19 +898,72 @@ Five years ago this plan would have needed a factory before it needed a customer
   caption: [#lead[A humanoid, for a car's price.] A body a small company can buy, break and instrument.],
 ) <fig:humanoid>
 
+
 The result is that one person can now write every layer between a parameter in a source file and a measured joint torque. Ten years ago that took a company the size of a robot OEM. The specification is written to be carried by more hands than one, and everything in it that can be open is open.
 
 = War <sec:war>
 
 There has not been a year without war in our lifetimes. The longest-running count of armed conflict, kept since 1946, has never recorded a year with none @gleditsch2002armed.
 
+
+
 This year made it plain. On February 28 the United States and Israel went to war with Iran. A conditional ceasefire came in April, but in October a blockade still holds, tankers are still struck in the Strait of Hormuz, and oil trades above \$100 a barrel @britannica2026iran @globalsecurity2026iran. That winter the Justice Department released some three million pages of the Epstein files, weeks after the law's deadline, and survivors' lawyers said the release exposed the names of the very people it was meant to protect @cbs2026epstein @ohchr2026epstein. Both showed the same thing. A few people decide, and the people who pay are rarely in the room.
+
+#figure(
+  cetz.canvas(length: 1cm, {
+    import cetz.draw: *
+    // one tick per year since the count began; every one of them had a war
+    let n = 2025 - 1946 + 1
+    let w = 17.6 / n
+    for i in range(n) {
+      let y = 1946 + i
+      let h = if calc.rem(y, 10) == 0 { 1.0 } else { 0.7 }
+      line((i * w + w / 2, 0), (i * w + w / 2, h), stroke: 1.2pt + c-fault.transparentize(if y >= 2026 - 1 { 0% } else { 45% }))
+      if calc.rem(y, 10) == 0 { content((i * w + w / 2, -0.12), anchor: "north", text(font: mono, size: s-xs, fill: c-label, str(y))) }
+    }
+    content((17.6, 1.35), anchor: "south-east", text(font: mono-m, size: s-xs, fill: c-text, tracking: track, upper[Years without war: 0]))
+  }),
+  caption: [#lead[No year without war.] One mark per year since the count began in 1946; each year recorded at least one armed conflict @gleditsch2002armed.],
+) <fig:noyear>
 
 Many wars are fought over what is scarce: land, water, fuel, minerals, and the labor to work them. A machine that builds the next machine attacks scarcity at its root. So does power collected rather than taken. A world where machines make machines, on energy no one has to seize, has less to fight over.
 
 That is a hope, not a law. The same machines could make war cheaper, and robots are already being built for it. That is why our first commitment is that nothing we build is made or sold to harm a person, or sold for weapons or military use (@sec:safety), and why the commitment is written before the plan rather than after it.
 
 War is also the plainest reason to live on more than one planet. Every person, every library and every machine we have ever made is on one world, and that world holds about twelve thousand nuclear warheads @fas2025status. A civilization on one planet can end in an afternoon. One on two cannot.
+
+#figure(
+  cetz.canvas(length: 1cm, {
+    import cetz.draw: *
+    // Earth and its warheads: one dot per hundred, about 12,000 in all
+    let (ex, ey, er) = (3.2, 0, 1.15)
+    circle((ex, ey), radius: er, fill: c-surface, stroke: 0.8pt + c-info)
+    let k = 0
+    for ring in range(4) {
+      let r = er + 0.32 + ring * 0.24
+      let m = (24, 30, 34, 32).at(ring)
+      for j in range(m) {
+        if k < 120 {
+          let a = j / m * 360deg + ring * 7deg
+          circle((ex + r * calc.cos(a), ey + r * calc.sin(a)), radius: 0.045, fill: c-fault, stroke: none)
+          k += 1
+        }
+      }
+    }
+    content((ex, ey), text(font: mono-m, size: s-xs, fill: c-info, tracking: track, upper[Earth]))
+    content((ex, ey - er - 1.35), anchor: "north", text(font: mono, size: s-xs, fill: c-label)[one dot = 100 warheads])
+    // Mars: no people yet, machines first
+    let (mx, my, mr) = (14.6, 0, 0.62)
+    circle((mx, my), radius: mr, fill: c-surface, stroke: 0.8pt + c-fault.transparentize(0%))
+    content((mx, my), text(font: mono-m, size: s-xs, fill: c-text, tracking: track, upper[Mars]))
+    // the transfer, drawn in the cover's orange
+    bezier((ex + er + 1.3, 0.5), (mx - mr - 0.2, 0.3), (8, 2.6), (11.5, 2.4), stroke: (paint: c-sel, thickness: 1pt, dash: "dashed"), mark: (end: ">", fill: c-sel))
+    content((8.9, 2.45), anchor: "south", text(font: mono, size: s-xs, fill: c-label)[≈ 7 months · light 3–22 min])
+    content((mx, my - mr - 0.25), anchor: "north", text(size: s-xs, fill: c-label)[machines first])
+  }),
+  caption: [#lead[One world holds everything.] Earth carries every person and about twelve thousand nuclear warheads @fas2025status. A second world, built first by machines, means no single afternoon can end us.],
+) <fig:twoworlds>
+
 
 People will not go first. Machines will. Mars is seven months away and light takes minutes to cross the gap, so nothing there can be built by hand or by remote control. It has to be built by machines that build machines: pairs that land with a seed, make collectors and shelter from local rock, and grow pairs that pass their receipts before the first person leaves Earth (@sec:mars). When people arrive, the work of staying alive will already be under way. The Moon is the rehearsal; Mars is the point.
 
