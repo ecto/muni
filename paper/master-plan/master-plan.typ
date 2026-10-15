@@ -174,8 +174,129 @@
 
 // Part divider: a page of its own; a level-1 heading with supplement [Part] so it reaches the contents
 #let roman(n) = ("I", "II", "III", "IV", "V", "VI").at(n - 1)
-#let part(n, title, lede) = {
+// Part art: one illustration per part, full width across the lower page, bleeding off the sides.
+#let art-why() = cetz.canvas(length: 1cm, {
+  import cetz.draw: *
+  // stars
+  let seed = 11
+  for k in range(90) {
+    seed = calc.rem(seed * 1103515245 + 12345, 2147483648)
+    let x = calc.rem(seed, 2160) / 100 - 10.8
+    seed = calc.rem(seed * 1103515245 + 12345, 2147483648)
+    let y = calc.rem(seed, 700) / 100 + 1.2
+    circle((x, y), radius: 0.01 + calc.rem(k, 3) * 0.007, fill: c-label.transparentize(35%), stroke: none)
+  }
+  // Earth's limb: only the visible cap of a huge circle, so it does not set the canvas size
+  let R = 40
+  let top(x) = -R + 1.0 + calc.sqrt(R * R - x * x)
+  let xs = range(0, 221).map(k => -11 + k * 0.1)
+  let cap = xs.map(x => (x, top(x)))
+  for (w, a) in ((14pt, 93%), (7pt, 86%), (3pt, 70%)) { line(..cap, stroke: (paint: c-info.transparentize(a), thickness: w)) }
+  line(..cap, (11, -9), (-11, -9), close: true, fill: c-surface, stroke: none)
+  line(..cap, stroke: 0.7pt + c-info.transparentize(25%))
+  // sunrise at the limb, right
+  let sx = 7.8
+  let sy = top(sx)
+  for (r, a) in ((1.6, 94%), (0.9, 88%), (0.45, 72%), (0.2, 30%), (0.08, 0%)) { circle((sx, sy), radius: r, fill: c-sel.transparentize(a), stroke: none) }
+  // a flare along the limb
+  let flare = range(0, 61).map(k => { let x = sx - 3 + k * 0.1; (x, top(x)) })
+  line(..flare, stroke: (paint: c-sel.transparentize(55%), thickness: 1.6pt, cap: "round"))
+  // city lights on the night side
+  seed = 5
+  for k in range(260) {
+    seed = calc.rem(seed * 1103515245 + 12345, 2147483648)
+    let x = calc.rem(seed, 1900) / 100 - 9.5
+    seed = calc.rem(seed * 1103515245 + 12345, 2147483648)
+    let d = calc.rem(seed, 300) / 100
+    let y = top(x) - 0.15 - d * d * 0.5
+    if calc.rem(k, 7) < 3 and x < 5.5 {
+      circle((x, y), radius: 0.012 + calc.rem(k, 4) * 0.006, fill: c-warn.transparentize(30% + calc.rem(k, 5) * 10%), stroke: none)
+    }
+  }
+})
+
+#let art-what() = cetz.canvas(length: 1cm, {
+  import cetz.draw: *
+  // blueprint dot grid
+  for gx in range(-10, 11) { for gy in range(0, 8) { circle((gx, gy), radius: 0.012, fill: c-line-hi, stroke: none) } }
+  // the limb, side elevation
+  let base = (-4.5, 0.3)
+  rect((base.at(0) - 1.0, 0.1), (base.at(0) + 1.0, 0.3), fill: none, stroke: 0.7pt + c-text)
+  let pts = ((-4.5, 0.3), (-4.5, 1.4), (-1.6, 5.2), (2.4, 4.4), (3.6, 3.2), (4.3, 2.4))
+  for k in range(pts.len() - 1) {
+    let (a, b) = (pts.at(k), pts.at(k + 1))
+    line(a, b, stroke: 4.5pt + c-surface)
+    line(a, b, stroke: 0.8pt + c-text)
+  }
+  for (k, q) in pts.slice(1).enumerate() {
+    circle(q, radius: if k < 3 { 0.32 } else { 0.22 }, fill: c-bg, stroke: 0.8pt + c-text)
+    circle(q, radius: 0.06, fill: c-text, stroke: none)
+  }
+  // gripper
+  let g = pts.at(5)
+  line(g, (g.at(0) + 0.5, g.at(1) - 0.3), stroke: 0.8pt + c-text)
+  line(g, (g.at(0) + 0.3, g.at(1) - 0.55), stroke: 0.8pt + c-text)
+  // construction lines and a dimension
+  line((-4.5, 1.4), (6, 1.4), stroke: (paint: c-info.transparentize(55%), thickness: 0.4pt, dash: "dashed"))
+  line((-4.5, 1.4), (-4.5, 7), stroke: (paint: c-info.transparentize(55%), thickness: 0.4pt, dash: "dashed"))
+  circle((-4.5, 1.4), radius: 4.9, fill: none, stroke: (paint: c-info.transparentize(65%), thickness: 0.4pt, dash: "dotted"))
+  line((-4.5, 0.85), (4.6, 0.85), stroke: 0.5pt + c-info, mark: (start: "straight", end: "straight", size: 0.12))
+  content((0, 0.95), anchor: "south", text(font: mono-m, size: 5.5pt, fill: c-info)[786])
+  content((-1.6, 5.75), anchor: "south", text(font: mono-m, size: 5.5pt, fill: c-info)[RS04])
+  content((3.6, 3.75), anchor: "south-west", text(font: mono-m, size: 5.5pt, fill: c-info)[RS02])
+  content((6.5, 0.2), anchor: "south-east", text(font: mono-m, size: 5.5pt, fill: c-label, tracking: track)[LIMB FULL · ROSE FORK V9])
+})
+
+#let art-how() = cetz.canvas(length: 1cm, {
+  import cetz.draw: *
+  let names = ("Limb", "Pair", "Body", "City", "Planet", "Moon", "Mars", "Sun")
+  let w = 2.1
+  let g = 0.18
+  let x0 = -(8 * w + 7 * g) / 2
+  for (k, n) in names.enumerate() {
+    let x = x0 + k * (w + g)
+    let h = 0.5 + k * 0.78
+    let first = k == 0
+    rect((x, 0), (x + w, h), fill: if first { c-sel } else { c-surface }, stroke: if first { none } else { 0.6pt + c-line-hi })
+    content((x + 0.12, h + 0.12), anchor: "south-west", text(font: mono-m, size: 5.5pt, fill: if first { c-sel } else { c-label }, tracking: track, upper(n)))
+  }
+  // the sun above the last step
+  let sx = x0 + 7 * (w + g) + w / 2
+  let sy = 0.5 + 7 * 0.78 + 1.3
+  for (r, a) in ((1.5, 92%), (0.9, 84%), (0.5, 60%), (0.28, 0%)) { circle((sx, sy), radius: r, fill: c-sel.transparentize(a), stroke: none) }
+})
+
+#let art-well() = cetz.canvas(length: 1cm, {
+  import cetz.draw: *
+  // axes
+  line((-8, 0), (8, 0), stroke: 0.6pt + c-line-hi)
+  line((-8, 0), (-8, 5.5), stroke: 0.6pt + c-line-hi)
+  let pred(x) = 2.6 + 1.6 * calc.sin(x * 0.55) + 0.12 * x
+  let meas(x) = pred(x) + 0.55 * calc.sin(x * 1.7 + 0.6) + 0.18 * x / 8 + 0.25
+  let xs = range(0, 161).map(k => -7.6 + k * 0.095)
+  // the gap, shaded
+  for k in range(xs.len() - 1) {
+    let (a, b) = (xs.at(k), xs.at(k + 1))
+    line((a, pred(a)), (a, meas(a)), stroke: 0.6pt + c-warn.transparentize(80%))
+  }
+  line(..xs.map(x => (x, pred(x))), stroke: (paint: c-label, thickness: 0.8pt, dash: "dashed"))
+  // measured points with error bars
+  for k in range(0, 161, step: 10) {
+    let x = xs.at(k)
+    let y = meas(x)
+    line((x, y - 0.22), (x, y + 0.22), stroke: 0.5pt + c-text)
+    circle((x, y), radius: 0.07, fill: c-text, stroke: none)
+  }
+  content((7.9, pred(7.9) - 0.35), anchor: "north-east", text(font: mono-m, size: 5.5pt, fill: c-label, tracking: track)[PREDICTED])
+  content((7.9, meas(7.9) + 0.4), anchor: "south-east", text(font: mono-m, size: 5.5pt, fill: c-text, tracking: track)[MEASURED])
+  content((0, 5.6), anchor: "south", text(font: mono-m, size: 5.5pt, fill: c-warn, tracking: track)[THE GAP = MEASURED − PREDICTED])
+})
+
+#let part(n, title, art: none, bleed: false, lede) = {
   pagebreak(weak: true)
+  if art != none {
+    if bleed { place(bottom + center, dy: 1.05in, box(width: 8.5in, height: 6.4in, clip: true, align(center + bottom, art))) } else { place(bottom + center, dy: -0.1in, box(width: 8.5in, height: 5.2in, clip: true, align(center + bottom, art))) }
+  }
   v(1.2in)
   block(below: 0.6em, text(font: mono-m, size: s-xs, fill: c-label, tracking: track, upper("Part " + n)))
   heading(level: 1, numbering: none, supplement: [Part], outlined: true, title)
@@ -368,48 +489,29 @@
   ))
 ]
 
-#part("I", "Why")[Where this comes from, why it matters, and the whole plan on a few pages.]
+#part("I", "Why", art: art-why(), bleed: true)[Where this comes from, why it matters, and the whole plan on a few pages.]
 
-= Introduction
+= Note <sec:story>
 
-Every civilization that left its planet would have had to solve one problem first: making machines without people making each machine. Launch is a transport problem. Staying is a manufacturing problem. A settlement that needs a factory on Earth for every bearing, plate and chip is a colony on a supply line; one that carries a cell able to build the next cell is the start of something that grows. This paper is a specification for that cell, and for the measured, gated path from a litter-picking robot on an Ohio sidewalk to a lineage of machines powered by the sun.
+#block(inset: (left: 0em), {
+  set text(size: 10.5pt)
+  set par(leading: 0.95em, spacing: 1.5em)
+  [Dear reader,
 
-The paper is written for anyone who wants to check it or join it: technical readers, buyers of a limb or a pair, municipal partners, collaborators and investors. It keeps the register of our sidewalk-maintenance paper @muni2025whitepaper: plain claims, numbers with sources, exact gates, and a section on what we do not claim.
+  I started Municipal Robotics in Cleveland in December 2025 to build one machine for one job: a small rover that clears snow from sidewalks @muni2025whitepaper. By the end of that month it drove. #text(fill: c-warn)[[TODO: Founders Inc: when I joined, what it gave me, and what came of it.]]
 
-Most of what this paper describes is *proposed*, not operational. @tab:status separates them. Throughout the paper, "modeled" means a number comes from our own CAD, kinematics or load scripts and has not been measured on hardware. "Measured" is reserved for results from our own hardware, and this paper reports none yet. Vendor ratings and public data are cited as sourced.
+  Building it taught me the lesson this paper rests on. The expensive part of a robot is not its parts. It is the people who design, build and check each one. To build one rover I wrote a language for parts, a CAD kernel, a physics engine you can differentiate, and a way to record everything it did. None of them cared that the thing was a rover. Pointed at a humanoid, or at a pair of arms that builds more arms, they worked the same way.
 
-#figure(
-  table(
-    columns: 3,
-    align: (left + top, left + top, left + top),
-    table.header([*Item*], [*State*], [*Evidence*]),
-    [Booster K1], [In hand], [Purchased platform; vendor firmware @booster2025k1],
-    [Software stack], [Exists, in use, not finished], [@tab:stack @pond2026strategy],
-    [CNC mill], [In hand], [–],
-    [Limb, rose fork v9], [Designed, ready to cut; none built yet], [Fab package, 20 DXFs, 88-screw BOM @rose2026forkv9],
-    [Gripper v2], [Designed; none built], [CAD + force/mass model @mr2026gripper],
-    [Pair], [Concept; mount not designed], [Two limbs on a table plate],
-    [Seed], [Concept], [None],
-    [rana actuator], [Prototype BOM, estimated; not built], [\$1,086 est. per unit, before tooth cutting @rana2026bom],
-    [Actuator dyno], [Planned; does not exist], [None],
-    [Pack, blade, board library], [Concept mockups; none built], [Pack and blade models @mr2026battery @mr2026compute],
-    [moth drone], [Proposed; not designed], [kino drives a bought drone today],
-    [K1 litter reacher], [Concept under design], [None; the K1 has not grasped litter],
-    [K1 body-schema fit (sim)], [Five-parameter recovery in simulation], [Synthetic data, sphere feet; ±20% → machine precision @ipse2026brief],
-    [K1 body-schema fit (hardware)], [Not yet on hardware], [Preregistration pending],
-    [Lakewood litter pilot], [Proposed], [No agreement in place],
-    [Body through Sun], [Goals, not claims], [None],
-  ),
-  placement: bottom,
-  caption: [#lead[What exists, what is designed, and what is proposed] (October 2026). What exists: a K1, the software stack, a CNC mill and a plan.],
-) <tab:status>
+  So I retired the rover #text(fill: c-warn)[[TODO: when, and why, in your words]] and kept what mattered: the city, the sidewalk, and the habit of plain claims and sourced numbers.
 
-== Origins <sec:story>
+  What follows is a plan for machines that build machines, from one arm on an Ohio table to a swarm of collectors around the sun. Most of it is not built. Today there is one person, one bought humanoid, a CNC mill, a stack of software, and these pages. I have written it down anyway, at full strength, with every gate stated and every number labeled, because a plan this large is only worth trusting if it is honest about where it stands.
 
-Municipal Robotics started in Cleveland in December 2025 with one machine for one job: a small rover to clear snow from sidewalks. Our first paper made the case for it, with Lakewood, Ohio as the reference city @muni2025whitepaper. By the end of that month the first rover, bvr0, drove under teleoperation with GPS and a depot behind it. #text(fill: c-warn)[[TODO: Founders Inc: when we joined, what it gave us, and what came of it.]]
-
-Building the rover taught us the lesson this paper is built on. The hard and expensive parts of a robot are not the parts. They are the people who design, build and check each one. To build one rover, we wrote a language for parts, a CAD kernel, a differentiable physics engine and a recording pipeline. None of them cares whether the thing it designs is a rover. Pointed at a humanoid, or at a pair of arms that builds more arms, they work the same way.
-
+  Read it to check it, or to join it.]
+  v(1.4em)
+  text(font: sans-m, size: s-md)[Cam Pedersen]
+  linebreak()
+  text(font: mono-m, size: s-xs, fill: c-label, tracking: track)[CLEVELAND · OCTOBER 2026]
+})
 
 #colfig(
   cetz.canvas(length: 1cm, {
@@ -444,9 +546,35 @@ Building the rover taught us the lesson this paper is built on. The hard and exp
   caption: [#lead[One stack, three bodies.] Tools written to build one rover do not care what they design. Pointed at a humanoid, or at a pair of arms that builds arms, they work the same way.],
 ) <fig:story>
 
-At the same time, the body worth building changed. A rover clears one kind of sidewalk in one season. A humanoid that a small company can buy (@sec:why) works where people work, and two good arms fold laundry, tend a machine or pick up litter. So we retired the rover #text(fill: c-warn)[[TODO: when, and the reason in your words]] and kept the city, the sidewalk and the discipline of our first paper: plain claims, sourced numbers, exact gates.
+== Status
 
-Municipal Robotics is a one-person company: Cam Pedersen. There is no team and no lab behind it. What exists today is exactly this: a Booster K1 humanoid, the software stack (@tab:stack), a CNC mill and the plan you are reading. No arm has been built, there is no actuator dyno yet, and the K1 has not grasped litter. The ambition grew because the tools did. A person who can write every layer between a parameter in a source file and a measured joint torque can aim at the machine that makes machines, and should say so in public, with gates.
+Most of what this paper describes is *proposed*, not operational. @tab:status separates them. Throughout the paper, "modeled" means a number comes from our own CAD, kinematics or load scripts and has not been measured on hardware. "Measured" is reserved for results from our own hardware, and this paper reports none yet. Vendor ratings and public data are cited as sourced.
+
+#figure(
+  table(
+    columns: 3,
+    align: (left + top, left + top, left + top),
+    table.header([*Item*], [*State*], [*Evidence*]),
+    [Booster K1], [In hand], [Purchased platform; vendor firmware @booster2025k1],
+    [Software stack], [Exists, in use, not finished], [@tab:stack @pond2026strategy],
+    [CNC mill], [In hand], [–],
+    [Limb, rose fork v9], [Designed, ready to cut; none built yet], [Fab package, 20 DXFs, 88-screw BOM @rose2026forkv9],
+    [Gripper v2], [Designed; none built], [CAD + force/mass model @mr2026gripper],
+    [Pair], [Concept; mount not designed], [Two limbs on a table plate],
+    [Seed], [Concept], [None],
+    [rana actuator], [Prototype BOM, estimated; not built], [\$1,086 est. per unit, before tooth cutting @rana2026bom],
+    [Actuator dyno], [Planned; does not exist], [None],
+    [Pack, blade, board library], [Concept mockups; none built], [Pack and blade models @mr2026battery @mr2026compute],
+    [moth drone], [Proposed; not designed], [kino drives a bought drone today],
+    [K1 litter reacher], [Concept under design], [None; the K1 has not grasped litter],
+    [K1 body-schema fit (sim)], [Five-parameter recovery in simulation], [Synthetic data, sphere feet; ±20% → machine precision @ipse2026brief],
+    [K1 body-schema fit (hardware)], [Not yet on hardware], [Preregistration pending],
+    [Lakewood litter pilot], [Proposed], [No agreement in place],
+    [Body through Sun], [Goals, not claims], [None],
+  ),
+  placement: bottom,
+  caption: [#lead[What exists, what is designed, and what is proposed] (October 2026). What exists: a K1, the software stack, a CNC mill and a plan.],
+) <tab:status>
 
 = Scale <sec:kardashev>
 
@@ -866,7 +994,7 @@ Every number comes from one loop (@fig:loop): design in source code, simulate in
   caption: [#lead[The loop, read clockwise.] The small labels name the tool at each step. The software projects are listed in @tab:stack, and the dyno is a planned actuator test stand that does not exist yet. Each later stage of the plan removes a human from one more edge. In Arm the gradient edge is a person reading the gap and redesigning by hand.],
 ) <fig:loop>
 
-#part("II", "What")[What every stage shares: the principles, the stack, the standards and the rules.]
+#part("II", "What", art: art-what())[What every stage shares: the principles, the stack, the standards and the rules.]
 
 = Principles <sec:principles>
 
@@ -1171,7 +1299,7 @@ The second headline number is the time a lineage of pairs takes to double what i
   caption: [#lead[The arc.] Eight stages, each a step up in scale; one loop, one number. Each stage contains the one before it, and each removes a person from one more edge of the loop. Only Limb is a plan. Watts are electrons under management (@sec:eum), as orders of magnitude, not targets @mr2026masterplan.],
 ) <fig:arc>
 
-#part("III", "How")[How we climb: eight stages, from one arm to a star. Only the first is a plan.]
+#part("III", "How", art: art-how())[How we climb: eight stages, from one arm to a star. Only the first is a plan.]
 
 = Limb <sec:arm>
 
@@ -1565,7 +1693,7 @@ A lineage that can collect a star's light would be the most powerful thing anyon
 
 *Gate.* None we can set now; reported as EUM and doubling time. Full conditions for every stage are in @tab:arc.
 
-#part("IV", "Well,")[What we do not know, what could prove us wrong, and what happens next.]
+#part("IV", "Well,", art: art-well())[What we do not know, what could prove us wrong, and what happens next.]
 
 = Unknowns <sec:limits>
 
