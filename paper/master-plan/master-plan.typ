@@ -294,6 +294,7 @@ Most of what this paper describes is *proposed*, not operational. @tab:status se
     [Aisle, hall, seed], [Concept mockups], [Layout models only @mr2026cells],
     [rana actuator], [Prototype BOM, estimated; not built], [\$1,086 est. per unit, before tooth cutting @rana2026bom],
     [Actuator dyno], [Planned; does not exist], [None],
+    [Pack, blade, board library], [Concept mockups; none built], [Pack and blade models @mr2026battery @mr2026compute],
     [K1 litter reacher], [Concept under design], [None; the K1 has not grasped litter],
     [K1 body-schema fit (sim)], [Five-parameter recovery in simulation], [Synthetic data, sphere feet; ±20% → machine precision @ipse2026brief],
     [K1 body-schema fit (hardware)], [Not yet on hardware], [Preregistration pending],
@@ -415,7 +416,7 @@ Five years ago this plan would have needed a factory before it needed a customer
 
 *We can now take gradients through contact.* Our physics engine, phyz, computes exact gradients of a simulated motion with respect to physical parameters such as mass and inertia. That includes contact, the hard case and the one that matters for anything with feet or fingers: its contact adjoint differentiates the same physics the forward pass runs @ipse2026brief. In simulation, on synthetic motion, it has recovered five of a K1 humanoid's inertial parameters from ±20% error to machine precision (sphere feet; @sec:schema). Domain randomization @tobin2017domain, the usual alternative, can make a policy robust to a gap. It cannot take the gap's gradient.
 
-*Humanoids reached the price of a used car.* Unitree announced its G1 at \$16,000 in 2024 @unitree2024g1. We bought a Booster K1 (95 cm, 19.5 kg, 22 degrees of freedom, force-controlled joints, Jetson Orin NX) as the reference body for our mind research @booster2025k1. A humanoid that a small company can buy, break, and instrument changes who can do the research.
+*Humanoids reached the price of a used car.* Unitree announced its G1 at \$16,000 in 2024 @unitree2024g1. We bought a Booster K1 (95 cm, 19.5 kg, 22 degrees of freedom, force-controlled joints) as the reference body for our mind research @booster2025k1. A humanoid that a small company can buy, break, and instrument changes who can do the research.
 
 The result is that one person can now write every layer between a parameter in a source file and a measured joint torque. Ten years ago that took a company the size of a robot OEM. The specification is written to be carried by more hands than one, and everything in it that can be open is open.
 
@@ -512,6 +513,7 @@ The stack is a tree rooted at one language, loon (@tab:stack). Build order runs 
     [Body], [arm], [Manipulator module: product, humanoid limb], [designed (v9)],
     [Body], [rose], [Humanoid line: mini, pro, max], [in progress],
     [Body], [K1], [Booster K1, 22 DoF: reference body, in hand], [in hand],
+    [Body], [pack · blade], [One battery and one compute module for every body], [mockup],
     [Mind], [ipse], [Developmental mind on a real K1], [in progress],
     [Silicon], [loon-hdl, rune, chip], [HDL, maskless lithography, inference chip], [chapter 3],
   ),
@@ -886,7 +888,7 @@ Vendors rarely say at what pose or duty cycle a rated payload holds. Our 1.27 kg
 
 == Why a bought humanoid
 
-We bought a Booster K1 rather than building first. It is 95 cm tall, weighs 19.5 kg, and has 22 degrees of freedom (6 per leg, 4 per arm, 2 in the head). It has force-controlled joints with dual encoders, a Jetson Orin NX 8 GB, an RGBD camera and a microphone array @booster2025k1. A commercial body has known kinematics and a known-good build, so it serves as a *control*: every later body, including rose, is measured against it.
+We bought a Booster K1 rather than building first. It is 95 cm tall, weighs 19.5 kg, and has 22 degrees of freedom (6 per leg, 4 per arm, 2 in the head). It has force-controlled joints with dual encoders, an RGBD camera and a microphone array @booster2025k1. Its perception computer is a Qualcomm QCS8550 (6 cores, 10 GB, Adreno GPU, Hexagon DSP, no CUDA), beside a separate motion computer that runs the vendor's control; we measured this on the robot, and it differs from the vendor summary we first relied on @ipse2026deploy. A commercial body has known kinematics and a known-good build, so it serves as a *control*: every later body, including rose, is measured against it.
 
 The K1 has two jobs. In a proposed Lakewood pilot it would pick up litter (@sec:muni); it has not grasped litter yet. In the lab it is the body for ipse, a developmental research program. The two share hardware, software and one rule: every claim ships with the number that supports it.
 
@@ -903,7 +905,7 @@ Its standing constraints are quoted here because they bind the company, not just
 - "Do not optimize for consciousness indicators." Indicator lists such as Butlin et al. @butlin2023consciousness are used as an audit at phase boundaries, never as a training target.
 - "Grown, not built." When a behavior is missing, the first question is what experience would produce it.
 
-One limit is hardware. The K1’s 8 GB Orin NX cannot hold the full stack, so the work is split. Drives, memory, workspace and refusal stay on the robot; a cloud model is an amplifier it uses @ipse2026brief.
+One limit is hardware. The K1’s perception computer has no CUDA, its idle vendor stack holds about two of its six cores, and an onboard vision-language model has no measured headroom @ipse2026deploy. So the work is split along ipse's own seams (@sec:compute). Drives, memory, workspace and refusal stay on the robot; a cloud model is an amplifier it uses @ipse2026brief.
 
 We do not name the robot. The design brief says it "should not be named by us": it gets a name when it has earned one or arrives at one. Until then it is "the K1".
 
@@ -923,6 +925,89 @@ The first claim of chapter 2 is ipse's Phase 1 milestone. It is the body-schema 
 
 ipse also carries a self-probe from the start. It is an instrument that will later test whether the model forms a self-representation that holds across behaviors. It runs now so its metric has a history @ipse2026brief. We make no claim about what it will show.
 
+= Power, data and compute <sec:power>
+
+The bay standard (@tab:bay) fixes how a machine meets a cell. This section fixes how energy, data and thinking move through every body we build: a cell, a rack, a humanoid and, later, a drone. It has three standards (a bus, a pack and a blade) and a library of boards. All of it is modeled; none of it is built @mr2026decisions.
+
+== One bus
+
+Every body runs on one unregulated DC bus of *36–60 V*. Every load must accept the whole window, and nothing may assume a regulated 48 V. The window is set by the pack below: 13 lithium cells in series run from 39 V empty to 54.6 V full. It also covers the RobStride actuators and the rack's 48 V supplies, and it stays under 60 V, so the bus remains extra-low voltage.
+
+Beside the power runs one management bus, CAN-FD, for presence, power control and telemetry. Bulk data (cameras, logs, the twin) travels over Ethernet inside a body and over the cell's own network between bays, not over the bay coupler, which stays 48 V + CAN + air. There is no separate hardwired e-stop loop, and other humanoids do not carry one either. Pulling a pack is the hard stop: its connector's last-mating pin is the power enable.
+
+== One pack
+
+There is one battery: a 13S2P pack of Molicel P50B 21700 cells, *468 Wh* and about *2.65 kg* (estimate) @mr2026battery @molicel2023p50b. The same pack goes in a robot, a charging dock, the rack's UPS and the seed. A humanoid carries two of them (A and B, 936 Wh), one in each flank of the torso, and swaps them itself. Its hand draws pack A sideways onto a passive dock rail while pack B keeps the robot powered, then pushes a fresh pack home. The dock is rails, pads and a charger, with no actuators. A swap takes about a minute and leaves the robot powered, so runtime is set by dock capacity, not by the pack.
+
+#figure(
+  table(
+    columns: (auto, 1fr, auto),
+    align: (left + top, left + top, left + top),
+    table.header([*Item*], [*Value*], [*State*]),
+    [Cell], [Molicel P50B: 5.0 Ah, 60 A continuous, 71 g @molicel2023p50b], [Sourced],
+    [Pack], [13S2P, 468 Wh, 46.8 V nominal, 39–54.6 V], [Modeled],
+    [Pack mass and size], [\~2.65 kg; \~118 × 116 × 238 mm with connector], [Estimate],
+    [Connector], [Anderson SBS 75X: 2 power contacts, 4 mate-last auxiliaries, ±1 mm float], [Sourced part],
+    [BMS], [On the body's CAN bus; logs bus current and voltage], [Not designed],
+    [Humanoid load], [\~460 W mean walking; \~2.0 kW realistic peak], [Estimate],
+    [Humanoid runtime], [\~1.7 h walking, \~2.2 h standing pick work, per A+B pair], [Estimate],
+  ),
+  caption: [#lead[The pack] @mr2026battery. Every body we build uses it. The runtime figures assume a rose-class body with two arms.],
+) <tab:pack>
+
+The pack is also the EUM instrument. EUM (@sec:eum) is defined at each machine's main power input, logged at ≥ 1 Hz, and every pack's BMS measures exactly that. If the BMS logs it, electrons under management are measured for free on every robot and dock we build.
+
+Two cautions. The K1 is a bought robot with its own battery, and it cannot take this pack. The pack and the blade bay below are sized for rose, whose torso must grow from 210 to 214 mm wide to hold both packs beside the bay. And NMC in a public sidewalk dock is a choice a city may question. We keep one chemistry for simplicity and will revisit it if that happens.
+
+== One blade, in slots <sec:compute>
+
+Compute comes in one module, the *blade*: a 132 × 76 × 20 mm carrier on a 3 mm aluminum spine that is both its rail and its heat path, with one rear connector carrying the bus, gigabit Ethernet and CAN-FD @mr2026compute. The same blade slides into a 10-inch rack chassis (eight per 2U, fan-cooled) or into a humanoid's torso bay (up to three, conduction-cooled into cold walls with a fan over the fins). A blade identifies itself and its power class over I²C before the host powers it: 20 W for a Raspberry Pi CM5 carrier, 30 W for a Jetson-class carrier.
+
+How a body uses its slots follows the seams ipse already has (@sec:mind). The fast layers, S0 (whole-body tracking, 50 Hz today, 200 Hz target) and S1 (skills and contact planning, 50 Hz), are deadline-bound and must run on the body. The slow layer, S2 (intent and the world model, 1–5 Hz), may run on the body or off it, and if it is lost, S1 finishes the current skill and stands @ipse2026brief. So:
+
+- *Slot 1* always holds a GPU blade running S0, S1, the abstract state bus and perception, isolated at real-time priority. Nothing else is allowed on it. On the K1, vendor processes share the perception computer, and worst-case walk inference has been seen at 13.7–15.8 ms against a 0.24 ms median off the robot (session notes, probably preemption).
+- *Slots 2 and 3* run S2 when fitted. A full body thinks offline.
+- *With fewer blades*, S2 runs on the rack over the same seam.
+
+Whether a body thinks onboard or leans on the rack is then a slot count, not an architecture. The rack is the same standard at larger scale: a 9U, 450 mm deep frame with a GPU node for training and the twin, two blade chassis, and two 48 V supplies feeding a vertical busbar, about 1 kW in all (estimate) @mr2026compute.
+
+#figure(
+  grid(
+    columns: 3,
+    gutter: 1em,
+    align: horizon,
+    image("images-native/blade_exploded.png"),
+    image("images-native/humanoid_bay_iso.png"),
+    image("images-native/rack_12u_iso.png"),
+  ),
+  caption: [#lead[The blade and its two hosts] (modeled). Left: one blade, exploded. Center: the humanoid bay, lid lifted and one blade drawn. Right: a 12U rack with a GPU node and three blade chassis. Renders by vcad-render @mr2026compute.],
+) <fig:blade>
+
+*rose against the K1.* rose should out-think the K1: CUDA, real-time scheduling, and our own code from the carrier up. That claim gets the same treatment as every other one. The same ipse build runs on both bodies, and we report S0 tick jitter, inference latency and where S2 ran, per body. rose is first run with one blade, close to the K1's compute, then with more, so the effect of compute is measured one variable at a time.
+
+The open question is the size of S2. A 16 GB Orin NX blade may hold it; a Thor-class module would not fit a 20 mm blade.
+
+== The board library
+
+Bus, pack and blade need a small set of boards. We own a board first when it defines a standard or makes a measurement, and buy the rest until owning it wins (@tab:boards).
+
+#figure(
+  table(
+    columns: (auto, 1fr, auto, auto),
+    align: (left + top, left + top, left + top, left + top),
+    table.header([*Board*], [*Does*], [*Order*], [*State*]),
+    [BMS], [Protects the pack; measures EUM; talks CAN], [Own first], [Not designed],
+    [Bay coupler / spine hub], [48 V + CAN + air at every bay; presence and address], [Own first], [Mockup],
+    [Blade carriers], [CM5 (20 W) and Jetson (30 W) on the blade standard], [Next], [Mockup],
+    [Backplanes], [8-slot rack chassis; 3-slot humanoid bay; switch + CAN], [Next], [Mockup],
+    [Arm controller], [Six actuator CAN buses, 48 V distribution, one free bus for the BMS], [Next], [Not designed],
+    [torc], [Motor control for rana], [Step 2], [Prototype],
+  ),
+  caption: [#lead[The board library and the order we own it] @mr2026decisions. Every design is open. Fabrication and assembly stay bought.],
+) <tab:boards>
+
+Every board design is open. Printed-circuit fabrication and assembly stay bought through chapter 2. Boards are, with magnets, bearings and chips, part of the bought fraction that falls last, and a pick-and-place bay that assembles our own boards is a chapter-3 milestone (@sec:arc).
+
 = Municipal: a proposed litter pilot, with Lakewood as the reference case <sec:muni>
 
 == Why litter, why Lakewood
@@ -931,7 +1016,7 @@ Litter pickup would put robots on every block every week. Most litter goes uncol
 
 Lakewood is a first-ring suburb of Cleveland with 49,517 residents in 5.5 square miles of land @census2024lakewood, about 9,000 people per square mile. It is among the most densely populated cities in Ohio, with more than 180 miles of sidewalk @lakewood2024sidewalks. Our earlier paper used it as the reference case for sidewalk snow clearing @muni2025whitepaper. It is small enough to model whole as a city twin, and its streets are dense enough that a few robots would see a lot of pavement.
 
-How the K1 picks up litter is not settled. The current concept, under design, is a *reacher*: a \~450 mm tube mounted on the K1's wrist with gripper v2 jaws at its tip, an EL05 at the wrist end driving the jaws through a pushrod, a bag on a back frame, and a dock that is a bin, a charger and a public wifi point at once. The reacher keeps the K1 upright: it picks from standing, without squatting. Later, rose takes over for two-handed and squatting work. The earlier rover (BVR) was built for snow clearing and is not part of this plan.
+How the K1 picks up litter is not settled. The current concept, under design, is a *reacher*: a \~450 mm tube mounted on the K1's wrist with gripper v2 jaws at its tip, an EL05 at the wrist end driving the jaws through a pushrod, a bag on a back frame, and a dock that is a bin, a charger and a public wifi point at once. The reacher keeps the K1 upright: it picks from standing, without squatting. Later, rose takes over for two-handed and squatting work.
 
 The concept has four open checks, none done yet:
 
@@ -1133,7 +1218,7 @@ Chapter 3 has three milestones, in order @mr2026masterplan:
 + The cell cuts the arm's plates on its own mill, and winds and pots (encapsulates) its own rana stators.
 + The cell cuts and assembles its own 4040 frame, rails and plinth. This needs a saw station, and two arms that build a third.
 
-Then come the hard parts. First, actuators end to end: magnets stay bought until a ferrite rana is validated in phyz and on the dyno, and bearings stay bought longest. Second, silicon: loon-hdl would describe an inference chip, and rune (maskless lithography) would fabricate it at a process node a lab can own. Third, energy: the first cell that runs on power it collected, from solar panels it cut, assembled and wired itself. Silicon is not parked: a machine that reproduces off-planet cannot depend on anyone's fab.
+Then come the hard parts. First, actuators end to end: magnets stay bought until a ferrite rana is validated in phyz and on the dyno, and bearings stay bought longest. Second, boards: a pick-and-place bay that assembles our own circuit boards (@tab:boards). Third, silicon: loon-hdl would describe an inference chip, and rune (maskless lithography) would fabricate it at a process node a lab can own. Fourth, energy: the first cell that runs on power it collected, from solar panels it cut, assembled and wired itself. Silicon is not parked: a machine that reproduces off-planet cannot depend on anyone's fab.
 
 == Chapter 4 · Off-planet: the Moon, then Mars
 
@@ -1163,7 +1248,7 @@ Each open item is limited by one of four things. Sorting them shows which can be
 
 *Software.* Three items: the per-arm controllers and their stated sim-to-real gap; the world format wodl and the iris layer, both new in the stack (@tab:stack); and the K1 body-schema fit, done in simulation but not yet on hardware (@tab:status).
 
-*Hardware revision.* The straight-out continuous hold of about 1.27 kg (modeled) is set by the shoulder; raising it needs a counterbalance spring (@sec:arm). The clock-spring cassettes for the roll joints are drawn but not designed. Bench depth: moving the rails forward is the only change that adds depth, about 90 mm @mr2026bench. rana's production stator (SMC or tape-wound) is not yet sourced @rana2026bom.
+*Hardware revision.* The straight-out continuous hold of about 1.27 kg (modeled) is set by the shoulder; raising it needs a counterbalance spring (@sec:arm). The clock-spring cassettes for the roll joints are drawn but not designed. Bench depth: moving the rails forward is the only change that adds depth, about 90 mm @mr2026bench. rana's production stator (SMC or tape-wound) is not yet sourced @rana2026bom. The rose torso grows to 214 mm to hold the blade bay and two packs @mr2026battery.
 
 *Physics.* A hold is a stall and is limited by heat, not peak torque. Payload falls with reach. Off Earth, light-time delay rules out direct remote control.
 
