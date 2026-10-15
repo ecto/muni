@@ -1073,7 +1073,7 @@ moth is not sold for military use or armed in any form (@sec:safety).
 
 moth is also the cheapest check that the standards in @sec:power are body-agnostic. It is a one-blade body on the 36–60 V bus with CAN-FD for management, running the same ipse seams as a humanoid. It carries its own lighter pack: the 2.65 kg humanoid pack only suits a heavy-lift airframe.
 
-*Stricter rules over a street.* A camera drone over a residential street is the thing people fear, whatever it strips on board. So the street rules of @sec:muni are tightened for moth: no imagery leaves the drone. Only facts do (a pothole here, litter there, a dark light), and the delayed pictures the ground robots may release are not made from moth's camera.
+*The same street rules.* Mapping needs imagery, so moth's imagery leaves the drone, under the rules of @sec:muni: people and cars are removed on the drone before anything is written to storage, pictures are released delayed, and nothing links a person, car or device across frames, places or days. A camera over a residential street is what people fear most, so moth's filter gets its own published test: how often a person or plate survives it, measured on held-out street footage.
 
 Nothing of moth is built. Its airframe, pack and mass budget are not designed, and whether one \~150 g blade fits its mass budget is open.
 
