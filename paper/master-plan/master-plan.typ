@@ -44,35 +44,35 @@
 )
 // (number, name, family, maturity, note, first stage that needs it)
 #let elements = (
-  (1, "loon", "make", "exists", "source for parts, worlds, chips", "limb"),
-  (2, "tang", "make", "exists", "math, autodiff, one GPU", "limb"),
-  (3, "vcad", "make", "exists", "CAD kernel with gradients", "limb"),
-  (4, "kerf", "make", "exists", "design to part, with a receipt", "limb"),
-  (5, "wodl", "world", "concept", "world format", "pair"),
-  (6, "kosm", "world", "exists", "runs wodl worlds", "limb"),
-  (7, "phyz", "world", "exists", "physics, contact adjoint", "limb"),
-  (8, "iris", "world", "concept", "renderer, robot cameras", "pair"),
-  (9, "rana", "body", "designed", "axial-flux actuator", "limb"),
-  (10, "torc", "body", "designed", "motor control", "limb"),
-  (11, "limb", "body", "designed", "the arm: product, half a pair", "limb"),
-  (12, "hand", "body", "designed", "485 g gripper", "limb"),
-  (13, "pair", "body", "concept", "two limbs, any table", "pair"),
-  (14, "Rose", "body", "concept", "humanoid: mini, full, mega", "body"),
+  (1, "loon", "make", "exists", "source for parts, worlds, chips", "desk"),
+  (2, "tang", "make", "exists", "math, autodiff, one GPU", "desk"),
+  (3, "vcad", "make", "exists", "CAD kernel with gradients", "desk"),
+  (4, "kerf", "make", "exists", "design to part, with a receipt", "desk"),
+  (5, "wodl", "world", "concept", "world format", "shop"),
+  (6, "kosm", "world", "exists", "runs wodl worlds", "desk"),
+  (7, "phyz", "world", "exists", "physics, contact adjoint", "desk"),
+  (8, "iris", "world", "concept", "renderer, robot cameras", "shop"),
+  (9, "rana", "body", "designed", "axial-flux actuator", "desk"),
+  (10, "torc", "body", "designed", "motor control", "desk"),
+  (11, "limb", "body", "designed", "the arm: product, half a pair", "desk"),
+  (12, "hand", "body", "designed", "485 g gripper", "desk"),
+  (13, "pair", "body", "concept", "two limbs, any table", "shop"),
+  (14, "Rose", "body", "concept", "humanoid: mini, full, mega", "road"),
   (15, "moth", "body", "concept", "street-perception drone", "city"),
   (16, "seed", "body", "concept", "a pair, packed to go", "moon"),
-  (17, "pack", "power", "concept", "one battery, every body", "body"),
-  (18, "core", "power", "concept", "one compute module", "body"),
-  (19, "nerv", "power", "concept", "bus, hub and BMS boards", "body"),
-  (20, "Ipse", "mind", "exists", "developmental mind", "body"),
-  (21, "loom", "silicon", "concept", "hardware description", "planet"),
-  (22, "rune", "silicon", "concept", "maskless lithography", "planet"),
-  (23, "chyp", "silicon", "concept", "inference chip", "planet"),
+  (17, "pack", "power", "concept", "one battery, every body", "road"),
+  (18, "core", "power", "concept", "one compute module", "road"),
+  (19, "nerv", "power", "concept", "bus, hub and BMS boards", "road"),
+  (20, "Ipse", "mind", "exists", "developmental mind", "road"),
+  (21, "loom", "silicon", "concept", "hardware description", "home"),
+  (22, "rune", "silicon", "concept", "maskless lithography", "home"),
+  (23, "chyp", "silicon", "concept", "inference chip", "home"),
 )
 // product names colored wherever they appear in running text
 #let brand-names = elements.filter(e => e.at(1) not in ("hand",)).map(e => (lower(e.at(1)), e.at(2)))
 #let brand-color(name) = { let m = brand-names.find(n => n.at(0) == name); if m != none { fam.at(m.at(1)).color } }
 #let brand-family(name) = { let m = brand-names.find(n => n.at(0) == lower(name)); if m != none { m.at(1) } }
-// every product name takes its family color, in any case: limb, Limb (the stage) and LIMB alike
+// every product name takes its family color, in any case: limb, Limb and LIMB alike
 #let brand-re = regex("(?i)\\b(" + brand-names.map(n => n.at(0)).sorted(key: n => -n.len()).join("|") + ")\\b")
 #metadata(brand-names) <brand-names>
 // on the web, scripts/build-posts.mjs wraps names in spans (Typst cannot put HTML inside SVG frames)
@@ -341,7 +341,7 @@
 
 #let art-how() = cetz.canvas(length: 1cm, {
   import cetz.draw: *
-  let names = ("Limb", "Pair", "Body", "City", "Planet", "Moon", "Mars", "Sun")
+  let names = ("Desk", "Shop", "Road", "City", "Home", "Moon", "Mars", "Star")
   let w = 2.1
   let g = 0.18
   let x0 = -(8 * w + 7 * g) / 2
@@ -545,7 +545,7 @@
 
   The plan is built from one part. A limb is a six-axis arm on purchased RobStride actuators (\$5,000 list, \~\$2,000 materials), designed and ready to cut, none built yet. Two limbs bolted to any table make a pair (\$12,000 list, target), which can fold laundry, tend a machine or build the next limb. A humanoid is a pair on legs. Our models put the limb's reach at 786 mm with our 485 g gripper and its continuous hold straight out at 1.27 kg. The municipal work is a proposed litter pilot in Lakewood, Ohio, with no agreement in place; the method, a reacher on the K1’s wrist, is under design, and the K1 has not grasped litter yet.
 
-  Limb, the first stage, closes on exact gates (proposed targets): ten limbs sold at 40% gross margin, each with its tool-point error measured and under 2 mm RMS, and our actuator beating the purchased one by 20% on a named dyno metric, or dropped. Seven more stages follow, each a step up in scale: Pair, two limbs at any table, and a pair that builds a pair; Body, a pair on legs that fits its own model; City, a fleet and its pairs work a city; Planet, lineages on their own power; Moon, a seed grows a pair, with a lifeline; Mars, the same seed, lifeline cut; and Sun, a swarm of collectors around our star. They are goals, not results, and they are the point. Progress is one number, electrons under management: the mean power drawn by machines we built, in service. Today it is zero watts. The body-schema claim that opens Body will be preregistered, with its falsifier, before its hardware run. Every number here is cited, or labeled as an estimate or a model output.
+  Desk, the first stage, closes on exact gates (proposed targets): ten limbs sold at 40% gross margin, each with its tool-point error measured and under 2 mm RMS, and our actuator beating the purchased one by 20% on a named dyno metric, or dropped. Seven more stages follow, each a step up in scale: Shop, two limbs at any table, and a pair that builds a pair; Road, a pair on legs that fits its own model; City, a fleet and its pairs work a city; Home, lineages on their own power; Moon, a seed grows a pair, with a lifeline; Mars, the same seed, lifeline cut; and Star, a swarm of collectors around our star. They are goals, not results, and they are the point. Progress is one number, electrons under management: the mean power drawn by machines we built, in service. Today it is zero watts. The body-schema claim that opens Road will be preregistered, with its falsifier, before its hardware run. Every number here is cited, or labeled as an estimate or a model output.
 ]
 #if web {
   html.elem("section", attrs: (class: "abstract", id: "abstract"), {
@@ -570,7 +570,7 @@
       html.elem("h2", attrs: (class: "toc-title"), [Contents])
       html.elem("ol", for h in hs {
         let cls = if h.supplement == [Part] { "toc-part" } else if h.level == 1 { "toc-l1" } else { "toc-l2" }
-        // the right column starts at Body, as in the PDF
+        // the right column starts at Road, as in the PDF
         if h.has("label") and h.label == <sec:mind> { cls = cls + " toc-col" }
         let num = if h.numbering != none and h.supplement != [Part] { html.elem("span", attrs: (class: "toc-num"), numbering(if h.supplement == [Appendix] { "A.1" } else { "1.1" }, ..counter(heading).at(h.location()))) }
         html.elem("li", attrs: (class: cls), link(h.location(), [#num#html.elem("span", attrs: (class: "toc-text"), h.body)]))
@@ -770,7 +770,10 @@ Getting off the planet is now mostly that problem. Launch has become cheap. Reus
 
 This plan gives that climb one number of its own, electrons under management (@sec:eum): the power drawn by machines we built, in service, measured on the same axis as the Kardashev scale. Today it is zero.
 
-== What changed <sec:why>
+== Why now <sec:why>
+
+Five years ago this plan would have needed a factory before it needed a customer. Four things changed.
+
 #figure(
   align(center, cetz.canvas(length: 1.35cm, {
     import cetz.draw: *
@@ -790,8 +793,6 @@ This plan gives that climb one number of its own, electrons under management (@s
   })),
   caption: [#lead[An actuator, from a catalog.] Motor, planetary reduction, encoder and driver in one housing, exploded. Schematic.],
 ) <fig:actuator>
-
-Five years ago this plan would have needed a factory before it needed a customer. Four things changed.
 
 *Integrated actuators became a catalog item.* Quasi-direct-drive actuators, with motor, planetary reduction, encoder and driver in one housing, are now sold off the shelf by several Chinese vendors. RobStride's range includes the RS00, RS02, RS04 and RS06, each with a published manual, outline drawing and CAN interface @robstride2026manual. A limb uses six of them. Retail prices for the family run roughly \$70–170 for the small units and more for the large ones (our estimate from retail listings, not a quote). The design idea does not depend on RobStride, but the v9 drawings do: motor mounts, bolt patterns and screw lengths are taken from RobStride's manual drawings @rose2026forkv9, so another vendor's motor means new drawings. What matters is that a 120 N·m peak joint (RS04 @robstride2026manual) can be bought with its driver attached.
 
@@ -828,7 +829,7 @@ Five years ago this plan would have needed a factory before it needed a customer
   caption: [#lead[One stack, three bodies.] Tools written to build one rover do not care what they design. Pointed at a humanoid, or at a pair of arms that builds arms, they work the same way.],
 ) <fig:story>
 
-*Flat-sheet fabrication fits on a desk.* Every structural plate of the v9 arm except the 1/4" foot is cut from 1/8" (3.175 mm) 5052 aluminum. The parts nest on three 15 × 15 inch sheets and one 12 × 12 inch sheet, and they are laid out for a 390 mm desktop router bed @rose2026forkv9. The same files go to SendCutSend or to a local supplier without change. A machine that can be built from flat sheet and purchased actuators can, in principle, be built by another such machine. That is the premise of Pair.
+*Flat-sheet fabrication fits on a desk.* Every structural plate of the v9 arm except the 1/4" foot is cut from 1/8" (3.175 mm) 5052 aluminum. The parts nest on three 15 × 15 inch sheets and one 12 × 12 inch sheet, and they are laid out for a 390 mm desktop router bed @rose2026forkv9. The same files go to SendCutSend or to a local supplier without change. A machine that can be built from flat sheet and purchased actuators can, in principle, be built by another such machine. That is the premise of Shop.
 
 #figure(
   align(center, cetz.canvas(length: 0.85cm, {
@@ -1076,7 +1077,7 @@ About two thirds of the cost is machining that someone else does, on metal worth
 
 
 
-The same structure repeats one level up. A limb's materials are about \$2,000, of which about \$1,200 is the six purchased actuators @mr2026masterplan. The plates are cheap. The actuators are someone else's margin. Owning the actuator is Limb's second step (@sec:arm), and we take that step only where rana wins on a measured metric.
+The same structure repeats one level up. A limb's materials are about \$2,000, of which about \$1,200 is the six purchased actuators @mr2026masterplan. The plates are cheap. The actuators are someone else's margin. Owning the actuator is Desk's second step (@sec:arm), and we take that step only where rana wins on a measured metric.
 
 == Math
 
@@ -1165,14 +1166,14 @@ This is where the three problems meet. The machining in @fig:rana is the part of
   cetz.canvas(length: 1cm, {
     import cetz.draw: *
     let tiles = (
-      ("Limb", "images-dark/fork-v9-lines.png", "an arm that ships with its gap"),
-      ("Pair", "pair", "two limbs at any table; a pair builds a pair"),
-      ("Body", "images-native/humanoid_bay_iso.png", "a pair on legs that fits its own model"),
+      ("Desk", "images-dark/fork-v9-lines.png", "an arm that ships with its gap"),
+      ("Shop", "pair", "two limbs at any table; a pair builds a pair"),
+      ("Road", "images-native/humanoid_bay_iso.png", "a pair on legs that fits its own model"),
       ("City", "city", "a fleet and its pairs work a city"),
-      ("Planet", "planet", "lineages on their own power"),
+      ("Home", "planet", "lineages on their own power"),
       ("Moon", "images-native/seed_iso.png", "a seed grows a pair, with a lifeline"),
       ("Mars", "mars", "the same seed, lifeline cut"),
-      ("Sun", none, "a swarm of collectors"),
+      ("Star", none, "a swarm of collectors"),
     )
     let tw = 1.95
     let gap = 0.27
@@ -1227,10 +1228,10 @@ This is where the three problems meet. The machining in @fig:rana is the part of
     }
     content((W, y0 - 0.55), anchor: "north-east", text(font: mono, size: s-xs, fill: c-label)[WATTS, LOG SCALE])
     // our stages as bands (orders of magnitude, not targets)
-    let bands = (("Limb", 1.7, 4), ("Pair", 4, 5), ("Body", 5, 6), ("City", 6, 7), ("Planet", 7, 9), ("Moon", 2, 3), ("Mars", 2, 3), ("Sun", 9, 26.6))
+    let bands = (("Desk", 1.7, 4), ("Shop", 4, 5), ("Road", 5, 6), ("City", 6, 7), ("Home", 7, 9), ("Moon", 2, 3), ("Mars", 2, 3), ("Star", 9, 26.6))
     for (i, (ch, a, b)) in bands.enumerate() {
       let lo = y0 + 0.12 + i * 0.16
-      rect((X(a), lo), (X(b), lo + 0.14), fill: if ch == "Limb" { c-sel } else { c-raised }, stroke: none)
+      rect((X(a), lo), (X(b), lo + 0.14), fill: if ch == "Desk" { c-sel } else { c-raised }, stroke: none)
       content((X(a) - 0.06, lo + 0.07), anchor: "east", text(font: mono-m, size: 5pt, fill: c-text, upper(ch)))
     }
     // humanity and the scale
@@ -1246,12 +1247,12 @@ This is where the three problems meet. The machining in @fig:rana is the part of
     }
     content((0, y0 + 1.9), anchor: "north-west", text(font: mono-m, size: 5.5pt, fill: c-label)[EUM TODAY: 0 W])
   }),
-  caption: [#lead[The plan, from arm to sun.] Top: the eight stages, each a step up in scale and each built by the one before it. Bottom: electrons under management (@sec:eum) by stage, as orders of magnitude, not targets, against humanity's power use and the Kardashev scale @kardashev1964 @sagan1973cosmic @ei2024review. Only Limb is a plan.],
+  caption: [#lead[The plan, from arm to sun.] Top: the eight stages, each a step up in scale and each built by the one before it. Bottom: electrons under management (@sec:eum) by stage, as orders of magnitude, not targets, against humanity's power use and the Kardashev scale @kardashev1964 @sagan1973cosmic @ei2024review. Only Desk is a plan.],
 ) <fig:glance>
 
 We are building machines that build machines, and measuring every one. The unit is a limb: one arm, shipped with its sim-to-real gap, the difference between what our physics engine predicted and what the built arm did. Two limbs on any table make a pair, and a pair can do a day's work or build the next limb. A humanoid is a pair on legs. One part, measured everywhere, from a laundry table to a city.
 
-The plan climbs in eight stages, each a step up in scale and each built by the one before it (@fig:glance). Only the first, Limb, is a plan. The rest are goals.
+The plan climbs in eight stages, each a step up in scale and each built by the one before it (@fig:glance). Only the first, Desk, is a plan. The rest are goals.
 
 == Flywheel
 
@@ -1260,14 +1261,14 @@ The plan climbs in eight stages, each a step up in scale and each built by the o
     columns: (auto, 1fr, 1fr, 1fr),
     align: (left + top, left + top, left + top, left + top),
     table.header([*Stage*], [*Delivers*], [*Pays forward*], [*Gate, in short*]),
-    [Limb], [Arms, sold one at a time], [Revenue; the first measured gaps; duty cycles that size rana], [≥ 10 at ≥ 40% margin; ≤ 2 mm RMS each],
-    [Pair], [Two limbs that work at any table, and build limbs], [Useful work; a falling bought fraction; a doubling time], [A task at 95%; a pair builds a pair],
-    [Body], [A pair on legs that fits its own model], [Mobility; a gradient from the gap to the design], [Schema fit beats persistence by 20%],
+    [Desk], [Arms, sold one at a time], [Revenue; the first measured gaps; duty cycles that size rana], [≥ 10 at ≥ 40% margin; ≤ 2 mm RMS each],
+    [Shop], [Two limbs that work at any table, and build limbs], [Useful work; a falling bought fraction; a doubling time], [A task at 95%; a pair builds a pair],
+    [Road], [A pair on legs that fits its own model], [Mobility; a gradient from the gap to the design], [Schema fit beats persistence by 20%],
     [City], [A city's fleet and its twin], [Contracts; real duty at scale; a world to train in], [A city renews for ≥ 12 months],
-    [Planet], [Lineages on their own power], [A measured doubling time; collectors], [≥ 1 year on collectors it made],
+    [Home], [Lineages on their own power], [A measured doubling time; collectors], [≥ 1 year on collectors it made],
     [Moon], [A seed grows a pair, with a lifeline], [Local material; launch-mass lessons], [≥ 50% local by mass],
     [Mars], [The same seed, lifeline cut], [Autonomy with no one to ask], [0 human commands to a receipt],
-    [Sun], [A swarm of collectors], [—], [Power and doubling time],
+    [Star], [A swarm of collectors], [—], [Power and doubling time],
   ),
   caption: [#lead[The flywheel.] Each stage funds and builds the next. The full gates are in @tab:arc. *Proposed targets, to be confirmed by the author.*],
 ) <tab:flywheel>
@@ -1282,7 +1283,7 @@ Each stage pays for the next and teaches it something it could not learn otherwi
     let cards = (
       ("The gap", "—", "mm RMS, per unit", "No limb built yet. First reading: the first limb, against its model."),
       ("Electrons under management", "0 W", "mean, in service", "Nothing we built is in service. The K1 is counted beside it, not in it."),
-      ("Doubling time", "—", "per lineage", "No pair has built a pair. First reading: Pair, over three generations."),
+      ("Doubling time", "—", "per lineage", "No pair has built a pair. First reading: Shop, over three generations."),
     )
     let w = 5.4
     let g = 0.35
@@ -1414,10 +1415,10 @@ Every number in this plan comes from one loop (@fig:loop): design in loon source
     edge(<m>, (0, 1), <g>, "-|>"),
     edge(<g>, (1, 0.5), (0, 0.5), <d>, "-|>", text(size: s-sm, fill: c-text)[gradient ∂J/∂θ], label-pos: 0.5, label-side: right),
   ),
-  caption: [#lead[The loop, read clockwise.] The small labels name the tool at each step. The software projects are listed in @fig:elements, and the dyno is a planned actuator test stand that does not exist yet. Each later stage of the plan removes a human from one more edge. In Limb the gradient edge is a person reading the gap and redesigning by hand.],
+  caption: [#lead[The loop, read clockwise.] The small labels name the tool at each step. The software projects are listed in @fig:elements, and the dyno is a planned actuator test stand that does not exist yet. Each later stage of the plan removes a human from one more edge. In Desk the gradient edge is a person reading the gap and redesigning by hand.],
 ) <fig:loop>
 
-The payoff is a gradient that crosses the whole molecule. A task loss in Ipse passes through phyz's contact adjoint, into vcad geometry, and out to a number in loon source, with no translation at any hop. Part of that chain runs today, in simulation: on a test model, a phyz rollout gradient passes through a ground-contact model into a vcad geometry parameter and agrees with finite differences. Joining the two ends is co-design work for Body @pond2026strategy. A chain of separate tools struggles to do this however good each tool is, because the gradient stops at the first export. That is the one bet the stack makes, and it is why we built it rather than bought it.
+The payoff is a gradient that crosses the whole molecule. A task loss in Ipse passes through phyz's contact adjoint, into vcad geometry, and out to a number in loon source, with no translation at any hop. Part of that chain runs today, in simulation: on a test model, a phyz rollout gradient passes through a ground-contact model into a vcad geometry parameter and agrees with finite differences. Joining the two ends is co-design work for Road @pond2026strategy. A chain of separate tools struggles to do this however good each tool is, because the gradient stops at the first export. That is the one bet the stack makes, and it is why we built it rather than bought it.
 
 #figure(
   cetz.canvas(length: 1cm, {
@@ -1463,14 +1464,14 @@ The payoff is a gradient that crosses the whole molecule. A task loss in Ipse pa
     columns: 3,
     align: (left + top, left + top, left + top),
     table.header([*Stage*], [*Loop state*], [*Human role*]),
-    [Limb], [measured gap → human redesign], [designs, builds, measures],
-    [Pair], [gap → design → built and measured by a pair], [reviews, licenses each copy],
-    [Body], [gap → gradient → new design], [reviews; pairs build],
-    [City], [Pair and Body, across a city's fleet and its twin], [the city sets the work],
-    [Planet], [many lineages, each closing its own loop on its own power], [licenses each division],
-    [Moon], [Pair, far from its supply chain], [remote approval],
-    [Mars], [Pair with the supply chain cut], [none between landing and receipt],
-    [Sun], [fully closed inside a lineage], [reads the receipts],
+    [Desk], [measured gap → human redesign], [designs, builds, measures],
+    [Shop], [gap → design → built and measured by a pair], [reviews, licenses each copy],
+    [Road], [gap → gradient → new design], [reviews; pairs build],
+    [City], [Shop and Road, across a city's fleet and its twin], [the city sets the work],
+    [Home], [many lineages, each closing its own loop on its own power], [licenses each division],
+    [Moon], [Shop, far from its supply chain], [remote approval],
+    [Mars], [Shop with the supply chain cut], [none between landing and receipt],
+    [Star], [fully closed inside a lineage], [reads the receipts],
   ),
   caption: [#lead[Who is in the loop, by stage] @mr2026masterplan],
 ) <tab:loopstate>
@@ -1659,7 +1660,7 @@ Bus, pack and core need a small set of boards. We own a board first when it defi
   caption: [#lead[The board library and the order we own it] @mr2026decisions. Every design is open. Fabrication and assembly stay bought.],
 ) <tab:boards>
 
-Every board design is open. Printed-circuit fabrication and assembly stay bought through Body. Boards are, with magnets, bearings and chips, part of the bought fraction that falls last, and a pair at a pick-and-place machine that assembles our own boards is a Pair milestone (@sec:pair).
+Every board design is open. Printed-circuit fabrication and assembly stay bought through Road. Boards are, with magnets, bearings and chips, part of the bought fraction that falls last, and a pair at a pick-and-place machine that assembles our own boards is a Shop milestone (@sec:pair).
 
 = Safety <sec:safety>
 
@@ -1708,13 +1709,13 @@ Software, designs and data formats stay open. Open licenses cannot restrict use,
 
 == Rules
 
-A machine that builds the next machine invites one fear above others: replication nobody can stop. The image has a name, gray goo, from Drexler's 1986 warning about self-replicating nanomachines @drexler1986engines. Our pairs are not nanomachines. They are two arms at a table, with a mill and a router nearby. They need stock, power and repair, and that is the first defense. It is not enough by itself, because a lineage that doubles on its own power, on a planet with no one on it, is exactly what Sun asks for. So the limits are designed in from the first pair. None of them is built yet.
+A machine that builds the next machine invites one fear above others: replication nobody can stop. The image has a name, gray goo, from Drexler's 1986 warning about self-replicating nanomachines @drexler1986engines. Our pairs are not nanomachines. They are two arms at a table, with a mill and a router nearby. They need stock, power and repair, and that is the first defense. It is not enough by itself, because a lineage that doubles on its own power, on a planet with no one on it, is exactly what Star asks for. So the limits are designed in from the first pair. None of them is built yet.
 
 - *Licensed division.* A pair builds a copy only with a signed license for that one copy. Licenses come from keys held by people, not by the pairs. A pair cannot mint its own, and a copy built without one does not pass its acceptance receipts.
 - *A germ line no pair can edit.* The design and its receipts live where the machines that do the work cannot change them. Every copy is checked against the germ line; a copy that drifts is decommissioned and stripped for stock.
 - *A vitamin made of information.* Every pair depends on one input it cannot make: signed instructions. That keeps the bought fraction able to reach zero in matter while dependence on people remains.
 - *A ceiling on doubling.* Each lineage has a published maximum rate of division. Faster growth needs a new license from people, never a decision by the pairs.
-- *Stop is tested, not assumed.* Every generation must pass a commanded shutdown drill before its first license (@tab:arc, Pair).
+- *Stop is tested, not assumed.* Every generation must pass a commanded shutdown drill before its first license (@tab:arc, Shop).
 - *No foraging on Earth.* On Earth, pairs take only stock that is delivered to them. They never gather raw material from the environment. Taking local material is for the Moon, Mars and Mercury, under planetary protection rules.
 
 The arc ends where people are least able to watch: on Mars, with no commands between landing and receipt, and around the sun. That is why the licenses, the germ line and the drills have to work on Earth first, measured like everything else.
@@ -1737,14 +1738,14 @@ One number runs through every stage: *electrons under management* (EUM), in watt
   cetz.canvas(length: 1cm, {
     import cetz.draw: *
     let stages = (
-      ("Sun", [3.8 × 10#super[26] W]),
+      ("Star", [3.8 × 10#super[26] W]),
       ("Mars", [1 kW]),
       ("Moon", [1 kW]),
-      ("Planet", [1 GW]),
+      ("Home", [1 GW]),
       ("City", [10 MW]),
-      ("Body", [1 MW]),
-      ("Pair", [100 kW]),
-      ("Limb", [0 W → 10 kW]),
+      ("Road", [1 MW]),
+      ("Shop", [100 kW]),
+      ("Desk", [0 W → 10 kW]),
     )
     let w = 17.0
     let h = 4.7
@@ -1789,16 +1790,16 @@ One number runs through every stage: *electrons under management* (EUM), in watt
 
 The second headline number is the time a lineage of pairs takes to double what it can build and power, measured from receipts over at least three generations. It is undefined today, because no pair has built a pair. It sets how long the arc takes (@sec:sun) and it is capped by policy (@sec:replication).
 
-*Trajectory, as orders of magnitude, not targets.* Limb: 0 W → \~10 kW (a hundred limbs near 50 W mean). Pair: \~100 kW as pairs build pairs. Body: \~1 MW of bodies. City: \~10 MW, a city's fleet and the pairs that keep it. Planet: \~1 GW and up, on collectors pairs made. Moon and Mars: the first kilowatts off Earth. Sun: a measurable fraction of 3.8 × 10#super[26] W.
+*Trajectory, as orders of magnitude, not targets.* Desk: 0 W → \~10 kW (a hundred limbs near 50 W mean). Shop: \~100 kW as pairs build pairs. Road: \~1 MW of bodies. City: \~10 MW, a city's fleet and the pairs that keep it. Home: \~1 GW and up, on collectors pairs made. Moon and Mars: the first kilowatts off Earth. Star: a measurable fraction of 3.8 × 10#super[26] W.
 
 #part("III", "How", art: art-how())[How we climb: eight stages, from one arm to a star. Only the first is a plan.]
 
-= Limb <sec:arm>
+= Desk <sec:arm>
 
-*An arm that ships with its gap.* Limb has two steps over roughly three years. Each closes on an exact gate (@tab:arc).
+*An arm that ships with its gap.* Desk has two steps over roughly three years. Each closes on an exact gate (@tab:arc).
 
 + *An arm worth buying.* Build it on RobStride actuators. The actuator is a commodity. Our edge is everything around it: geometry checked against real loads, a measured model of every unit, a controller trained against that model, and a stated sim-to-real gap on every limb.
-+ *Own the actuator, where it wins.* Limb revenue funds rana and torc. A purchased joint is replaced only where rana wins on a measured metric. Dropping rana is a valid outcome, not a failure.
++ *Own the actuator, where it wins.* Desk revenue funds rana and torc. A purchased joint is replaced only where rana wins on a measured metric. Dropping rana is a valid outcome, not a failure.
 
 == Sizes
 
@@ -1911,7 +1912,7 @@ Vendors rarely say at what pose or duty cycle a rated payload holds. Our 1.27 kg
 
 *Gate.* ≥ 10 limbs sold to outside buyers at ≥ 40% gross margin, after materials, labor, test and warranty (invoices, trailing 12 months). Tool-point error ≤ 2.0 mm RMS on every limb shipped: 50 fixed poses, unloaded and at 1.0 kg, probe against a calibrated plate, printed on its receipt. rana ≥ 1.2 × RS04 in continuous stall torque per kg or per dollar, on one dyno at 25 °C, or rana is dropped (@tab:arc).
 
-= Pair <sec:pair>
+= Shop <sec:pair>
 
 *Two limbs at any table; a pair builds a pair.* Bolt two limbs to a table, add a camera pair and a core, and the table becomes a workstation. Nothing else changes: no rails, no enclosure, no special room. The same pair folds laundry, tends a mill, sorts parts or assembles the next limb. What it does is software, trained against the measured models of its own two limbs.
 
@@ -1946,7 +1947,7 @@ A pair learns in simulation first, against the measured model of its own two lim
 
 A pair is also the cell of this plan: the smallest unit that can make more of itself. It builds limbs, and two limbs make a pair. In order:
 
-+ A pair assembles a limb from cut plates and purchased actuators, and the limb passes the Limb test.
++ A pair assembles a limb from cut plates and purchased actuators, and the limb passes the Desk test.
 + A pair tends the mill and router that cut those plates, and winds and pots its own rana stators.
 + A pair builds a pair, with the bought fraction falling each generation.
 
@@ -1954,12 +1955,12 @@ Replication is a capability the product grows into, not the reason it exists.
 
 Then come the hard parts. Actuators end to end: magnets stay bought until a ferrite rana is validated, and bearings stay bought longest. Boards: a pair at a pick-and-place machine (@tab:boards). Silicon: loom would describe chyp, an inference chip, and rune (maskless lithography) would make it at a node a lab can own. Energy: the first pair that runs on panels it made. Silicon is not parked; a machine that reproduces off-planet cannot depend on anyone's fab.
 
-*Gate.* A pair at a customer's table completes a named task (for example, folding 50 garments) at ≥ 95% success. A pair assembles a limb that passes the Limb test in ≤ 30 min of human touch time. A pair builds a pair that passes its receipts at ≤ 20% bought cost, with bought share falling over 3 generations and a commanded shutdown drill passed in each (@tab:arc).
+*Gate.* A pair at a customer's table completes a named task (for example, folding 50 garments) at ≥ 95% success. A pair assembles a limb that passes the Desk test in ≤ 30 min of human touch time. A pair builds a pair that passes its receipts at ≤ 20% bought cost, with bought share falling over 3 generations and a commanded shutdown drill passed in each (@tab:arc).
 
-= Body <sec:mind>
+= Road <sec:mind>
 
 *A pair on legs that fits its own model.* A humanoid is two limbs, a torso, legs and a mind. It costs far more than a pair, and it goes where the work is.
- Body has three parts, in order: the body-schema claim (@sec:schema); co-design by gradient, in which vcad's differentiable kernel and phyz's contact adjoint optimize geometry, actuator sizing and controller together; and rana and torc at volume, with the limb fleet's real duty cycles as load cases. We will attempt co-design only where body shape limits the task @pond2026strategy. A gradient-designed replacement for a part that already works answers no question.
+ Road has three parts, in order: the body-schema claim (@sec:schema); co-design by gradient, in which vcad's differentiable kernel and phyz's contact adjoint optimize geometry, actuator sizing and controller together; and rana and torc at volume, with the limb fleet's real duty cycles as load cases. We will attempt co-design only where body shape limits the task @pond2026strategy. A gradient-designed replacement for a part that already works answers no question.
 
 == Bought
 
@@ -1985,7 +1986,7 @@ Rose is the humanoid we will build. The name is the thesis: past tense of rise, 
 
 In this plan, Rose's arms are limbs, full stop: a humanoid is a pair on legs, with a torso that carries the core bay and two packs (@sec:power). Each Rose takes the limb of its size: mini takes limb mini, full takes limb full, mega takes limb mega. The current drawings still carry four-degree-of-freedom arms on purchased actuators; replacing them with limbs, and the legs' purchased actuators with rana where it wins, is open work.
 
-Rose mini does not wait for the pair to sell. It starts now, in parallel, on purchased actuators and limb mini, because the K1 has shown the limits of a body we did not build. Body overlaps Pair; it does not follow it. Rose full's \$15,000 target is the G1’s price class @unitree2024g1, and it waits for rana.
+Rose mini does not wait for the pair to sell. It starts now, in parallel, on purchased actuators and limb mini, because the K1 has shown the limits of a body we did not build. Road overlaps Shop; it does not follow it. Rose full's \$15,000 target is the G1’s price class @unitree2024g1, and it waits for rana.
 
 One finding already shapes rana. Sized to jump, Rose mega is limited by speed, not torque. At peak current every rana delivers the same \~1.3 kW of mechanical power, set by the 48 V bus and a 30 A current limit, so a bigger rana buys torque, not power. A higher-voltage leg drive or series elastics, not a larger motor, is the lever for jumping.
 
@@ -1999,7 +2000,7 @@ One finding already shapes rana. Sized to jump, Rose mega is limited by speed, n
   caption: [#lead[Rose mini, full and mega] (modeled), each rendered at the height its CAD was drawn, not yet at the sizes in @tab:rose. The three do not yet share one design language; bringing mini and mega into full's bent sheet is open work.],
 ) <fig:rose>
 
-Ipse matters to this plan for two reasons: it produces Body's first claim, a body that fits its own model (@sec:schema), and it is the layer in @tab:safety that can refuse an instruction.
+Ipse matters to this plan for two reasons: it produces Road's first claim, a body that fits its own model (@sec:schema), and it is the layer in @tab:safety that can refuse an instruction.
 
 Ipse (Interoceptive Predictive Self-Emergence) is a scaffold for growing a mind on a K1 over months of lived experience @ipse2026brief. The name states the project's hypothesis, not a result. It is not a robot control stack. Its architecture is a world model with fast and slow latents; interoception (battery, joint temperature, motor current, IMU) enters as observation rather than reward. Its simulation runs in phyz, on bodies authored in vcad; no MuJoCo or Isaac is involved.
 
@@ -2016,7 +2017,7 @@ We do not name the robot. The design brief says it "should not be named by us": 
 
 == Self <sec:schema>
 
-The first claim of Body is Ipse's Phase 1 milestone. It is the body-schema result, not the world model @ipse2026brief @pond2026strategy.
+The first claim of Road is Ipse's Phase 1 milestone. It is the body-schema result, not the world model @ipse2026brief @pond2026strategy.
 
 *Claim.* The K1 starts from the vendor's model of its own body, which is known to be wrong in places. From its own exploratory movements (motor babbling), and by gradient descent through phyz's contact model, it fits a body schema: its own masses and inertias. The fitted schema must predict held-out motion better than persistence (the baseline defined in the falsifier below) and must match the CAD ground truth. We publish the residual between the two as the *measured body schema*.
 
@@ -2103,7 +2104,7 @@ Nothing of moth is built. Its airframe, pack and mass budget are not designed, a
 
 *Gate.* The litter pilot renews for ≥ 12 months after a ≥ 3-month trial, with 0 contact incidents. A city renews fleet and twin for ≥ 12 months. ≥ 90% of fleet repairs done by pairs in the city, by receipts (@tab:arc).
 
-= Planet <sec:planet>
+= Home <sec:planet>
 
 *Lineages on their own power.* Lineages of pairs spread to many cities and run on power they collected, from panels they made. The bought fraction approaches zero everywhere except chips, and every division is licensed (@sec:replication). The headline numbers become electrons under management and doubling time (@sec:eum): how long a lineage takes to double what it can build and power.
 
@@ -2123,13 +2124,13 @@ Nothing of moth is built. Its airframe, pack and mass budget are not designed, a
     content((6.05, 0.08), anchor: "west", text(font: mono-m, size: 6.3pt, fill: c-ok, tracking: track, upper[5%]))
     content((3.0, -0.15), anchor: "north", text(font: sans, size: 6.5pt, fill: c-label)[generations of pairs; orange is the bought share $b$])
   }),
-  [#lead[The bought fraction.] Each generation makes more of itself, so the bought share $b$ falls and cost tends to $C_"made"$: energy and time. Planet's gate is $b <= 5%$. Illustrative.],
+  [#lead[The bought fraction.] Each generation makes more of itself, so the bought share $b$ falls and cost tends to $C_"made"$: energy and time. Home's gate is $b <= 5%$. Illustrative.],
 ) <fig:eq-bought>
 
 
 = Moon <sec:moon>
 
-*A seed grows a pair, with a lifeline.* The Moon comes first because it is about three days away and 1.3 light-seconds out. A seed there runs the Pair loop with remote approval and teleoperated help when something breaks. It meets vacuum, abrasive dust, regolith as stock and no supply chain, with a lifeline. Its central measure is the same as Pair's: the bought fraction.
+*A seed grows a pair, with a lifeline.* The Moon comes first because it is about three days away and 1.3 light-seconds out. A seed there runs the Shop loop with remote approval and teleoperated help when something breaks. It meets vacuum, abrasive dust, regolith as stock and no supply chain, with a lifeline. Its central measure is the same as Shop's: the bought fraction.
 
 The seed is the smallest thing that can grow a pair: one pair, a mill and a router, a collector and a pack, the design in its germ line, and enough bought parts for a few generations. Before it flies, each of its hard problems gets a measured gap on Earth: vacuum and thermal cycling, abrasive dust in simulant, and radiation on a core. A single limb flown as a hosted payload would be the first number off Earth.
 
@@ -2137,7 +2138,7 @@ The seed is the smallest thing that can grow a pair: one pair, a mill and a rout
 
 = Mars <sec:mars>
 
-*The same seed, lifeline cut.* Mars is about seven months away and 3–22 light-minutes out, too far for remote hands, so the pair runs with no human commands between landing and its receipt. Moon and Mars add problems Pair never meets (launch mass, radiation, thermal cycling, extracting metal from regolith), and the Earth tests of @sec:moon only begin on them. Mars is where machines go first, so that people can follow: by the time a person lands, pairs will have built shelter, collectors and the means to make more of themselves (@sec:war).
+*The same seed, lifeline cut.* Mars is about seven months away and 3–22 light-minutes out, too far for remote hands, so the pair runs with no human commands between landing and its receipt. Moon and Mars add problems Shop never meets (launch mass, radiation, thermal cycling, extracting metal from regolith), and the Earth tests of @sec:moon only begin on them. Mars is where machines go first, so that people can follow: by the time a person lands, pairs will have built shelter, collectors and the means to make more of themselves (@sec:war).
 
 #mathfig(
   [$ t = d / c approx (0.55 "–" 4.0 times 10^8 "km") / (3.0 times 10^5 "km/s") $ #v(0.3em) $ approx 3 "–" 22 "min" $],
@@ -2167,11 +2168,11 @@ The seed is the smallest thing that can grow a pair: one pair, a mill and a rout
 
 *Gate.* A second pair with 0 human commands between landing and its receipt (@tab:arc).
 
-= Sun <sec:sun>
+= Star <sec:sun>
 
 *A swarm of collectors.* Each one is built by a pair. Not a shell: a rigid shell around a star is mechanically impossible, and a swarm can be built one collector at a time @dyson1960search. The steps, in order:
 
-+ *Collectors on Earth.* Planet's milestone, a lineage running on panels it made, is the first collector.
++ *Collectors on Earth.* Home's milestone, a lineage running on panels it made, is the first collector.
 + *Collectors from regolith.* On the Moon, pairs make collectors from local silicon, aluminum and iron.
 + *Collectors in orbit.* Pairs launch what they make, from a shallow gravity well.
 + *Mercury as the quarry.* Sunlight there is about 6.7 times stronger than at Earth (about 9,100 W/m² against 1,361 W/m²), and the planet is rich in metal. The classic swarm proposals start there @armstrong2013eternity.
@@ -2179,10 +2180,10 @@ The seed is the smallest thing that can grow a pair: one pair, a mill and a rout
 
 *Where the energy goes.* Power is used where it is collected. Most of it builds more collectors and pairs; the rest runs computation, including the minds that operate the swarm. We do not plan to beam power to Earth. What returns to Earth is products, data and knowledge, not energy.
 
-*How long.* From \~10 kW in Limb to 3.8 × 10#super[26] W is about 22 orders of magnitude, or about 75 doublings. At a doubling time of one year, that is about 75 years; at five years, about 375. Every stage before Sun exists partly to measure and shorten that doubling time, inside the limits of @sec:replication.
+*How long.* From \~10 kW in Desk to 3.8 × 10#super[26] W is about 22 orders of magnitude, or about 75 doublings. At a doubling time of one year, that is about 75 years; at five years, about 375. Every stage before Star exists partly to measure and shorten that doubling time, inside the limits of @sec:replication.
 
 #mathfig(
-  [$ n = log_2 P_"Sun" / P_"Limb" approx log_2 (3.8 times 10^26) / 10^4 approx 75 $ #v(0.4em) $ t_"Sun" = n thin T_d $],
+  [$ n = log_2 P_"Sun" / P_"Desk" approx log_2 (3.8 times 10^26) / 10^4 approx 75 $ #v(0.4em) $ t_"Star" = n thin T_d $],
   cetz.canvas(length: 1.3cm, {
     import cetz.draw: *
     // 75 doublings, 15 to a row; the first one lit
@@ -2232,18 +2233,18 @@ Most of what this paper describes is *proposed*, not operational. @tab:status se
     [moth], pips(1), [Not designed],
     [Actuator dyno], pips(1), [Does not exist],
     [Seed], pips(1), [Concept only],
-    [Body through Sun], pips(0), [Goals, not claims],
+    [Road through Star], pips(0), [Goals, not claims],
   ),
   caption: [#lead[Where everything stands] (October 2026). Pips: concept, designed, built, measured. #box(baseline: 0.1em, box(width: 0.62em, height: 0.62em, radius: 50%, stroke: 0.8pt + c-info)) shown in simulation only. Nothing is yet measured on hardware.],
 ) <tab:status>
 
 == Claims
 
-This paper does not claim that any machine we have built makes copies of itself. None does. It does not claim that the stages after Limb will happen on any schedule. It does not claim emergence, general intelligence, or consciousness for any system. The mind research described in @sec:mind will preregister a narrow claim about the robot's body schema and treats everything beyond it as an open question.
+This paper does not claim that any machine we have built makes copies of itself. None does. It does not claim that the stages after Desk will happen on any schedule. It does not claim emergence, general intelligence, or consciousness for any system. The mind research described in @sec:mind will preregister a narrow claim about the robot's body schema and treats everything beyond it as an open question.
 
 Some words come from the Ipse design brief. They name parts of a research architecture, not established properties. "Mind" is the project's word for its learning system. "Refuse" and "reluctance" name behavior the architecture is designed to allow and to log, not a separate module. "Drives" are predictions about preferred internal states. "Self-Emergence" states the hypothesis the self-probe will test. None of these words is a claim about experience.
 
-It does not claim our actuator is better than a purchased one. Limb's second step exists to find out on an actuator dynamometer (the dyno), which is planned and not yet built, and dropping our actuator is a valid outcome.
+It does not claim our actuator is better than a purchased one. Desk's second step exists to find out on an actuator dynamometer (the dyno), which is planned and not yet built, and dropping our actuator is a valid outcome.
 
 It does not claim that any limb exists, or that the K1 can pick up litter. No limb has been built and the K1 has not grasped litter.
 
@@ -2253,10 +2254,10 @@ It does not claim the municipal pilot exists. Lakewood is a reference case, chos
 
 Four results would prove the plan wrong:
 
-- *Limbs do not sell at margin.* Fewer than ten limbs at 40% gross margin means Limb cannot fund the rest.
+- *Limbs do not sell at margin.* Fewer than ten limbs at 40% gross margin means Desk cannot fund the rest.
 - *The gap does not close.* If built limbs cannot hold 2 mm RMS against their own model, the loop has nothing to learn from.
-- *A pair cannot build a limb.* If a pair-built limb needs more than 30 minutes of human touch or more than a fifth of a pair's cost bought, Pair is out of reach.
-- *Gradients do not survive real contact.* If the body-schema fit cannot beat persistence on hardware, Body's method fails.
+- *A pair cannot build a limb.* If a pair-built limb needs more than 30 minutes of human touch or more than a fifth of a pair's cost bought, Shop is out of reach.
+- *Gradients do not survive real contact.* If the body-schema fit cannot beat persistence on hardware, Road's method fails.
 
 #figure(
   table(
@@ -2266,7 +2267,7 @@ Four results would prove the plan wrong:
     [One actuator supplier (RobStride)], [A price or lead-time change], [rana, which replaces a RobStride joint only once it is validated (@sec:rana, @tab:sens)],
     [Limb hold too small for buyers (1.27 kg straight out, modeled)], [Buyers decline at that rating], [Rate the hold by pose, since bent poses hold more, and design the springs (@sec:arm)],
     [Bought humanoid (Booster K1)], [Vendor support ends], [The K1 is a control, not a dependency; Rose is the body measured against it (@sec:mind)],
-    [Breadth across many projects], [Stage gates slip], [Projects not needed in Limb wait for their stage (@fig:elements)],
+    [Breadth across many projects], [Stage gates slip], [Projects not needed in Desk wait for their stage (@fig:elements)],
     [rana never beats bought actuators], [Dyno results], [Keep buying RobStride. Dropping rana is a valid outcome],
     [Sidewalk incident; legal fit of the Lakewood pilot], [An incident, or the city declines], [See @sec:safety and @sec:city. The specific response is open, pending decision],
   ),
@@ -2289,12 +2290,12 @@ Each open item is limited by one of four things. Sorting them shows which can be
 
 == Timeline
 
-We give dates only for Limb, and those are approximate: two steps over roughly three years, each gated on evidence. Rose mini starts now, in parallel, but no stage after Limb has a date, Body included.
+We give dates only for Desk, and those are approximate: two steps over roughly three years, each gated on evidence. Rose mini starts now, in parallel, but no stage after Desk has a date, Road included.
 
 What we can say:
 
 - What exists is a Booster K1, the software stack, a CNC mill and this plan.
-- The limb is designed and ready to cut; none is built yet. The first measured sim-to-real gap on a built limb (@tab:arc, Limb) is the next milestone that matters.
+- The limb is designed and ready to cut; none is built yet. The first measured sim-to-real gap on a built limb (@tab:arc, Desk) is the next milestone that matters.
 - The litter reacher is a concept; the K1 has not grasped litter.
 - The pair is a concept. Its table plate and hub are not designed.
 - The body-schema fit has worked in simulation. The hardware run will be preregistered before it happens, and the result will be published either way.
@@ -2311,7 +2312,7 @@ What we can say:
     [#status("warn", "Estimated")], [Limb and pair materials; RS04 stall derate for the fork's plates; rana BOM line items and the \$1,086 total; rana raw-material cost and idiot index; RobStride retail prices; margins and sensitivity; limb peak power; K1 and pair power draw (EUM baseline)],
     [#status("label", "Target")], [List prices: limb \$5,000, pair \$12,000, Rose \$15,000; all gate thresholds (@tab:arc), proposed],
     [#status("label", "Hypothesis with a stated falsifier")], [The hardware body-schema result],
-    [#status("label", "Goal, not a claim")], [Body through Sun and their watt figures, including any self-replication; the litter reacher concept],
+    [#status("label", "Goal, not a claim")], [Road through Star and their watt figures, including any self-replication; the litter reacher concept],
   ), align(left, text(font: mono, size: s-xs, fill: c-label)[#caps(font: mono-sb)[Status key] #h(0.5em) #status("ok", "ok") measured or sourced #h(0.6em) #status("info", "info") model output #h(0.6em) #status("warn", "warn") estimate #h(0.6em) #status("label", "label") target, hypothesis or goal #h(0.6em) #status("fault", "fault") failed or unreachable])) },
   caption: [#lead[Evidence classes for the numbers in this paper]],
 ) <tab:evidence>
@@ -2324,11 +2325,11 @@ The ladder is a direction, not a schedule. We will publish each gate's evidence 
 
 = Conclusion
 
-The cover asks what it would take for a machine to make the next one. The answer is the oldest engineering problem a spacefaring species has, and on the evidence in this paper it comes down to three things: a gap between simulation and reality measured on every unit, so that a machine rather than a person can judge whether a part is right; a bought fraction that falls toward zero; and a force limit that lives in hardware. None of the three is measured yet. Limb starts measuring the first.
+The cover asks what it would take for a machine to make the next one. The answer is the oldest engineering problem a spacefaring species has, and on the evidence in this paper it comes down to three things: a gap between simulation and reality measured on every unit, so that a machine rather than a person can judge whether a part is right; a bought fraction that falls toward zero; and a force limit that lives in hardware. None of the three is measured yet. Desk starts measuring the first.
 
 It does so with things that can be checked: a limb on purchased actuators, designed and ready to cut, at \$5,000; a pair of them on any table, at \$12,000; and, if a city agrees, a bought humanoid with a reacher picking up litter in Lakewood, a method still under design. Each closes on an exact gate (@tab:arc).
 
-Everything after Limb is a goal and is labeled as one. Three commitments do not wait for any gate: we will never be Flock Safety; everything that can be open is open; and the system's refusals are logged and never trained away.
+Everything after Desk is a goal and is labeled as one. Three commitments do not wait for any gate: we will never be Flock Safety; everything that can be open is open; and the system's refusals are logged and never trained away.
 
 Humanity does not get to space on rockets alone. It gets there when the machines that make machines can be carried in a seed and trusted to grow. Today that seed is one person, one humanoid, one mill and a specification. The specification is the part that can spread.
 
@@ -2336,7 +2337,7 @@ Imagine where it leads. Clean streets in every city, mapped for the people who l
 
 == Now
 
-Limb is the current stage (@sec:arm). The next three results, each published whatever it shows:
+Desk is the current stage (@sec:arm). The next three results, each published whatever it shows:
 
 + The first built limb's reach, hold and sag, against its model (@tab:arm).
 + rana's first dyno run, against its predicted 36 N·m peak.
@@ -2374,16 +2375,16 @@ Every stage closes on gates of the same form: a number, a unit, a method and a p
     columns: (auto, 2fr, auto),
     align: (left + top, left + top, left + top),
     table.header([*Stage*], [*Gate: number, method, pass condition*], [*EUM, order*]),
-    [Limb (yrs 1–3)], [≥ 10 limbs sold to outside buyers at ≥ 40% gross margin, after materials, labor, test and warranty (invoices, trailing 12 months). Tool-point error ≤ 2.0 mm RMS on every limb shipped: 50 fixed poses, unloaded and at 1.0 kg, probe against a calibrated plate, printed on its receipt. rana ≥ 1.2 × RS04 in continuous stall torque per kg or per dollar, on one dyno at 25 °C, or rana is dropped], [0 W → 10 kW],
-    [Pair], [A pair at a customer's table completes a named task (for example, folding 50 garments) at ≥ 95% success. A pair assembles a limb that passes the Limb test in ≤ 30 min of human touch time. A pair builds a pair that passes its receipts at ≤ 20% bought cost, with bought share falling over 3 generations and a commanded shutdown drill passed in each], [100 kW],
-    [Body], [Preregistered hardware body-schema fit: held-out joint-position error ≤ 0.8 × persistence at 0.1 s and 0.5 s, and fitted link masses within ±5% of weighed parts. Rose walks 100 m on level pavement carrying two limbs, 0 falls in 5 of 5. A gradient co-designed part beats its hand-designed predecessor by ≥ 10% on its named objective], [1 MW],
+    [Desk (yrs 1–3)], [≥ 10 limbs sold to outside buyers at ≥ 40% gross margin, after materials, labor, test and warranty (invoices, trailing 12 months). Tool-point error ≤ 2.0 mm RMS on every limb shipped: 50 fixed poses, unloaded and at 1.0 kg, probe against a calibrated plate, printed on its receipt. rana ≥ 1.2 × RS04 in continuous stall torque per kg or per dollar, on one dyno at 25 °C, or rana is dropped], [0 W → 10 kW],
+    [Shop], [A pair at a customer's table completes a named task (for example, folding 50 garments) at ≥ 95% success. A pair assembles a limb that passes the Desk test in ≤ 30 min of human touch time. A pair builds a pair that passes its receipts at ≤ 20% bought cost, with bought share falling over 3 generations and a commanded shutdown drill passed in each], [100 kW],
+    [Road], [Preregistered hardware body-schema fit: held-out joint-position error ≤ 0.8 × persistence at 0.1 s and 0.5 s, and fitted link masses within ±5% of weighed parts. Rose walks 100 m on level pavement carrying two limbs, 0 falls in 5 of 5. A gradient co-designed part beats its hand-designed predecessor by ≥ 10% on its named objective], [1 MW],
     [City], [The litter pilot renews for ≥ 12 months after a ≥ 3-month trial, with 0 contact incidents. A city renews fleet and twin for ≥ 12 months. ≥ 90% of fleet repairs done by pairs in the city, by receipts], [10 MW],
-    [Planet], [A lineage runs ≥ 1 year on collectors it made; doubling time measured over ≥ 3 generations; bought share ≤ 5% of cost], [1 GW],
+    [Home], [A lineage runs ≥ 1 year on collectors it made; doubling time measured over ≥ 3 generations; bought share ≤ 5% of cost], [1 GW],
     [Moon], [A seed builds a pair that passes the Earth receipts, ≥ 50% of its mass from local material, with remote approval only], [1 kW],
     [Mars], [A second pair with 0 human commands between landing and its receipt], [1 kW],
-    [Sun], [None we can set now; reported as EUM and doubling time], [3.8 × 10#super[26] W],
+    [Star], [None we can set now; reported as EUM and doubling time], [3.8 × 10#super[26] W],
   ),
-  caption: [#lead[Gates, stage by stage] @mr2026masterplan. *Proposed targets, to be confirmed by the author.* The year range for Limb is an aspiration, not a commitment.],
+  caption: [#lead[Gates, stage by stage] @mr2026masterplan. *Proposed targets, to be confirmed by the author.* The year range for Desk is an aspiration, not a commitment.],
 ) <tab:arc>
 
 = Gripper numbers <app:grip>

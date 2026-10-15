@@ -35,6 +35,7 @@ or the hardware mockups. Newest first within a date.
 | D22 | **rose mini starts now, in parallel, on limb mini.** Body overlaps Pair. | The K1 shows the limits of a bought body. | Waiting for pairs to sell. |
 | D23 | **City sells clean streets and the map, bundled; pricing stays open.** | Set with the first city. | Per-mile pricing in the paper. |
 | D24 | **The reader should finish with: this is real, I want in, awe, trust, hope.** Hope lives in War, City and the ending; far stages stay poetic. | — | Engineering detail for Planet through Sun. |
+| D25 | **Stages are four-letter places, one scale: Desk → Shop → Road → City → Home → Moon → Mars → Star** (were Limb, Pair, Body, City, Planet, Moon, Mars, Sun). | Product names no longer double as stage names; each stage is a place, farther from home than the last. | Curb, Walk (street stage); Gaia, Land (planet stage); Sun, Halo (last stage). |
 
 ## Corrections found in review
 
