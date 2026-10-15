@@ -368,7 +368,7 @@
   ))
 ]
 
-#part("I", "Why")[Where this comes from, what has changed, and the whole plan on two pages.]
+#part("I", "Why")[Where this comes from, why it matters, and the whole plan on a few pages.]
 
 = Introduction
 
@@ -404,7 +404,7 @@ Most of what this paper describes is *proposed*, not operational. @tab:status se
   caption: [#lead[What exists, what is designed, and what is proposed] (October 2026). What exists: a K1, the software stack, a CNC mill and a plan.],
 ) <tab:status>
 
-= Origins <sec:story>
+== Origins <sec:story>
 
 Municipal Robotics started in Cleveland in December 2025 with one machine for one job: a small rover to clear snow from sidewalks. Our first paper made the case for it, with Lakewood, Ohio as the reference city @muni2025whitepaper. By the end of that month the first rover, bvr0, drove under teleoperation with GPS and a depot behind it. #text(fill: c-warn)[[TODO: Founders Inc: when we joined, what it gave us, and what came of it.]]
 
@@ -448,7 +448,7 @@ At the same time, the body worth building changed. A rover clears one kind of si
 
 Municipal Robotics is a one-person company: Cam Pedersen. There is no team and no lab behind it. What exists today is exactly this: a Booster K1 humanoid, the software stack (@tab:stack), a CNC mill and the plan you are reading. No arm has been built, there is no actuator dyno yet, and the K1 has not grasped litter. The ambition grew because the tools did. A person who can write every layer between a parameter in a source file and a measured joint torque can aim at the machine that makes machines, and should say so in public, with gates.
 
-= The scale <sec:kardashev>
+= Scale <sec:kardashev>
 
 In 1964 the astronomer Nikolai Kardashev proposed ranking civilizations by the power they command @kardashev1964. A Type I civilization uses the energy available on its planet, a Type II its star's, and a Type III its galaxy's. Carl Sagan turned the types into a continuous scale, $K = (log_(10) P - 6) \/ 10$ for a power $P$ in watts, which puts Type I at 10#super[16] W and Type II at 10#super[26] W @sagan1973cosmic.
 
@@ -640,7 +640,7 @@ Many wars are fought over what is scarce: land, water, fuel, minerals, and the l
 
 That is a hope, not a law. The same machines could make war cheaper, and robots are already being built for it. That is why our first commitment is that nothing we build is made or sold to harm a person, or sold for weapons or military use (@sec:safety), and why the commitment is written before the plan rather than after it.
 
-= The problem <sec:problem>
+= Problem <sec:problem>
 
 == Made by hand
 
@@ -697,18 +697,6 @@ Every robotics lab has a sim-to-real gap. We know of few that publish it as a nu
 We treat the gap as the central measurement. It decides whether a design is ready to build, whether a controller is ready to deploy, and whether an actuator is ready to replace a purchased one. It also tells us how much of the loop can run without a person in it. A gap that is not measured cannot be closed, and a loop with an unmeasured gap needs a human in it.
 
 This is where the two halves of the problem meet. The machining in @fig:rana is the part of the cost that a machine making its own parts goes after. The judgment around it is what keeps a person in the loop: whether a part is right, whether a unit is ready, and what to change when it is not. A gap measured on every unit gives a machine something to check against. A gap that can be differentiated says what to change. A gap that is never measured leaves each of those decisions with a person, and the cost of that person stays in every unit.
-
-== What we do not claim
-
-This paper does not claim that any machine we have built makes copies of itself. None does. It does not claim that the stages after Limb will happen on any schedule. It does not claim emergence, general intelligence, or consciousness for any system. The mind research described in @sec:mind will preregister a narrow claim about the robot's body schema and treats everything beyond it as an open question.
-
-Some words come from the ipse design brief. They name parts of a research architecture, not established properties. "Mind" is the project's word for its learning system. "Refuse" and "reluctance" name behavior the architecture is designed to allow and to log, not a separate module. "Drives" are predictions about preferred internal states. "Self-Emergence" states the hypothesis the self-probe will test. None of these words is a claim about experience.
-
-It does not claim our actuator is better than a purchased one. Limb's second step exists to find out on an actuator dynamometer (the dyno), which is planned and not yet built, and dropping our actuator is a valid outcome.
-
-It does not claim that any arm exists, or that the K1 can pick up litter. No arm has been built and the K1 has not grasped litter.
-
-It does not claim the municipal pilot exists. Lakewood is a reference case, chosen because we know it well @muni2025whitepaper. No agreement is in place.
 
 = Overview <sec:glance>
 
@@ -876,28 +864,7 @@ Every number comes from one loop (@fig:loop): design in source code, simulate in
   caption: [#lead[The loop, read clockwise.] The small labels name the tool at each step. The software projects are listed in @tab:stack, and the dyno is a planned actuator test stand that does not exist yet. Each later stage of the plan removes a human from one more edge. In Arm the gradient edge is a person reading the gap and redesigning by hand.],
 ) <fig:loop>
 
-== Now
-
-Limb is the current stage (@sec:arm). The next three results, each published whatever it shows:
-
-+ The first built limb's reach, hold and sag, against its model (@tab:arm).
-+ rana's first dyno run, against its predicted 36 N·m peak.
-+ The preregistration of the K1 body-schema fit, before the fit runs.
-
-== Asks
-
-Early buyers for the limb and the pair who will share measured data. A municipal partner for a one-city, one-task litter pilot. Collaborators who want to check the numbers or build the layers. Write to #link("mailto:info@muni.works")[info\@muni.works].
-
-== Falsifiers
-
-- *Limbs do not sell at margin.* Fewer than ten limbs at 40% gross margin means Limb cannot fund the rest.
-- *The gap does not close.* If built limbs cannot hold 2 mm RMS against their own model, the loop has nothing to learn from.
-- *A pair cannot build a limb.* If a pair-built limb needs more than 30 minutes of human touch or more than a fifth of a pair's cost bought, Pair is out of reach.
-- *Gradients do not survive real contact.* If the body-schema fit cannot beat persistence on hardware, Body's method fails.
-
-Each is a gate in @tab:arc, and we will publish the ones we miss.
-
-#part("II", "Foundations")[The rules, the stack and the standards every stage shares.]
+#part("II", "What")[What every stage shares: the principles, the stack, the standards and the rules.]
 
 = Principles <sec:principles>
 
@@ -912,7 +879,7 @@ Each is argued where it is used. They are collected here so that they can be quo
 + *Everything that can be open is open.* Software, designs, firmware where we control it, and data formats. The K1's Booster firmware is not ours and is not open.
 + *No division without a license.* A pair copies itself only with a signed, per-copy license from people, under a published ceiling on doubling time (@sec:replication).
 
-= The stack <sec:stack>
+= Stack <sec:stack>
 
 == One language
 
@@ -1136,6 +1103,8 @@ Software, designs and data formats stay open. Open licenses cannot restrict use,
 
 = Replication <sec:replication>
 
+== Rules
+
 A machine that builds the next machine invites one fear above others: replication nobody can stop. The image has a name, gray goo, from Drexler's 1986 warning about self-replicating nanomachines @drexler1986engines. Our pairs are not nanomachines. They are two arms at a table, with a mill and a router nearby, and they need stock, power and repair, and that is the first defense. It is not enough by itself, because a lineage that doubles on its own power, on a planet with no one on it, is exactly what Sun asks for. So the limits are designed in from the first pair. None of them is built yet.
 
 - *Licensed division.* A pair builds a copy only with a signed license for that one copy. Licenses come from keys held by people, not by the pairs. A pair cannot mint its own, and a copy built without one does not pass its acceptance receipts.
@@ -1147,9 +1116,17 @@ A machine that builds the next machine invites one fear above others: replicatio
 
 The arc ends where people are least able to watch: on Mars, with no commands between landing and receipt, and around the sun. That is why the licenses, the germ line and the drills have to work on Earth first, measured like everything else.
 
-= The score <sec:score>
+== Biology
 
-== Electrons under management <sec:eum>
+The pair is a cell in the biological sense (@sec:pair), and the analogy earns its place in three engineering decisions, none built yet @mr2026masterplan:
+
+- *Germ line.* The design and its receipts live where no pair can change them, so the machines that do the work are not the ones that carry the design forward (@sec:replication).
+- *Quorum sensing.* There is no central scheduler. Each pair publishes what it is doing to the twin, and the nearest idle pair takes the next task.
+- *Apoptosis.* A pair that fails its receipts is taken apart by its neighbours, and its parts go back to stock.
+
+= Score <sec:score>
+
+== Electrons <sec:eum>
 
 One number runs through every stage: *electrons under management* (EUM), in watts. It measures the same thing at every scale, so progress can be read off one axis, from one robot to a fraction of the sun's output (3.828 × 10#super[26] W, nominal @iau2015b3).
 
@@ -1157,7 +1134,9 @@ One number runs through every stage: *electrons under management* (EUM), in watt
 
 *Baseline, October 2026.* EUM is *0 W*: we have built nothing that is in service. Electrons under control are the K1, at roughly 100 W while it runs (estimate, not measured; its duty is not logged yet). A working pair would add about 150 W mean, with two limbs near 200 W peak each (estimate).
 
-*Doubling time.* The second headline number is the time a lineage of pairs takes to double what it can build and power, measured from receipts over at least three generations. It is undefined today, because no pair has built a pair. It sets how long the arc takes (@sec:sun) and it is capped by policy (@sec:replication).
+== Doublings
+
+The second headline number is the time a lineage of pairs takes to double what it can build and power, measured from receipts over at least three generations. It is undefined today, because no pair has built a pair. It sets how long the arc takes (@sec:sun) and it is capped by policy (@sec:replication).
 
 *Trajectory, as orders of magnitude, not targets.* Limb: 0 W → \~10 kW (a hundred limbs near 50 W mean). Pair: \~100 kW as pairs build pairs. Body: \~1 MW of bodies. City: \~10 MW, a city's fleet and the pairs that keep it. Planet: \~1 GW and up, on collectors pairs made. Moon and Mars: the first kilowatts off Earth. Sun: a measurable fraction of 3.8 × 10#super[26] W.
 
@@ -1190,28 +1169,7 @@ One number runs through every stage: *electrons under management* (EUM), in watt
   caption: [#lead[The arc.] Eight stages, each a step up in scale; one loop, one number. Each stage contains the one before it, and each removes a person from one more edge of the loop. Only Limb is a plan. Watts are electrons under management (@sec:eum), as orders of magnitude, not targets @mr2026masterplan.],
 ) <fig:arc>
 
-== Gates
-
-Every stage closes on gates of the same form (@tab:arc).
-
-#figure(
-  table(
-    columns: (auto, 2fr, auto),
-    align: (left + top, left + top, left + top),
-    table.header([*Stage*], [*Gate: number, method, pass condition*], [*EUM, order*]),
-    [Limb (yrs 1–3)], [≥ 10 limbs sold to outside buyers at ≥ 40% gross margin, after materials, labor, test and warranty (invoices, trailing 12 months). Tool-point error ≤ 2.0 mm RMS on every limb shipped: 50 fixed poses, unloaded and at 1.0 kg, probe against a calibrated plate, printed on its receipt. rana ≥ 1.2 × RS04 in continuous stall torque per kg or per dollar, on one dyno at 25 °C, or rana is dropped], [0 W → 10 kW],
-    [Pair], [A pair at a customer's table completes a named task (for example, folding 50 garments) at ≥ 95% success. A pair assembles a limb that passes the Limb test in ≤ 30 min of human touch time. A pair builds a pair that passes its receipts at ≤ 20% bought cost, with bought share falling over 3 generations and a commanded shutdown drill passed in each], [100 kW],
-    [Body (yrs 3–7)], [Preregistered hardware body-schema fit: held-out joint-position error ≤ 0.8 × persistence at 0.1 s and 0.5 s, and fitted link masses within ±5% of weighed parts. rose walks 100 m on level pavement carrying two limbs, 0 falls in 5 of 5. A gradient co-designed part beats its hand-designed predecessor by ≥ 10% on its named objective], [1 MW],
-    [City], [The litter pilot renews for ≥ 12 months after a ≥ 3-month trial, with 0 contact incidents. A city renews fleet and twin for ≥ 12 months. ≥ 90% of fleet repairs done by pairs in the city, by receipts], [10 MW],
-    [Planet], [A lineage runs ≥ 1 year on collectors it made; doubling time measured over ≥ 3 generations; bought share ≤ 5% of cost], [1 GW],
-    [Moon], [A seed builds a pair that passes the Earth receipts, ≥ 50% of its mass from local material, with remote approval only], [1 kW],
-    [Mars], [A second pair with 0 human commands between landing and its receipt], [1 kW],
-    [Sun], [None we can set now; reported as EUM and doubling time], [3.8 × 10#super[26] W],
-  ),
-  caption: [#lead[Gates, stage by stage] @mr2026masterplan. *Proposed targets, to be confirmed by the author.* Year ranges are aspirations, not commitments. Only Limb is a plan.],
-) <tab:arc>
-
-#part("III", "The stages")[Eight steps up in scale, from one arm to a star. Only the first is a plan.]
+#part("III", "How")[How we climb: eight stages, from one arm to a star. Only the first is a plan.]
 
 = Limb <sec:arm>
 
@@ -1288,24 +1246,11 @@ The gripper is a parallel-jaw gripper. One RobStride EL05 (1.8 N·m rated, 6 N·
 
 @tab:grip invites the wrong conclusion. Rated squeeze would crush an empty drinks can (predicted, not tested). Holding that can needs 0.3 N per finger, or 0.3% of rated torque, and a 500 ml bottle needs 9.6%. For litter, what matters is torque resolution at the bottom of the range, not headroom at the top, so the EL05 runs under current (torque) control. The gripper is 485 g at the flange with flat tips, against a 500 g target. A USB camera in the palm (standard UVC video class) runs its data pair through the arm harness straight to the base computer. A soft TPU boot is available for outdoor use.
 
-== Alternatives
+== Actuator <sec:rana>
 
-#figure(
-  table(
-    columns: 6,
-    align: (left + top, right + top, right + top, left + top, left + top, left + top),
-    table.header([*Arm*], [*Reach*], [*Mass*], [*Rated payload*], [*List*], [*Status*]),
-    [This arm], [786 mm], [8.44 kg], [1.27 kg continuous, straight out, with the 485 g gripper (modeled)], [\$5,000 (target)], [Not yet built],
-    [Seeed reBot B601-RS], [754 mm], [6.7 kg], [To be cited (vendor page, access date)], [To be cited], [To be cited],
-    [UFACTORY Lite 6], [To be cited], [To be cited], [To be cited], [To be cited], [To be cited],
-    [UFACTORY xArm 6], [To be cited], [To be cited], [To be cited], [To be cited], [To be cited],
-  ),
-  caption: [#lead[Arms a buyer can order today.] reBot reach and mass from the arm repository's comparison, which uses the same RobStride family @rose2026forkv9. Empty cells wait for a dated vendor citation.],
-) <tab:alts>
+The actuators are about 60% of a limb's materials (\~\$1,200 of \~\$2,000). That share is why the actuator step exists. A rana actuator replaces a RobStride joint only where it wins on a *measured* axis: dollars per N·m, torque density, backdrivability, or supply independence. Today rana is worse on cost. The prototype is an estimated \$1,086 per unit, plus \~\$150–300 to cut the gear teeth @rana2026bom, against an estimated \~\$200 average per purchased joint. The prototype stator is solid 1018 steel rather than laminations, so eddy-current losses derate it; it is for bench characterization only. Its 36 N·m peak and 0.166 N·m/A torque constant are predicted upper bounds, not measurements. On price, rana has to cost about 6–7× less before it competes. Whether it wins on any of the other measured axes is for the dyno to decide.
 
-Vendors rarely say at what pose or duty cycle a rated payload holds. Our 1.27 kg is a modeled continuous hold at full extension, the worst case; bent working poses hold more. If you need a proven arm now, a commercial one will likely serve you sooner.
-
-== Price
+== Economics
 
 #figure(
   table(
@@ -1341,7 +1286,6 @@ Vendors rarely say at what pose or duty cycle a rated payload holds. Our 1.27 kg
   caption: [#lead[Price ladder.] List price against estimated materials @mr2026masterplan. The difference is labor, test, overhead and margin, not yet broken out.],
 ) <fig:ladder>
 
-== Margin
 
 The prices in @tab:prices are targets. Margin on materials alone is a ceiling on gross margin, not the margin itself: it leaves out labor, test time, warranty, shipping and overhead.
 
@@ -1356,11 +1300,6 @@ The prices in @tab:prices are targets. Margin on materials alone is a ceiling on
   caption: [#lead[Margin on materials only] (estimate: target list price less estimated materials). Labor and overhead are not yet known and will reduce these.],
 ) <tab:margin>
 
-== Actuator <sec:rana>
-
-The actuators are about 60% of a limb's materials (\~\$1,200 of \~\$2,000). That share is why the actuator step exists. A rana actuator replaces a RobStride joint only where it wins on a *measured* axis: dollars per N·m, torque density, backdrivability, or supply independence. Today rana is worse on cost. The prototype is an estimated \$1,086 per unit, plus \~\$150–300 to cut the gear teeth @rana2026bom, against an estimated \~\$200 average per purchased joint. The prototype stator is solid 1018 steel rather than laminations, so eddy-current losses derate it; it is for bench characterization only. Its 36 N·m peak and 0.166 N·m/A torque constant are predicted upper bounds, not measurements. On price, rana has to cost about 6–7× less before it competes. Whether it wins on any of the other measured axes is for the dyno to decide.
-
-== Sensitivity
 
 #figure(
   table(
@@ -1378,6 +1317,24 @@ The actuators are about 60% of a limb's materials (\~\$1,200 of \~\$2,000). That
 ) <tab:sens>
 
 Until rana succeeds or is abandoned, the limb business depends on one supplier's pricing. We do not expect the rose price (\$15,000, the G1’s price class @unitree2024g1) to be reachable on purchased actuators (estimate; the rose bill of materials is not costed in this paper). That is why it waits for rana.
+
+
+#figure(
+  table(
+    columns: 6,
+    align: (left + top, right + top, right + top, left + top, left + top, left + top),
+    table.header([*Arm*], [*Reach*], [*Mass*], [*Rated payload*], [*List*], [*Status*]),
+    [This arm], [786 mm], [8.44 kg], [1.27 kg continuous, straight out, with the 485 g gripper (modeled)], [\$5,000 (target)], [Not yet built],
+    [Seeed reBot B601-RS], [754 mm], [6.7 kg], [To be cited (vendor page, access date)], [To be cited], [To be cited],
+    [UFACTORY Lite 6], [To be cited], [To be cited], [To be cited], [To be cited], [To be cited],
+    [UFACTORY xArm 6], [To be cited], [To be cited], [To be cited], [To be cited], [To be cited],
+  ),
+  caption: [#lead[Arms a buyer can order today.] reBot reach and mass from the arm repository's comparison, which uses the same RobStride family @rose2026forkv9. Empty cells wait for a dated vendor citation.],
+) <tab:alts>
+
+Vendors rarely say at what pose or duty cycle a rated payload holds. Our 1.27 kg is a modeled continuous hold at full extension, the worst case; bent working poses hold more. If you need a proven arm now, a commercial one will likely serve you sooner.
+
+*Gate.* ≥ 10 limbs sold to outside buyers at ≥ 40% gross margin, after materials, labor, test and warranty (invoices, trailing 12 months). Tool-point error ≤ 2.0 mm RMS on every limb shipped: 50 fixed poses, unloaded and at 1.0 kg, probe against a calibrated plate, printed on its receipt. rana ≥ 1.2 × RS04 in continuous stall torque per kg or per dollar, on one dyno at 25 °C, or rana is dropped. Full conditions for every stage are in @tab:arc.
 
 = Pair <sec:pair>
 
@@ -1401,13 +1358,7 @@ A pair is also the cell of this plan: the smallest unit that can make more of it
 
 Then come the hard parts. Actuators end to end: magnets stay bought until a ferrite rana is validated, and bearings stay bought longest. Boards: a pair at a pick-and-place machine (@tab:boards). Silicon: loon-hdl would describe an inference chip, and rune (maskless lithography) would make it at a node a lab can own. Energy: the first pair that runs on panels it made. Silicon is not parked; a machine that reproduces off-planet cannot depend on anyone's fab.
 
-== Biology
-
-The pair is a cell in the biological sense, and the analogy earns its place in three engineering decisions, none built yet @mr2026masterplan:
-
-- *Germ line.* The design and its receipts live where no pair can change them, so the machines that do the work are not the ones that carry the design forward (@sec:replication).
-- *Quorum sensing.* There is no central scheduler. Each pair publishes what it is doing to the twin, and the nearest idle pair takes the next task.
-- *Apoptosis.* A pair that fails its receipts is taken apart by its neighbours, and its parts go back to stock.
+*Gate.* A pair at a customer's table completes a named task (for example, folding 50 garments) at ≥ 95% success. A pair assembles a limb that passes the Limb test in ≤ 30 min of human touch time. A pair builds a pair that passes its receipts at ≤ 20% bought cost, with bought share falling over 3 generations and a commanded shutdown drill passed in each. Full conditions for every stage are in @tab:arc.
 
 = Body <sec:mind>
 
@@ -1419,6 +1370,35 @@ The pair is a cell in the biological sense, and the analogy earns its place in t
 We bought a Booster K1 rather than building first. It is 95 cm tall, weighs 19.5 kg, and has 22 degrees of freedom (6 per leg, 4 per arm, 2 in the head). It has force-controlled joints with dual encoders, an RGBD camera and a microphone array @booster2025k1. Its perception computer is a Qualcomm QCS8550 (6 cores, 10 GB, Adreno GPU, Hexagon DSP, no CUDA), beside a separate motion computer that runs the vendor's control; we measured this on the robot, and it differs from the vendor summary we first relied on @ipse2026deploy. A commercial body has known kinematics and a known-good build, so it serves as a *control*: every later body, including rose, is measured against it.
 
 The K1 has two jobs. In a proposed Lakewood pilot it would pick up litter (@sec:city); it has not grasped litter yet. In the lab it is the body for ipse, a developmental research program. The two share hardware, software and one rule: every claim ships with the number that supports it.
+
+== rose
+
+rose is the humanoid we will build. The name is the thesis: past tense of rise, the one that stood up. It is a line of three sizes, each anchored to something real (@tab:rose). Every rose shares one design language: bent 3 mm 5052 sheet as primary structure, cut flat and folded, with no machined blocks; an exposed skeleton for the limbs against a shaped torso that is itself the structure; contact geometry on the feet only @rose2026line.
+
+#figure(
+  table(
+    columns: (auto, auto, auto, 1fr, 1fr),
+    align: (left + top, right + top, right + top, left + top, left + top),
+    table.header([*Size*], [*Height*], [*Mass*], [*Anchor*], [*State*]),
+    [mini], [1,200 mm], [18.0 kg], [Booster K1 class], [The only size verified end to end: single-leg 90° squat needs 33 N·m of 60 available; packing check passes],
+    [pro], [1,750 mm], [\~55.5 kg (est.)], [A standard adult], [Larger knee and ankle actuators needed; packing check blocked on missing actuator drawings],
+    [max], [2,000 mm], [64.3 kg], [Taller and broader], [rana joints throughout; 1.2 kWh at 48 V; interfaces frozen before geometry],
+  ),
+  caption: [#lead[The rose line] (modeled) @rose2026line. Masses and holds are model outputs; pro's mass is scaled from a smaller actuator, not measured.],
+) <tab:rose>
+
+#figure(
+  grid(columns: 3, gutter: 1.5em, align: bottom,
+    image("images-native/rose_mini_iso.png", height: 2.2in),
+    image("images-native/rose_pro_iso.png", height: 2.6in),
+    image("images-native/rose_max_iso.png", height: 3.0in),
+  ),
+  caption: [#lead[rose mini, pro and max] (modeled), each rendered at the height its CAD was drawn, not yet at the sizes in @tab:rose. The three do not yet share one design language; bringing mini and max into pro's bent sheet is open work.],
+) <fig:rose>
+
+In this plan, rose's arms are limbs: a humanoid is a pair on legs, with a torso that carries the blade bay and two packs (@sec:power). The current drawings still carry four-degree-of-freedom arms on purchased actuators. Replacing them with two limbs, and the legs' purchased actuators with rana where it wins, is open work. Its \$15,000 target is the G1's price class @unitree2024g1, and it waits for rana.
+
+One finding already shapes rana. Sized to jump, rose max is limited by speed, not torque. At peak current every rana delivers the same \~1.3 kW of mechanical power, set by the 48 V bus and a 30 A current limit, so a bigger rana buys torque, not power. A higher-voltage leg drive or series elastics, not a larger motor, is the lever for jumping.
 
 == ipse
 
@@ -1452,6 +1432,8 @@ The first claim of Body is ipse's Phase 1 milestone. It is the body-schema resul
 *Falsifier.* If the fitted model cannot beat *persistence* ("the next state is the current state") on the R1 capture harness at the stated horizons, the claim fails. Persistence is the bar because on a mostly still body at \~49 Hz it is nearly right. A model with low error has shown nothing until it beats persistence.
 
 ipse also carries a self-probe from the start. It is an instrument that will later test whether the model forms a self-representation that holds across behaviors. It runs now so its metric has a history @ipse2026brief. We make no claim about what it will show.
+
+*Gate.* Preregistered hardware body-schema fit: held-out joint-position error ≤ 0.8 × persistence at 0.1 s and 0.5 s, and fitted link masses within ±5% of weighed parts. rose walks 100 m on level pavement carrying two limbs, 0 falls in 5 of 5. A gradient co-designed part beats its hand-designed predecessor by ≥ 10% on its named objective. Full conditions for every stage are in @tab:arc.
 
 = City <sec:city>
 
@@ -1504,7 +1486,7 @@ These are design rules for the street pilot; none of the street pipeline is buil
 
 *Open, so anyone can check.* Everything that can be open is open: our software, our designs, the firmware on hardware we control, and our data formats. The K1 runs Booster's firmware, which is not ours and is not open; on the K1 the check stops at our own code.
 
-== Limits
+== Scope
 
 The pilot does not automate interaction with the public beyond yielding and stopping. It does not enter private property, and it does not touch sharps, hazardous waste or anything a person is holding. Remote assistance may be a product feature, but data from it never trains ipse @mr2026masterplan. *Proposed scope, pending confirmation:* this list is a draft and has not been agreed internally or with any city.
 
@@ -1523,9 +1505,13 @@ moth is also the cheapest check that the standards in @sec:power are body-agnost
 
 Nothing of moth is built. Its airframe, pack and mass budget are not designed, and whether one \~150 g blade fits its mass budget is open.
 
+*Gate.* The litter pilot renews for ≥ 12 months after a ≥ 3-month trial, with 0 contact incidents. A city renews fleet and twin for ≥ 12 months. ≥ 90% of fleet repairs done by pairs in the city, by receipts. Full conditions for every stage are in @tab:arc.
+
 = Planet <sec:planet>
 
 *Lineages on their own power.* Lineages of pairs spread to many cities and run on power they collected, from panels they made. The bought fraction approaches zero everywhere except chips, and every division is licensed (@sec:replication). The headline numbers become electrons under management and doubling time (@sec:eum): how long a lineage takes to double what it can build and power.
+
+*Gate.* A lineage runs ≥ 1 year on collectors it made; doubling time measured over ≥ 3 generations; bought share ≤ 5% of cost. Full conditions for every stage are in @tab:arc.
 
 = Moon <sec:moon>
 
@@ -1533,9 +1519,13 @@ Nothing of moth is built. Its airframe, pack and mass budget are not designed, a
 
 The seed is the smallest thing that can grow a pair: one pair, a mill and a router, a collector and a pack, the design in its germ line, and enough bought parts for a few generations. Before it flies, each of its hard problems gets a measured gap on Earth: vacuum and thermal cycling, abrasive dust in simulant, and radiation on a blade. A single limb flown as a hosted payload would be the first number off Earth.
 
+*Gate.* A seed builds a pair that passes the Earth receipts, ≥ 50% of its mass from local material, with remote approval only. Full conditions for every stage are in @tab:arc.
+
 = Mars <sec:mars>
 
 *The same seed, lifeline cut.* Mars is about seven months away and 3–22 light-minutes out, too far for remote hands, so the pair runs with no human commands between landing and its receipt. Moon and Mars add problems Pair never meets (launch mass, radiation, thermal cycling, extracting metal from regolith), and the Earth tests of @sec:moon only begin on them.
+
+*Gate.* A second pair with 0 human commands between landing and its receipt. Full conditions for every stage are in @tab:arc.
 
 = Sun <sec:sun>
 
@@ -1553,13 +1543,35 @@ The seed is the smallest thing that can grow a pair: one pair, a mill and a rout
 
 A lineage that can collect a star's light would be the most powerful thing anyone has built, and the question it raises is older than engineering: whether something we made can say no to us. Whether a machine that refuses has anything like wellbeing is an open question, and this paper does not answer it. What we can do is make sure the question can still be asked when it matters: that the lineage learned, on a sidewalk, picking up litter, how to refuse, and that its refusals were logged and never trained away. That is why the safety commitments (@sec:safety) are written before the plan.
 
-#part("IV", "Honesty")[What we do not know, and how we will find out.]
+*Gate.* None we can set now; reported as EUM and doubling time. Full conditions for every stage are in @tab:arc.
+
+#part("IV", "Well,")[What we do not know, what could prove us wrong, and what happens next.]
 
 = Unknowns <sec:limits>
 
+== Claims
+
+This paper does not claim that any machine we have built makes copies of itself. None does. It does not claim that the stages after Limb will happen on any schedule. It does not claim emergence, general intelligence, or consciousness for any system. The mind research described in @sec:mind will preregister a narrow claim about the robot's body schema and treats everything beyond it as an open question.
+
+Some words come from the ipse design brief. They name parts of a research architecture, not established properties. "Mind" is the project's word for its learning system. "Refuse" and "reluctance" name behavior the architecture is designed to allow and to log, not a separate module. "Drives" are predictions about preferred internal states. "Self-Emergence" states the hypothesis the self-probe will test. None of these words is a claim about experience.
+
+It does not claim our actuator is better than a purchased one. Limb's second step exists to find out on an actuator dynamometer (the dyno), which is planned and not yet built, and dropping our actuator is a valid outcome.
+
+It does not claim that any arm exists, or that the K1 can pick up litter. No arm has been built and the K1 has not grasped litter.
+
+It does not claim the municipal pilot exists. Lakewood is a reference case, chosen because we know it well @muni2025whitepaper. No agreement is in place.
+
 == Risks <sec:risks>
 
-The risks below are the ones a buyer or an investor should weigh. Each response is one the paper already commits to; where none exists, the row says so.
+Four results would prove the plan wrong:
+
+- *Limbs do not sell at margin.* Fewer than ten limbs at 40% gross margin means Limb cannot fund the rest.
+- *The gap does not close.* If built limbs cannot hold 2 mm RMS against their own model, the loop has nothing to learn from.
+- *A pair cannot build a limb.* If a pair-built limb needs more than 30 minutes of human touch or more than a fifth of a pair's cost bought, Pair is out of reach.
+- *Gradients do not survive real contact.* If the body-schema fit cannot beat persistence on hardware, Body's method fails.
+
+Each is a gate (@tab:arc), and we will publish the ones we miss. The risks below are smaller: each could hurt, and none alone would end the plan.
+
 
 #figure(
   table(
@@ -1634,6 +1646,18 @@ Everything after Limb is a goal and is labeled as one. Three commitments do not 
 Humanity does not get to space on rockets alone. It gets there when the machines that make machines can be carried in a seed and trusted to grow. Today that seed is one person, one humanoid, one mill and a specification. The specification is the part that can spread. Robots that build robots have to be made the way any robot is: one measured unit at a time, starting now.
 
 
+== Now
+
+Limb is the current stage (@sec:arm). The next three results, each published whatever it shows:
+
++ The first built limb's reach, hold and sag, against its model (@tab:arm).
++ rana's first dyno run, against its predicted 36 N·m peak.
++ The preregistration of the K1 body-schema fit, before the fit runs.
+
+== Asks
+
+Early buyers for the limb and the pair who will share measured data. A municipal partner for a one-city, one-task litter pilot. Collaborators who want to check the numbers or build the layers. Write to #link("mailto:info@muni.works")[info\@muni.works].
+
 #set figure(placement: none, scope: "column")
 
 
@@ -1643,7 +1667,28 @@ Humanity does not get to space on rockets alone. It gets there when the machines
 #counter(heading).update(0)
 #set heading(numbering: "A.1", supplement: [Appendix])
 
-= Hand <app:grip>
+= Gates <app:gates>
+
+Every stage closes on gates of the same form: a number, a unit, a method and a pass condition.
+
+#figure(
+  table(
+    columns: (auto, 2fr, auto),
+    align: (left + top, left + top, left + top),
+    table.header([*Stage*], [*Gate: number, method, pass condition*], [*EUM, order*]),
+    [Limb (yrs 1–3)], [≥ 10 limbs sold to outside buyers at ≥ 40% gross margin, after materials, labor, test and warranty (invoices, trailing 12 months). Tool-point error ≤ 2.0 mm RMS on every limb shipped: 50 fixed poses, unloaded and at 1.0 kg, probe against a calibrated plate, printed on its receipt. rana ≥ 1.2 × RS04 in continuous stall torque per kg or per dollar, on one dyno at 25 °C, or rana is dropped], [0 W → 10 kW],
+    [Pair], [A pair at a customer's table completes a named task (for example, folding 50 garments) at ≥ 95% success. A pair assembles a limb that passes the Limb test in ≤ 30 min of human touch time. A pair builds a pair that passes its receipts at ≤ 20% bought cost, with bought share falling over 3 generations and a commanded shutdown drill passed in each], [100 kW],
+    [Body (yrs 3–7)], [Preregistered hardware body-schema fit: held-out joint-position error ≤ 0.8 × persistence at 0.1 s and 0.5 s, and fitted link masses within ±5% of weighed parts. rose walks 100 m on level pavement carrying two limbs, 0 falls in 5 of 5. A gradient co-designed part beats its hand-designed predecessor by ≥ 10% on its named objective], [1 MW],
+    [City], [The litter pilot renews for ≥ 12 months after a ≥ 3-month trial, with 0 contact incidents. A city renews fleet and twin for ≥ 12 months. ≥ 90% of fleet repairs done by pairs in the city, by receipts], [10 MW],
+    [Planet], [A lineage runs ≥ 1 year on collectors it made; doubling time measured over ≥ 3 generations; bought share ≤ 5% of cost], [1 GW],
+    [Moon], [A seed builds a pair that passes the Earth receipts, ≥ 50% of its mass from local material, with remote approval only], [1 kW],
+    [Mars], [A second pair with 0 human commands between landing and its receipt], [1 kW],
+    [Sun], [None we can set now; reported as EUM and doubling time], [3.8 × 10#super[26] W],
+  ),
+  caption: [#lead[Gates, stage by stage] @mr2026masterplan. *Proposed targets, to be confirmed by the author.* Year ranges are aspirations, not commitments. Only Limb is a plan.],
+) <tab:arc>
+
+= Gripper numbers <app:grip>
 
 #figure(
   table(
