@@ -1251,7 +1251,7 @@ The stack is a tree rooted at one language, loon. Every project in it, software 
       rect((x, y), (x + w, y - w), fill: fl, stroke: st)
       content((x + 0.13 * k, y - 0.12 * k), anchor: "north-west", text(font: mono-m, size: 5.5pt * k, fill: meta, number-width: "tabular", str(num)))
       content((x + w - 0.13 * k, y - 0.12 * k), anchor: "north-east", text(font: mono-m, size: 4.6pt * k, fill: meta, tracking: track, wj(upper(stage))))
-      content((x + 0.11 * k, y - 0.5 * k), anchor: "north-west", text(font: mono-sb, size: 18pt * k, tracking: -0.04em, fill: ink, wj(name)))
+      content((x + 0.11 * k, y - 0.5 * k), anchor: "north-west", text(font: sans-sb, size: 19pt * k, tracking: -0.02em, fill: ink, wj(name)))
       content((x + 0.13 * k, y - w + 0.13 * k), anchor: "south-west", box(width: (w - 0.26 * k) * 1cm, par(leading: 0.32em, text(font: sans, size: 5.2pt * k, fill: meta, note.split(" ").map(wj).join(" ")))))
     }
     let x = 0
@@ -1287,7 +1287,49 @@ The stack is a tree rooted at one language, loon. Every project in it, software 
   caption: [#lead[The periodic table of Municipal Robotics] @mr2026masterplan. Every project, by family: Make turns source into parts, World simulates them, Body moves, Power feeds and thinks, Mind learns, Silicon is the far future. Solid cards are in use today (in use, not finished), outlined ones are designed or prototyped, dashed ones are concepts. The K1, our bought reference body, is not on the table.],
 ) <fig:elements>
 
-Four rules keep the tree a tree: engines never depend on vcad, and vcad never depends on an app; engines read wodl, not each other; there is one GPU device across the stack; and units are millimeters, with Z up, everywhere. The rules are meant to let a gradient pass from a task loss in ipse, through phyz's contact adjoint, into vcad geometry and out to loon parameters without a translation at each hop. Part of that chain runs today, in simulation: on a test model, a phyz rollout gradient passes through a ground-contact model into a vcad geometry parameter and agrees with finite differences. Joining the two ends, from a task loss in ipse to loon source, is co-design work for Body @pond2026strategy.
+Most robots are assembled from other people's tools. The body is drawn in a CAD program such as SolidWorks or Onshape @onshape, exported as meshes into a URDF file @urdf, loaded into a simulator such as Isaac Sim @isaacsim or MuJoCo @todorov2012mujoco, and wired together with ROS @macenski2022ros2. Each is excellent at its job. But every handoff is a translation, and what does not survive translation is the reason a design is what it is. A wall thickness becomes a triangle mesh. A motor constant becomes a number in a file. The simulator can say how the robot moved, but not which line of the design to change.
+
+Our projects bond like atoms in a molecule (@fig:bonds). loon is the nucleus: parts, worlds and, one day, chips are written in it. tang carries the math that every engine shares. A vcad part is a wodl body is a phyz collider, without an export in between, so a quantity defined once stays defined everywhere. Four rules keep the bonds clean: engines never depend on vcad, and vcad never depends on an app; engines read wodl, not each other; there is one GPU device; and units are millimeters, with Z up, everywhere.
+
+
+The payoff is a gradient that crosses the whole molecule. A task loss in ipse passes through phyz's contact adjoint, into vcad geometry, and out to a number in loon source, with no translation at any hop. Part of that chain runs today, in simulation: on a test model, a phyz rollout gradient passes through a ground-contact model into a vcad geometry parameter and agrees with finite differences. Joining the two ends is co-design work for Body @pond2026strategy. A chain of separate tools struggles to do this however good each tool is, because the gradient stops at the first export. That is the one bet the stack makes, and it is why we built it rather than bought it.
+
+#figure(
+  cetz.canvas(length: 1cm, {
+    import cetz.draw: *
+    let wj(t) = t.clusters().join("\u{2060}")
+    let at = (
+      loon: (0, 0), tang: (2.1, 1.7), vcad: (3.0, -0.9), wodl: (5.0, 0.9), kerf: (5.4, -2.3),
+      kosm: (7.3, 2.1), phyz: (7.8, 0.0), iris: (9.8, 2.2), rana: (8.0, -2.3), limb: (10.4, -2.1), ipse: (12.4, 0.3),
+    )
+    let bonds = (
+      ("loon", "tang"), ("loon", "vcad"), ("loon", "wodl"), ("tang", "phyz"), ("tang", "vcad"), ("vcad", "kerf"),
+      ("vcad", "wodl"), ("wodl", "kosm"), ("wodl", "phyz"), ("kosm", "iris"), ("kerf", "rana"), ("rana", "limb"),
+      ("limb", "ipse"), ("iris", "ipse"), ("phyz", "ipse"),
+    )
+    let r = 0.52
+    for (a, b) in bonds { line(at.at(a), at.at(b), stroke: 0.6pt + c-line-hi) }
+    // the gradient: from a task loss in ipse back to a number in loon source
+    let path = ("ipse", "phyz", "vcad", "loon")
+    for k in range(path.len() - 1) {
+      let (p, q) = (at.at(path.at(k)), at.at(path.at(k + 1)))
+      let d = calc.sqrt(calc.pow(q.at(0) - p.at(0), 2) + calc.pow(q.at(1) - p.at(1), 2))
+      let u = ((q.at(0) - p.at(0)) / d, (q.at(1) - p.at(1)) / d)
+      let o = 0.16
+      let n = (-u.at(1) * o, u.at(0) * o)
+      line((p.at(0) + u.at(0) * (r + 0.08) + n.at(0), p.at(1) + u.at(1) * (r + 0.08) + n.at(1)), (q.at(0) - u.at(0) * (r + 0.1) + n.at(0), q.at(1) - u.at(1) * (r + 0.1) + n.at(1)), stroke: 1.3pt + c-sel, mark: (end: ">", fill: c-sel, size: 0.18))
+    }
+    for (name, pos) in at.pairs() {
+      let e = elements.find(e => e.at(1) == name)
+      let col = fam.at(e.at(2)).color
+      let exists = e.at(3) == "exists"
+      circle(pos, radius: r, fill: if exists { col } else { c-bg }, stroke: if e.at(3) == "concept" { (paint: col, thickness: 0.8pt, dash: (2pt, 2pt)) } else { 0.9pt + col })
+      content(pos, text(font: sans-sb, size: 8pt, fill: if exists { c-sel-ink } else { col }, wj(name)))
+    }
+    content((5.0, -0.2), anchor: "north", text(font: mono-m, size: 5pt, fill: c-sel, tracking: track, upper[gradient]))
+  }),
+  caption: [#lead[The stack as a molecule.] Each bond is a dependency; color is family, fill is maturity, as in @fig:elements. The orange path is the gradient the stack exists to carry: from a task loss in ipse, through phyz's contact adjoint and vcad geometry, back to a number in loon source.],
+) <fig:bonds>
 
 == Who is in the loop
 
@@ -1307,6 +1349,7 @@ Four rules keep the tree a tree: engines never depend on vcad, and vcad never de
   ),
   caption: [#lead[Who is in the loop, by stage] @mr2026masterplan],
 ) <tab:loopstate>
+
 
 What changes from stage to stage is not the loop but who sits in it. @tab:loopstate summarizes the plan.
 
