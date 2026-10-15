@@ -160,6 +160,45 @@ impl Default for H264Config {
     }
 }
 
+/// A raw RGB frame for computer vision processing (depth estimation, visual odometry).
+///
+/// Unlike `Frame` (JPEG) and `H264Frame`, this contains uncompressed pixel data
+/// suitable for direct input to neural network inference.
+#[derive(Debug, Clone)]
+pub struct RawFrame {
+    /// RGB pixel data, row-major, 3 bytes per pixel (Arc for zero-copy sharing)
+    pub data: Arc<Vec<u8>>,
+    /// Frame width
+    pub width: u32,
+    /// Frame height
+    pub height: u32,
+    /// Capture timestamp (milliseconds since epoch)
+    pub timestamp_ms: u64,
+    /// Sequence number
+    pub sequence: u32,
+}
+
+/// Configuration for raw RGB capture (used by depth/vision pipelines).
+#[derive(Debug, Clone)]
+pub struct RawConfig {
+    /// Capture width (lower than streaming res to save USB bandwidth)
+    pub width: u32,
+    /// Capture height
+    pub height: u32,
+    /// Target framerate
+    pub fps: u32,
+}
+
+impl Default for RawConfig {
+    fn default() -> Self {
+        Self {
+            width: 640,
+            height: 480,
+            fps: 15,
+        }
+    }
+}
+
 /// Camera mount transform (fixed position on rover).
 ///
 /// The camera is mounted at a known position relative to the rover's center.
@@ -1026,6 +1065,183 @@ fn h264_capture_loop(
     Ok(())
 }
 
+// =============================================================================
+// Raw RGB Capture (for depth inference / visual odometry)
+// =============================================================================
+
+/// Build GStreamer pipeline string for raw RGB output.
+fn build_raw_pipeline_string(camera: &DetectedCamera, config: &RawConfig) -> String {
+    match &camera.camera_type {
+        CameraType::Csi { sensor_id } => {
+            format!(
+                "nvarguscamerasrc sensor-id={sensor_id} ! \
+                 video/x-raw(memory:NVMM),width={w},height={h},framerate={fps}/1 ! \
+                 nvvidconv ! video/x-raw,format=BGRx ! \
+                 videoconvert ! video/x-raw,format=RGB ! \
+                 appsink name=sink emit-signals=true max-buffers=2 drop=true sync=false",
+                w = config.width,
+                h = config.height,
+                fps = config.fps,
+            )
+        }
+        CameraType::Usb { device } => {
+            format!(
+                "v4l2src device={device} do-timestamp=true ! \
+                 videoconvert ! videoscale ! \
+                 video/x-raw,format=RGB,width={w},height={h} ! \
+                 videorate ! video/x-raw,framerate={fps}/1 ! \
+                 appsink name=sink emit-signals=true max-buffers=2 drop=true sync=false",
+                w = config.width,
+                h = config.height,
+                fps = config.fps,
+            )
+        }
+        CameraType::Avf { device_index } => {
+            format!(
+                "avfvideosrc device-index={device_index} do-timestamp=true ! \
+                 videoconvert ! videoscale ! \
+                 video/x-raw,format=RGB,width={w},height={h} ! \
+                 videorate ! video/x-raw,framerate={fps}/1 ! \
+                 appsink name=sink emit-signals=true max-buffers=2 drop=true sync=false",
+                w = config.width,
+                h = config.height,
+                fps = config.fps,
+            )
+        }
+    }
+}
+
+/// Spawn a raw RGB camera capture thread.
+///
+/// Returns a receiver for raw frames and a thread handle. Frames are
+/// uncompressed RGB suitable for neural network inference (depth estimation,
+/// visual odometry). Default resolution is 640x480 @ 15fps to stay within
+/// USB 2.0 bandwidth limits.
+pub fn spawn_raw_capture(
+    camera: &DetectedCamera,
+    config: RawConfig,
+) -> Result<(mpsc::Receiver<RawFrame>, std::thread::JoinHandle<()>), CameraError> {
+    ensure_gst_init()?;
+
+    let (tx, rx) = mpsc::sync_channel(2);
+    let camera = camera.clone();
+
+    let handle = std::thread::spawn(move || {
+        if let Err(e) = raw_capture_loop(camera, config, tx) {
+            error!(?e, "Raw RGB capture failed");
+        }
+    });
+
+    Ok((rx, handle))
+}
+
+/// Internal raw RGB capture loop.
+fn raw_capture_loop(
+    camera: DetectedCamera,
+    config: RawConfig,
+    tx: mpsc::SyncSender<RawFrame>,
+) -> Result<(), CameraError> {
+    let pipeline_str = build_raw_pipeline_string(&camera, &config);
+    info!(pipeline = %pipeline_str, "Starting raw RGB capture pipeline");
+
+    let pipeline = gst::parse::launch(&pipeline_str)
+        .map_err(|e| CameraError::GStreamer(format!("Failed to parse raw pipeline: {e}")))?;
+
+    let pipeline = pipeline
+        .downcast::<gst::Pipeline>()
+        .map_err(|_| CameraError::GStreamer("Failed to downcast raw pipeline".into()))?;
+
+    let appsink = pipeline
+        .by_name("sink")
+        .ok_or_else(|| CameraError::GStreamer("No appsink in raw pipeline".into()))?
+        .downcast::<gst_app::AppSink>()
+        .map_err(|_| CameraError::GStreamer("Failed to downcast raw appsink".into()))?;
+
+    pipeline
+        .set_state(gst::State::Playing)
+        .map_err(|e| CameraError::GStreamer(format!("Failed to start raw pipeline: {e:?}")))?;
+
+    info!(
+        camera = ?camera.name,
+        width = config.width,
+        height = config.height,
+        fps = config.fps,
+        "Raw RGB capture started"
+    );
+
+    let mut sequence: u32 = 0;
+
+    loop {
+        match appsink.pull_sample() {
+            Ok(sample) => {
+                let buffer = match sample.buffer() {
+                    Some(b) => b,
+                    None => continue,
+                };
+
+                let caps = match sample.caps() {
+                    Some(c) => c,
+                    None => continue,
+                };
+
+                let structure = match caps.structure(0) {
+                    Some(s) => s,
+                    None => continue,
+                };
+
+                let width =
+                    structure.get::<i32>("width").unwrap_or(config.width as i32) as u32;
+                let height =
+                    structure.get::<i32>("height").unwrap_or(config.height as i32) as u32;
+
+                let map = match buffer.map_readable() {
+                    Ok(m) => m,
+                    Err(e) => {
+                        warn!(?e, "Failed to map raw buffer");
+                        continue;
+                    }
+                };
+
+                let timestamp_ms = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap()
+                    .as_millis() as u64;
+
+                sequence = sequence.wrapping_add(1);
+
+                trace!(
+                    seq = sequence,
+                    size = map.len(),
+                    "raw.frame_captured"
+                );
+
+                let frame = RawFrame {
+                    data: Arc::new(map.as_slice().to_vec()),
+                    width,
+                    height,
+                    timestamp_ms,
+                    sequence,
+                };
+
+                if tx.send(frame).is_err() {
+                    break;
+                }
+            }
+            Err(_) => {
+                let (_, state, _) = pipeline.state(Some(gst::ClockTime::from_mseconds(10)));
+                if state != gst::State::Playing {
+                    warn!("Raw pipeline stopped playing");
+                    break;
+                }
+            }
+        }
+    }
+
+    let _ = pipeline.set_state(gst::State::Null);
+    info!("Raw RGB capture loop exiting");
+    Ok(())
+}
+
 /// Scan Annex B byte stream for IDR NAL units (type 5).
 fn is_h264_idr(data: &[u8]) -> bool {
     let len = data.len();
@@ -1107,6 +1323,14 @@ mod tests {
         assert!((k[1][2] - 240.0).abs() < 0.1);
         assert!(k[0][0] > 0.0);
         assert!(k[1][1] > 0.0);
+    }
+
+    #[test]
+    fn test_raw_config_default() {
+        let config = RawConfig::default();
+        assert_eq!(config.width, 640);
+        assert_eq!(config.height, 480);
+        assert_eq!(config.fps, 15);
     }
 
     #[test]

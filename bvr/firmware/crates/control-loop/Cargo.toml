@@ -4,6 +4,10 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 
+[features]
+default = ["lidar"]
+lidar = ["dep:lidar", "costmap/lidar"]
+
 [dependencies]
 # Workspace crates
 types = { path = "../types" }
@@ -14,9 +18,10 @@ teleop = { path = "../teleop" }
 dispatch = { path = "../dispatch" }
 planner = { path = "../planner" }
 pursuit = { path = "../pursuit" }
-costmap = { path = "../costmap" }
+costmap = { path = "../costmap", default-features = false }
 mppi = { path = "../mppi" }
-lidar = { path = "../lidar" }
+lidar = { path = "../lidar", optional = true }
+nalgebra.workspace = true
 transforms = { path = "../transforms" }
 
 # External dependencies

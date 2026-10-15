@@ -26,6 +26,62 @@ pub(crate) struct FileConfig {
     pub blower: BlowerConfig,
     pub eth_tools: EthToolsFileConfig,
     pub collision_guard: CollisionGuardFileConfig,
+    pub depth: DepthFileConfig,
+}
+
+/// Depth perception configuration (camera-based obstacle detection + visual odometry).
+#[derive(Debug, Deserialize)]
+#[serde(default)]
+pub(crate) struct DepthFileConfig {
+    /// Enable depth-based perception pipeline
+    pub enabled: bool,
+    /// Path to ONNX depth model (Depth Anything V2/V3 Small)
+    pub model_path: String,
+    /// Model input width (pixels)
+    pub model_input_width: u32,
+    /// Model input height (pixels)
+    pub model_input_height: u32,
+    /// Raw capture width for depth inference
+    pub capture_width: u32,
+    /// Raw capture height for depth inference
+    pub capture_height: u32,
+    /// Raw capture framerate for depth inference
+    pub capture_fps: u32,
+    /// Maximum depth to consider (meters)
+    pub max_depth: f32,
+    /// Minimum depth to consider (meters)
+    pub min_depth: f32,
+    /// Height threshold for ground classification (meters)
+    pub ground_threshold: f32,
+    /// Pixel stride for back-projection (higher = faster, fewer points)
+    pub stride: u32,
+    /// Enable visual odometry (frame-to-frame ICP)
+    pub visual_odometry: bool,
+    /// ICP maximum correspondence distance (meters)
+    pub icp_max_dist: f64,
+    /// ICP maximum iterations
+    pub icp_max_iterations: usize,
+}
+
+impl Default for DepthFileConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            model_path: "/var/lib/bvr/models/depth-anything-v2-small.onnx".to_string(),
+            model_input_width: 518,
+            model_input_height: 518,
+            capture_width: 640,
+            capture_height: 480,
+            capture_fps: 15,
+            max_depth: 8.0,
+            min_depth: 0.3,
+            ground_threshold: 0.10,
+            stride: 4,
+            visual_odometry: true,
+            icp_max_dist: 0.5,
+            icp_max_iterations: 20,
+        }
+    }
 }
 
 /// Control loop configuration.
@@ -83,6 +139,27 @@ impl Default for CollisionGuardFileConfig {
     }
 }
 
+/// Per-camera mount configuration (extrinsics + identity).
+///
+/// Used in `[[camera.mounts]]` array for multi-camera setups.
+#[derive(Debug, Deserialize, Clone)]
+pub(crate) struct CameraMountConfig {
+    /// Position identifier (e.g., "left", "center", "right")
+    pub id: String,
+    /// Device path hint for matching detected cameras (e.g., "/dev/video0")
+    pub device_hint: Option<String>,
+    /// Mount position [forward, left, up] in meters relative to rover center
+    #[serde(default)]
+    pub mount_position: [f32; 3],
+    /// Mount rotation [roll, pitch, yaw] in radians
+    #[serde(default)]
+    pub mount_rotation: [f32; 3],
+    /// Horizontal field of view in radians
+    pub fov_h: Option<f32>,
+    /// Vertical field of view in radians
+    pub fov_v: Option<f32>,
+}
+
 /// Camera configuration.
 #[derive(Debug, Deserialize)]
 #[serde(default)]
@@ -108,14 +185,18 @@ pub(crate) struct CameraFileConfig {
     pub h264_bitrate_kbps: Option<u32>,
     /// H.264 keyframe interval in frames (default: 30 = 1 keyframe/sec at 30fps)
     pub h264_keyframe_interval: Option<u32>,
-    /// Camera mount position [forward, left, up] in meters
+    /// Camera mount position [forward, left, up] in meters (legacy single-camera)
     pub mount_position: Option<[f32; 3]>,
-    /// Camera mount rotation [roll, pitch, yaw] in radians
+    /// Camera mount rotation [roll, pitch, yaw] in radians (legacy single-camera)
     pub mount_rotation: Option<[f32; 3]>,
-    /// Horizontal field of view in radians
+    /// Horizontal field of view in radians (legacy single-camera)
     pub fov_h: Option<f32>,
-    /// Vertical field of view in radians
+    /// Vertical field of view in radians (legacy single-camera)
     pub fov_v: Option<f32>,
+    /// Per-camera mount configurations for multi-camera setups.
+    /// When present, overrides the legacy single mount_position/mount_rotation fields.
+    #[serde(default)]
+    pub mounts: Vec<CameraMountConfig>,
 }
 
 impl Default for CameraFileConfig {
@@ -134,7 +215,28 @@ impl Default for CameraFileConfig {
             mount_rotation: None,
             fov_h: None,
             fov_v: None,
+            mounts: Vec::new(),
         }
+    }
+}
+
+impl CameraFileConfig {
+    /// Resolve camera mounts: use `mounts` array if present, otherwise
+    /// build a single-entry list from legacy fields.
+    pub(crate) fn resolved_mounts(&self) -> Vec<CameraMountConfig> {
+        if !self.mounts.is_empty() {
+            return self.mounts.clone();
+        }
+
+        // Legacy single-camera config
+        vec![CameraMountConfig {
+            id: "default".to_string(),
+            device_hint: None,
+            mount_position: self.mount_position.unwrap_or([0.25, 0.0, 0.25]),
+            mount_rotation: self.mount_rotation.unwrap_or([0.0, -0.175, 0.0]),
+            fov_h: self.fov_h,
+            fov_v: self.fov_v,
+        }]
     }
 }
 

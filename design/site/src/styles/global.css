@@ -1,0 +1,138 @@
+/* @muni/design — site styles */
+
+@font-face {
+  font-family: "Berkeley Mono";
+  font-weight: 400;
+  font-style: normal;
+  src: url("/fonts/BerkeleyMono-Regular.woff2") format("woff2");
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Berkeley Mono";
+  font-weight: 700;
+  font-style: normal;
+  src: url("/fonts/BerkeleyMono-Bold.woff2") format("woff2");
+  font-display: swap;
+}
+
+/* Reset */
+*,
+*::before,
+*::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:root {
+  --black: oklch(0 0 0);
+  --white: oklch(1 0 0);
+  --orange: oklch(0.705 0.213 47.604);
+  --orange-dim: oklch(0.45 0.13 47.604);
+  --stone-500: oklch(0.553 0.013 106.424);
+  --stone-800: oklch(0.268 0.007 106.424);
+  --stone-900: oklch(0.216 0.006 106.424);
+  --stone-950: oklch(0.147 0.004 49.25);
+
+  --bg: var(--black);
+  --fg: oklch(0.985 0.002 247.839);
+  --fg-muted: var(--stone-500);
+  --surface: var(--stone-950);
+  --border: var(--stone-800);
+  --primary: var(--orange);
+
+  --font-mono: "Berkeley Mono", "SF Mono", "Cascadia Code", "Fira Code",
+    monospace;
+  --font-display: "Space Grotesk", "SF Pro Display", "Inter", system-ui,
+    sans-serif;
+
+  color-scheme: dark;
+}
+
+html {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  min-height: 100vh;
+}
+
+a {
+  color: var(--primary);
+  text-decoration: none;
+  transition: color 100ms ease;
+}
+a:hover {
+  color: var(--fg);
+}
+
+::selection {
+  background: var(--orange);
+  color: var(--black);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: oklch(0.4 0 0 / 0.3);
+}
+
+/* Grid background texture */
+.dot-grid {
+  background-image: radial-gradient(
+    circle,
+    oklch(1 0 0 / 0.04) 1px,
+    transparent 1px
+  );
+  background-size: 24px 24px;
+}
+
+/* Shared page styles */
+.page-header {
+  margin-bottom: 80px;
+}
+.page-header .overline {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--primary);
+  margin-bottom: 12px;
+}
+.page-header h1 {
+  font-family: var(--font-display);
+  font-size: 48px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  margin-bottom: 16px;
+}
+.page-header .desc {
+  font-size: 14px;
+  color: var(--fg-muted);
+  max-width: 560px;
+  line-height: 1.5;
+}
+section {
+  margin-bottom: 96px;
+}
+.section-title {
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--fg);
+  margin-bottom: 32px;
+}

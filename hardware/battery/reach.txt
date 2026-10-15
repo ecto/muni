@@ -1,0 +1,21 @@
+# REJECTED: handle on the torso FRONT (pack drawn out along -Y). target x 81, z 92, pull y -83 -> -208
+  R hand y   -83: miss  52.6 mm  (pitch 36 roll -1 elbow -120, limit margin 0 deg)
+  R hand y  -208: miss  54.2 mm  (pitch -6 roll -1 elbow -90, limit margin 16 deg)
+  L hand y   -83: miss 213.0 mm  (pitch 36 roll 0 elbow -120, limit margin 0 deg)
+  L hand y  -208: miss 213.0 mm  (pitch -6 roll 0 elbow -90, limit margin 15 deg)
+# CHOSEN: flank handle, right pack A drawn out along +X. grip z 56 (pack floor + 8), y -35 (front third of the flank)
+#   seated grip x 134; pulled onto the dock stop x 205 (pack slides 71 mm)
+  R hand x  134: miss  3.4 mm  pitch   50 roll   -2 elbow  -114  limit margin   6 deg
+  R hand x  150: miss  1.9 mm  pitch   50 roll  -10 elbow  -114  limit margin   6 deg
+  R hand x  170: miss  2.5 mm  pitch   50 roll  -20 elbow  -112  limit margin   8 deg
+  R hand x  190: miss  2.9 mm  pitch   52 roll  -32 elbow  -112  limit margin   8 deg
+  R hand x  205: miss  3.2 mm  pitch   52 roll  -38 elbow  -108  limit margin   8 deg
+#   capture box at the seated grip (+-y, +-z 10 mm):
+  dy  -10 dz    0: miss  2.8 mm  limit margin   6 deg
+  dy   10 dz    0: miss  2.2 mm  limit margin   6 deg
+  dy    0 dz  -10: miss  3.0 mm  limit margin  10 deg
+  dy    0 dz   10: miss  3.1 mm  limit margin   2 deg
+# ALTERNATIVE: grip 36 mm lower (z 20, y -40), i.e. packs dropped into the pelvis transition
+  R hand x  134: miss  2.0 mm  limit margin  15 deg
+  R hand x  170: miss  2.3 mm  limit margin  18 deg
+  R hand x  205: miss  3.6 mm  limit margin  18 deg

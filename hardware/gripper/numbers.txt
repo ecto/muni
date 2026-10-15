@@ -1,0 +1,27 @@
+EL05 (manual): rated 1.8 N.m continuous @100 rpm (70x70 mm heat sink), peak 6 N.m, 9:1, 430 rpm no-load, 242 g, Ø46 x 44
+pinion pitch r = 8 mm (Ø16, module 1, 16 T); sheet t = 3.175 mm
+rated: T=1.8 N.m -> pinion force 225 N -> squeeze 112.5 N per finger -> max lift 5.7 kg (mu 0.5, 2 faces, SF 2.0)
+peak : T=6.0 N.m -> pinion force 750 N -> squeeze 375.0 N per finger -> max lift 19.1 kg (mu 0.5, 2 faces, SF 2.0)
+  (no rack/pinion friction loss; at eta 0.8 scale by 0.8. Hold on rated, not peak: stall heating.)
+
+needed squeeze per finger F = m g SF / (2 mu), EL05 torque T = 2 r F:
+  Ø66 alu can (empty)        0.015 kg: F  0.29 N  T 0.005 N.m =  0.3% of rated
+  500 ml bottle              0.550 kg: F 10.79 N  T 0.173 N.m =  9.6% of rated
+  1/8" 5052 plate 300x200    0.511 kg: F 10.02 N  T 0.160 N.m =  8.9% of rated
+  NB rated squeeze (112 N) WILL crush an empty can -> run the EL05 current-limited.
+
+mass at the flange (5052 sheet at 2700 kg/m3, 6061 racks/tips):
+  plate_l + plate_r 70x90                   108.0 g
+  plate_top (70x56 + Ø61 lobes, holes)       33.0 g
+  plate_palm                                 21.9 g
+  fingers 20x80 x2                           27.4 g
+  alu racks x2 (6061)                        10.2 g
+  steel pinion Ø16 + Ø8 shaft                14.9 g
+  flat alu tips x2 (6061)                    17.3 g
+  EL05                                      242.0 g
+  6x M3x10 SHCS                               3.6 g
+  cam + magnets + dowels + fasteners         29.0 g
+  TOTAL (flat tips, no windows)             507.3 g
+  - windows: plate_l 40x40, plate_r 50x20   -22.3 g
+  TOTAL with windows                        485.1 g   (target <= 500 g)
+  (the v9 flange disc Ø61 x 3.175 belongs to the arm, not counted; ISO adapter if fitted: +52 g)

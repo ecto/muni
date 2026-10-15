@@ -1,0 +1,578 @@
+---
+import Base from "../layouts/Base.astro";
+---
+
+<Base title="Terminal">
+  <div class="page-header">
+    <p class="overline">Surfaces</p>
+    <h1>Terminal</h1>
+    <p class="desc">
+      The depot CLI, the rover daemon, the fleet monitor — half of muni lives
+      in the terminal. Berkeley Mono, box-drawing characters, and eight colors.
+    </p>
+  </div>
+
+  <!-- ═══ HERO: Fleet TUI ════════════════════════════════════════ -->
+
+  <section>
+    <div class="term-window">
+      <div class="term-chrome">
+        <div class="term-dots"><span></span><span></span><span></span></div>
+        <span class="term-win-title">muni-depot — fleet monitor</span>
+      </div>
+      <pre class="term-body hero-term">┌─ <span class="c-bold">MUNI DEPOT</span> ───────────────────── <span class="c-muted" id="hero-clock">14:32</span> ─┐
+│                                              │
+│  <span class="c-muted">FLEET         STATUS   BATT  TASK</span>           │
+│  <span class="c-green">●</span> beaver-12   <span class="c-green">active</span>    73%  oak st nw      │
+│  <span class="c-orange">◐</span> beaver-07   <span class="c-orange">yield</span>     45%  elm ave        │
+│  <span class="c-blue">○</span> beaver-03   <span class="c-blue">charge</span>    12%  depot bay 2    │
+│  <span class="c-muted">·</span> beaver-01   <span class="c-muted">off</span>       ──   maintenance    │
+│                                              │
+│  <span class="c-muted">CLEARED</span>  <span class="c-bold">2.4 km</span> <span class="c-green">▁▂▃▅▇█▇▅▃</span>  <span class="c-green">+12%</span>           │
+│  <span class="c-muted">COVER</span>   <span class="c-orange">[████████████░░░░░░]</span> 67%            │
+│                                              │
+├─ <span class="c-muted">LOG</span> ────────────────────────────────────────┤
+│  <span class="c-muted">14:32:07</span> <span class="c-blue">I</span> beaver-12 route.progress   67%   │
+│  <span class="c-muted">14:31:52</span> <span class="c-orange">W</span> beaver-07 battery.low      45%   │
+│  <span class="c-muted">14:31:40</span> <span class="c-blue">I</span> beaver-03 charge.update    12%   │
+│  <span class="c-muted">14:31:33</span> <span class="c-red">E</span> beaver-01 can.timeout   vesc-3   │
+│  <span class="c-muted">14:31:20</span> <span class="c-blue">I</span> beaver-12 yield.complete  4.2s   │
+│                                              │
+├──────────────────────────────────────────────┤
+│ <span id="spinner" class="c-green">⠋</span> <span class="c-green">nominal</span>  RTK 1.2cm  24ms  −4°C   <span class="c-muted">q ?</span> │
+└──────────────────────────────────────────────┘</pre>
+    </div>
+  </section>
+
+  <!-- ═══ 01 PALETTE ═════════════════════════════════════════════ -->
+
+  <section>
+    <div class="section-head">
+      <span class="section-num">01</span>
+      <h2 class="section-title">Palette</h2>
+      <p class="section-desc">
+        Eight colors mapped to ANSI slots. Orange is the ninth — the accent
+        that makes muni muni. Every TUI element draws from this set.
+      </p>
+    </div>
+
+    <pre class="term-body palette-block"><span class="c-swatch-black">██████</span>  black      <span class="c-muted">oklch(0.05  0      0)</span>
+<span class="c-swatch-red">██████</span>  red        <span class="c-muted">oklch(0.637 0.237 25)</span>
+<span class="c-swatch-green">██████</span>  green      <span class="c-muted">oklch(0.723 0.191 149)</span>
+<span class="c-swatch-yellow">██████</span>  yellow     <span class="c-muted">oklch(0.85  0.18  85)</span>
+<span class="c-swatch-blue">██████</span>  blue       <span class="c-muted">oklch(0.546 0.215 264)</span>
+<span class="c-swatch-magenta">██████</span>  magenta    <span class="c-muted">oklch(0.68  0.22  300)</span>
+<span class="c-swatch-cyan">██████</span>  cyan       <span class="c-muted">oklch(0.75  0.15  195)</span>
+<span class="c-swatch-white">██████</span>  white      <span class="c-muted">oklch(0.90  0      0)</span>
+<span class="c-swatch-orange">██████</span>  orange     <span class="c-muted">oklch(0.705 0.213 47.604)</span>    ← primary</pre>
+
+    <div class="palette-roles">
+      <div class="role-chip"><span class="c-green">●</span> Success / Active / Online</div>
+      <div class="role-chip"><span class="c-orange">●</span> Warning / Yielding / Accent</div>
+      <div class="role-chip"><span class="c-red">●</span> Error / Critical / E-stop</div>
+      <div class="role-chip"><span class="c-blue">●</span> Info / Charging / Neutral</div>
+      <div class="role-chip"><span class="c-cyan">●</span> Data / Coordinates / Links</div>
+      <div class="role-chip"><span class="c-magenta">●</span> Special / Debug / Trace</div>
+      <div class="role-chip"><span class="c-yellow">●</span> Highlight / Selection / Focus</div>
+      <div class="role-chip"><span class="c-muted">●</span> Muted / Disabled / Timestamp</div>
+    </div>
+  </section>
+
+  <!-- ═══ 02 BOX DRAWING ═════════════════════════════════════════ -->
+
+  <section>
+    <div class="section-head">
+      <span class="section-num">02</span>
+      <h2 class="section-title">Box Drawing</h2>
+      <p class="section-desc">
+        Four panel primitives compose every TUI layout. Sharp corners for
+        system chrome, rounded corners for content cards.
+      </p>
+    </div>
+
+    <div class="box-grid">
+      <div class="box-example">
+        <span class="box-name">Panel</span>
+        <pre class="term-body">┌─ Title ─────────┐
+│                  │
+│  Content here    │
+│                  │
+└──────────────────┘</pre>
+      </div>
+      <div class="box-example">
+        <span class="box-name">Split Horizontal</span>
+        <pre class="term-body">┌─────────┬────────┐
+│         │        │
+│  Left   │ Right  │
+│         │        │
+└─────────┴────────┘</pre>
+      </div>
+      <div class="box-example">
+        <span class="box-name">Table</span>
+        <pre class="term-body">┌──────┬────────┬──────┐
+│ <span class="c-muted">HEAD</span> │ <span class="c-muted">HEAD</span>   │ <span class="c-muted">HEAD</span> │
+├──────┼────────┼──────┤
+│ data │ data   │ data │
+│ data │ data   │ data │
+└──────┴────────┴──────┘</pre>
+      </div>
+      <div class="box-example">
+        <span class="box-name">Rounded</span>
+        <pre class="term-body">╭─ Status ─────────╮
+│                   │
+│  <span class="c-green">●</span> All systems go  │
+│                   │
+╰───────────────────╯</pre>
+      </div>
+      <div class="box-example">
+        <span class="box-name">Nested</span>
+        <pre class="term-body">┌─ Outer ──────────────┐
+│ ┌─ Inner A ────────┐ │
+│ │  Content          │ │
+│ └───────────────────┘ │
+│ ┌─ Inner B ────────┐ │
+│ │  Content          │ │
+│ └───────────────────┘ │
+└───────────────────────┘</pre>
+      </div>
+      <div class="box-example">
+        <span class="box-name">Dividers</span>
+        <pre class="term-body">┌─────────────────────┐
+│  Section A          │
+├─────────────────────┤
+│  Section B          │
+├╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
+│  <span class="c-muted">Section C (soft)</span>    │
+└─────────────────────┘</pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ 03 STATUS & DATA ═══════════════════════════════════════ -->
+
+  <section>
+    <div class="section-head">
+      <span class="section-num">03</span>
+      <h2 class="section-title">Status &amp; Data</h2>
+      <p class="section-desc">
+        Terminal-native data visualization. Progress bars, sparklines, gauges,
+        and status indicators — all rendered with Unicode block characters.
+      </p>
+    </div>
+
+    <pre class="term-body"><span class="c-muted">STATUS INDICATORS</span>
+
+  <span class="c-green">●</span>  active        <span class="c-orange">◐</span>  yielding      <span class="c-blue">○</span>  charging      <span class="c-muted">·</span>  offline
+
+
+<span class="c-muted">PROGRESS BARS</span>
+
+  <span class="c-green">[████████████████████████░░░░░░░░░░░]</span> 67%   route
+  <span class="c-green">[██████████████████████████░░░░░░░░░]</span> 73%   battery
+  <span class="c-orange">[████████████░░░░░░░░░░░░░░░░░░░░░░]</span> 33%   battery
+  <span class="c-red">[████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░]</span> 12%   battery
+  <span class="c-green">[███████████████████████████████████]</span> 100%  complete
+
+
+<span class="c-muted">SPARKLINES</span>
+
+  <span class="c-green">▁▂▃▄▅▆▇█▇▆▅▄▃▂▁</span>   cleared / hour
+  <span class="c-blue">▅▃▂▁▂▃▅▇▅▃▂▁▂▃▅</span>   energy / hour
+  <span class="c-orange">▃▃▄▅▇▇█▇▅▃▂▁▁▁▁</span>   interactions / hour
+
+
+<span class="c-muted">GAUGES</span>
+
+  CPU    <span class="c-red">████████████████████</span><span class="c-muted">░░</span>  89%
+  MEM    <span class="c-green">██████████</span><span class="c-muted">░░░░░░░░░░░░</span>  42%
+  DISK   <span class="c-green">███</span><span class="c-muted">░░░░░░░░░░░░░░░░░░░</span>  12%
+  NET    <span class="c-orange">██████████████</span><span class="c-muted">░░░░░░░░</span>  63%</pre>
+  </section>
+
+  <!-- ═══ 04 LOG FORMAT ══════════════════════════════════════════ -->
+
+  <section>
+    <div class="section-head">
+      <span class="section-num">04</span>
+      <h2 class="section-title">Log Format</h2>
+      <p class="section-desc">
+        Structured log output. Five levels, consistent column alignment,
+        color-coded severity. Every daemon and CLI follows this format.
+      </p>
+    </div>
+
+    <pre class="term-body"><span class="c-muted">TIMESTAMP    LVL  SOURCE      EVENT               DATA</span>
+
+<span class="c-muted">14:32:09</span>     <span class="c-magenta">T</span>    beaver-12   wheel.encoder       fl:1847 fr:1852
+<span class="c-muted">14:32:08</span>     <span class="c-muted">D</span>    beaver-12   can.frame           id:0x01 len:8
+<span class="c-muted">14:32:07</span>     <span class="c-blue">I</span>    beaver-12   route.progress      67% eta:12m
+<span class="c-muted">14:31:52</span>     <span class="c-orange">W</span>    beaver-07   battery.low         45% &lt; 50% threshold
+<span class="c-muted">14:31:33</span>     <span class="c-red">E</span>    beaver-01   can.timeout         vesc-3 (retry 2/3)
+
+
+<span class="c-muted">LEVELS</span>
+
+  <span class="c-magenta">T</span>  trace     <span class="c-muted">Wire-level detail. Disabled in production.</span>
+  <span class="c-muted">D</span>  debug     <span class="c-muted">Internal state. Enabled with RUST_LOG=debug.</span>
+  <span class="c-blue">I</span>  info      Operational events. Always visible.
+  <span class="c-orange">W</span>  warn      Degraded but functional. Investigate soon.
+  <span class="c-red">E</span>  error     Failure. Immediate attention required.</pre>
+  </section>
+
+  <!-- ═══ 05 CLI OUTPUT ══════════════════════════════════════════ -->
+
+  <section>
+    <div class="section-head">
+      <span class="section-num">05</span>
+      <h2 class="section-title">CLI Output</h2>
+      <p class="section-desc">
+        The muni CLI is the primary deployment and management tool.
+        Consistent output patterns across every subcommand.
+      </p>
+    </div>
+
+    <div class="cli-grid">
+      <div class="cli-example">
+        <span class="cli-name">Deploy</span>
+        <pre class="term-body"><span class="c-muted">$</span> muni deploy rover frog-0 --all
+
+  <span class="c-green">✓</span> Cross-compiled bvrd          <span class="c-muted">4.2s</span>
+  <span class="c-green">✓</span> Uploaded to frog-0           <span class="c-muted">1.1s</span>
+  <span class="c-green">✓</span> Config synced                <span class="c-muted">0.3s</span>
+  <span class="c-green">✓</span> Service restarted            <span class="c-muted">0.8s</span>
+
+  Deploy complete. frog-0 running <span class="c-bold">bvrd v0.8.2</span></pre>
+      </div>
+
+      <div class="cli-example">
+        <span class="cli-name">Scan</span>
+        <pre class="term-body"><span class="c-muted">$</span> muni rover scan
+
+  Scanning CAN bus...
+
+  <span class="c-muted">ID   TYPE   FW      STATUS</span>
+  ────┼───────┼────────┼────────
+   1   VESC   6.05    <span class="c-green">ok</span>
+   2   VESC   6.05    <span class="c-green">ok</span>
+   3   VESC   6.05    <span class="c-green">ok</span>
+   4   VESC   6.02    <span class="c-orange">⚠ outdated</span>
+  11   MCU    0.3.1   <span class="c-green">ok</span>
+
+  5 devices found. <span class="c-orange">1 warning.</span></pre>
+      </div>
+
+      <div class="cli-example">
+        <span class="cli-name">Error</span>
+        <pre class="term-body"><span class="c-muted">$</span> muni deploy rover frog-0
+
+  <span class="c-green">✓</span> Cross-compiled bvrd          <span class="c-muted">4.2s</span>
+  <span class="c-red">✗</span> Build failed
+
+  <span class="c-red">error[E0308]</span>: mismatched types
+    <span class="c-blue">--></span> crates/control/src/lib.rs:42:5
+     |
+  42 |     vel.linear
+     |     <span class="c-red">^^^^^^^^^^</span> expected f64, found f32
+
+  Fix the error and try again.</pre>
+      </div>
+
+      <div class="cli-example">
+        <span class="cli-name">GPS Monitor</span>
+        <pre class="term-body"><span class="c-muted">$</span> muni gps monitor
+
+  ┌─ GPS STATUS ───────────────────┐
+  │ Mode:      <span class="c-green">RTK Fixed</span>           │
+  │ Accuracy:  <span class="c-bold">1.2 cm</span>              │
+  │ Sats:      14/16               │
+  │ Base:      depot-rtk <span class="c-muted">(24ms)</span>    │
+  │ HDOP:      0.8                 │
+  │ Position:  <span class="c-cyan">44.9778°N 93.2650°W</span> │
+  └────────────────────────────────┘</pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ 06 PROMPT ══════════════════════════════════════════════ -->
+
+  <section>
+    <div class="section-head">
+      <span class="section-num">06</span>
+      <h2 class="section-title">Prompt</h2>
+      <p class="section-desc">
+        Three prompt states. The context segment shows what you're connected to.
+        The chevron is always orange.
+      </p>
+    </div>
+
+    <pre class="term-body prompt-block"><span class="c-bold">muni</span> <span class="c-orange">❯</span>  <span class="c-muted">                          default</span>
+<span class="c-bold">muni</span> <span class="c-cyan">frog-0</span> <span class="c-orange">❯</span>  <span class="c-muted">                  connected to rover</span>
+<span class="c-bold">muni</span> <span class="c-cyan">depot</span> <span class="c-orange">❯</span>  <span class="c-muted">                   connected to depot</span>
+<span class="c-bold">muni</span> <span class="c-cyan">frog-0</span> <span class="c-red">❯</span>  <span class="c-muted">                  e-stop active</span></pre>
+  </section>
+
+  <!-- ═══ 07 FULL TUI ════════════════════════════════════════════ -->
+
+  <section>
+    <div class="section-head">
+      <span class="section-num">07</span>
+      <h2 class="section-title">Rover TUI</h2>
+      <p class="section-desc">
+        A second TUI surface: the rover's own diagnostic screen, accessed
+        via SSH. Different information density, same design language.
+      </p>
+    </div>
+
+    <div class="term-window">
+      <div class="term-chrome">
+        <div class="term-dots"><span></span><span></span><span></span></div>
+        <span class="term-win-title">ssh frog-0 — bvrd status</span>
+      </div>
+      <pre class="term-body hero-term">┌─ <span class="c-bold">BEAVER-12</span> ─── <span class="c-green">● ACTIVE</span> ──── <span class="c-muted" id="rover-clock">4h 22m</span> ─┐
+│                                              │
+│  <span class="c-muted">MOTORS</span>                                      │
+│  FL <span class="c-green">████████████████████</span><span class="c-muted">░░</span>  0.91 m/s  42°C   │
+│  FR <span class="c-green">████████████████████</span><span class="c-muted">░░</span>  0.89 m/s  41°C   │
+│  RL <span class="c-green">████████████████████</span><span class="c-muted">░░</span>  0.90 m/s  43°C   │
+│  RR <span class="c-green">████████████████████</span><span class="c-muted">░░</span>  0.88 m/s  42°C   │
+│                                              │
+│  <span class="c-muted">SENSORS</span>                                     │
+│  GPS    <span class="c-green">RTK fixed</span>  1.2cm   14 sats          │
+│  IMU    <span class="c-green">nominal</span>    0.2°/s  calibrated       │
+│  CAM    <span class="c-green">3/3 ok</span>     30fps   exposure auto    │
+│  CAN    <span class="c-green">ok</span>         24ms    5 devices        │
+│                                              │
+│  <span class="c-muted">TASK</span>                                        │
+│  Clearing Snow — Oak St NW                   │
+│  <span class="c-orange">[████████████████████████░░░░░░░░░░]</span> 67%     │
+│  ETA 12m · 1.6 km cleared · 23 yields       │
+│                                              │
+├──────────────────────────────────────────────┤
+│  BATT <span class="c-green">███████████████</span><span class="c-muted">░░░░░</span> 73%  <span class="c-muted">~2h remain</span>   │
+└──────────────────────────────────────────────┘</pre>
+    </div>
+  </section>
+
+</Base>
+
+<script>
+  // Clock
+  function tick() {
+    const hero = document.getElementById('hero-clock');
+    if (hero) {
+      const now = new Date();
+      hero.textContent = now.toLocaleTimeString('en-US', {
+        hour12: false, hour: '2-digit', minute: '2-digit'
+      });
+    }
+  }
+  tick();
+  setInterval(tick, 1000);
+
+  // Spinner
+  const frames = ['⠋','⠙','⠹','⠸','⠼','⠴','⠦','⠧','⠇','⠏'];
+  let frame = 0;
+  const spinner = document.getElementById('spinner');
+  if (spinner) {
+    setInterval(() => {
+      frame = (frame + 1) % frames.length;
+      spinner.textContent = frames[frame];
+    }, 80);
+  }
+</script>
+
+<style>
+  /* ═══ Terminal window chrome ═══ */
+
+  .term-window {
+    border: 1px solid var(--border);
+    overflow: hidden;
+    margin-bottom: 16px;
+  }
+  .term-chrome {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    height: 32px;
+    padding: 0 12px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+  .term-dots {
+    display: flex;
+    gap: 6px;
+  }
+  .term-dots span {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: oklch(0.3 0 0);
+  }
+  .term-dots span:first-child { background: oklch(0.637 0.237 25 / 0.7); }
+  .term-dots span:nth-child(2) { background: oklch(0.85 0.18 85 / 0.7); }
+  .term-dots span:last-child { background: oklch(0.723 0.191 149 / 0.7); }
+  .term-win-title {
+    font-size: 10px;
+    color: var(--fg-muted);
+    letter-spacing: 0.02em;
+  }
+
+  /* ═══ Terminal body (shared) ═══ */
+
+  .term-body {
+    padding: 20px 24px;
+    font-size: 13px;
+    line-height: 1.55;
+    overflow-x: auto;
+    background: oklch(0.03 0 0);
+    margin: 0;
+    white-space: pre;
+    scrollbar-width: thin;
+  }
+  .hero-term {
+    font-size: 12.5px;
+    line-height: 1.5;
+  }
+
+  /* ═══ Terminal colors ═══ */
+
+  .c-red { color: oklch(0.637 0.237 25); }
+  .c-green { color: oklch(0.723 0.191 149); }
+  .c-yellow { color: oklch(0.85 0.18 85); }
+  .c-blue { color: oklch(0.546 0.215 264); }
+  .c-magenta { color: oklch(0.68 0.22 300); }
+  .c-cyan { color: oklch(0.75 0.15 195); }
+  .c-orange { color: oklch(0.705 0.213 47.604); }
+  .c-muted { color: oklch(0.45 0 0); }
+  .c-bold { font-weight: 700; }
+
+  .c-swatch-black { color: oklch(0.15 0 0); }
+  .c-swatch-red { color: oklch(0.637 0.237 25); }
+  .c-swatch-green { color: oklch(0.723 0.191 149); }
+  .c-swatch-yellow { color: oklch(0.85 0.18 85); }
+  .c-swatch-blue { color: oklch(0.546 0.215 264); }
+  .c-swatch-magenta { color: oklch(0.68 0.22 300); }
+  .c-swatch-cyan { color: oklch(0.75 0.15 195); }
+  .c-swatch-white { color: oklch(0.90 0 0); }
+  .c-swatch-orange { color: oklch(0.705 0.213 47.604); }
+
+  /* ═══ Sections ═══ */
+
+  section { margin-bottom: 120px; }
+  .section-head { margin-bottom: 48px; }
+  .section-num {
+    font-size: 10px;
+    color: var(--primary);
+    letter-spacing: 0.08em;
+    display: block;
+    margin-bottom: 8px;
+  }
+  .section-title { margin-bottom: 12px; }
+  .section-desc {
+    font-size: 14px;
+    color: var(--fg-muted);
+    max-width: 560px;
+    line-height: 1.5;
+  }
+
+  /* ═══ 01 Palette ═══ */
+
+  .palette-block {
+    font-size: 13px;
+    border: 1px solid var(--border);
+    margin-bottom: 32px;
+  }
+  .palette-roles {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+  }
+  .role-chip {
+    background: var(--bg);
+    padding: 12px 16px;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  /* ═══ 02 Box drawing ═══ */
+
+  .box-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+  }
+  .box-example {
+    background: var(--bg);
+    padding: 24px;
+  }
+  .box-example .term-body {
+    padding: 0;
+    background: transparent;
+    font-size: 13px;
+  }
+  .box-name {
+    font-size: 10px;
+    color: var(--primary);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    display: block;
+    margin-bottom: 12px;
+  }
+
+  /* ═══ 05 CLI Output ═══ */
+
+  .cli-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+  }
+  .cli-example {
+    background: var(--bg);
+    padding: 24px;
+  }
+  .cli-example .term-body {
+    padding: 0;
+    background: transparent;
+    font-size: 12px;
+  }
+  .cli-name {
+    font-size: 10px;
+    color: var(--primary);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    display: block;
+    margin-bottom: 12px;
+  }
+
+  /* ═══ 06 Prompt ═══ */
+
+  .prompt-block {
+    font-size: 15px;
+    line-height: 2.2;
+    border: 1px solid var(--border);
+  }
+
+  /* ═══ Responsive ═══ */
+
+  @media (max-width: 768px) {
+    section { margin-bottom: 80px; }
+    .box-grid { grid-template-columns: 1fr; }
+    .cli-grid { grid-template-columns: 1fr; }
+    .term-body { font-size: 11px; padding: 16px; }
+    .hero-term { font-size: 10.5px; }
+    .prompt-block { font-size: 13px; }
+  }
+  @media (max-width: 480px) {
+    .palette-roles { grid-template-columns: 1fr; }
+    .term-body { font-size: 10px; padding: 12px; }
+    .hero-term { font-size: 9px; line-height: 1.4; }
+  }
+</style>

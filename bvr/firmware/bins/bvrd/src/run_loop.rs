@@ -12,7 +12,7 @@ use hal::EStopEvent;
 use lidar::LidarCommand;
 use metrics::MetricsSnapshot;
 use policy::PolicyObservation;
-use slam::SlamState;
+use slamwich::SlamState;
 use state::Event;
 use std::sync::atomic::Ordering;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
@@ -103,6 +103,11 @@ pub(crate) fn run(ctx: DaemonContext) {
         heartbeat_stalled,
         seq_tracker,
         mut eth_discovery,
+        mut depth_output_rx,
+        depth_frame_tx,
+        mut depth_visual_odometry,
+        depth_raw_rxs,
+        depth_enabled,
     } = ctx;
 
     // Pre-compute IMU mount transform (used for both attitude and yaw extraction)
@@ -1123,7 +1128,12 @@ pub(crate) fn run(ctx: DaemonContext) {
             if rx.has_changed().unwrap_or(false) {
                 let state = rx.borrow_and_update().clone();
                 // Feed SLAM correction into EKF as measurement update
-                pose_estimator.update_slam_from_array(&state.pose, &state.pose_covariance);
+                let slam_pose = types::Pose {
+                    x: state.pose.x,
+                    y: state.pose.y,
+                    theta: state.pose.theta,
+                };
+                pose_estimator.update_slam_from_array(&slam_pose, &state.pose_covariance);
                 last_slam_update = Some(Instant::now());
                 Some(state)
             } else {
@@ -1165,9 +1175,23 @@ pub(crate) fn run(ctx: DaemonContext) {
         if let Some(ref scan) = lidar_scan_clone {
             // Send scan to SLAM background task (non-blocking)
             if let Some(ref tx) = slam_scan_tx {
-                // Consume pre-integrated IMU delta accumulated since last scan
+                // Convert lidar types to slamwich types
+                let slam_cloud = slamwich::PointCloud::new(
+                    scan.points
+                        .iter()
+                        .map(|p| slamwich::Point3D {
+                            x: p.x,
+                            y: p.y,
+                            z: p.z,
+                            reflectivity: p.reflectivity,
+                            tag: p.tag,
+                        })
+                        .collect(),
+                );
+                let p = pose_estimator.pose();
+                let slam_pose = slamwich::Pose { x: p.x, y: p.y, theta: p.theta };
                 let imu_delta = imu_preintegrator.consume();
-                let _ = tx.try_send((scan.clone(), pose_estimator.pose(), imu_delta));
+                let _ = tx.try_send((slam_cloud, slam_pose, imu_delta));
             }
 
             // Update costmap for navigation controller
@@ -1192,6 +1216,104 @@ pub(crate) fn run(ctx: DaemonContext) {
             // TODO: Move to async recording task
         }
 
+        // -----------------------------------------------------------------
+        // Depth perception pipeline (camera-based obstacle detection + VO)
+        // -----------------------------------------------------------------
+        // 1. Forward raw frames from camera threads → depth thread (non-blocking)
+        // 2. Check for new classified points from depth thread (non-blocking)
+        // 3. Update costmap + run visual odometry → EKF
+        if depth_enabled {
+            // Forward raw frames to depth thread
+            if let Some(ref tx) = depth_frame_tx {
+                for (cam_id, rx) in &depth_raw_rxs {
+                    // Drain to latest frame
+                    let mut latest: Option<camera::RawFrame> = None;
+                    while let Ok(frame) = rx.try_recv() {
+                        latest = Some(frame);
+                    }
+                    if let Some(frame) = latest {
+                        let _ = tx.send(crate::depth_thread::TaggedFrame {
+                            cam_id: cam_id.clone(),
+                            rgb: frame.data,
+                            width: frame.width,
+                            height: frame.height,
+                            timestamp_ms: frame.timestamp_ms,
+                        });
+                    }
+                }
+            }
+
+            // Check for new depth output (non-blocking)
+            if let Some(ref mut rx) = depth_output_rx {
+                if rx.has_changed().unwrap_or(false) {
+                    let output = rx.borrow_and_update().clone();
+
+                    if !output.ground.is_empty() || !output.obstacles.is_empty() {
+                        // Update costmap
+                        if let Some(ref mut nav) = navigation_controller {
+                            let p = pose_estimator.pose();
+                            let sensor_pos = nalgebra::Vector2::new(p.x, p.y);
+                            nav.update_costmap_from_points(
+                                sensor_pos,
+                                &output.ground,
+                                &output.obstacles,
+                            );
+                            let _ = costmap_tx.send(Some(nav.costmap_snapshot()));
+                            let tracked =
+                                obstacle_tracker.update(&nav.extract_obstacles(), dt as f32);
+                            let _ = obstacles_tx.send(Some(tracked));
+                        }
+
+                        // Forward depth points to SLAM as a synthetic point cloud
+                        if let Some(ref tx) = slam_scan_tx {
+                            let points: Vec<slamwich::Point3D> = output
+                                .ground
+                                .iter()
+                                .chain(output.obstacles.iter())
+                                .map(|p| slamwich::Point3D {
+                                    x: p.x as f32,
+                                    y: p.y as f32,
+                                    z: p.z as f32,
+                                    reflectivity: 128,
+                                    tag: 0,
+                                })
+                                .collect();
+                            if points.len() >= 50 {
+                                let cloud = slamwich::PointCloud::new(points);
+                                let p = pose_estimator.pose();
+                                let slam_pose = slamwich::Pose { x: p.x, y: p.y, theta: p.theta };
+                                let imu_delta = imu_preintegrator.consume();
+                                let _ = tx.try_send((cloud, slam_pose, imu_delta));
+                            }
+                        }
+
+                        // Visual odometry → EKF
+                        if let Some(ref mut vo) = depth_visual_odometry {
+                            let classified = depth::ClassifiedPoints {
+                                ground: output.ground,
+                                obstacles: output.obstacles,
+                            };
+                            let (vo_dx, vo_dy, vo_dtheta) = vo.update(&classified);
+
+                            if vo_dx.abs() > 1e-6
+                                || vo_dy.abs() > 1e-6
+                                || vo_dtheta.abs() > 1e-6
+                            {
+                                pose_estimator.predict(
+                                    vo_dx, vo_dy, vo_dtheta, gyro_z_body, dt,
+                                );
+                                debug!(
+                                    vo_dx = format!("{vo_dx:.4}"),
+                                    vo_dy = format!("{vo_dy:.4}"),
+                                    vo_dtheta = format!("{vo_dtheta:.4}"),
+                                    "depth.vo"
+                                );
+                            }
+                        }
+                    }
+                }
+            }
+        }
 
         let (active_tool, tool_status) = if let Some(tool) = state.tool_registry.active() {
             let status = tool.status();

@@ -6,12 +6,16 @@ license.workspace = true
 repository.workspace = true
 description = "Occupancy grid and costmap for navigation"
 
+[features]
+default = ["lidar"]
+lidar = ["dep:lidar"]
+
 [dependencies]
 nalgebra.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
 rand.workspace = true
-lidar = { path = "../lidar" }
+lidar = { path = "../lidar", optional = true }
 transforms = { path = "../transforms" }
 
 [dev-dependencies]

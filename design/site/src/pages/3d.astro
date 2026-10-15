@@ -1,0 +1,842 @@
+---
+import Base from "../layouts/Base.astro";
+---
+
+<Base title="3D">
+  <div class="page-header">
+    <p class="overline">Spatial</p>
+    <h1>3D Language</h1>
+    <p class="desc">
+      The 3D layer serves spatial understanding, not decoration. The rover model
+      is context — data overlays are the primary visual. Functional clarity over
+      photorealism.
+    </p>
+  </div>
+
+  <section>
+    <h2 class="section-title">Viewport</h2>
+    <div class="viewport-wrap">
+      <canvas id="viewport"></canvas>
+      <div class="viewport-controls">
+        <button class="preset-btn active" data-preset="overview">Overview</button>
+        <button class="preset-btn" data-preset="chase">Chase</button>
+        <button class="preset-btn" data-preset="dispatch">Dispatch</button>
+        <button class="preset-btn" data-preset="orbit">Detail</button>
+        <button class="preset-btn" data-preset="wireframe">Wireframe</button>
+      </div>
+      <div class="viewport-hint">Drag to orbit · Scroll to zoom</div>
+    </div>
+  </section>
+
+  <section>
+    <h2 class="section-title">Principles</h2>
+    <div class="grid-3">
+      <div class="principle">
+        <h3>Data First</h3>
+        <p>
+          The 3D scene exists to spatialize data — costmaps, paths, collision
+          boundaries. The rover model anchors the viewer's frame of reference
+          but never competes with overlays for attention.
+        </p>
+      </div>
+      <div class="principle">
+        <h3>Flat Lighting</h3>
+        <p>
+          Soft ambient + single key light. No dramatic shadows, no colored
+          lighting. The model's materials carry the brand identity, not the
+          lighting rig. Shadows are functional (grounding), never aesthetic.
+        </p>
+      </div>
+      <div class="principle">
+        <h3>Consistent Ground</h3>
+        <p>
+          Every 3D view has a ground reference — grid, map texture, or splat
+          environment. The rover never floats in void. The ground plane fades
+          at edges to integrate with the 2D UI.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2 class="section-title">Materials</h2>
+    <div class="materials-grid">
+      <div class="material-card">
+        <div class="material-preview material-body"></div>
+        <div class="material-meta">
+          <span class="material-name">Body Panels</span>
+          <span class="material-spec">Matte gray, stone-600, roughness 0.85</span>
+          <span class="material-note">Primary surface — recedes behind data overlays</span>
+        </div>
+      </div>
+      <div class="material-card">
+        <div class="material-preview material-safety"></div>
+        <div class="material-meta">
+          <span class="material-name">Safety Elements</span>
+          <span class="material-spec">Orange emissive, brand primary, intensity 0.3</span>
+          <span class="material-note">Chevrons, warning labels — subtly self-illuminated</span>
+        </div>
+      </div>
+      <div class="material-card">
+        <div class="material-preview material-chassis"></div>
+        <div class="material-meta">
+          <span class="material-name">Chassis / Wheels</span>
+          <span class="material-spec">Dark matte, stone-800, roughness 0.9</span>
+          <span class="material-note">Structural — almost invisible, grounds the form</span>
+        </div>
+      </div>
+      <div class="material-card">
+        <div class="material-preview material-sensor"></div>
+        <div class="material-meta">
+          <span class="material-name">Sensors / Glass</span>
+          <span class="material-spec">Semi-transparent, IOR 1.45, opacity 0.15</span>
+          <span class="material-note">Camera domes, lidar housing — barely visible</span>
+        </div>
+      </div>
+      <div class="material-card">
+        <div class="material-preview material-wireframe"></div>
+        <div class="material-meta">
+          <span class="material-name">Wireframe Overlay</span>
+          <span class="material-spec">1px lines, stone-500, 40% opacity</span>
+          <span class="material-note">Diagnostic mode — shows mesh topology</span>
+        </div>
+      </div>
+      <div class="material-card">
+        <div class="material-preview material-ground"></div>
+        <div class="material-meta">
+          <span class="material-name">Ground Plane</span>
+          <span class="material-spec">Grid lines, stone-800, 24px spacing</span>
+          <span class="material-note">Spatial reference — fades at 20m radius</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2 class="section-title">Lighting Setup</h2>
+    <div class="lighting-diagram">
+      <div class="light-scene">
+        <div class="light-ground">
+          <div class="ground-grid"></div>
+        </div>
+        <div class="light-subject"></div>
+        <div class="light-shadow"></div>
+        <div class="light-key">
+          <div class="light-beam"></div>
+          <span class="light-label">Key</span>
+        </div>
+        <div class="light-ambient">
+          <span class="light-label">Ambient</span>
+        </div>
+      </div>
+      <div class="lighting-specs">
+        <div class="spec-row">
+          <span class="spec-label">Key Light</span>
+          <span class="spec-value">Directional, warm white (5500K), intensity 1.0</span>
+        </div>
+        <div class="spec-row">
+          <span class="spec-label">Position</span>
+          <span class="spec-value">45° azimuth, 40° elevation, front-right</span>
+        </div>
+        <div class="spec-row">
+          <span class="spec-label">Ambient</span>
+          <span class="spec-value">Hemisphere, sky: stone-200, ground: stone-800, intensity 0.4</span>
+        </div>
+        <div class="spec-row">
+          <span class="spec-label">Shadows</span>
+          <span class="spec-value">Soft, 2048px map, bias 0.0001, radius 3</span>
+        </div>
+        <div class="spec-row">
+          <span class="spec-label">Environment</span>
+          <span class="spec-value">None — no HDRI, no reflections. Intentionally flat.</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2 class="section-title">Camera Presets</h2>
+    <p class="camera-hint">Click a preset above to animate the viewport.</p>
+    <div class="cameras-grid">
+      <div class="camera-card" data-camera="overview">
+        <div class="camera-meta">
+          <span class="camera-name">Overview</span>
+          <span class="camera-spec">30° elevation, front-quarter, FOV 50°</span>
+          <p class="camera-use">Default view. Shows rover in environmental context. Used in fleet dashboard cards and detail panels.</p>
+        </div>
+      </div>
+      <div class="camera-card" data-camera="chase">
+        <div class="camera-meta">
+          <span class="camera-name">Teleop Chase</span>
+          <span class="camera-spec">15° elevation, behind rover, FOV 60°</span>
+          <p class="camera-use">Active control view. Camera follows rover heading with spring damping. Adjustable distance via scroll.</p>
+        </div>
+      </div>
+      <div class="camera-card" data-camera="dispatch">
+        <div class="camera-meta">
+          <span class="camera-name">Dispatch</span>
+          <span class="camera-spec">70° elevation, centered on fleet, FOV 45°</span>
+          <p class="camera-use">Fleet overview. Near top-down with slight tilt for depth cue. Shows all rover positions on map.</p>
+        </div>
+      </div>
+      <div class="camera-card" data-camera="orbit">
+        <div class="camera-meta">
+          <span class="camera-name">Detail / Orbit</span>
+          <span class="camera-spec">User-controlled, orbit target, FOV 40°</span>
+          <p class="camera-use">Inspection mode. Unrestricted orbit around rover. Used in model viewer and maintenance UI.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2 class="section-title">Data Overlays</h2>
+    <div class="overlays-list">
+      <div class="overlay-row">
+        <div class="overlay-preview">
+          <div class="overlay-costmap"></div>
+        </div>
+        <div class="overlay-meta">
+          <span class="overlay-name">Costmap</span>
+          <p>Heat map texture on ground plane. Green → yellow → red gradient. Obstacle cells are opaque red, free space is transparent green at 20% opacity. Updates at 10 Hz.</p>
+        </div>
+      </div>
+      <div class="overlay-row">
+        <div class="overlay-preview">
+          <div class="overlay-collision"></div>
+        </div>
+        <div class="overlay-meta">
+          <span class="overlay-name">Collision Guard</span>
+          <p>Arc around rover front. Orange fill, opacity proportional to nearest obstacle proximity (0.1 at 3m → 0.8 at 0.3m). Hard stop boundary shown as solid red line.</p>
+        </div>
+      </div>
+      <div class="overlay-row">
+        <div class="overlay-preview">
+          <div class="overlay-path"></div>
+        </div>
+        <div class="overlay-meta">
+          <span class="overlay-name">Planned Path</span>
+          <p>Dashed line on ground plane. Orange stroke, 3px width, 12px dash / 8px gap. Fades behind rover (opacity 1.0 ahead → 0.2 behind). Waypoints as small orange diamonds.</p>
+        </div>
+      </div>
+      <div class="overlay-row">
+        <div class="overlay-preview">
+          <div class="overlay-mppi"></div>
+        </div>
+        <div class="overlay-meta">
+          <span class="overlay-name">MPPI Candidates</span>
+          <p>Thin white lines (1px, 15% opacity) showing sampled trajectories. Best trajectory highlighted in orange at 80% opacity. Updates every planning cycle.</p>
+        </div>
+      </div>
+      <div class="overlay-row">
+        <div class="overlay-preview">
+          <div class="overlay-splat"></div>
+        </div>
+        <div class="overlay-meta">
+          <span class="overlay-name">Gaussian Splat</span>
+          <p>3D environment reconstruction from multi-view capture. Natural colors, slightly desaturated (saturation 0.8). Rover model composited on top.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2 class="section-title">Model Specification</h2>
+    <div class="spec-table">
+      <div class="spec-row">
+        <span class="spec-label">Format</span>
+        <span class="spec-value">glTF 2.0 / GLB (binary)</span>
+      </div>
+      <div class="spec-row">
+        <span class="spec-label">Units</span>
+        <span class="spec-value">Millimeters (consistent with CAD pipeline)</span>
+      </div>
+      <div class="spec-row">
+        <span class="spec-label">Origin</span>
+        <span class="spec-value">Base of model at Y = 0</span>
+      </div>
+      <div class="spec-row">
+        <span class="spec-label">Orientation</span>
+        <span class="spec-value">Front facing +Z, right is +X, up is +Y</span>
+      </div>
+      <div class="spec-row">
+        <span class="spec-label">LOD</span>
+        <span class="spec-value">Assembly (~264 KB), frame-only, realistic variants</span>
+      </div>
+      <div class="spec-row">
+        <span class="spec-label">Fallback</span>
+        <span class="spec-value">Primitive box geometry if GLB fails to load</span>
+      </div>
+      <div class="spec-row">
+        <span class="spec-label">Animation</span>
+        <span class="spec-value">Hermite spline interpolation between telemetry updates</span>
+      </div>
+      <div class="spec-row">
+        <span class="spec-label">Renderer</span>
+        <span class="spec-value">React Three Fiber (Three.js), WebGL 2</span>
+      </div>
+    </div>
+  </section>
+</Base>
+
+<script>
+  import * as THREE from "three";
+  import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+
+  // ── Colors (from design tokens) ──────────────────────────────
+
+  const ORANGE = 0xff6600;
+  const STONE_200 = 0xd6d3d1;
+  const STONE_500 = 0x78716c;
+  const STONE_600 = 0x57534e;
+  const STONE_800 = 0x292524;
+  const BG = 0x0c0a09;
+
+  // ── Setup ────────────────────────────────────────────────────
+
+  const canvas = document.getElementById("viewport") as HTMLCanvasElement;
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.0;
+
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(BG);
+
+  const camera = new THREE.PerspectiveCamera(50, 2, 0.1, 100);
+  camera.position.set(2.2, 1.2, 2.2);
+
+  const controls = new OrbitControls(camera, canvas);
+  controls.target.set(0, 0.2, 0);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.08;
+  controls.minDistance = 1;
+  controls.maxDistance = 8;
+  controls.maxPolarAngle = Math.PI * 0.48;
+  controls.update();
+
+  // ── Lighting (matches spec) ──────────────────────────────────
+
+  const hemi = new THREE.HemisphereLight(STONE_200, STONE_800, 0.4);
+  scene.add(hemi);
+
+  const key = new THREE.DirectionalLight(0xfff5e6, 1.0);
+  key.position.set(3, 4, 2); // 45° azimuth, ~40° elevation
+  key.castShadow = true;
+  key.shadow.mapSize.set(2048, 2048);
+  key.shadow.camera.near = 0.5;
+  key.shadow.camera.far = 15;
+  key.shadow.camera.left = -3;
+  key.shadow.camera.right = 3;
+  key.shadow.camera.top = 3;
+  key.shadow.camera.bottom = -3;
+  key.shadow.bias = -0.0001;
+  key.shadow.radius = 3;
+  scene.add(key);
+
+  // ── Ground plane ─────────────────────────────────────────────
+
+  const gridHelper = new THREE.GridHelper(20, 40, STONE_800, STONE_800);
+  (gridHelper.material as THREE.Material).opacity = 0.4;
+  (gridHelper.material as THREE.Material).transparent = true;
+  scene.add(gridHelper);
+
+  // Solid ground for shadow receiving
+  const groundGeo = new THREE.PlaneGeometry(20, 20);
+  const groundMat = new THREE.ShadowMaterial({ opacity: 0.3 });
+  const ground = new THREE.Mesh(groundGeo, groundMat);
+  ground.rotation.x = -Math.PI / 2;
+  ground.position.y = -0.001;
+  ground.receiveShadow = true;
+  scene.add(ground);
+
+  // ── Materials ────────────────────────────────────────────────
+
+  const bodyMat = new THREE.MeshStandardMaterial({
+    color: STONE_600, roughness: 0.85, metalness: 0.0,
+  });
+  const chassisMat = new THREE.MeshStandardMaterial({
+    color: STONE_800, roughness: 0.9, metalness: 0.0,
+  });
+  const safetyMat = new THREE.MeshStandardMaterial({
+    color: ORANGE, emissive: ORANGE, emissiveIntensity: 0.3,
+    roughness: 0.6, metalness: 0.0,
+  });
+  const sensorMat = new THREE.MeshPhysicalMaterial({
+    color: 0x334455, roughness: 0.1, metalness: 0.0,
+    transparent: true, opacity: 0.25, ior: 1.45,
+  });
+  const wireMat = new THREE.MeshBasicMaterial({
+    color: STONE_500, wireframe: true, transparent: true, opacity: 0.4,
+  });
+
+  // ── Rover model (primitives) ─────────────────────────────────
+
+  const rover = new THREE.Group();
+
+  // Body
+  const body = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.28, 0.9), bodyMat);
+  body.position.y = 0.30;
+  body.castShadow = true;
+  rover.add(body);
+
+  // Chassis rail
+  const chassis = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.08, 0.82), chassisMat);
+  chassis.position.y = 0.14;
+  chassis.castShadow = true;
+  rover.add(chassis);
+
+  // Safety stripe (orange band around body)
+  const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.03, 0.92), safetyMat);
+  stripe.position.y = 0.36;
+  rover.add(stripe);
+
+  // Rear chevron
+  const chevron = new THREE.Mesh(new THREE.BoxGeometry(0.58, 0.12, 0.015), safetyMat);
+  chevron.position.set(0, 0.30, -0.458);
+  rover.add(chevron);
+
+  // Front face (slightly recessed — darker)
+  const frontFace = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.18, 0.015), chassisMat);
+  frontFace.position.set(0, 0.32, 0.458);
+  rover.add(frontFace);
+
+  // Sensor dome (top)
+  const sensorBase = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.06, 0.14), chassisMat);
+  sensorBase.position.set(0, 0.47, 0.15);
+  rover.add(sensorBase);
+
+  const sensorDome = new THREE.Mesh(
+    new THREE.SphereGeometry(0.07, 16, 12, 0, Math.PI * 2, 0, Math.PI / 2),
+    sensorMat
+  );
+  sensorDome.position.set(0, 0.50, 0.15);
+  rover.add(sensorDome);
+
+  // Camera cluster (front, 3 small boxes)
+  for (let i = -1; i <= 1; i++) {
+    const cam = new THREE.Mesh(
+      new THREE.BoxGeometry(0.04, 0.04, 0.03),
+      new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.3 })
+    );
+    cam.position.set(i * 0.12, 0.38, 0.46);
+    rover.add(cam);
+  }
+
+  // Wheels (4x)
+  const wheelGeo = new THREE.CylinderGeometry(0.09, 0.09, 0.06, 20);
+  const wheelMat = new THREE.MeshStandardMaterial({
+    color: 0x1a1a1a, roughness: 0.95, metalness: 0.1,
+  });
+  const wheelPositions = [
+    [0.30, 0.09, 0.35],
+    [-0.30, 0.09, 0.35],
+    [0.30, 0.09, -0.35],
+    [-0.30, 0.09, -0.35],
+  ];
+  for (const [x, y, z] of wheelPositions) {
+    const wheel = new THREE.Mesh(wheelGeo, wheelMat);
+    wheel.position.set(x, y, z);
+    wheel.rotation.z = Math.PI / 2;
+    wheel.castShadow = true;
+    rover.add(wheel);
+
+    // Tire tread ring
+    const tread = new THREE.Mesh(
+      new THREE.TorusGeometry(0.09, 0.015, 6, 20),
+      wheelMat
+    );
+    tread.position.set(x, y, z);
+    tread.rotation.y = Math.PI / 2;
+    rover.add(tread);
+  }
+
+  // LED strip (thin orange line under body edge)
+  const ledGeo = new THREE.BoxGeometry(0.02, 0.01, 0.7);
+  const ledMat = new THREE.MeshBasicMaterial({ color: ORANGE });
+  const ledL = new THREE.Mesh(ledGeo, ledMat);
+  ledL.position.set(0.29, 0.16, 0);
+  rover.add(ledL);
+  const ledR = new THREE.Mesh(ledGeo, ledMat);
+  ledR.position.set(-0.29, 0.16, 0);
+  rover.add(ledR);
+
+  // Wireframe overlay (clone of body, hidden by default)
+  const wireBody = new THREE.Mesh(new THREE.BoxGeometry(0.61, 0.29, 0.91), wireMat);
+  wireBody.position.copy(body.position);
+  wireBody.visible = false;
+  rover.add(wireBody);
+  const wireChassis = new THREE.Mesh(new THREE.BoxGeometry(0.56, 0.09, 0.83), wireMat);
+  wireChassis.position.copy(chassis.position);
+  wireChassis.visible = false;
+  rover.add(wireChassis);
+
+  scene.add(rover);
+
+  // ── Camera presets ───────────────────────────────────────────
+
+  const PRESETS: Record<string, { pos: [number, number, number]; target: [number, number, number]; fov: number }> = {
+    overview: { pos: [2.2, 1.2, 2.2], target: [0, 0.2, 0], fov: 50 },
+    chase: { pos: [0, 0.45, -2.2], target: [0, 0.2, 0.5], fov: 60 },
+    dispatch: { pos: [0.1, 3.5, 0.5], target: [0, 0, 0], fov: 45 },
+    orbit: { pos: [1.0, 0.5, 1.0], target: [0, 0.25, 0], fov: 40 },
+  };
+
+  let targetPos = new THREE.Vector3();
+  let targetLookAt = new THREE.Vector3();
+  let targetFov = 50;
+  let animating = false;
+  let wireframeMode = false;
+
+  function animateTo(preset: string) {
+    const p = PRESETS[preset];
+    if (!p) return;
+    targetPos.set(...p.pos);
+    targetLookAt.set(...p.target);
+    targetFov = p.fov;
+    animating = true;
+  }
+
+  function setWireframe(on: boolean) {
+    wireframeMode = on;
+    wireBody.visible = on;
+    wireChassis.visible = on;
+    body.material = on ? new THREE.MeshBasicMaterial({ color: STONE_600, transparent: true, opacity: 0.15 }) : bodyMat;
+    chassis.material = on ? new THREE.MeshBasicMaterial({ color: STONE_800, transparent: true, opacity: 0.1 }) : chassisMat;
+  }
+
+  // Preset buttons
+  document.querySelectorAll<HTMLElement>(".preset-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".preset-btn").forEach((b) => b.classList.remove("active"));
+      btn.classList.add("active");
+
+      const preset = btn.dataset.preset!;
+      if (preset === "wireframe") {
+        setWireframe(!wireframeMode);
+        if (!wireframeMode) btn.classList.remove("active");
+        else btn.classList.add("active");
+        return;
+      }
+      setWireframe(false);
+      document.querySelector('.preset-btn[data-preset="wireframe"]')?.classList.remove("active");
+      animateTo(preset);
+    });
+  });
+
+  // Camera cards
+  document.querySelectorAll<HTMLElement>(".camera-card[data-camera]").forEach((card) => {
+    card.addEventListener("click", () => {
+      const preset = card.dataset.camera!;
+      document.querySelectorAll(".preset-btn").forEach((b) => b.classList.remove("active"));
+      document.querySelector(`.preset-btn[data-preset="${preset}"]`)?.classList.add("active");
+      setWireframe(false);
+      animateTo(preset);
+
+      // Scroll viewport into view
+      canvas.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+  });
+
+  // ── Resize ───────────────────────────────────────────────────
+
+  function resize() {
+    const wrap = canvas.parentElement!;
+    const w = wrap.clientWidth;
+    const h = Math.min(w * 0.56, 560);
+    canvas.style.height = h + "px";
+    renderer.setSize(w, h);
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+  }
+  window.addEventListener("resize", resize);
+  resize();
+
+  // ── Animation loop ───────────────────────────────────────────
+
+  function animate() {
+    requestAnimationFrame(animate);
+
+    if (animating) {
+      camera.position.lerp(targetPos, 0.06);
+      controls.target.lerp(targetLookAt, 0.06);
+      camera.fov += (targetFov - camera.fov) * 0.06;
+      camera.updateProjectionMatrix();
+
+      if (camera.position.distanceTo(targetPos) < 0.01) {
+        animating = false;
+      }
+    }
+
+    controls.update();
+    renderer.render(scene, camera);
+  }
+  animate();
+</script>
+
+<style>
+  /* Viewport */
+  .viewport-wrap {
+    position: relative;
+    border: 1px solid var(--border);
+    background: oklch(0.06 0.005 49);
+  }
+  #viewport {
+    display: block; width: 100%; height: 560px;
+    cursor: grab;
+  }
+  #viewport:active { cursor: grabbing; }
+
+  .viewport-controls {
+    position: absolute; top: 16px; left: 16px;
+    display: flex; gap: 4px;
+  }
+  .preset-btn {
+    font-family: var(--font-mono); font-size: 10px;
+    padding: 6px 12px; cursor: pointer;
+    background: oklch(0.1 0 0 / 0.8); color: var(--fg-muted);
+    border: 1px solid var(--border);
+    backdrop-filter: blur(8px);
+    transition: all 100ms ease;
+    text-transform: uppercase; letter-spacing: 0.04em;
+  }
+  .preset-btn:hover { color: var(--fg); border-color: var(--fg-muted); }
+  .preset-btn.active {
+    color: var(--primary); border-color: var(--primary);
+    background: oklch(0.705 0.213 47.604 / 0.1);
+  }
+  .viewport-hint {
+    position: absolute; bottom: 12px; right: 16px;
+    font-size: 10px; color: var(--fg-muted);
+    opacity: 0.5;
+  }
+
+  /* Principles */
+  .grid-3 {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 1px; background: var(--border); border: 1px solid var(--border);
+  }
+  .principle { padding: 20px; background: var(--bg); }
+  .principle h3 { font-family: var(--font-display); font-size: 16px; font-weight: 600; margin-bottom: 8px; }
+  .principle p { font-size: 12px; color: var(--fg-muted); line-height: 1.5; }
+
+  /* Materials */
+  .materials-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;
+  }
+  .material-card { border: 1px solid var(--border); }
+  .material-preview {
+    height: 120px; position: relative; overflow: hidden;
+  }
+  .material-body {
+    background: oklch(0.444 0.011 106.424);
+  }
+  .material-safety {
+    background: oklch(0.705 0.213 47.604);
+    background-image: repeating-linear-gradient(
+      -45deg, transparent, transparent 12px,
+      oklch(0 0 0 / 0.2) 12px, oklch(0 0 0 / 0.2) 24px
+    );
+  }
+  .material-chassis {
+    background: oklch(0.268 0.007 106.424);
+  }
+  .material-sensor {
+    background: linear-gradient(135deg,
+      oklch(0.3 0.005 106.424) 0%,
+      oklch(0.4 0.01 200 / 0.3) 50%,
+      oklch(0.3 0.005 106.424) 100%
+    );
+  }
+  .material-wireframe {
+    background: oklch(0.147 0.004 49.25);
+    background-image:
+      linear-gradient(oklch(0.553 0.013 106.424 / 0.4) 1px, transparent 1px),
+      linear-gradient(90deg, oklch(0.553 0.013 106.424 / 0.4) 1px, transparent 1px);
+    background-size: 20px 20px;
+  }
+  .material-ground {
+    background: oklch(0.1 0.002 106.424);
+    background-image:
+      linear-gradient(oklch(0.268 0.007 106.424 / 0.5) 1px, transparent 1px),
+      linear-gradient(90deg, oklch(0.268 0.007 106.424 / 0.5) 1px, transparent 1px);
+    background-size: 24px 24px;
+    mask-image: radial-gradient(ellipse at center, black 30%, transparent 80%);
+    -webkit-mask-image: radial-gradient(ellipse at center, black 30%, transparent 80%);
+  }
+  .material-meta { padding: 12px; display: flex; flex-direction: column; gap: 4px; }
+  .material-name { font-size: 12px; font-weight: 700; }
+  .material-spec { font-size: 10px; color: var(--primary); }
+  .material-note { font-size: 10px; color: var(--fg-muted); }
+
+  /* Lighting */
+  .lighting-diagram {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 1px; background: var(--border); border: 1px solid var(--border);
+  }
+  .light-scene {
+    height: 300px; background: var(--bg); position: relative; overflow: hidden;
+  }
+  .light-ground {
+    position: absolute; bottom: 60px; left: 0; right: 0; height: 100px;
+    background: oklch(0.1 0.002 106.424);
+    transform: perspective(400px) rotateX(60deg);
+    transform-origin: bottom center;
+  }
+  .ground-grid {
+    width: 100%; height: 100%;
+    background-image:
+      linear-gradient(oklch(0.268 0.007 106.424 / 0.4) 1px, transparent 1px),
+      linear-gradient(90deg, oklch(0.268 0.007 106.424 / 0.4) 1px, transparent 1px);
+    background-size: 20px 20px;
+  }
+  .light-subject {
+    position: absolute; bottom: 60px; left: 50%; transform: translateX(-50%);
+    width: 60px; height: 40px; background: oklch(0.444 0.011 106.424);
+    border: 2px solid oklch(0.553 0.013 106.424);
+  }
+  .light-shadow {
+    position: absolute; bottom: 40px; left: calc(50% + 10px);
+    width: 80px; height: 20px;
+    background: oklch(0 0 0 / 0.3);
+    filter: blur(8px);
+    transform: skewX(-20deg);
+  }
+  .light-key {
+    position: absolute; top: 40px; right: 60px;
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+  }
+  .light-beam {
+    width: 4px; height: 4px; background: oklch(0.95 0.02 70);
+    box-shadow: 0 0 20px 8px oklch(0.95 0.02 70 / 0.4);
+    border-radius: 50%;
+  }
+  .light-ambient {
+    position: absolute; top: 40px; left: 40px;
+  }
+  .light-label {
+    font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--fg-muted);
+  }
+  .lighting-specs {
+    background: var(--bg); padding: 24px;
+    display: flex; flex-direction: column; justify-content: center;
+  }
+  .spec-row {
+    display: flex; gap: 16px; padding: 8px 0;
+    border-bottom: 1px solid var(--border); align-items: baseline;
+  }
+  .spec-row:last-child { border-bottom: none; }
+  .spec-label {
+    font-size: 11px; font-weight: 700; min-width: 100px; color: var(--primary);
+  }
+  .spec-value { font-size: 11px; color: var(--fg-muted); }
+
+  /* Cameras */
+  .camera-hint {
+    font-size: 11px; color: var(--fg-muted); margin-bottom: 16px;
+  }
+  .cameras-grid {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px;
+  }
+  .camera-card {
+    border: 1px solid var(--border); cursor: pointer;
+    transition: border-color 100ms ease;
+  }
+  .camera-card:hover { border-color: var(--primary); }
+  .camera-meta { padding: 16px; }
+  .camera-name { font-size: 13px; font-weight: 700; display: block; margin-bottom: 4px; }
+  .camera-spec { font-size: 10px; color: var(--primary); display: block; margin-bottom: 8px; }
+  .camera-use { font-size: 11px; color: var(--fg-muted); line-height: 1.4; }
+
+  /* Overlays */
+  .overlays-list { border: 1px solid var(--border); }
+  .overlay-row {
+    display: grid; grid-template-columns: 160px 1fr;
+    border-bottom: 1px solid var(--border);
+  }
+  .overlay-row:last-child { border-bottom: none; }
+  .overlay-preview {
+    padding: 20px; display: flex; align-items: center; justify-content: center;
+    background: oklch(0.06 0 0);
+  }
+  .overlay-costmap {
+    width: 80px; height: 80px;
+    background: linear-gradient(135deg,
+      oklch(0.723 0.191 149 / 0.2) 0%,
+      oklch(0.80 0.15 70 / 0.4) 40%,
+      oklch(0.705 0.213 47.604 / 0.6) 65%,
+      oklch(0.467 0.186 18.5 / 0.8) 100%
+    );
+  }
+  .overlay-collision {
+    width: 80px; height: 40px;
+    border-top-left-radius: 40px; border-top-right-radius: 40px;
+    background: oklch(0.705 0.213 47.604 / 0.3);
+    border-top: 2px solid oklch(0.705 0.213 47.604);
+    border-left: 2px solid oklch(0.705 0.213 47.604);
+    border-right: 2px solid oklch(0.705 0.213 47.604);
+  }
+  .overlay-path {
+    width: 80px; height: 80px;
+    border: none; position: relative;
+  }
+  .overlay-path::after {
+    content: "";
+    position: absolute; top: 10%; left: 20%; width: 60%; height: 80%;
+    border-left: 3px dashed oklch(0.705 0.213 47.604);
+    border-bottom: 3px dashed oklch(0.705 0.213 47.604);
+    border-bottom-left-radius: 30px;
+  }
+  .overlay-mppi {
+    width: 80px; height: 80px; position: relative;
+  }
+  .overlay-mppi::before {
+    content: "";
+    position: absolute; top: 80%; left: 50%; width: 60px; height: 60px;
+    transform: translate(-50%, -100%);
+    background: repeating-conic-gradient(
+      oklch(1 0 0 / 0.1) 0deg 3deg,
+      transparent 3deg 15deg
+    );
+    border-radius: 50%;
+  }
+  .overlay-mppi::after {
+    content: "";
+    position: absolute; bottom: 20%; left: 50%;
+    width: 3px; height: 50px; transform: translateX(-50%) rotate(-10deg);
+    background: oklch(0.705 0.213 47.604 / 0.8);
+  }
+  .overlay-splat {
+    width: 80px; height: 80px;
+    background:
+      radial-gradient(circle at 30% 40%, oklch(0.5 0.05 149 / 0.6) 0%, transparent 30%),
+      radial-gradient(circle at 60% 30%, oklch(0.4 0.04 200 / 0.5) 0%, transparent 25%),
+      radial-gradient(circle at 70% 60%, oklch(0.45 0.03 70 / 0.4) 0%, transparent 35%),
+      radial-gradient(circle at 40% 70%, oklch(0.5 0.05 149 / 0.5) 0%, transparent 20%),
+      radial-gradient(circle at 50% 50%, oklch(0.35 0.02 106.424 / 0.3) 0%, transparent 50%);
+  }
+  .overlay-meta { padding: 16px 20px; display: flex; flex-direction: column; justify-content: center; }
+  .overlay-name { font-size: 13px; font-weight: 700; margin-bottom: 8px; }
+  .overlay-meta p { font-size: 11px; color: var(--fg-muted); line-height: 1.5; }
+
+  /* Spec table */
+  .spec-table { border: 1px solid var(--border); }
+  .spec-table .spec-row {
+    padding: 12px 24px; border-bottom: 1px solid var(--border);
+  }
+  .spec-table .spec-row:last-child { border-bottom: none; }
+
+  @media (max-width: 768px) {
+    .grid-3 { grid-template-columns: 1fr; }
+    .materials-grid { grid-template-columns: 1fr 1fr; }
+    .cameras-grid { grid-template-columns: 1fr 1fr; }
+    .lighting-diagram { grid-template-columns: 1fr; }
+    .overlay-row { grid-template-columns: 1fr; }
+    .viewport-controls { flex-wrap: wrap; gap: 2px; }
+    .preset-btn { font-size: 9px; padding: 5px 8px; }
+    #viewport { height: 320px; }
+  }
+</style>

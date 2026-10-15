@@ -26,7 +26,7 @@ use policy::{NormalizationConfig, Policy, PolicyManager};
 use pursuit::PursuitConfig;
 use recording::{Config as RecordingConfig, Recorder};
 use sim::SimBus;
-use slam::{SlamConfig, SlamProcessor, SlamState};
+use slamwich::{SlamConfig, SlamProcessor, SlamState};
 use state::{Event, StateMachine};
 use std::collections::HashSet;
 use std::path::PathBuf;
@@ -73,7 +73,7 @@ pub(crate) struct DaemonContext {
     pub(crate) lidar_status_rx: watch::Receiver<LidarStatus>,
 
     // -- SLAM --
-    pub(crate) slam_scan_tx: Option<mpsc::Sender<(lidar::PointCloud, Pose, Option<slam::PreintegratedDelta>)>>,
+    pub(crate) slam_scan_tx: Option<mpsc::Sender<(slamwich::PointCloud, slamwich::Pose, Option<slamwich::PreintegratedDelta>)>>,
     pub(crate) slam_state_rx: Option<watch::Receiver<SlamState>>,
 
     // -- navigation --
@@ -136,7 +136,7 @@ pub(crate) struct DaemonContext {
     pub(crate) last_policy_action_time: Option<Instant>,
     pub(crate) dispatch_semaphore: Arc<Semaphore>,
     pub(crate) attitude_filter: AttitudeFilter,
-    pub(crate) imu_preintegrator: slam::ImuPreintegrator,
+    pub(crate) imu_preintegrator: slamwich::ImuPreintegrator,
     pub(crate) last_tick: Instant,
     pub(crate) control_period: Duration,
     pub(crate) hardware_estop_latched: bool,
@@ -160,6 +160,13 @@ pub(crate) struct DaemonContext {
 
     // -- Ethernet tool discovery --
     pub(crate) eth_discovery: Option<EthDiscovery>,
+
+    // -- depth perception pipeline --
+    pub(crate) depth_output_rx: Option<watch::Receiver<crate::depth_thread::DepthOutput>>,
+    pub(crate) depth_frame_tx: Option<std::sync::mpsc::Sender<crate::depth_thread::TaggedFrame>>,
+    pub(crate) depth_visual_odometry: Option<depth::visual_odometry::VisualOdometry>,
+    pub(crate) depth_raw_rxs: Vec<(String, std::sync::mpsc::Receiver<camera::RawFrame>)>,
+    pub(crate) depth_enabled: bool,
 }
 
 /// Run all initialization and return the context the control loop needs plus
@@ -361,7 +368,9 @@ pub(crate) async fn initialize(
     }
 
     // Initialize classical navigation controller (planner + pursuit)
-    let navigation_enabled = file_config.navigation.enabled && file_config.lidar.enabled;
+    // Navigation can use lidar OR depth cameras as perception source
+    let navigation_enabled = file_config.navigation.enabled
+        && (file_config.lidar.enabled || file_config.depth.enabled);
     let navigation_controller: Option<NavigationController> = if navigation_enabled {
         let controller_type = match file_config.navigation.controller_type.as_str() {
             "mppi" => ControllerType::Mppi,
@@ -428,8 +437,8 @@ pub(crate) async fn initialize(
     } else {
         if !file_config.navigation.enabled {
             info!("Classical navigation disabled (using policy)");
-        } else if !file_config.lidar.enabled {
-            info!("Classical navigation requires LiDAR (using policy)");
+        } else {
+            info!("Classical navigation requires LiDAR or depth cameras (using policy)");
         }
         None
     };
@@ -496,26 +505,6 @@ pub(crate) async fn initialize(
         info!("Using simulated CAN bus");
         let sim_bus = SimBus::new(vesc_ids);
         CanInterface::Sim(Arc::new(Mutex::new(sim_bus)))
-    } else if let Some(ref eth) = eth_discovery {
-        // Wait up to 3s for a CAN bridge to appear via Ethernet discovery
-        let bridge_url = {
-            let mut found = None;
-            for _ in 0..30 {
-                if let Some(url) = eth.discover_can_bridge() {
-                    found = Some(url);
-                    break;
-                }
-                tokio::time::sleep(Duration::from_millis(100)).await;
-            }
-            found
-        };
-        if let Some(url) = bridge_url {
-            info!(url = %url, "Auto-discovered CAN bridge via Ethernet");
-            CanInterface::connect_remote(&url).await?
-        } else {
-            info!(interface = %can_iface, "No CAN bridge found, opening SocketCAN");
-            CanInterface::Real(Bus::open(can_iface)?)
-        }
     } else {
         info!(interface = %can_iface, "Opening CAN bus");
         CanInterface::Real(Bus::open(can_iface)?)
@@ -995,9 +984,9 @@ pub(crate) async fn initialize(
     // Initialize SLAM processor as background task
     // This moves expensive scan matching (10-100ms) off the main control loop
     let (slam_scan_tx, slam_state_rx): (
-        Option<mpsc::Sender<(lidar::PointCloud, Pose, Option<slam::PreintegratedDelta>)>>,
+        Option<mpsc::Sender<(slamwich::PointCloud, slamwich::Pose, Option<slamwich::PreintegratedDelta>)>>,
         Option<watch::Receiver<SlamState>>,
-    ) = if file_config.slam.enabled && file_config.lidar.enabled {
+    ) = if file_config.slam.enabled && (file_config.lidar.enabled || file_config.depth.enabled) {
         let slam_config = SlamConfig {
             voxel_size: file_config.slam.voxel_size,
             max_iterations: file_config.slam.max_iterations,
@@ -1016,7 +1005,7 @@ pub(crate) async fn initialize(
 
         // Channel for sending scans to SLAM (bounded to prevent backpressure)
         let (scan_tx, mut scan_rx) =
-            mpsc::channel::<(lidar::PointCloud, Pose, Option<slam::PreintegratedDelta>)>(4);
+            mpsc::channel::<(slamwich::PointCloud, slamwich::Pose, Option<slamwich::PreintegratedDelta>)>(4);
         // Watch channel for receiving SLAM state updates
         let (state_tx, state_rx) = watch::channel(SlamState::default());
 
@@ -1024,9 +1013,9 @@ pub(crate) async fn initialize(
         // SLAM's process_scan() is CPU-intensive (10-100ms+) and would starve tokio worker threads.
         // Using std::sync::mpsc for thread-safe channel from async to sync.
         let (slam_thread_tx, slam_thread_rx) = std::sync::mpsc::channel::<(
-            lidar::PointCloud,
-            Pose,
-            Option<slam::PreintegratedDelta>,
+            slamwich::PointCloud,
+            slamwich::Pose,
+            Option<slamwich::PreintegratedDelta>,
         )>();
 
         // Bridge async mpsc to sync mpsc
@@ -1304,7 +1293,113 @@ pub(crate) async fn initialize(
 
     // IMU pre-integrator for SLAM (accumulates gyro-Z between LiDAR scans)
     let imu_preintegrator =
-        slam::ImuPreintegrator::new(slam::ImuPreintegrationConfig::default());
+        slamwich::ImuPreintegrator::new(slamwich::ImuPreintegrationConfig::default());
+
+    // ---------- Depth perception pipeline ----------
+    let depth_enabled = file_config.depth.enabled && camera_enabled;
+    let mut depth_raw_rxs: Vec<(String, std::sync::mpsc::Receiver<camera::RawFrame>)> = Vec::new();
+    let mut depth_output_rx: Option<watch::Receiver<crate::depth_thread::DepthOutput>> = None;
+    let mut depth_frame_tx: Option<std::sync::mpsc::Sender<crate::depth_thread::TaggedFrame>> = None;
+    let depth_visual_odometry = if depth_enabled && file_config.depth.visual_odometry {
+        Some(depth::visual_odometry::VisualOdometry::new(
+            depth::visual_odometry::VisualOdometryConfig {
+                icp: depth::visual_odometry::IcpConfig {
+                    max_correspondence_dist: file_config.depth.icp_max_dist,
+                    max_iterations: file_config.depth.icp_max_iterations,
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+        ))
+    } else {
+        None
+    };
+
+    if depth_enabled {
+        let mounts = file_config.camera.resolved_mounts();
+        let raw_config = camera::RawConfig {
+            width: file_config.depth.capture_width,
+            height: file_config.depth.capture_height,
+            fps: file_config.depth.capture_fps,
+        };
+
+        // Build camera geometries for depth back-projection
+        let mut geometries: Vec<(String, depth::CameraGeometry)> = Vec::new();
+        for mount in &mounts {
+            let fov_h = mount.fov_h.unwrap_or(1.745);
+            let fov_v = mount.fov_v.unwrap_or(1.18);
+            let geom = depth::CameraGeometry::from_fov(
+                fov_h,
+                fov_v,
+                raw_config.width,
+                raw_config.height,
+                mount.mount_position,
+                mount.mount_rotation,
+            );
+            geometries.push((mount.id.clone(), geom));
+        }
+
+        // Spawn depth processing thread (inference + backprojection off main loop)
+        let thread_config = crate::depth_thread::DepthThreadConfig {
+            geometries: geometries.clone(),
+            perception: depth::DepthPerceptionConfig {
+                max_depth: file_config.depth.max_depth,
+                min_depth: file_config.depth.min_depth,
+                ground_threshold: file_config.depth.ground_threshold,
+                stride: file_config.depth.stride,
+                ..Default::default()
+            },
+            #[cfg(feature = "depth-onnx")]
+            model_path: file_config.depth.model_path.clone(),
+            #[cfg(feature = "depth-onnx")]
+            model_input_width: file_config.depth.model_input_width,
+            #[cfg(feature = "depth-onnx")]
+            model_input_height: file_config.depth.model_input_height,
+        };
+        let (frame_tx, output_rx) = crate::depth_thread::spawn_depth_thread(thread_config);
+        depth_frame_tx = Some(frame_tx);
+        depth_output_rx = Some(output_rx);
+
+        // Spawn raw capture threads for depth inference
+        let detected = camera::detect_cameras();
+        for mount in &mounts {
+            // Find matching camera by device hint (matches against stable_id / USB device path)
+            let cam = if let Some(ref hint) = mount.device_hint {
+                detected.iter().find(|c| c.stable_id() == *hint)
+            } else {
+                None
+            };
+
+            if let Some(cam) = cam {
+                match camera::spawn_raw_capture(cam, raw_config.clone()) {
+                    Ok((rx, _handle)) => {
+                        info!(id = %mount.id, "Depth raw capture started");
+                        depth_raw_rxs.push((mount.id.clone(), rx));
+                    }
+                    Err(e) => {
+                        warn!(id = %mount.id, ?e, "Failed to start depth raw capture");
+                    }
+                }
+            } else {
+                debug!(
+                    id = %mount.id,
+                    hint = ?mount.device_hint,
+                    "No camera matched for depth capture"
+                );
+            }
+        }
+
+        info!(
+            cameras = geometries.len(),
+            raw_captures = depth_raw_rxs.len(),
+            vo = file_config.depth.visual_odometry,
+            "Depth perception pipeline enabled"
+        );
+    } else if file_config.depth.enabled && !camera_enabled {
+        info!("Depth perception disabled (cameras disabled)");
+    } else {
+        info!("Depth perception disabled");
+    }
 
     // Heartbeat counter for deadlock detection (thread spawned in run_loop)
     let heartbeat_counter = std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0));
@@ -1401,6 +1496,11 @@ pub(crate) async fn initialize(
         heartbeat_stalled,
         seq_tracker,
         eth_discovery,
+        depth_output_rx,
+        depth_frame_tx,
+        depth_visual_odometry,
+        depth_raw_rxs,
+        depth_enabled,
     };
 
     Ok((ctx, log_guard))
