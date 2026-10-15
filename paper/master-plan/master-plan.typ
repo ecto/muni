@@ -197,28 +197,14 @@
 
 // Title page (single column). The one flame: the orange rule under the title.
 #page(columns: 1, margin: (x: 0.75in, top: 0.7in, bottom: 0.65in))[
-  #set par(leading: 0.5em)
-  #grid(columns: (auto, 1fr, auto), column-gutter: 0.8em, align: horizon,
-    caps(fill: c-text)[Municipal Robotics · Whitepaper],
-    line(length: 100%, stroke: 0.5pt + c-line-hi),
-    caps[Rev 1.0 · October 2026])
-  #v(1.6em)
-  #caps[A specification · from the first arm to the sun]
-  #v(0.9em)
-  #move(dx: -0.045 * s-display, text(font: sans-sb, size: s-display, tracking: -0.02em)[Robots that\ build robots])
-  #v(0.5em)
-  #line(length: 22%, stroke: 2pt + c-sel)
-  #v(0.7em)
-  #text(size: s-lg, fill: c-label)[What would it take for a machine to make the next one?]
-  #v(1fr)
   // Cover art: the inner solar system in a tilted plan view, an Earth → Mars → Jupiter
   // gravity-assist trajectory, and the Sun–Earth Lagrange points. Schematic, not to scale.
-  #align(center, cetz.canvas(length: 1cm, {
+  #place(top + left, dx: -0.75in, dy: -0.7in, box(width: 8.5in, height: 11in, clip: true, place(center + horizon, dy: 1.9in, cetz.canvas(length: 1cm, {
     import cetz.draw: *
     let cx = 0
     let cy = 0
     let tilt = 0.5
-    let zoom = 1.1
+    let zoom = 2.05
     let P(r, a) = (cx + zoom * r * calc.cos(a), cy + zoom * tilt * r * calc.sin(a))
     let orbit(r, w, col) = {
       let pts = range(0, 181).map(k => P(r, k * 2deg))
@@ -226,11 +212,11 @@
     }
     // faint star field
     let seed = 7
-    for k in range(70) {
+    for k in range(160) {
       seed = calc.rem(seed * 1103515245 + 12345, 2147483648)
-      let x = calc.rem(seed, 1800) / 100 - 9.0
+      let x = calc.rem(seed, 2400) / 100 - 12.0
       seed = calc.rem(seed * 1103515245 + 12345, 2147483648)
-      let y = calc.rem(seed, 1000) / 100 - 5.0
+      let y = calc.rem(seed, 2400) / 100 - 12.0
       circle((x, y), radius: 0.012 + calc.rem(k, 3) * 0.008, fill: c-label.transparentize(40%), stroke: none)
     }
     // orbits: Mercury, Venus, Earth, Mars, Jupiter (radii compressed)
@@ -245,9 +231,9 @@
     circle((cx, cy), radius: 0.26, fill: c-sel, stroke: none)
     // the trajectory: Earth departure, Mars flyby, out to Jupiter
     let smooth(t) = t * t * (3 - 2 * t)
-    let a0 = 205deg
-    let a1 = 338deg
-    let a2 = 470deg
+    let a0 = 165deg
+    let a1 = 300deg
+    let a2 = 392deg
     let traj = ()
     for k in range(0, 121) {
       let a = a0 + (a2 - a0) * k / 120
@@ -255,7 +241,7 @@
         2.75 + (3.85 - 2.75) * smooth((a - a0) / (a1 - a0))
       } else {
         let t = (a - a1) / (a2 - a1)
-        3.85 + (8.4 - 3.85) * calc.pow(t, 1.35)
+        3.85 + (9.6 - 3.85) * calc.pow(t, 1.35)
       }
       traj.push(P(r, a))
     }
@@ -269,10 +255,10 @@
       content((q.at(0) + dx, q.at(1) + dy), anchor: anchor, text(font: mono-m, size: 5.5pt, fill: c-label, tracking: 0.08em, upper(name)))
     }
     planet(1.15, 120deg, 0.05, c-label, "Mercury")
-    planet(1.85, 75deg, 0.075, c-text, "Venus")
-    planet(2.75, a0, 0.085, c-info, "Earth", dx: -0.12, dy: 0.16, anchor: "south-east")
-    planet(3.85, a1, 0.07, c-fault, "Mars", dx: 0.2, dy: -0.12, anchor: "north-west")
-    planet(7.9, 98deg, 0.16, c-warn, "Jupiter", dx: 0.3, dy: 0.05, anchor: "west")
+    planet(1.85, 60deg, 0.075, c-text, "Venus")
+    planet(2.75, a0, 0.085, c-info, "Earth", dx: -0.12, dy: 0.2, anchor: "south-east")
+    planet(3.85, a1, 0.07, c-fault, "Mars", dx: 0.0, dy: 0.2, anchor: "south")
+    planet(7.9, 118deg, 0.16, c-warn, "Jupiter", dx: 0.35, dy: 0.0, anchor: "west")
     // moon of Earth
     let e = P(2.75, a0)
     circle((e.at(0) + 0.2, e.at(1) + 0.07), radius: 0.025, fill: c-text, stroke: none)
@@ -282,17 +268,30 @@
       line((x - 0.07, y), (x, y + 0.07), (x + 0.07, y), (x, y - 0.07), close: true, fill: none, stroke: 0.7pt + c-info)
       content((x + dx, y + dy), anchor: anchor, text(font: mono-m, size: 5.5pt, fill: c-info, name))
     }
-    lp(P(2.2, a0), "L1", 0.12, 0.0, "west")
-    lp(P(3.3, a0), "L2", -0.12, 0.0, "east")
+    lp(P(2.4, a0), "L1", 0.12, 0.0, "west")
+    lp(P(3.1, a0), "L2", -0.12, 0.0, "east")
     lp(P(2.75, a0 + 180deg), "L3", 0.14, 0.0, "west")
     lp(P(2.75, a0 + 60deg), "L4", 0.12, -0.04, "north-west")
     lp(P(2.75, a0 - 60deg), "L5", 0.0, 0.14, "south")
     // trajectory notes
     let m = P(3.85, a1)
-    content((m.at(0) + 0.35, m.at(1) + 0.55), anchor: "south-west", text(font: mono-m, size: 5.5pt, fill: c-sel, tracking: 0.08em)[GRAVITY ASSIST])
-    let j = traj.at(traj.len() - 1)
-    content((j.at(0) - 0.2, j.at(1) + 0.15), anchor: "south-east", text(font: mono-m, size: 5.5pt, fill: c-sel, tracking: 0.08em)[TO THE OUTER SYSTEM])
-  }))
+    content((m.at(0) + 0.1, m.at(1) - 0.3), anchor: "north", text(font: mono-m, size: 5.5pt, fill: c-sel, tracking: 0.08em)[GRAVITY ASSIST])
+    let j = traj.at(84)
+    content((j.at(0) - 0.2, j.at(1) + 0.25), anchor: "south-east", text(font: mono-m, size: 5.5pt, fill: c-sel, tracking: 0.08em)[TO THE OUTER SYSTEM →])
+  }))))
+  #set par(leading: 0.5em)
+  #grid(columns: (auto, 1fr, auto), column-gutter: 0.8em, align: horizon,
+    caps(fill: c-text)[Municipal Robotics · Whitepaper],
+    line(length: 100%, stroke: 0.5pt + c-line-hi),
+    caps[Rev 1.0 · October 2026])
+  #v(1.6em)
+  #caps[A specification · from the first arm to the sun]
+  #v(0.9em)
+  #move(dx: -0.045 * s-display, text(font: sans-sb, size: s-display, tracking: -0.02em)[Robots that\ build robots])
+  #v(0.5em)
+  #line(length: 22%, stroke: 2pt + c-sel)
+  #v(0.7em)
+  #text(size: s-lg, fill: c-label)[What would it take for a machine to make the next one?]
   #v(1fr)
   #line(length: 100%, stroke: 0.6pt + c-line-hi)
   #v(0.6em)
