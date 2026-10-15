@@ -503,6 +503,8 @@
       html.elem("h2", attrs: (class: "toc-title"), [Contents])
       html.elem("ol", for h in hs {
         let cls = if h.supplement == [Part] { "toc-part" } else if h.level == 1 { "toc-l1" } else { "toc-l2" }
+        // the right column starts at Body, as in the PDF
+        if h.has("label") and h.label == <sec:mind> { cls = cls + " toc-col" }
         let num = if h.numbering != none and h.supplement != [Part] { html.elem("span", attrs: (class: "toc-num"), numbering(if h.supplement == [Appendix] { "A.1" } else { "1.1" }, ..counter(heading).at(h.location()))) }
         html.elem("li", attrs: (class: cls), link(h.location(), [#num#html.elem("span", attrs: (class: "toc-text"), h.body)]))
       })

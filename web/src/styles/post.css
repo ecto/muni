@@ -196,7 +196,7 @@
 .post .abstract,
 .post .toc { min-height: 100vh; min-height: 100svh; padding-top: 18svh; padding-bottom: 8svh; }
 .post .abstract-title,
-.post .toc-title { margin: 0 0 1.6rem; font-size: 1.6rem; font-weight: 600; letter-spacing: -0.01em; }
+.post .toc-title { margin: 0 0 1.4rem; font-size: 1.35rem; font-weight: 600; letter-spacing: -0.01em; }
 .post .abstract p { font-size: 1.02rem; line-height: 1.7; }
 
 .post .toc { max-width: var(--p-wide); margin-inline: calc((var(--p-measure) - min(var(--p-wide), 100vw - 2.5rem)) / 2); }
@@ -204,17 +204,17 @@
 .post .toc li { padding: 0; margin: 0; break-inside: avoid; }
 .post .toc li::before { content: none; }
 /* the PDF's contents: tight leading, medium sections, light grey subsections, tiny tracked numbers */
-.post .toc a { display: grid; grid-template-columns: 2.4rem 1fr; align-items: baseline; padding: 0.08rem 0; line-height: 1.32; color: var(--p-text); text-decoration: none; font-weight: 400; }
+.post .toc a { display: grid; grid-template-columns: 2.1rem 1fr; align-items: baseline; padding: 0.04rem 0; line-height: 1.3; font-size: 0.86rem; color: var(--p-text); text-decoration: none; font-weight: 400; }
 .post .toc a:hover .toc-text { color: var(--p-sel); }
-.post .toc-num { font-family: var(--p-mono); font-size: 0.66rem; font-weight: 400; letter-spacing: 0.08em; color: var(--p-label); font-variant-numeric: tabular-nums; }
-.post .toc-l1 { margin-top: 0.75rem !important; }
-.post .toc-l1 .toc-text { font-size: 1.02rem; font-weight: 500; }
-.post .toc-l2 a { grid-template-columns: 2.4rem 2.2rem 1fr; }
+.post .toc-num { font-family: var(--p-mono); font-size: 0.62rem; font-weight: 400; letter-spacing: 0.08em; color: var(--p-label); font-variant-numeric: tabular-nums; }
+.post .toc-l1 { margin-top: 0.5rem !important; }
+.post .toc-l1 .toc-text { font-size: 0.95rem; font-weight: 500; }
+.post .toc-l2 a { grid-template-columns: 2.1rem 2.5rem 1fr; }
 .post .toc-l2 .toc-num { grid-column: 2; }
-.post .toc-l2 .toc-text { font-size: 0.92rem; font-weight: 400; color: var(--p-label); }
-.post .toc-part { margin-top: 1.9rem !important; break-after: avoid; }
+.post .toc-l2 .toc-text { font-size: 0.86rem; font-weight: 400; color: var(--p-label); }
+.post .toc-part { margin-top: 1.5rem !important; break-after: avoid; }
 .post .toc-part:first-child { margin-top: 0 !important; }
-.post .toc-part a { display: block; margin-bottom: 0.1rem; font-family: var(--p-mono); font-size: 0.68rem; font-weight: 400; letter-spacing: 0.08em; color: var(--p-label); }
+.post .toc-part a { display: block; margin-bottom: 0.15rem; font-family: var(--p-mono); font-size: 0.62rem; font-weight: 400; letter-spacing: 0.08em; color: var(--p-label); }
 .post .toc-part { counter-increment: part; }
 .post .toc-part a::before { content: "Part " counter(part, upper-roman) " · "; }
 
@@ -287,3 +287,4 @@
 .blog-list-title { font-size: 1.5rem; font-weight: 600; letter-spacing: -0.01em; }
 .blog-list a:hover .blog-list-title { color: var(--p-sel); }
 .blog-list-desc { color: var(--p-label); }
+.post .toc-col { break-before: column; margin-top: 0 !important; }
