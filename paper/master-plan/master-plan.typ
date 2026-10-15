@@ -64,9 +64,10 @@
   (18, "core", "power", "concept", "one compute module", "road"),
   (19, "nerv", "power", "concept", "bus, hub and BMS boards", "road"),
   (20, "Ipse", "mind", "exists", "developmental mind", "road"),
-  (21, "loom", "silicon", "concept", "hardware description", "home"),
-  (22, "rune", "silicon", "concept", "maskless lithography", "home"),
-  (23, "chyp", "silicon", "concept", "inference chip", "home"),
+  (21, "frog", "mind", "exists", "coding agent for local models", "desk"),
+  (22, "loom", "silicon", "concept", "hardware description", "home"),
+  (23, "rune", "silicon", "concept", "maskless lithography", "home"),
+  (24, "chyp", "silicon", "concept", "inference chip", "home"),
 )
 // product names colored wherever they appear in running text
 #let brand-names = elements.filter(e => e.at(1) not in ("hand",)).map(e => (lower(e.at(1)), e.at(2)))
@@ -1382,8 +1383,8 @@ The stack is a tree rooted at one language, loon. Every project in it, software 
       ("world", ((5, 6, 7, 8),)),
       ("body", ((9, 10, 11), (12, 13, 14), (15, 16))),
       ("power", ((17, 18, 19),)),
-      ("mind", ((20,),)),
-      ("silicon", ((21, 22, 23),)),
+      ("mind", ((20, 21),)),
+      ("silicon", ((22, 23, 24),)),
     )
     // word joiners keep the name-coloring rule off the card's own text
     let wj(t) = t.clusters().join("\u{2060}")
@@ -1397,7 +1398,7 @@ The stack is a tree rooted at one language, loon. Every project in it, software 
       } else if mat == "designed" {
         (c-surface, 0.9pt + col, col, c-label)
       } else {
-        (none, (paint: col.transparentize(45%), thickness: 0.7pt, dash: (2pt, 2pt)), col.transparentize(40%), c-label.transparentize(35%))
+        (none, (paint: col.transparentize(45%), thickness: 0.7pt, dash: (2pt, 2pt)), col, c-label.transparentize(35%))
       }
       rect((x, y), (x + w, y - w), fill: fl, stroke: st)
       content((x + 0.13 * k, y - 0.12 * k), anchor: "north-west", text(font: mono-m, size: 5.5pt * k, fill: meta, number-width: "tabular", str(num)))
@@ -1440,7 +1441,7 @@ The stack is a tree rooted at one language, loon. Every project in it, software 
 
 Most robots are assembled from other people's tools. The body is drawn in a CAD program such as SolidWorks or Onshape @onshape, exported as meshes into a URDF file @urdf, loaded into a simulator such as Isaac Sim @isaacsim or MuJoCo @todorov2012mujoco, and wired together with ROS @macenski2022ros2. Each is excellent at its job. But every handoff is a translation, and what does not survive translation is the reason a design is what it is. A wall thickness becomes a triangle mesh. A motor constant becomes a number in a file. The simulator can say how the robot moved, but not which line of the design to change.
 
-Our projects bond like atoms in a molecule (@fig:bonds). loon is the nucleus: parts, worlds and, one day, chips are written in it. tang carries the math that every engine shares. A vcad part is a wodl body is a phyz collider, without an export in between, so a quantity defined once stays defined everywhere. Four rules keep the bonds clean: engines never depend on vcad, and vcad never depends on an app; engines read wodl, not each other; there is one GPU device; and units are millimeters, with Z up, everywhere.
+Our projects bond like atoms in a molecule (@fig:bonds). loon is the nucleus: parts, worlds and, one day, chips are written in it. tang carries the math that every engine shares. frog, our coding agent, writes code against local models, which tang can serve. A vcad part is a wodl body is a phyz collider, without an export in between, so a quantity defined once stays defined everywhere. Four rules keep the bonds clean: engines never depend on vcad, and vcad never depends on an app; engines read wodl, not each other; there is one GPU device; and units are millimeters, with Z up, everywhere.
 
 
 Every number in this plan comes from one loop (@fig:loop): design in loon source, simulate in phyz, build with kerf, measure the built unit, and feed the gap back into the design as a gradient. Each stage removes a person from one more edge of it (@tab:loopstate).
