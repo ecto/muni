@@ -159,6 +159,8 @@
 #set place(clearance: 1.8em)
 // short lead phrase of a caption, set in Medium
 #let lead(body) = text(font: sans-m, fill: c-text, body)
+// citations: superscript numbers in the label grey, so they never read as exponents
+#show cite: set text(fill: c-label)
 #show figure.where(kind: table): set figure.caption(position: top)
 #show figure.caption: it => {
   set par(leading: 0.64em, justify: false)
@@ -447,6 +449,80 @@ This plan gives that climb one number of its own, electrons under management (@s
 == What made this plan possible <sec:why>
 
 Five years ago this plan would have needed a factory before it needed a customer. Four things changed.
+
+#figure(
+  {
+    let panel(title, body) = block(width: 100%, stack(spacing: 0.5em,
+      text(font: mono-sb, size: s-xs, fill: c-text, upper(title)),
+      body))
+    grid(columns: (1fr,) * 4, column-gutter: 1.2em,
+      // 1. actuator in a catalog
+      panel([Actuators, from a catalog], cetz.canvas(length: 1cm, {
+        import cetz.draw: *
+        let c = (1.9, 1.6)
+        circle(c, radius: 1.35, fill: c-surface, stroke: 0.7pt + c-line-hi)
+        circle(c, radius: 1.05, fill: none, stroke: (paint: c-label, thickness: 0.5pt, dash: "dotted"))
+        circle(c, radius: 0.72, fill: c-raised, stroke: 0.5pt + c-line-hi)
+        for k in range(3) {
+          let a = k * 120deg + 90deg
+          circle((c.at(0) + 0.42 * calc.cos(a), c.at(1) + 0.42 * calc.sin(a)), radius: 0.22, fill: c-surface, stroke: 0.5pt + c-label)
+        }
+        circle(c, radius: 0.16, fill: c-sel, stroke: none)
+        content((c.at(0) + 1.45, c.at(1) + 1.05), anchor: "west", text(size: 5pt, fill: c-label)[motor])
+        content((c.at(0) + 1.45, c.at(1) + 0.55), anchor: "west", text(size: 5pt, fill: c-label)[planetary])
+        content((c.at(0) + 1.45, c.at(1) + 0.05), anchor: "west", text(size: 5pt, fill: c-label)[encoder])
+        content((c.at(0) + 1.45, c.at(1) - 0.45), anchor: "west", text(size: 5pt, fill: c-label)[driver])
+        content((c.at(0), -0.05), anchor: "north", text(font: mono-m, size: 5.5pt, fill: c-text)[ONE HOUSING · CAN · 48 V])
+      })),
+      // 2. flat sheet on a desk
+      panel([Plate, cut on a desk], cetz.canvas(length: 1cm, {
+        import cetz.draw: *
+        rect((0, 0.25), (3.2, 3.45), fill: c-surface, stroke: 0.7pt + c-line-hi)
+        let parts = ((0.15, 0.4, 1.45, 1.05), (0.15, 1.2, 1.45, 1.85), (0.15, 2.0, 0.95, 3.3), (1.1, 2.0, 1.9, 3.3), (1.6, 0.4, 3.05, 1.0), (1.6, 1.15, 3.05, 1.85), (2.05, 2.0, 3.05, 3.3))
+        for (x0, y0, x1, y1) in parts {
+          rect((x0, y0), (x1, y1), fill: c-raised, stroke: 0.4pt + c-label, radius: 0.08)
+          circle(((x0 + x1) / 2, (y0 + y1) / 2), radius: 0.07, fill: c-bg, stroke: none)
+        }
+        content((1.6, 0.1), anchor: "north", text(font: mono-m, size: 5.5pt, fill: c-text)[15 × 15 IN · 1/8" 5052])
+      })),
+      // 3. gradient through contact
+      panel([Gradients through contact], cetz.canvas(length: 1cm, {
+        import cetz.draw: *
+        // loss curve: start at +20% error, descend to 0
+        line((0.2, 0.4), (3.3, 0.4), stroke: 0.6pt + c-line-hi)
+        line((0.2, 0.4), (0.2, 3.3), stroke: 0.6pt + c-line-hi)
+        let pts = ()
+        for i in range(0, 31) {
+          let t = i / 30
+          pts.push((0.25 + t * 3.0, 0.45 + 2.7 * calc.exp(-5.5 * t)))
+        }
+        line(..pts, stroke: 1.2pt + c-sel)
+        circle(pts.at(0), radius: 0.07, fill: c-text, stroke: none)
+        content((pts.at(0).at(0) + 0.12, pts.at(0).at(1)), anchor: "west", text(size: 5pt, fill: c-label)[±20% mass error])
+        content((3.3, 0.55), anchor: "south-east", text(size: 5pt, fill: c-label)[machine precision])
+        content((1.75, 0.25), anchor: "north", text(font: mono-m, size: 5.5pt, fill: c-text)[STEPS OF ∂J/∂θ · SIM])
+      })),
+      // 4. a humanoid at the price of a used car
+      panel([A humanoid, for a car's price], cetz.canvas(length: 1cm, {
+        import cetz.draw: *
+        let x = 1.0
+        circle((x, 3.0), radius: 0.22, fill: c-surface, stroke: 0.7pt + c-text)
+        rect((x - 0.33, 1.75), (x + 0.33, 2.7), fill: c-surface, stroke: 0.7pt + c-text, radius: 0.06)
+        line((x - 0.33, 2.6), (x - 0.62, 1.85), stroke: 1.4pt + c-text)
+        line((x + 0.33, 2.6), (x + 0.62, 1.85), stroke: 1.4pt + c-text)
+        line((x - 0.16, 1.75), (x - 0.2, 0.45), stroke: 1.6pt + c-text)
+        line((x + 0.16, 1.75), (x + 0.2, 0.45), stroke: 1.6pt + c-text)
+        // price tag
+        line((x + 0.62, 1.85), (2.0, 1.85), stroke: 0.5pt + c-label)
+        rect((2.0, 1.55), (3.35, 2.15), fill: c-sel, stroke: none, radius: 0.05)
+        content((2.675, 1.85), text(font: mono-sb, size: 6pt, fill: c-sel-ink)[\$16,000])
+        content((2.675, 1.35), text(size: 5pt, fill: c-label)[Unitree G1, 2024])
+        content((1.75, 0.25), anchor: "north", text(font: mono-m, size: 5.5pt, fill: c-text)[BUY · BREAK · INSTRUMENT])
+      })),
+    )
+  },
+  caption: [#lead[Four things changed.] Integrated actuators are sold from a catalog @robstride2026manual; an arm's plates nest on a few sheets cut on a desk @rose2026forkv9; gradients pass through contact in our physics engine, so far in simulation @ipse2026brief; and a humanoid costs about as much as a used car @unitree2024g1. Schematic, not to scale.],
+) <fig:inflection>
 
 *Integrated actuators became a catalog item.* Quasi-direct-drive actuators, with motor, planetary reduction, encoder and driver in one housing, are now sold off the shelf by several Chinese vendors. RobStride's range includes the RS00, RS02, RS04 and RS06, each with a published manual, outline drawing and CAN interface @robstride2026manual. Our arm uses six of them. Retail prices for the family run roughly \$70–170 for the small units and more for the large ones (our estimate from retail listings, not a quote). The design idea does not depend on RobStride, but the v9 drawings do: motor mounts, bolt patterns and screw lengths are taken from RobStride's manual drawings @rose2026forkv9, so another vendor's motor means new drawings. What matters is that a 120 N·m peak joint (RS04 @robstride2026manual) can be bought with its driver attached.
 
@@ -1700,4 +1776,4 @@ The first bench frame spaces its rails 220 mm apart. Compared with the 300 mm ga
 #heading(outlined: true, numbering: none)[References]
 // Titles that end in their own ? or ! keep it; the style must not add a period after.
 #show bibliography: it => { show "?.": "?"; show "!.": "!"; it }
-#bibliography("refs.bib", style: "ieee", title: none)
+#bibliography("refs.bib", style: "nature", title: none)
