@@ -310,6 +310,40 @@ Municipal Robotics started in Cleveland in December 2025 with one machine for on
 
 Building the rover taught us the lesson this paper is built on. The hard and expensive parts of a robot are not the parts. They are the people who design, build and check each one. To build one rover, we wrote a language for parts, a CAD kernel, a differentiable physics engine and a recording pipeline. None of them cares whether the thing it designs is a rover. Pointed at a humanoid, or at the cell that builds humanoids, they work the same way.
 
+
+#colfig(
+  cetz.canvas(length: 1cm, {
+    import cetz.draw: *
+    // timeline
+    let y = 0
+    line((0, y), (8.2, y), stroke: 0.7pt + c-line-hi, mark: (end: "straight", size: 0.14))
+    let ev = ((0.3, "DEC 2025", "bvr0 drives"), (2.5, "2026", "the stack grows"), (4.7, "2026", "K1 bought"), (6.9, "OCT 2026", "this plan"))
+    for (x, d, t) in ev {
+      circle((x, y), radius: 0.07, fill: c-text, stroke: none)
+      content((x, y - 0.18), anchor: "north", text(font: mono-m, size: 5.5pt, fill: c-label, d))
+      content((x, y - 0.48), anchor: "north", text(size: s-xs, fill: c-text, t))
+    }
+    // one stack fanning out
+    let sx = 0.3
+    rect((sx - 0.25, 1.0), (sx + 1.75, 3.6), fill: c-surface, stroke: 0.6pt + c-line-hi)
+    let layers = ("loon", "vcad", "phyz", "kerf")
+    for (i, l) in layers.enumerate() {
+      rect((sx - 0.1, 1.15 + i * 0.6), (sx + 1.6, 1.6 + i * 0.6), fill: c-raised, stroke: none)
+      content((sx + 0.75, 1.375 + i * 0.6), text(font: mono-m, size: s-xs, fill: c-text, l))
+    }
+    content((sx + 0.75, 3.75), anchor: "south", text(font: mono-m, size: 5.5pt, fill: c-label)[ONE STACK])
+    let outs = ((3.25, "rover", "retired", c-label), (2.3, "humanoid", "rose, K1", c-text), (1.35, "cell", "builds arms", c-text))
+    let x = 5.6
+    for (ty, n, w, col) in outs {
+      line((sx + 1.75, 2.3), (x - 1.0, ty), stroke: (paint: c-label, thickness: 0.6pt, dash: if n == "rover" { "dotted" } else { none }), mark: (end: "straight", size: 0.12))
+      rect((x - 1.0, ty - 0.38), (x + 1.4, ty + 0.38), fill: if n == "rover" { none } else { c-surface }, stroke: if n == "cell" { 1pt + c-sel } else { 0.6pt + c-line-hi })
+      content((x - 0.85, ty), anchor: "west", text(font: sans-m, size: s-sm, fill: col, n))
+      content((x + 1.3, ty), anchor: "east", text(size: 5.5pt, fill: c-label, w))
+    }
+  }),
+  caption: [#lead[One stack, three bodies.] Tools written to build one rover do not care what they design. Pointed at a humanoid, or at the cell that builds arms, they work the same way.],
+) <fig:story>
+
 At the same time, the body worth building changed. A rover clears one kind of sidewalk in one season. A humanoid that a small company can buy (@sec:why) works where people work, and two good arms tend a machine as well as they pick up litter. So we retired the rover #text(fill: c-warn)[[TODO: when, and the reason in your words]] and kept the city, the sidewalk and the discipline of our first paper: plain claims, sourced numbers, exact gates.
 
 Municipal Robotics is a one-person company: Cam Pedersen. There is no team and no lab behind it. What exists today is exactly this: a Booster K1 humanoid, the software stack (@tab:stack), a CNC mill and the plan you are reading. No arm has been built, there is no actuator dyno yet, and the K1 has not grasped litter. The ambition grew because the tools did. A person who can write every layer between a parameter in a source file and a measured joint torque can aim at the machine that makes machines, and should say so in public, with gates.
@@ -320,9 +354,93 @@ In 1964 the astronomer Nikolai Kardashev proposed ranking civilizations by the p
 
 Humanity used about 620 EJ of primary energy in 2023 @ei2024review: a mean of about 2 × 10#super[13] W, or $K approx 0.73$. Its electricity alone, about 30,000 TWh a year, is a mean of about 3.4 × 10#super[12] W @ei2024review. The sun puts out 3.828 × 10#super[26] W @iau2015b3, about $K approx 2.06$. Between us and Type I lie three orders of magnitude; between us and our star, thirteen.
 
+
+#figure(
+  cetz.canvas(length: 1cm, {
+    import cetz.draw: *
+    // log10 watts from 11 to 37
+    let W = 17.2
+    let e0 = 11
+    let e1 = 28
+    let X(e) = (e - e0) / (e1 - e0) * W
+    let y0 = 0
+    line((0, y0), (W, y0), stroke: 0.7pt + c-line-hi, mark: (end: "straight", size: 0.16))
+    for e in range(12, 28, step: 2) {
+      line((X(e), y0), (X(e), y0 - 0.1), stroke: 0.5pt + c-line-hi)
+      content((X(e), y0 - 0.18), anchor: "north", text(font: mono, size: 5.5pt, fill: c-label)[10#super[#str(e)]])
+    }
+    content((W, y0 - 0.55), anchor: "north-east", text(font: mono, size: s-xs, fill: c-label)[MEAN POWER, WATTS (LOG)])
+    // Kardashev types (Sagan): K = (log P - 6)/10
+    let types = ((16, "TYPE I", "a planet's energy"), (26, "TYPE II", "a star's"))
+    for (e, n, w) in types {
+      line((X(e), y0), (X(e), 2.4), stroke: (paint: c-line-hi, thickness: 0.7pt, dash: "dashed"))
+      content((X(e) + 0.08, 2.4), anchor: "north-west", text(font: mono-m, size: s-xs, fill: c-text, n))
+      content((X(e) + 0.08, 2.05), anchor: "north-west", text(size: 5.5pt, fill: c-label, w))
+    }
+    // the sun
+    let es = calc.log(3.828e26, base: 10)
+    circle((X(es), 0.55), radius: 0.22, fill: c-sel, stroke: none)
+    content((X(es) - 0.32, 0.55), anchor: "east", text(font: mono-m, size: 5.5pt, fill: c-text)[THE SUN])
+    // humanity, primary energy (estimates)
+    let hist = ((1800, 6.4e11), (1900, 1.37e12), (1950, 3.25e12), (2000, 1.33e13), (2023, 1.96e13))
+    let prev = none
+    for (i, (yr, w)) in hist.enumerate() {
+      let e = calc.log(w, base: 10)
+      let y = 0.45 + i * 0.32
+      circle((X(e), y), radius: 0.07, fill: if yr == 2023 { c-sel } else { c-text }, stroke: none)
+      if prev != none { line(prev, (X(e), y), stroke: 0.7pt + c-text) }
+      prev = (X(e), y)
+      content((X(e) - 0.12, y), anchor: "east", text(font: mono, size: 5.5pt, fill: if yr == 2023 { c-text } else { c-label }, str(yr)))
+    }
+    content((X(13.3) + 0.15, 1.75), anchor: "west", text(size: s-xs, fill: c-text)[humanity today, K ≈ 0.73])
+    // gap brackets
+    line((X(13.3), 2.75), (X(16), 2.75), stroke: 0.6pt + c-label, mark: (start: "straight", end: "straight", size: 0.1))
+    content((X(14.65), 2.82), anchor: "south", text(font: mono, size: 5.5pt, fill: c-label)[×1,000])
+    line((X(16), 2.75), (X(26.58), 2.75), stroke: 0.6pt + c-label, mark: (start: "straight", end: "straight", size: 0.1))
+    content((X(21.3), 2.82), anchor: "south", text(font: mono, size: 5.5pt, fill: c-label)[×10 billion more to the sun])
+  }),
+  caption: [#lead[Where humanity sits on the Kardashev scale.] Humanity's mean primary power use from 1800 to 2023 (estimates from @smil2017energy @ei2024review), against Sagan's continuous form of Kardashev's Types I and II @kardashev1964 @sagan1973cosmic and the sun's output @iau2015b3. Two centuries took us about one and a half orders of magnitude. Type II is thirteen more.],
+) <fig:kardashev>
+
 Every earlier step up the scale came from a machine that made energy or work cheaper. Fire and farming fed muscle. The steam engine turned heat into work, electricity carried work anywhere, and the transistor made control almost free. One thing has not become cheaper at anything like that rate: making the machines themselves. Every machine still passes through human hands, so the number of machines grows about as fast as the number of people who make them.
 
+
+#colfig(
+  cetz.canvas(length: 1cm, {
+    import cetz.draw: *
+    let steps = (("fire, farming", "food → muscle"), ("steam", "heat → work"), ("electricity", "work, anywhere"), ("transistor", "control, almost free"), ("making machines", "still by hand"))
+    let w = 1.62
+    let h = 0.55
+    for (i, (n, what)) in steps.enumerate() {
+      let x = i * w
+      let last = i == 4
+      rect((x, 0), (x + w - 0.08, (i + 1) * h), fill: if last { none } else { c-surface }, stroke: if last { (paint: c-sel, thickness: 1pt, dash: "dashed") } else { 0.6pt + c-line-hi })
+      content((x + 0.06, (i + 1) * h + 0.1), anchor: "south-west", box(width: (w - 0.1) * 1cm, text(size: 5.5pt, fill: if last { c-text } else { c-text }, font: sans-m, n)))
+      content((x + 0.06, 0.08), anchor: "south-west", box(width: (w - 0.15) * 1cm, text(size: 5pt, fill: c-label, what)))
+    }
+    content((4 * w + (w - 0.08) / 2, 1.5), text(font: mono-m, size: 5.5pt, fill: c-sel)[NEXT?])
+  }),
+  caption: [#lead[Each climb made one thing cheap.] The step not yet taken is making the machines themselves.],
+) <fig:stairs>
+
 Getting off the planet is now mostly that problem. Launch has become cheap. Reusable rockets cut the cost of reaching low Earth orbit from about \$54,500 per kg on the Space Shuttle to about \$2,700 per kg on a Falcon 9 @csis2022launch. What stays expensive is everything a settlement needs when it arrives, and the people needed to make it. A civilization does not climb toward Type II by launching factories. It climbs by sending a seed that can grow one.
+
+
+#colfig(
+  cetz.canvas(length: 1cm, {
+    import cetz.draw: *
+    let rows = (("Space Shuttle", 54500), ("Falcon 9", 2720), ("Falcon Heavy", 1410))
+    let k = 6.0 / 54500
+    for (i, (n, v)) in rows.enumerate() {
+      let y = -i * 0.62
+      content((1.9, y + 0.2), anchor: "east", text(size: s-sm, fill: c-text, n))
+      rect((2.05, y), (2.05 + calc.max(v * k, 0.04), y + 0.4), fill: if i == 0 { c-raised } else { c-sel }, stroke: none)
+      let lab = "$" + str(calc.floor(v / 1000)) + "," + (if calc.rem(v, 1000) < 100 { "0" } else { "" }) + (if calc.rem(v, 1000) < 10 { "0" } else { "" }) + str(calc.rem(v, 1000)) + " / kg"
+      content((2.05 + v * k + 0.12, y + 0.2), anchor: "west", text(font: mono-m, size: s-xs, fill: c-text, lab))
+    }
+  }),
+  caption: [#lead[Cost to reach low Earth orbit, per kg] (approximate, CSIS @csis2022launch). Launch fell about twentyfold. The settlement at the other end has not.],
+) <fig:launch>
 
 This plan gives that climb one number of its own, electrons under management (@sec:eum): the power drawn by machines we built, in service, measured on the same axis as the Kardashev scale. Today it is zero.
 
