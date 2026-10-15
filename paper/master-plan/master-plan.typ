@@ -234,13 +234,13 @@
 #let lead(body) = text(font: sans-m, fill: c-text, body)
 // an aside: a boxed digression the reader may skip
 #let aside(title, body) = if web { html.elem("aside", attrs: (class: "aside"), { html.elem("div", attrs: (class: "aside-title"), title); body }) } else {
-  block(width: 100%, fill: c-surface, inset: (x: 16pt, top: 13pt, bottom: 14pt), stroke: (left: 1.5pt + c-sel), above: 1.9em, below: 1.9em, breakable: false, {
-    set text(size: s-sm)
-    set par(spacing: 1.15em, leading: 0.7em)
-    show parbreak: v(0.6em)
+  pad(left: 0.35in, right: 0.35in, block(width: 100%, inset: (left: 12pt, y: 2pt), stroke: (left: 0.6pt + c-line-hi), above: 2.2em, below: 2.2em, breakable: false, {
+    set text(size: s-sm, fill: c-label)
+    set par(spacing: 1.1em, leading: 0.68em)
+    show strong: set text(fill: c-text)
     block(below: 0.9em, text(font: mono-m, size: s-xs, fill: c-sel, tracking: track, upper([Aside · ] + title)))
     body
-  })
+  }))
 }
 // citations: superscript numbers in the label grey, so they never read as exponents
 #show cite: set text(fill: c-label)
@@ -1036,6 +1036,51 @@ Every robotics lab has a sim-to-real gap. We know of few that publish it as a nu
 
 We treat the gap as the central measurement. It decides whether a design is ready to build, whether a controller is ready to deploy, and whether an actuator is ready to replace a purchased one. It also tells us how much of the loop can run without a person in it. A gap that is not measured cannot be closed, and a loop with an unmeasured gap needs a human in it.
 
+
+#aside[A gradient, in one page][
+Picture a robot design as a dial board: hundreds of knobs, one for each wall thickness, gear ratio and motor constant. Somewhere there is a score you care about, say how far the robot can reach while holding a full cup.
+
+#align(center, cetz.canvas(length: 1cm, {
+  import cetz.draw: *
+  // a dial board; the gradient is one arrow per knob: which way, and how much
+  let g = (0.9, -0.3, 0.15, -1.0, 0.55, 0.05, -0.65, 0.35, -0.1, 0.8, -0.45, 0.2, 0.7, -0.85)
+  for (i, v) in g.enumerate() {
+    let x = i * 0.6
+    circle((x, 0), radius: 0.2, fill: c-bg, stroke: 0.6pt + c-line-hi)
+    let a = 90deg - v * 70deg
+    line((x, 0), (x + 0.17 * calc.cos(a), 0.17 * calc.sin(a)), stroke: 0.7pt + c-text)
+    rect((x - 0.07, -0.75), (x + 0.07, -0.75 + v * 0.35), fill: c-sel, stroke: none)
+  }
+  line((-0.3, -0.75), (13 * 0.6 + 0.3, -0.75), stroke: 0.4pt + c-line-hi)
+  content((13 * 0.6 / 2, -1.2), anchor: "north", text(font: mono-m, size: 5pt, fill: c-sel, tracking: track, upper[the gradient: for every knob, which way and how much]))
+}))
+
+The obvious way to improve the score is to wiggle one knob, rebuild, re-test and see if the score went up. With 300 knobs that is 300 experiments for a single step, and you will need thousands of steps.
+
+A *gradient* is the answer to all 300 questions at once: for every knob, which way to turn it and how much the score cares. Its arithmetic is the chain rule, which says that sensitivities along a chain multiply. If the score moves 2 mm per newton of grip, and grip moves 5 newtons per millimeter of finger wall, then the score moves 10 mm per millimeter of wall.
+
+#align(center, cetz.canvas(length: 1cm, {
+  import cetz.draw: *
+  let node(x, t, sub) = {
+    rect((x - 0.9, -0.36), (x + 0.9, 0.36), stroke: 0.6pt + c-line-hi, fill: c-bg)
+    content((x, 0.06), text(font: sans-m, size: 7pt, fill: c-text, t))
+    content((x, -0.2), text(font: mono, size: 4.5pt, fill: c-label, sub))
+  }
+  node(0, [wall], [knob, mm])
+  node(3.6, [grip], [N])
+  node(7.2, [reach], [score, mm])
+  for (x0, t) in ((0, [+5 N per mm]), (3.6, [+2 mm per N])) {
+    line((x0 + 0.95, 0), (x0 + 2.65, 0), stroke: 0.6pt + c-label, mark: (end: ">", fill: c-label, size: 0.12))
+    content((x0 + 1.8, 0.12), anchor: "south", text(font: mono, size: 5pt, fill: c-label, t))
+  }
+  // the backward pass
+  bezier((7.2, -0.45), (0, -0.45), (5.4, -1.25), (1.8, -1.25), stroke: 1pt + c-sel, mark: (end: ">", fill: c-sel, size: 0.14))
+  content((3.6, -1.32), anchor: "north", text(font: mono-m, size: 5pt, fill: c-sel, tracking: track, upper[backward: 2 × 5 = 10 mm of reach per mm of wall]))
+}))
+
+Computed backward through a program, from the score to the knobs, the whole gradient costs about as much as running the program once more. That is the trick behind every modern neural network, and it is why we built a stack it can pass through: from a task, through physics, into geometry, to the line of source that sets the knob. Where any link is a file exported from another tool, the chain breaks, and we are back to wiggling knobs one at a time.
+]
+
 == Data
 
 Language models learned from trillions of words that people had already written. Robots have no such store. The largest pooled robot dataset holds about a million episodes, gathered across 22 kinds of robot by more than thirty labs @oxe2023. Most robot data is still made one person-hour at a time, by teleoperation.
@@ -1343,18 +1388,6 @@ The payoff is a gradient that crosses the whole molecule. A task loss in ipse pa
   caption: [#lead[The stack as a molecule.] Each bond is a dependency; color is family, fill is maturity, as in @fig:elements. The orange path is the gradient the stack exists to carry: from a task loss in ipse, through phyz's contact adjoint and vcad geometry, back to a number in loon source.],
 ) <fig:bonds>
 
-#aside[A gradient, in one page][
-Picture a robot design as a dial board: hundreds of knobs, one for each wall thickness, gear ratio and motor constant. Somewhere there is a score you care about, say how far the robot can reach while holding a full cup.
-
-The obvious way to improve the score is to wiggle one knob, rebuild, re-test and see if the score went up. With 300 knobs that is 300 experiments for a single step, and you will need thousands of steps.
-
-A *gradient* is the answer to all 300 questions at once: for every knob, which way to turn it and how much the score cares. Its arithmetic is the chain rule, which says that sensitivities along a chain multiply. If the score moves 2 mm per newton of grip, and grip moves 5 newtons per millimeter of finger wall, then the score moves 10 mm per millimeter of wall:
-
-$ (diff "reach") / (diff "wall") = (diff "reach") / (diff "grip") times (diff "grip") / (diff "wall") $
-
-Computed backward through a program, from the score to the knobs, the whole gradient costs about as much as running the program once more. That is the trick behind every modern neural network, and it is why we built a stack it can pass through: from a task, through physics, into geometry, to the line of source that sets the knob. Where any link is a file exported from another tool, the chain breaks, and we are back to wiggling knobs one at a time.
-]
-
 == Who is in the loop
 
 #figure(
@@ -1403,7 +1436,9 @@ Every body runs on one unregulated DC bus of *36–60 V*. Every load must accept
 
 Beside the power runs one management bus, CAN-FD, for presence, power control and telemetry. Bulk data (cameras, logs, the twin) travels over Ethernet. There is no separate hardwired e-stop loop, and other humanoids do not carry one either. Pulling a pack is the hard stop: its connector's last-mating pin is the power enable.
 
+#if not web { pagebreak(weak: true) }
 == Pack
+
 
 There is one battery: a 13S2P pack of Molicel P50B 21700 cells, *468 Wh* and about *2.65 kg* (estimate) @mr2026battery @molicel2023p50b. The same pack goes in a body, a pair, a charging dock, the rack's UPS and the seed. A humanoid carries two of them (A and B, 936 Wh), one in each flank of the torso, and swaps them itself. Its hand draws pack A sideways onto a passive dock rail while pack B keeps the robot powered, then pushes a fresh pack home. The dock is rails, pads and a charger, with no actuators. A swap takes about a minute and leaves the robot powered, so runtime is set by dock capacity, not by the pack.
 
@@ -1501,9 +1536,8 @@ There is one battery: a 13S2P pack of Molicel P50B 21700 cells, *468 Wh* and abo
   caption: [#lead[The pack] (illustrative; the pack is not designed). Left: one pack, exploded. Two tiers of 13 cells make 13S2P; the BMS on top measures what the machine draws. Right: a humanoid swaps its own packs, one at a time, so it never loses power. Bottom: the pack's whole range sits inside the bus window of every body (@sec:power).],
 ) <fig:pack>
 
-The pack is also the EUM instrument. EUM (@sec:eum) is defined at each machine's main power input, logged at ≥ 1 Hz, and every pack's BMS measures exactly that. If the BMS logs it, electrons under management are measured for free on every robot and dock we build.
 
-Two cautions. The K1 is a bought robot with its own battery, and it cannot take this pack. The pack and the core bay below are sized for rose, whose torso must grow from 210 to 214 mm wide to hold both packs beside the bay. And NMC in a public sidewalk dock is a choice a city may question. We keep one chemistry for simplicity and will revisit it if that happens.
+The pack is also the EUM instrument. EUM (@sec:eum) is defined at each machine's main power input, logged at ≥ 1 Hz, and every pack's BMS measures exactly that. If the BMS logs it, electrons under management are measured for free on every robot and dock we build.
 
 == Core <sec:compute>
 
