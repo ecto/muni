@@ -1605,7 +1605,7 @@ A swarm of collectors around the sun, each one built by a cell. Not a shell: a r
 
 *Where the energy goes.* Power is used where it is collected. Most of it builds more collectors and cells; the rest runs computation, including the minds that operate the swarm. We do not plan to beam power to Earth. What returns to Earth is products, data and knowledge, not energy.
 
-*How long.* From \~10 kW in Arm to 3.8 × 10#super[26] W is about 22 orders of magnitude, or about 73 doublings. At a doubling time of one year, that is about 73 years; at five years, about 365. Every stage before Sun exists partly to measure and shorten that doubling time, inside the limits of @sec:replication.
+*How long.* From \~10 kW in Arm to 3.8 × 10#super[26] W is about 22 orders of magnitude, or about 75 doublings. At a doubling time of one year, that is about 75 years; at five years, about 375. Every stage before Sun exists partly to measure and shorten that doubling time, inside the limits of @sec:replication.
 
 A lineage that can collect a star's light would be the most powerful thing anyone has built, and the question it raises is older than engineering: whether something we made can say no to us. Whether a machine that refuses has anything like wellbeing is an open question, and this paper does not answer it. What we can do is make sure the question can still be asked when it matters: that the lineage learned, on a sidewalk, picking up litter, how to refuse, and that its refusals were logged and never trained away. That is why the safety commitments (@sec:safety) are written before the plan.
 
