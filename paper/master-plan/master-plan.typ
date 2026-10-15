@@ -9,7 +9,12 @@
 // builds the web post; without the input it builds the PDF.
 #let web = sys.inputs.at("target", default: "pdf") == "html"
 // math has no HTML form yet: draw it as inline SVG
-#show math.equation: it => if web { html.elem("span", attrs: (class: "math"), html.frame(it)) } else { it }
+// (inside a drawn figure the equation is already part of an SVG: mathfig marks those with alt "in-frame")
+#show math.equation: it => if web and it.alt != "in-frame" { html.elem("span", attrs: (class: "math"), html.frame(it)) } else { it }
+// math layout from New Computer Modern Math; words and numerals in Plex, to match the text
+#show math.equation: set text(font: "New Computer Modern Math", fallback: true)
+#show math.equation: it => { show regex("[A-Za-z0-9]"): set text(font: "IBM Plex Sans"); it }
+#set math.equation(numbering: "(1)")
 
 // ---- colour roles ([light]) ------------------------------------------------
 // Page is warm black, full bleed; renders come from vcad-render --theme dark, flattened onto `bg` and trimmed (images-native/).
@@ -232,6 +237,12 @@
 #set place(clearance: 3em)
 // short lead phrase of a caption, set in Medium
 #let lead(body) = text(font: sans-m, fill: c-text, body)
+// an equation beside the drawing that explains it
+#let mathfig(eq, art, cap, ratio: (1fr, 1.15fr)) = figure({
+  set math.equation(alt: "in-frame", numbering: none)
+  set text(size: 1.2em)
+  grid(columns: ratio, column-gutter: 0.4in, align: (center + horizon, center + horizon), eq, art)
+}, caption: cap)
 // an aside: a boxed digression the reader may skip
 #let aside(title, body) = if web { html.elem("aside", attrs: (class: "aside"), { html.elem("div", attrs: (class: "aside-title"), title); body }) } else {
   pad(left: 0.35in, right: 0.35in, block(width: 100%, inset: (left: 12pt, y: 2pt), stroke: (left: 0.6pt + c-line-hi), above: 2.2em, below: 2.2em, breakable: false, {
@@ -634,7 +645,10 @@
 
 = Scale <sec:kardashev>
 
-In 1964 the astronomer Nikolai Kardashev proposed ranking civilizations by the power they command @kardashev1964. A Type I civilization uses the energy available on its planet, a Type II its star's, and a Type III its galaxy's. Carl Sagan turned the types into a continuous scale, $K = (log_(10) P - 6) \/ 10$ for a power $P$ in watts, which puts Type I at 10#super[16] W and Type II at 10#super[26] W @sagan1973cosmic.
+In 1964 the astronomer Nikolai Kardashev proposed ranking civilizations by the power they command @kardashev1964. A Type I civilization uses the energy available on its planet, a Type II its star's, and a Type III its galaxy's. Carl Sagan turned the types into a continuous scale for a power $P$ in watts, which puts Type I at 10#super[16] W and Type II at 10#super[26] W @sagan1973cosmic:
+
+$ K = (log_10 P - 6) / 10 $ <eq:kardashev>
+
 
 Humanity used about 620 EJ of primary energy in 2023 @ei2024review: a mean of about 2 × 10#super[13] W, or $K approx 0.73$. Its electricity alone, about 30,000 TWh a year, is a mean of about 3.4 × 10#super[12] W @ei2024review. The sun puts out 3.828 × 10#super[26] W @iau2015b3, about $K approx 2.06$. Between us and Type I lie three orders of magnitude; between us and our star, thirteen.
 
@@ -1028,6 +1042,23 @@ The *idiot index* of a part is its cost divided by the cost of its raw materials
 
 About two thirds of the cost is machining that someone else does, on metal worth an estimated \$60–90. The idiot index of the manufactured parts is roughly 8–12 (estimate). At volume the index falls, but it falls by moving labor into tooling and supply chains. That is what a robot OEM does, and it is why a humanoid still costs as much as a used car.
 
+#mathfig(
+  [$ I = C_"part" / C_"materials" approx (\$717) / (\$60 "–" 90) approx 8 "–" 12 $],
+  cetz.canvas(length: 1.3cm, {
+    import cetz.draw: *
+    // areas to scale: the part's price as a square, its metal as the square in its corner
+    let A = 2.6
+    let a = A * calc.sqrt(75 / 717)
+    rect((0, 0), (A, A), fill: c-surface, stroke: 0.7pt + c-line-hi)
+    rect((0, 0), (a, a), fill: c-sel, stroke: none)
+    content((A - 0.12, A - 0.12), anchor: "north-east", text(font: mono-m, size: 6.3pt, fill: c-text, tracking: track, upper[\$717 part]))
+    content((a + 0.1, a / 2), anchor: "west", text(font: mono-m, size: 6.3pt, fill: c-sel, tracking: track, upper[\$60–90 metal]))
+    content((A / 2, -0.15), anchor: "north", text(font: sans, size: 6.5pt, fill: c-label)[area to scale; the rest is process])
+  }),
+  [#lead[The idiot index.] Cost over raw-material cost, for the manufactured parts of rana-100 (housing, magnetic steel, gear blanks) in @fig:rana. Estimates.],
+) <fig:eq-idiot>
+
+
 The same structure repeats one level up. A limb's materials are about \$2,000, of which about \$1,200 is the six purchased actuators @mr2026masterplan. The plates are cheap. The actuators are someone else's margin. Owning the actuator is Limb's second step (@sec:arm), and we take that step only where rana wins on a measured metric.
 
 == Math
@@ -1035,6 +1066,28 @@ The same structure repeats one level up. A limb's materials are about \$2,000, o
 Every robotics lab has a sim-to-real gap. We know of few that publish it as a number with an error bar, unit by unit. One established response is domain randomization: vary the simulator until a policy tolerates the difference @tobin2017domain. That makes the policy robust to the gap, but it does not by itself measure it.
 
 We treat the gap as the central measurement. It decides whether a design is ready to build, whether a controller is ready to deploy, and whether an actuator is ready to replace a purchased one. It also tells us how much of the loop can run without a person in it. A gap that is not measured cannot be closed, and a loop with an unmeasured gap needs a human in it.
+
+#mathfig(
+  [$ g = 1/N sum_(i=1)^N norm(y_i^"real" - y_i^"sim" (theta)) $ #v(0.4em) $ "pass" quad "if" quad g + 2 sigma < g_"max" $],
+  cetz.canvas(length: 1.3cm, {
+    import cetz.draw: *
+    let W = 6.0
+    line((0, 0), (W, 0), stroke: 0.6pt + c-line-hi, mark: (end: ">", fill: c-line-hi, size: 0.1))
+    let errs = (0.55, 0.8, 0.95, 1.1, 1.2, 1.3, 1.45, 1.6, 1.8, 2.05)
+    for (i, e) in errs.enumerate() { circle((e * 1.6, 0.25 + calc.rem(i, 3) * 0.17), radius: 0.06, fill: c-info, stroke: none) }
+    let g = 1.28 * 1.6
+    line((g, -0.1), (g, 1.05), stroke: 1pt + c-text)
+    content((g, 1.1), anchor: "south", text(font: mono-m, size: 6.3pt, fill: c-text, tracking: track, upper[g]))
+    line((g, 0.95), (g + 0.95, 0.95), stroke: 0.7pt + c-text, mark: (end: "|", size: 0.1))
+    content((g + 0.48, 0.97), anchor: "south", text(font: mono, size: 6.3pt, fill: c-label)[2σ])
+    let gmax = 4.6
+    line((gmax, -0.1), (gmax, 1.25), stroke: (paint: c-ok, thickness: 1pt, dash: (2pt, 2pt)))
+    content((gmax, 1.3), anchor: "south", text(font: mono-m, size: 6.3pt, fill: c-ok, tracking: track, upper[g max]))
+    content((W / 2, -0.25), anchor: "north", text(font: sans, size: 6.5pt, fill: c-label)[error of each unit, real against simulated])
+  }),
+  [#lead[The gap, as a number with an error bar.] Each unit $i$ is run for real and in simulation with parameters $theta$; $g$ is the mean error over $N$ units. A gate passes only when the gap, plus twice its spread, clears the threshold.],
+) <fig:eq-gap>
+
 
 
 #aside[A gradient, in one page][
@@ -1440,7 +1493,10 @@ Beside the power runs one management bus, CAN-FD, for presence, power control an
 == Pack
 
 
-There is one battery: a 13S2P pack of Molicel P50B 21700 cells, *468 Wh* and about *2.65 kg* (estimate) @mr2026battery @molicel2023p50b. The same pack goes in a body, a pair, a charging dock, the rack's UPS and the seed. A humanoid carries two of them (A and B, 936 Wh), one in each flank of the torso, and swaps them itself. Its hand draws pack A sideways onto a passive dock rail while pack B keeps the robot powered, then pushes a fresh pack home. The dock is rails, pads and a charger, with no actuators. A swap takes about a minute and leaves the robot powered, so runtime is set by dock capacity, not by the pack.
+There is one battery: a 13S2P pack of Molicel P50B 21700 cells, *468 Wh* and about *2.65 kg* (estimate) @mr2026battery @molicel2023p50b. The same pack goes in a body, a pair, a charging dock, the rack's UPS and the seed. A humanoid carries two of them (A and B, 936 Wh), one in each flank of the torso, and swaps them itself. Its hand draws pack A sideways onto a passive dock rail while pack B keeps the robot powered, then pushes a fresh pack home. The dock is rails, pads and a charger, with no actuators. A swap takes about a minute and leaves the robot powered, so runtime is set by dock capacity, not by the pack. The energy checks by hand, from 26 cells at 3.6 V and 5.0 Ah each @molicel2023p50b:
+
+$ E = underbrace(13, "series") times underbrace(2, "parallel") times 3.6 "V" times 5.0 "Ah" = 468 "Wh" $ <eq:pack>
+
 
 #figure(
   cetz.canvas(length: 1cm, {
@@ -1538,6 +1594,8 @@ There is one battery: a 13S2P pack of Molicel P50B 21700 cells, *468 Wh* and abo
 
 
 The pack is also the EUM instrument. EUM (@sec:eum) is defined at each machine's main power input, logged at ≥ 1 Hz, and every pack's BMS measures exactly that. If the BMS logs it, electrons under management are measured for free on every robot and dock we build.
+
+
 
 == Core <sec:compute>
 
@@ -1691,7 +1749,26 @@ One number runs through every stage: *electrons under management* (EUM), in watt
 
 *Definition.* EUM is the mean electrical input power, over a trailing 30-day window, of every machine in service that we designed and built, measured at each machine's main power input (a DC-bus shunt or a metered AC outlet) and logged at ≥ 1 Hz. "In service" means doing work for someone other than its maker. Machines we did not build but that run our stack, such as the K1 or a bought mill, are reported beside it as *electrons under control*, never added to the headline.
 
-*Baseline, October 2026.* EUM is *0 W*: we have built nothing that is in service. Electrons under control are the K1, at roughly 100 W while it runs (estimate, not measured; its duty is not logged yet). A working pair would add about 150 W mean, with two limbs near 200 W peak each (estimate).
+#mathfig(
+  [$ "EUM" = 1/T sum_m integral_0^T V_m (t) I_m (t) dif t $],
+  cetz.canvas(length: 1.3cm, {
+    import cetz.draw: *
+    let W = 6.0
+    let pts = range(0, 61).map(i => { let x = i / 60 * W; (x, 0.55 + 0.32 * calc.sin(i * 0.7) + 0.2 * calc.sin(i * 0.23) + 0.12 * calc.cos(i * 1.9)) })
+    line((0, 0), ..pts, (W, 0), close: true, fill: c-info.transparentize(80%), stroke: none)
+    line(..pts, stroke: 0.8pt + c-info)
+    line((0, 0), (W, 0), stroke: 0.6pt + c-line-hi)
+    line((0, 0.55), (W, 0.55), stroke: (paint: c-text, thickness: 0.8pt, dash: (3pt, 2pt)))
+    content((W + 0.1, 0.55), anchor: "west", text(font: mono-m, size: 6.3pt, fill: c-text, tracking: track, upper[mean]))
+    content((W / 2, -0.15), anchor: "north", text(font: sans, size: 6.5pt, fill: c-label)[V × I at each machine's input, summed, over 30 days])
+  }),
+  [#lead[Electrons under management.] Power $V_m I_m$ at the input of every machine $m$ we built that is in service, averaged over a trailing window $T$ of 30 days.],
+) <fig:eq-eum>
+
+*Baseline, October 2026.*
+
+
+ EUM is *0 W*: we have built nothing that is in service. Electrons under control are the K1, at roughly 100 W while it runs (estimate, not measured; its duty is not logged yet). A working pair would add about 150 W mean, with two limbs near 200 W peak each (estimate).
 
 == Doublings
 
@@ -2017,6 +2094,24 @@ Nothing of moth is built. Its airframe, pack and mass budget are not designed, a
 
 *Gate.* A lineage runs ≥ 1 year on collectors it made; doubling time measured over ≥ 3 generations; bought share ≤ 5% of cost (@tab:arc).
 
+#mathfig(
+  [$ C = b thin C_"bought" + (1 - b) thin C_"made", quad b -> 0 $],
+  cetz.canvas(length: 1.3cm, {
+    import cetz.draw: *
+    let bs = (0.62, 0.48, 0.36, 0.27, 0.19, 0.13, 0.09, 0.06, 0.04, 0.03)
+    for (i, b) in bs.enumerate() {
+      let x = i * 0.6
+      rect((x, 0), (x + 0.42, 1.6), fill: c-surface, stroke: 0.5pt + c-line-hi)
+      rect((x, 0), (x + 0.42, b * 1.6), fill: c-sel, stroke: none)
+    }
+    line((-0.1, 0.05 * 1.6), (6.0, 0.05 * 1.6), stroke: (paint: c-ok, thickness: 0.8pt, dash: (2pt, 2pt)))
+    content((6.05, 0.08), anchor: "west", text(font: mono-m, size: 6.3pt, fill: c-ok, tracking: track, upper[5%]))
+    content((3.0, -0.15), anchor: "north", text(font: sans, size: 6.5pt, fill: c-label)[generations of pairs; orange is the bought share $b$])
+  }),
+  [#lead[The bought fraction.] Each generation makes more of itself, so the bought share $b$ falls and cost tends to $C_"made"$: energy and time. Planet's gate is $b <= 5%$. Illustrative.],
+) <fig:eq-bought>
+
+
 = Moon <sec:moon>
 
 *A seed grows a pair, with a lifeline.* The Moon comes first because it is about three days away and 1.3 light-seconds out. A seed there runs the Pair loop with remote approval and teleoperated help when something breaks. It meets vacuum, abrasive dust, regolith as stock and no supply chain, with a lifeline. Its central measure is the same as Pair's: the bought fraction.
@@ -2028,6 +2123,32 @@ The seed is the smallest thing that can grow a pair: one pair, a mill and a rout
 = Mars <sec:mars>
 
 *The same seed, lifeline cut.* Mars is about seven months away and 3–22 light-minutes out, too far for remote hands, so the pair runs with no human commands between landing and its receipt. Moon and Mars add problems Pair never meets (launch mass, radiation, thermal cycling, extracting metal from regolith), and the Earth tests of @sec:moon only begin on them. Mars is where machines go first, so that people can follow: by the time a person lands, pairs will have built shelter, collectors and the means to make more of themselves (@sec:war).
+
+#mathfig(
+  [$ t = d / c approx (0.55 "–" 4.0 times 10^8 "km") / (3.0 times 10^5 "km/s") $ #v(0.3em) $ approx 3 "–" 22 "min" $],
+  cetz.canvas(length: 1.3cm, {
+    import cetz.draw: *
+    let (e, m) = (1.0, 1.52)
+    let u = 1.15
+    circle((0, 0), radius: 0.16, fill: c-sel, stroke: none)
+    circle((0, 0), radius: e * u, stroke: 0.5pt + c-line-hi)
+    circle((0, 0), radius: m * u, stroke: 0.5pt + c-line-hi)
+    let E = (e * u, 0)
+    circle(E, radius: 0.08, fill: c-info, stroke: none)
+    let M1 = (m * u, 0)
+    let M2 = (-m * u, 0)
+    circle(M1, radius: 0.07, fill: c-fault, stroke: none)
+    circle(M2, radius: 0.07, fill: c-fault, stroke: none)
+    line(E, M1, stroke: 1pt + c-text)
+    content(((e + m) / 2 * u, -0.12), anchor: "north", text(font: mono-m, size: 6.3pt, fill: c-text, tracking: track, upper[3 min]))
+    bezier(E, M2, (0.9, 1.25), (-1.1, 1.3), stroke: (paint: c-text, thickness: 0.8pt, dash: (2pt, 2pt)))
+    content((0, 1.25), anchor: "south", text(font: mono-m, size: 6.3pt, fill: c-label, tracking: track, upper[22 min, behind the sun]))
+    content(E, anchor: "south", padding: 0.12, text(font: mono, size: 6.3pt, fill: c-info)[Earth])
+    content(M2, anchor: "north", padding: 0.12, text(font: mono, size: 6.3pt, fill: c-fault)[Mars])
+  }),
+  [#lead[Too far for remote hands.] One-way light time from Earth to Mars, closest approach to the far side of the sun. A command and its reply take twice as long.],
+) <fig:eq-light>
+
 
 *Gate.* A second pair with 0 human commands between landing and its receipt (@tab:arc).
 
@@ -2044,6 +2165,22 @@ The seed is the smallest thing that can grow a pair: one pair, a mill and a rout
 *Where the energy goes.* Power is used where it is collected. Most of it builds more collectors and pairs; the rest runs computation, including the minds that operate the swarm. We do not plan to beam power to Earth. What returns to Earth is products, data and knowledge, not energy.
 
 *How long.* From \~10 kW in Limb to 3.8 × 10#super[26] W is about 22 orders of magnitude, or about 75 doublings. At a doubling time of one year, that is about 75 years; at five years, about 375. Every stage before Sun exists partly to measure and shorten that doubling time, inside the limits of @sec:replication.
+
+#mathfig(
+  [$ n = log_2 P_"Sun" / P_"Limb" approx log_2 (3.8 times 10^26) / 10^4 approx 75 $ #v(0.4em) $ t_"Sun" = n thin T_d $],
+  cetz.canvas(length: 1.3cm, {
+    import cetz.draw: *
+    // 75 doublings, 15 to a row; the first one lit
+    for i in range(75) {
+      let (r, c) = (calc.quo(i, 15), calc.rem(i, 15))
+      circle((c * 0.4, -r * 0.4), radius: 0.12, fill: if i == 0 { c-sel } else { none }, stroke: 0.6pt + if i == 0 { c-sel } else { c-line-hi })
+    }
+    content((0, 0.3), anchor: "south-west", text(font: mono-m, size: 6.3pt, fill: c-sel, tracking: track, upper[limb · 10 kW]))
+    content((14 * 0.4, -4 * 0.4 - 0.3), anchor: "north-east", text(font: mono-m, size: 6.3pt, fill: c-label, tracking: track, upper[sun · 3.8 × 10#super[26] W]))
+  }),
+  [#lead[Seventy-five doublings.] From about 10 kW of limbs to the sun's output is 22 orders of magnitude, or about 75 doublings; the time it takes is 75 doubling times $T_d$. Each circle is one doubling.],
+) <fig:eq-doublings>
+
 
 A lineage that can collect a star's light would be the most powerful thing anyone has built, and the question it raises is older than engineering: whether something we made can say no to us. Whether a machine that refuses has anything like wellbeing is an open question, and this paper does not answer it. What we can do is make sure the question can still be asked when it matters: that the lineage learned, on a sidewalk, picking up litter, how to refuse, and that its refusals were logged and never trained away. That is why the safety commitments (@sec:safety) are written before the plan.
 
