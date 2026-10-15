@@ -1253,7 +1253,7 @@ The stack is a tree rooted at one language, loon. Every project in it, software 
         let fl = if mat == "exists" { col.transparentize(80%) } else { c-bg }
         rect((x, y), (x + s, y - s), fill: fl, stroke: st)
         content((x + 0.12, y - 0.1), anchor: "north-west", text(font: mono, size: 5pt, fill: c-label, str(num)))
-        content((x + 0.14, y - 0.42), anchor: "north-west", text(font: sans-sb, size: if name.len() > 5 { 10pt } else if name.len() > 4 { 12.5pt } else { 15pt }, tracking: -0.02em, fill: if mat == "concept" { col.transparentize(15%) } else { col }, name))
+        content((x + 0.14, y - 0.42), anchor: "north-west", text(font: mono-sb, size: if name.len() > 5 { 9pt } else if name.len() > 4 { 12pt } else { 15pt }, tracking: -0.03em, fill: if mat == "concept" { col.transparentize(15%) } else { col }, name))
         content((x + 0.14, y - s + 0.14), anchor: "south-west", box(width: (s - 0.28) * 1cm, par(leading: 0.35em, text(size: 5pt, fill: c-label, note))))
       }
       x += s + g
