@@ -196,8 +196,8 @@ export function PostCover({ title, subtitle, children }: { title: string; subtit
         <p className="post-kicker">Municipal Robotics · Master plan</p>
         <h1>{title}</h1>
         <p className="post-subtitle">{subtitle}</p>
+        {children}
       </div>
-      {children}
     </header>
   );
 }

@@ -27,7 +27,7 @@
 
 /* the site's global sheet sets mono and display faces on bare elements; the post uses Plex throughout */
 .post-page :is(p, h1, h2, h3, li, figcaption, td, th, time, span, a, ol, ul) { font-family: var(--p-sans); }
-.post-page :is(.post-kicker, .post-meta, .post-meta *, .part-label, .fig-label, .blog-list time, thead th) { font-family: var(--p-mono); }
+.post-page :is(.post-kicker, .part-label, .fig-label, .blog-list time, thead th) { font-family: var(--p-mono); }
 
 /* cover: the live solar system, text over it */
 .post-cover {
@@ -36,7 +36,6 @@
   height: 100svh;
   min-height: 34rem;
   overflow: hidden;
-  border-bottom: 1px solid var(--p-line);
 }
 .post-cover-canvas {
   position: absolute;
@@ -51,7 +50,6 @@
   padding: 7.5rem 1.25rem 0;
 }
 .post-kicker,
-.post-meta,
 .post .part-label,
 .post .fig-label {
   font-family: var(--p-mono);
@@ -72,23 +70,32 @@
   font-size: 1.15rem;
   color: var(--p-label);
 }
-.post-meta {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 2.2rem;
+/* byline: under the subtitle, quiet, with the PDF as the one control */
+.post-byline {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.6rem;
-  max-width: var(--p-wide);
-  margin: 0 auto;
-  padding-inline: 1.25rem;
+  align-items: center;
+  gap: 0.5rem 1.4rem;
+  margin-top: 2.2rem;
+  font-size: 0.95rem;
+  color: var(--p-label);
 }
-.post-meta a {
+.post-byline .by { color: var(--p-text); font-weight: 500; }
+.post-byline .pdf {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.38rem 0.8rem 0.38rem 0.7rem;
+  border: 1px solid var(--p-line-hi);
+  border-radius: 999px;
   color: var(--p-text);
-  text-decoration: underline;
-  text-underline-offset: 3px;
+  text-decoration: none;
+  font-size: 0.85rem;
+  transition: border-color 0.2s ease, background 0.2s ease;
 }
+.post-byline .pdf:hover { border-color: var(--p-sel); background: rgba(255, 95, 0, 0.08); }
+.post-byline .pdf:focus-visible { outline: 2px solid var(--p-sel); outline-offset: 2px; }
+.post-byline .pdf svg { width: 0.85em; height: 0.85em; }
 
 /* the body */
 .post {
@@ -223,11 +230,24 @@
 .post [role="doc-bibliography"],
 .post section:last-of-type ol { font-size: 0.85rem; color: var(--p-label); }
 
-/* a plotter wipe as each figure enters; figures are visible without script */
-.post .draw-pending { clip-path: inset(0 100% 0 0); }
-.post .draw-in { clip-path: inset(0 0 0 0); transition: clip-path 1.4s cubic-bezier(0.16, 1, 0.3, 1); }
-@media (prefers-reduced-motion: reduce) {
-  .post .draw-pending { clip-path: none; }
+/* Figures are still. A few of their parts move, slowly, where motion means something:
+   a sunrise breathes, city lights twinkle, the current stage and the gap glow,
+   a target that is not yet a result pulses. Shapes are picked by their Typst colors. */
+@keyframes p-breathe { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
+@keyframes p-twinkle { 0%, 100% { opacity: 1; } 50% { opacity: 0.2; } }
+@keyframes p-glow { 0%, 100% { filter: drop-shadow(0 0 0 rgba(255, 95, 0, 0)); } 50% { filter: drop-shadow(0 0 6px rgba(255, 95, 0, 0.75)); } }
+@media (prefers-reduced-motion: no-preference) {
+  .post #part-i [fill^="#ff5f00"] { animation: p-breathe 6s ease-in-out infinite; }
+  .post #part-i [fill^="#ffd400"] { animation: p-twinkle 3.2s ease-in-out infinite; }
+  .post #part-i [fill^="#ffd400"]:nth-of-type(3n) { animation-duration: 4.6s; animation-delay: -1.3s; }
+  .post #part-i [fill^="#ffd400"]:nth-of-type(5n) { animation-duration: 5.8s; animation-delay: -2.9s; }
+  .post #part-i [fill^="#ffd400"]:nth-of-type(7n) { animation-duration: 2.4s; animation-delay: -0.7s; }
+  .post #part-iii [fill^="#ff5f00"] { animation: p-breathe 5s ease-in-out infinite; }
+  .post #part-iv [stroke^="#ffd400"] { animation: p-breathe 4s ease-in-out infinite; }
+  .post [id="fig:loop"] [stroke="#ff5f00"],
+  .post [id="fig:glance"] [stroke="#ff5f00"] { animation: p-glow 4s ease-in-out infinite; }
+  .post [id="fig:launch"] [stroke="#ff5f00"][fill="#0b0907"],
+  .post [id="fig:launch"] [stroke="#ff5f00"]:not([fill]) { animation: p-breathe 2.6s ease-in-out infinite; }
 }
 
 /* blog index */

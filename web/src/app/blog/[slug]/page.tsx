@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Footer, FloatingHeader } from "@/components/layout";
 import { PostCover } from "@/components/blog/PostCover";
-import { PostMotion } from "@/components/blog/PostMotion";
 import { formatDate, getPost, getPostHtml, posts } from "@/lib/posts";
 import "@/styles/post.css";
 
@@ -30,17 +29,17 @@ export default function PostPage({ params }: { params: { slug: string } }) {
     <div className="post-page">
       <FloatingHeader />
       <PostCover title={post.title} subtitle={post.subtitle}>
-        <div className="post-meta">
-          <span>{post.author}</span>
-          <span aria-hidden="true">·</span>
+        <div className="post-byline">
+          <span className="by">{post.author}</span>
           <time dateTime={post.date}>{formatDate(post.date)}</time>
-          <span aria-hidden="true">·</span>
-          <a href={`/blog/${post.slug}.pdf`}>PDF</a>
+          <a className="pdf" href={`/blog/${post.slug}.pdf`}>
+            <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M6 1v7M3 5.5 6 8.5 9 5.5M2 11h8" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" /></svg>
+            Read the PDF
+          </a>
         </div>
       </PostCover>
       {/* Compiled from the Typst source by `npm run posts`; the same file builds the PDF. */}
       <article className="post" dangerouslySetInnerHTML={{ __html: html }} />
-      <PostMotion />
       <div className="landing-footer">
         <div className="landing-container">
           <Footer />
