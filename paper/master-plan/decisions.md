@@ -26,6 +26,9 @@ or the hardware mockups. Newest first within a date.
 | D15 | **Replication is licensed per copy, capped in rate, checked against a germ line, drilled for shutdown every generation; no foraging on Earth.** | A self-copying lineage must stay stoppable by people. | Relying on dependence on bought parts alone. |
 | D16 | **Sun is a swarm; power is used where it is collected** (more collectors, cells and computation). No power beamed to Earth. | Locus of energy stated plainly. | Beamed power home. |
 
+| D17 | **The ladder is Limb, Pair, Body, City, Planet, Moon, Mars, Sun. A pair (two limbs on any table) is the cell: it works, and it builds limbs, so it builds pairs.** The bench, bay standard, aisle, hall and lexicon are cut; the seed survives as the Moon concept. | One part everywhere: a limb is a product, half of a pair and an arm of a body. Homogeneity simplifies hardware, software, standards and replication. | Bench/aisle/hall cells with spines, bays and tenders. |
+| D18 | **The paper runs in four parts: Why, Foundations, The stages, Honesty.** Laconic section titles. | Each stage reads as a whole; standards and rules come before the stages that use them. | Topic-ordered sections. |
+
 ## Corrections found in review
 
 - The K1's onboard computer is **not a Jetson**. The perception machine is a
