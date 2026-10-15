@@ -174,7 +174,7 @@
 
 // Column-width figure that stays in flow
 // Wide figures break out of the text column into both margins; their captions stay on the text measure
-#show figure: it => if it.scope == "parent" { block(above: 2.8em, below: 2.8em, pad(x: -1.15in, top: 1.4em, bottom: 0.6em, { show figure.caption: c => pad(x: 1.15in, align(left, c)); it })) } else { it }
+#show figure: it => if it.scope == "parent" { block(above: 2.8em, below: 2.8em, pad(x: -1.15in, top: 2.95em, bottom: 0em, { show figure.caption: c => pad(x: 1.15in, align(left, c)); it })) } else { it }
 #show figure.where(kind: table): it => { show table: t => align(left, t); it }
 
 
@@ -557,7 +557,7 @@ Five years ago this plan would have needed a factory before it needed a customer
 
 The result is that one person can now write every layer between a parameter in a source file and a measured joint torque. Ten years ago that took a company the size of a robot OEM. The specification is written to be carried by more hands than one, and everything in it that can be open is open.
 
-= The plan at a glance <sec:glance>
+= Overview <sec:glance>
 
 The plan climbs from one arm to a lineage of machines powered by the sun (@fig:glance). Each rung is a machine the rung before it can build, and each is counted on one axis, the power our machines draw in service. Only Arm is a plan; the rest are goals (@sec:arc).
 
@@ -660,8 +660,6 @@ The paper is organized around one loop (@fig:loop). The design is written as sou
   placement: bottom,
   caption: [#lead[The loop, read clockwise.] The small labels name the tool at each step. The software projects are listed in @tab:stack, and the dyno is a planned actuator test stand that does not exist yet. Each later stage of the plan removes a human from one more edge. In Arm the gradient edge is a person reading the gap and redesigning by hand.],
 ) <fig:loop>
-
-== The plan in brief <sec:plan>
 
 Arm has three steps over roughly three years. Each step closes on a gate, and every gate is exact: a number, a unit, a method and a pass condition (@tab:gates) @mr2026masterplan. Arm has to earn the rest of the specification: it funds the long bets and closes the loop for the first time. Seven further stages follow, each a step up in scale, and together the eight are what we call the arc (@sec:arc, @tab:arc). They are goals, not results, and they are why Arm exists.
 
@@ -788,7 +786,7 @@ The *idiot index* of a part is its cost divided by the cost of its raw materials
 
 About two thirds of the cost is machining that someone else does, on metal worth an estimated \$60–90. The idiot index of the manufactured parts is roughly 8–12 (estimate). At volume the index falls, but it falls by moving labor into tooling and supply chains. That is what a robot OEM does, and it is why a humanoid still costs as much as a used car.
 
-The same structure repeats one level up. Our arm's materials are about \$2,000, of which about \$1,200 is the six purchased actuators @mr2026masterplan. The plates are cheap. The actuators are someone else's margin. Owning the actuator is step 2 of the plan (@sec:plan), and we take that step only where rana wins on a measured metric.
+The same structure repeats one level up. Our arm's materials are about \$2,000, of which about \$1,200 is the six purchased actuators @mr2026masterplan. The plates are cheap. The actuators are someone else's margin. Owning the actuator is step 2 of the plan (@sec:glance), and we take that step only where rana wins on a measured metric.
 
 == The sim-to-real gap is the unmeasured quantity
 
