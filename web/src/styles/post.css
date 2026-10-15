@@ -54,7 +54,7 @@
 .post .fig-label {
   font-family: var(--p-mono);
   font-size: 0.72rem;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.08em;
   color: var(--p-label);
 }
 .post-cover h1 {
@@ -106,13 +106,13 @@
   line-height: 1.68;
 }
 .post p { margin: 0 0 1.1em; }
-.post a { color: var(--p-text); text-underline-offset: 3px; }
+.post a { color: var(--p-text); font-weight: inherit; text-underline-offset: 3px; }
 .post strong { font-weight: 600; }
 .post sup { font-size: 0.68em; line-height: 0; }
 .post a[role="doc-biblioref"] { color: var(--p-label); text-decoration: none; }
 .post h2 {
   margin: 3.4rem 0 1rem;
-  font-size: 1.6rem;
+  font-size: 1.47rem;
   font-weight: 600;
   line-height: 1.2;
   letter-spacing: -0.01em;
@@ -200,20 +200,21 @@
 .post .abstract p { font-size: 1.02rem; line-height: 1.7; }
 
 .post .toc { max-width: var(--p-wide); margin-inline: calc((var(--p-measure) - min(var(--p-wide), 100vw - 2.5rem)) / 2); }
-.post .toc ol { columns: 2 18rem; column-gap: 3rem; padding: 0; margin: 0; counter-reset: part; }
+.post .toc ol { columns: 2 18rem; column-gap: 3.5rem; padding: 0; margin: 0; counter-reset: part; }
 .post .toc li { padding: 0; margin: 0; break-inside: avoid; }
 .post .toc li::before { content: none; }
-.post .toc a { display: grid; grid-template-columns: 2.6rem 1fr; align-items: baseline; padding: 0.22rem 0; color: var(--p-text); text-decoration: none; }
+/* the PDF's contents: tight leading, medium sections, light grey subsections, tiny tracked numbers */
+.post .toc a { display: grid; grid-template-columns: 2.4rem 1fr; align-items: baseline; padding: 0.08rem 0; line-height: 1.32; color: var(--p-text); text-decoration: none; font-weight: 400; }
 .post .toc a:hover .toc-text { color: var(--p-sel); }
-.post .toc-num { font-family: var(--p-mono); font-size: 0.72rem; color: var(--p-label); font-variant-numeric: tabular-nums; }
-.post .toc-l1 { margin-top: 0.7rem !important; }
-.post .toc-l1 .toc-text { font-weight: 500; }
-.post .toc-l2 a { grid-template-columns: 2.6rem 2.6rem 1fr; font-size: 0.9rem; }
+.post .toc-num { font-family: var(--p-mono); font-size: 0.66rem; font-weight: 400; letter-spacing: 0.08em; color: var(--p-label); font-variant-numeric: tabular-nums; }
+.post .toc-l1 { margin-top: 0.75rem !important; }
+.post .toc-l1 .toc-text { font-size: 1.02rem; font-weight: 500; }
+.post .toc-l2 a { grid-template-columns: 2.4rem 2.2rem 1fr; }
 .post .toc-l2 .toc-num { grid-column: 2; }
-.post .toc-l2 .toc-text { color: var(--p-label); }
-.post .toc-part { margin-top: 2rem !important; break-after: avoid; }
+.post .toc-l2 .toc-text { font-size: 0.92rem; font-weight: 400; color: var(--p-label); }
+.post .toc-part { margin-top: 1.9rem !important; break-after: avoid; }
 .post .toc-part:first-child { margin-top: 0 !important; }
-.post .toc-part a { display: block; font-family: var(--p-mono); font-size: 0.72rem; color: var(--p-label); letter-spacing: 0.02em; }
+.post .toc-part a { display: block; margin-bottom: 0.1rem; font-family: var(--p-mono); font-size: 0.68rem; font-weight: 400; letter-spacing: 0.08em; color: var(--p-label); }
 .post .toc-part { counter-increment: part; }
 .post .toc-part a::before { content: "Part " counter(part, upper-roman) " · "; }
 
