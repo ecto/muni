@@ -60,6 +60,15 @@
 // the one flame: selection fill with sel_ink on it. at most one per page.
 #let flame(body) = box(fill: c-sel, inset: (x: 2pt), outset: (y: 2pt), text(fill: c-sel-ink, body))
 // status chip: a square marker plus the word, both in the status colour
+// Maturity: four pips, concept · designed · built · measured
+#let pips(n, sim: false) = box(baseline: 0.1em, {
+  for k in range(4) {
+    let on = k < n
+    let col = if k == 3 and sim { c-info } else if on { c-text } else { none }
+    box(width: 0.62em, height: 0.62em, radius: 50%, fill: if k == 3 and sim { none } else { col }, stroke: if k == 3 and sim { 0.8pt + c-info } else if on { none } else { 0.6pt + c-line-hi })
+    if k < 3 { h(0.28em) }
+  }
+})
 #let status(role, word) = {
   let c = (ok: c-ok, info: c-info, warn: c-warn, fault: c-fault, label: c-label).at(role)
   box(text(font: mono-m, fill: c, tracking: track, size: s-xs)[#box(width: 0.55em, height: 0.55em, fill: c, baseline: -0.05em) #upper(word)])
@@ -134,13 +143,16 @@
 #set enum(numbering: n => text(font: mono-m, size: s-sm, fill: c-label, number-width: "tabular", str(n)), indent: 0em, body-indent: 0.9em, spacing: 1.15em)
 
 // Tables: mono on a grid, hairlines between rows, line_hi above and below, tracked-caps header
+// Tables: sans cells with tabular figures, a medium first column as the row anchor,
+// mono caps only in the header; hairlines between rows, a firmer rule top and bottom
 #set table(stroke: (x, y) => (
-    top: if y == 0 { 0.6pt + c-line-hi } else { 0.4pt + c-line },
+    top: if y == 0 { 0.6pt + c-line-hi } else if y == 1 { 0.6pt + c-line-hi } else { 0.35pt + c-line },
     bottom: 0.6pt + c-line-hi,
-  ), inset: (x: 5pt, y: 4.5pt))
-#show table: set text(font: mono, size: s-sm, number-width: "tabular", hyphenate: false)
-#show table: set par(leading: 0.72em, justify: false)
-#show table: it => { show strong: set text(font: mono-sb); it }
+  ), inset: (x: 6pt, y: 6pt))
+#show table: set text(font: sans, size: s-sm, number-width: "tabular", hyphenate: false)
+#show table: set par(leading: 0.62em, justify: false)
+#show table: it => { show strong: set text(font: sans-sb); it }
+#show table.cell.where(x: 0): it => if it.y == 0 { it } else { set text(font: sans-m, fill: c-text); it }
 // Prose tables: sans body, mono tracked-caps header kept
 #let ptable(..a) = {
   show table: set text(font: sans)
@@ -552,28 +564,31 @@ Most of what this paper describes is *proposed*, not operational. @tab:status se
 
 #figure(
   table(
-    columns: 3,
-    align: (left + top, left + top, left + top),
-    table.header([*Item*], [*State*], [*Evidence*]),
-    [Booster K1], [In hand], [Purchased platform; vendor firmware @booster2025k1],
-    [Software stack], [Exists, in use, not finished], [@tab:stack @pond2026strategy],
-    [CNC mill], [In hand], [–],
-    [Limb, rose fork v9], [Designed, ready to cut; none built yet], [Fab package, 20 DXFs, 88-screw BOM @rose2026forkv9],
-    [Gripper v2], [Designed; none built], [CAD + force/mass model @mr2026gripper],
-    [Pair], [Concept; mount not designed], [Two limbs on a table plate],
-    [Seed], [Concept], [None],
-    [rana actuator], [Prototype BOM, estimated; not built], [\$1,086 est. per unit, before tooth cutting @rana2026bom],
-    [Actuator dyno], [Planned; does not exist], [None],
-    [Pack, blade, board library], [Concept mockups; none built], [Pack and blade models @mr2026battery @mr2026compute],
-    [moth drone], [Proposed; not designed], [kino drives a bought drone today],
-    [K1 litter reacher], [Concept under design], [None; the K1 has not grasped litter],
-    [K1 body-schema fit (sim)], [Five-parameter recovery in simulation], [Synthetic data, sphere feet; ±20% → machine precision @ipse2026brief],
-    [K1 body-schema fit (hardware)], [Not yet on hardware], [Preregistration pending],
-    [Lakewood litter pilot], [Proposed], [No agreement in place],
-    [Body through Sun], [Goals, not claims], [None],
+    columns: (auto, auto, 1fr),
+    align: (left + horizon, left + horizon, left + horizon),
+    table.header([*Item*], [*Maturity*], [*Note*]),
+    table.cell(colspan: 3, inset: (top: 9pt, bottom: 3pt, x: 6pt), stroke: none, text(font: mono-m, size: s-xs, fill: c-label, tracking: track)[IN HAND]),
+    [Booster K1], pips(3), [Bought @booster2025k1],
+    [CNC mill], pips(3), [Bought],
+    [Software stack], pips(3), [In use, not finished (@tab:stack)],
+    table.cell(colspan: 3, inset: (top: 9pt, bottom: 3pt, x: 6pt), stroke: none, text(font: mono-m, size: s-xs, fill: c-label, tracking: track)[DESIGNED]),
+    [Limb full (fork v9)], pips(2), [Ready to cut @rose2026forkv9],
+    [Gripper v2], pips(2), [CAD and force model @mr2026gripper],
+    [rana actuator], pips(2), [\$1,086 est. per unit @rana2026bom],
+    [K1 body-schema fit], pips(2, sim: true), [Works in simulation; not on hardware @ipse2026brief],
+    table.cell(colspan: 3, inset: (top: 9pt, bottom: 3pt, x: 6pt), stroke: none, text(font: mono-m, size: s-xs, fill: c-label, tracking: track)[CONCEPT]),
+    [Pair], pips(1), [Mount not designed],
+    [rose mini], pips(1), [Geometry in progress @rose2026line],
+    [Pack, blade, boards], pips(1), [Mockups @mr2026battery @mr2026compute],
+    [Litter reacher], pips(1), [The K1 has not grasped litter],
+    [Lakewood pilot], pips(1), [No agreement],
+    [moth], pips(1), [Not designed],
+    [Actuator dyno], pips(1), [Does not exist],
+    [Seed], pips(1), [Concept only],
+    [Body through Sun], pips(0), [Goals, not claims],
   ),
-  placement: bottom,
-  caption: [#lead[What exists, what is designed, and what is proposed] (October 2026). What exists: a K1, the software stack, a CNC mill and a plan.],
+  placement: auto,
+  caption: [#lead[Where everything stands] (October 2026). Pips: concept, designed, built, measured. #box(baseline: 0.1em, box(width: 0.62em, height: 0.62em, radius: 50%, stroke: 0.8pt + c-info)) shown in simulation only. Nothing is yet measured on hardware.],
 ) <tab:status>
 
 = Scale <sec:kardashev>
