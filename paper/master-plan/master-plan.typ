@@ -768,6 +768,53 @@ Getting off the planet is now mostly that problem. Launch has become cheap. Reus
 
 This plan gives that climb one number of its own, electrons under management (@sec:eum): the power drawn by machines we built, in service, measured on the same axis as the Kardashev scale. Today it is zero.
 
+== Smart defaults <sec:defaults>
+
+We build arms and humanoids not because they are impressive, though they are. We build them because Earth has been a reinforcement-learning environment for about 3.7 billion years @dodd2017evidence. Its reward is simple: what survives and copies itself is kept. Every body alive today is a policy that passed that test, and the shapes it settled on are the best defaults we have (@fig:life).
+
+#figure(
+  align(center, cetz.canvas(length: 0.8cm, {
+    import cetz.draw: *
+    // years ago, log scale: 10^10 on the left, today on the right
+    let W = 17.0
+    let X(t) = (10 - calc.log(t, base: 10)) / (10 - 5.6) * (W - 1.6)
+    line((0, 0), (W, 0), stroke: 0.7pt + c-line-hi, mark: (end: "straight", size: 0.14))
+    for e in (10, 9, 8, 7, 6) {
+      let x = X(calc.pow(10, e))
+      line((x, -0.08), (x, 0.08), stroke: 0.6pt + c-line-hi)
+      content((x, -0.2), anchor: "north", text(font: mono, size: 6pt, fill: c-label)[10#super[#str(e)] yr ago])
+    }
+    content((W, -0.2), anchor: "north-east", text(font: mono-m, size: 6pt, fill: c-sel, tracking: track, upper[today]))
+    let body = fam.body.color
+    let events = (
+      (3.7e9, [cell], [copies itself], "pair", [divides, by license], 1),
+      (3.75e8, [limb], [out of the water], "limb", [six axes, any table], 1),
+      (5.5e7, [hand], [grasping primates], "hand", [485 g gripper], 1),
+      (4.0e6, [upright], [hands freed], "Rose", [a pair on legs], 2),
+      (3.3e6, [tools], [hands make things], "Shop", [machines make machines], 1),
+    )
+    for (t, life, what, ours, ourwhat, lvl) in events {
+      let x = X(t)
+      let up = 0.55 + (lvl - 1) * 1.15
+      circle((x, 0), radius: 0.09, fill: c-text, stroke: none)
+      line((x, 0.12), (x, up - 0.08), stroke: 0.5pt + c-line-hi)
+      content((x, up), anchor: "south", box(align(center, { text(font: sans-sb, size: 8.5pt, fill: c-text, life); linebreak(); text(font: sans, size: 6.5pt, fill: c-label, what) })))
+      let dn = -0.85 - (lvl - 1) * 1.15
+      line((x, -0.55), (x, dn + 0.1), stroke: (paint: body, thickness: 0.6pt, dash: (2pt, 2pt)))
+      content((x, dn), anchor: "north", box(align(center, { text(font: sans-sb, size: 8.5pt, fill: if ours == "Shop" { c-text } else { body }, ours); linebreak(); text(font: sans, size: 6.5pt, fill: c-label, ourwhat) })))
+    }
+    content((-0.3, 0.75), anchor: "east", text(font: mono-m, size: 6pt, fill: c-label, tracking: track, upper[life]))
+    content((-0.3, -1.05), anchor: "east", text(font: mono-m, size: 6pt, fill: c-label, tracking: track, upper[ours]))
+  })),
+  caption: [#lead[Smart defaults.] Earth's long experiment, on a log scale of years, and the part of this plan that copies each result. Dates are approximate: the earliest evidence of life @dodd2017evidence, limbs @daeschler2006devonian, the first stone tools @harmand2015lomekwi.],
+) <fig:life>
+
+The first default was not a body but a cell: a unit that makes a copy of itself. Everything since was built from cells. Our cell is the pair, two limbs at a table that can build the next pair. Like a cell, it divides, though only with a license (@sec:replication).
+
+The later defaults are the ones we copy directly. Limbs came out of the water about 375 million years ago @daeschler2006devonian. Grasping hands came with the primates, upright walking freed them, and about 3.3 million years ago hands began making tools @harmand2015lomekwi. There is a practical reason too. The world people built is shaped for those defaults: stairs, door handles, sidewalks, tables and tools all assume two arms, two hands and a body about our size. A machine with that shape can use what is already here.
+
+
+#if not web { pagebreak(weak: true) }
 == Why now <sec:why>
 
 Five years ago this plan would have needed a factory before it needed a customer. Four things changed.
@@ -795,7 +842,7 @@ Five years ago this plan would have needed a factory before it needed a customer
 *Integrated actuators became a catalog item.* Quasi-direct-drive actuators, with motor, planetary reduction, encoder and driver in one housing, are now sold off the shelf by several Chinese vendors. RobStride's range includes the RS00, RS02, RS04 and RS06, each with a published manual, outline drawing and CAN interface @robstride2026manual. A limb uses six of them. Retail prices for the family run roughly \$70–170 for the small units and more for the large ones (our estimate from retail listings, not a quote). The design idea does not depend on RobStride, but the v9 drawings do: motor mounts, bolt patterns and screw lengths are taken from RobStride's manual drawings @rose2026forkv9, so another vendor's motor means new drawings. What matters is that a 120 N·m peak joint (RS04 @robstride2026manual) can be bought with its driver attached.
 
 #figure(
-  align(center, cetz.canvas(length: 1.1cm, {
+  align(center, cetz.canvas(length: 1.0cm, {
     import cetz.draw: *
     // timeline
     let y = 0
@@ -871,7 +918,7 @@ Five years ago this plan would have needed a factory before it needed a customer
 *We own the whole stack, and it can take gradients through contact.* Most robotics teams build on a stack they do not control: a simulator from one company, a CAD tool from another, a learning framework from a third, glued together and re-glued every time one of them changes. Every seam between them is a place where the sim-to-real gap hides, and where no gradient can pass. We wrote ours, from the language parts are written in down to the physics (@fig:elements), so one gradient can run from a measured robot back to a parameter in a source file. Its physics engine, phyz, computes exact gradients of a simulated motion with respect to physical parameters such as mass and inertia. That includes contact, the hard case and the one that matters for anything with feet or fingers: its contact adjoint differentiates the same physics the forward pass runs @ipse2026brief. In simulation, on synthetic motion, it has recovered five of a K1 humanoid's inertial parameters from ±20% error to machine precision (sphere feet; @sec:schema). Domain randomization @tobin2017domain, the usual alternative, can make a policy robust to a gap. It cannot take the gap's gradient.
 
 #figure(
-  align(center, cetz.canvas(length: 1.45cm, {
+  align(center, cetz.canvas(length: 1.3cm, {
     import cetz.draw: *
     // a loss landscape over two parameters, and descent to the true value
     let c = (4.2, 2.1)
@@ -1014,8 +1061,6 @@ We still choose hope. Every machine in this plan is a bet that the next century 
 
 == Motors
 
-The *idiot index* of a part is its cost divided by the cost of its raw materials. A high index means most of the price is process, not matter. Our prototype actuator, rana-100, shows the problem (@fig:rana; line items in @tab:rana).
-
 #figure(
   cetz.canvas(length: 1cm, {
     import cetz.draw: *
@@ -1055,6 +1100,9 @@ The *idiot index* of a part is its cost divided by the cost of its raw materials
   caption: [#lead[rana-100 prototype bill of materials, drawn to scale] @rana2026bom. All prices are estimates, not binding quotes. The bracketed span is outsourced machining; the amber bar below is our estimate of the metal inside it, on the same axis, and is not part of the BOM.],
 ) <fig:rana>
 
+The *idiot index* of a part is its cost divided by the cost of its raw materials. A high index means most of the price is process, not matter. Our prototype actuator, rana-100, shows the problem (@fig:rana; line items in @tab:rana).
+
+
 #mathfig(
   [$ I = C_"part" / C_"materials" approx (\$717) / (\$60 "–" 90) approx 8 "–" 12 $],
   cetz.canvas(length: 1.3cm, {
@@ -1079,10 +1127,6 @@ The same structure repeats one level up. A limb's materials are about \$2,000, o
 
 == Math
 
-Every robotics lab has a sim-to-real gap. We know of few that publish it as a number with an error bar, unit by unit. One established response is domain randomization: vary the simulator until a policy tolerates the difference @tobin2017domain. That makes the policy robust to the gap, but it does not by itself measure it.
-
-We treat the gap as the central measurement. It decides whether a design is ready to build, whether a controller is ready to deploy, and whether an actuator is ready to replace a purchased one. It also tells us how much of the loop can run without a person in it. A gap that is not measured cannot be closed, and a loop with an unmeasured gap needs a human in it.
-
 #mathfig(
   [$ g = 1/N sum_(i=1)^N norm(y_i^"real" - y_i^"sim" (theta)) $ #v(0.4em) $ "pass" quad "if" quad g + 2 sigma < g_"max" $],
   cetz.canvas(length: 1.3cm, {
@@ -1103,6 +1147,11 @@ We treat the gap as the central measurement. It decides whether a design is read
   }),
   [#lead[The gap, as a number with an error bar.] Each unit $i$ is run for real and in simulation with parameters $theta$; $g$ is the mean error over $N$ units. A gate passes only when the gap, plus twice its spread, clears the threshold.],
 ) <fig:eq-gap>
+
+Every robotics lab has a sim-to-real gap. We know of few that publish it as a number with an error bar, unit by unit. One established response is domain randomization: vary the simulator until a policy tolerates the difference @tobin2017domain. That makes the policy robust to the gap, but it does not by itself measure it.
+
+We treat the gap as the central measurement. It decides whether a design is ready to build, whether a controller is ready to deploy, and whether an actuator is ready to replace a purchased one. It also tells us how much of the loop can run without a person in it. A gap that is not measured cannot be closed, and a loop with an unmeasured gap needs a human in it.
+
 
 
 
