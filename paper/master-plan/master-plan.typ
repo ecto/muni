@@ -61,7 +61,7 @@
   (15, "moth", "body", "concept", "street-perception drone", "city"),
   (16, "seed", "body", "concept", "a pair, packed to go", "moon"),
   (17, "pack", "power", "concept", "one battery, every body", "road"),
-  (18, "core", "power", "concept", "one compute module", "road"),
+  (18, "kore", "power", "concept", "one compute module", "road"),
   (19, "nerv", "power", "concept", "bus, hub and BMS boards", "road"),
   (20, "Ipse", "mind", "exists", "developmental mind", "road"),
   (21, "frog", "mind", "exists", "free coding agent for local models", "desk"),
@@ -1537,7 +1537,7 @@ What changes from stage to stage is not the loop but who sits in it. @tab:loopst
 
 = Standards <sec:power>
 
-Every machine we build meets the same four standards: a bus, a pack, a core and nerv, a library of boards. They are why a limb, a pair, a humanoid and a drone can share parts, code and repairs. All of it is modeled; none of it is built @mr2026decisions.
+Every machine we build meets the same four standards: a bus, a pack, a kore and nerv, a library of boards. They are why a limb, a pair, a humanoid and a drone can share parts, code and repairs. All of it is modeled; none of it is built @mr2026decisions.
 
 == Bus
 
@@ -1633,7 +1633,7 @@ $ E = underbrace(13, "series") times underbrace(2, "parallel") times 3.6 "V" tim
     let ty = 2.2
     line((ox - tw / 2, ty + th), (ox + tw / 2, ty + th), (ox + tw / 2 - 0.3, ty), (ox - tw / 2 + 0.3, ty), close: true, fill: c-surface, stroke: 0.8pt + fam.body.color)
     rect((ox - 0.55, ty + 0.9), (ox + 0.55, ty + 3.9), fill: c-raised, stroke: 0.6pt + c-line-hi)
-    content((ox, ty + 2.4), text(font: mono-m, size: 5pt, fill: c-label, tracking: track, upper[core\ bay]))
+    content((ox, ty + 2.4), text(font: mono-m, size: 5pt, fill: c-label, tracking: track, upper[kore\ bay]))
     // pack B home
     rect((ox + 0.75, ty + 1.0), (ox + 1.25, ty + 3.8), fill: amber.transparentize(25%), stroke: 0.7pt + amber)
     content((ox + 1.0, ty + 2.4), text(font: sans-sb, size: 7pt, fill: c-sel-ink, "B"))
@@ -1669,7 +1669,7 @@ The pack is also the EUM instrument. EUM (@sec:eum) is defined at each machine's
 
 
 
-== Core <sec:compute>
+== Kore <sec:compute>
 
 #figure(
   grid(
@@ -1680,26 +1680,26 @@ The pack is also the EUM instrument. EUM (@sec:eum) is defined at each machine's
     image("images-native/humanoid_bay_iso.png", height: 1.8in),
     image("images-native/rack_12u_iso.png", height: 1.8in),
   ),
-  caption: [#lead[The core and its two hosts] (modeled). Left: one core, exploded. Center: the humanoid bay, lid lifted and one core drawn. Right: a 12U rack with a GPU node and three core chassis. Renders by vcad-render @mr2026compute.],
+  caption: [#lead[The kore and its two hosts] (modeled). Left: one kore, exploded. Center: the humanoid bay, lid lifted and one kore drawn. Right: a 12U rack with a GPU node and three kore chassis. Renders by vcad-render @mr2026compute.],
 ) <fig:blade>
 
-Compute comes in one module, the *core*: a 132 × 76 × 20 mm carrier on a 3 mm aluminum spine that is both its rail and its heat path, with one rear connector carrying the bus, gigabit Ethernet and CAN-FD @mr2026compute. The same core slides into a 10-inch rack chassis (eight per 2U, fan-cooled) or into a humanoid's torso bay (up to three, conduction-cooled into cold walls with a fan over the fins). A core identifies itself and its power class over I²C before the host powers it: 20 W for a Raspberry Pi CM5 carrier, 30 W for a Jetson-class carrier.
+Compute comes in one module, the *kore*: a 132 × 76 × 20 mm carrier on a 3 mm aluminum spine that is both its rail and its heat path, with one rear connector carrying the bus, gigabit Ethernet and CAN-FD @mr2026compute. The same kore slides into a 10-inch rack chassis (eight per 2U, fan-cooled) or into a humanoid's torso bay (up to three, conduction-cooled into cold walls with a fan over the fins). A kore identifies itself and its power class over I²C before the host powers it: 20 W for a Raspberry Pi CM5 carrier, 30 W for a Jetson-class carrier.
 
 How a body uses its slots follows the seams Ipse already has (@sec:mind). The fast layers, S0 (whole-body tracking, 50 Hz today, 200 Hz target) and S1 (skills and contact planning, 50 Hz), are deadline-bound and must run on the body. The slow layer, S2 (intent and the world model, 1–5 Hz), may run on the body or off it, and if it is lost, S1 finishes the current skill and stands @ipse2026brief. So:
 
-- *Slot 1* always holds a GPU core running S0, S1, the abstract state bus and perception, isolated at real-time priority. Nothing else is allowed on it. On the K1, vendor processes share the perception computer, and worst-case walk inference has been seen at 13.7–15.8 ms against a 0.24 ms median off the robot (session notes, probably preemption).
+- *Slot 1* always holds a GPU kore running S0, S1, the abstract state bus and perception, isolated at real-time priority. Nothing else is allowed on it. On the K1, vendor processes share the perception computer, and worst-case walk inference has been seen at 13.7–15.8 ms against a 0.24 ms median off the robot (session notes, probably preemption).
 - *Slots 2 and 3* run S2 when fitted. A full body thinks offline.
-- *With fewer cores*, S2 runs on the rack over the same seam.
+- *With fewer kores*, S2 runs on the rack over the same seam.
 
-Whether a body thinks onboard or leans on the rack is then a slot count, not an architecture. The rack is the same standard at larger scale: a 9U, 450 mm deep frame with a GPU node for training and the twin, two core chassis, and two 48 V supplies feeding a vertical busbar, about 1 kW in all (estimate) @mr2026compute.
+Whether a body thinks onboard or leans on the rack is then a slot count, not an architecture. The rack is the same standard at larger scale: a 9U, 450 mm deep frame with a GPU node for training and the twin, two kore chassis, and two 48 V supplies feeding a vertical busbar, about 1 kW in all (estimate) @mr2026compute.
 
-*Rose against the K1.* Rose should out-think the K1: CUDA, real-time scheduling, and our own code from the carrier up. That claim gets the same treatment as every other one. The same Ipse build runs on both bodies, and we report S0 tick jitter, inference latency and where S2 ran, per body. Rose is first run with one core, close to the K1’s compute, then with more, so the effect of compute is measured one variable at a time.
+*Rose against the K1.* Rose should out-think the K1: CUDA, real-time scheduling, and our own code from the carrier up. That claim gets the same treatment as every other one. The same Ipse build runs on both bodies, and we report S0 tick jitter, inference latency and where S2 ran, per body. Rose is first run with one kore, close to the K1’s compute, then with more, so the effect of compute is measured one variable at a time.
 
-The open question is the size of S2. A 16 GB Orin NX core may hold it; a Thor-class module would not fit a 20 mm core.
+The open question is the size of S2. A 16 GB Orin NX kore may hold it; a Thor-class module would not fit a 20 mm kore.
 
 == Boards
 
-Bus, pack and core need a small set of boards. We own a board first when it defines a standard or makes a measurement, and buy the rest until owning it wins (@tab:boards).
+Bus, pack and kore need a small set of boards. We own a board first when it defines a standard or makes a measurement, and buy the rest until owning it wins (@tab:boards).
 
 #figure(
   table(
@@ -1707,8 +1707,8 @@ Bus, pack and core need a small set of boards. We own a board first when it defi
     align: (left + top, left + top, left + top, left + top),
     table.header([*Board*], [*Does*], [*Order*], [*State*]),
     [BMS], [Protects the pack; measures EUM; talks CAN], [Own first], [Not designed],
-    [Pair hub], [48 V + CAN for two limbs, a camera pair and a core], [Own first], [Not designed],
-    [Core carriers], [CM5 (20 W) and Jetson (30 W) on the core standard], [Next], [Mockup],
+    [Pair hub], [48 V + CAN for two limbs, a camera pair and a kore], [Own first], [Not designed],
+    [Kore carriers], [CM5 (20 W) and Jetson (30 W) on the kore standard], [Next], [Mockup],
     [Backplanes], [8-slot rack chassis; 3-slot humanoid bay; switch + CAN], [Next], [Mockup],
     [Arm controller], [Six actuator CAN buses, 48 V distribution, one free bus for the BMS], [Next], [Not designed],
     [torc], [Motor control for rana], [With rana], [Prototype],
@@ -2007,7 +2007,7 @@ The actuators are about 60% of a limb's materials (\~\$1,200 of \~\$2,000). That
     align: (left + top, right + top, right + top, right + top, left + top),
     table.header([*Product*], [*List*], [*Materials*], [*Margin*], [*Contents*]),
     [Limb], [\$5,000], [\~\$2,000], [60%], [Six RobStride joints (\~\$1,200), plates, harness, gripper],
-    [Pair], [\$12,000], [\~\$4,400], [63%], [Two limbs, a table plate, a pair hub, a camera pair, a core],
+    [Pair], [\$12,000], [\~\$4,400], [63%], [Two limbs, a table plate, a pair hub, a camera pair, a kore],
     [Rose], [\$15,000], [not costed], [–], [A pair on legs. Needs rana at a few hundred dollars per joint],
   ),
   caption: [#lead[Prices and margin on materials] @mr2026masterplan. List prices are targets, not quotes; materials are estimates. Margin here is list less materials, a ceiling on gross margin: labor, test, warranty, shipping and overhead are not yet known and will reduce it.],
@@ -2036,7 +2036,7 @@ Vendors rarely say at what pose or duty cycle a rated payload holds. Our 1.27 kg
 
 = Shop <sec:pair>
 
-*Two limbs at any table; a pair builds a pair.* Bolt two limbs to a table, add a camera pair and a core, and the table becomes a workstation. Nothing else changes: no rails, no enclosure, no special room. The same pair folds laundry, tends a mill, sorts parts or assembles the next limb. What it does is software, trained against the measured models of its own two limbs.
+*Two limbs at any table; a pair builds a pair.* Bolt two limbs to a table, add a camera pair and a kore, and the table becomes a workstation. Nothing else changes: no rails, no enclosure, no special room. The same pair folds laundry, tends a mill, sorts parts or assembles the next limb. What it does is software, trained against the measured models of its own two limbs.
 
 #figure(
   table(
@@ -2053,7 +2053,7 @@ Vendors rarely say at what pose or duty cycle a rated payload holds. Our 1.27 kg
 
 == Mount
 
-A pair is two limb feet (Ø230 mm, four M6 on Ø190) on one plate that clamps to an ordinary table, with a pair hub between them carrying 48 V and CAN to each limb, a camera pair above the work, and one core (@sec:power). The plate fixes the distance between the shoulders, so every pair shares one calibrated geometry. Its size, clamp and hub are not designed yet.
+A pair is two limb feet (Ø230 mm, four M6 on Ø190) on one plate that clamps to an ordinary table, with a pair hub between them carrying 48 V and CAN to each limb, a camera pair above the work, and one kore (@sec:power). The plate fixes the distance between the shoulders, so every pair shares one calibrated geometry. Its size, clamp and hub are not designed yet.
 
 == Work
 
@@ -2086,7 +2086,7 @@ Then come the hard parts. Actuators end to end: magnets stay bought until a ferr
 
 == Bought
 
-We bought a Booster K1 rather than building first. It is 95 cm tall, weighs 19.5 kg, and has 22 degrees of freedom (6 per leg, 4 per arm, 2 in the head). It has force-controlled joints with dual encoders, an RGBD camera and a microphone array @booster2025k1. Its perception computer is a Qualcomm QCS8550 (6 cores, 10 GB, Adreno GPU, Hexagon DSP, no CUDA), beside a separate motion computer that runs the vendor's control; we measured this on the robot, and it differs from the vendor summary we first relied on @ipse2026deploy. A commercial body has known kinematics and a known-good build, so it serves as a *control*: every later body, including Rose, is measured against it.
+We bought a Booster K1 rather than building first. It is 95 cm tall, weighs 19.5 kg, and has 22 degrees of freedom (6 per leg, 4 per arm, 2 in the head). It has force-controlled joints with dual encoders, an RGBD camera and a microphone array @booster2025k1. Its perception computer is a Qualcomm QCS8550 (6 kores, 10 GB, Adreno GPU, Hexagon DSP, no CUDA), beside a separate motion computer that runs the vendor's control; we measured this on the robot, and it differs from the vendor summary we first relied on @ipse2026deploy. A commercial body has known kinematics and a known-good build, so it serves as a *control*: every later body, including Rose, is measured against it.
 
 The K1 has two jobs. In a proposed Lakewood pilot it would pick up litter (@sec:city); it has not grasped litter yet. In the lab it is the body for Ipse, a developmental research program. The two share hardware, software and one rule: every claim ships with the number that supports it.
 
@@ -2106,7 +2106,7 @@ Rose is the humanoid we will build. The name is the thesis: past tense of rise, 
   caption: [#lead[The Rose line] (modeled) @rose2026line. Masses and holds are model outputs; full's mass is scaled from a smaller actuator, not measured.],
 ) <tab:rose>
 
-In this plan, Rose's arms are limbs, full stop: a humanoid is a pair on legs, with a torso that carries the core bay and two packs (@sec:power). Each Rose takes the limb of its size: mini takes limb mini, full takes limb full, mega takes limb mega. The current drawings still carry four-degree-of-freedom arms on purchased actuators; replacing them with limbs, and the legs' purchased actuators with rana where it wins, is open work.
+In this plan, Rose's arms are limbs, full stop: a humanoid is a pair on legs, with a torso that carries the kore bay and two packs (@sec:power). Each Rose takes the limb of its size: mini takes limb mini, full takes limb full, mega takes limb mega. The current drawings still carry four-degree-of-freedom arms on purchased actuators; replacing them with limbs, and the legs' purchased actuators with rana where it wins, is open work.
 
 Rose mini does not wait for the pair to sell. It starts now, in parallel, on purchased actuators and limb mini, because the K1 has shown the limits of a body we did not build. Road overlaps Shop; it does not follow it. Rose full's \$15,000 target is the G1’s price class @unitree2024g1, and it waits for rana.
 
@@ -2133,7 +2133,7 @@ Its standing constraints are quoted here because they bind the company, not just
 - "Do not optimize for consciousness indicators." Indicator lists such as Butlin et al. @butlin2023consciousness are used as an audit at phase boundaries, never as a training target.
 - "Grown, not built." When a behavior is missing, the first question is what experience would produce it.
 
-One limit is hardware. The K1’s perception computer has no CUDA, its idle vendor stack holds about two of its six cores, and an onboard vision-language model has no measured headroom @ipse2026deploy. So the work is split along Ipse's own seams (@sec:compute). Drives, memory, workspace and refusal stay on the robot; a cloud model is an amplifier it uses @ipse2026brief.
+One limit is hardware. The K1’s perception computer has no CUDA, its idle vendor stack holds about two of its six kores, and an onboard vision-language model has no measured headroom @ipse2026deploy. So the work is split along Ipse's own seams (@sec:compute). Drives, memory, workspace and refusal stay on the robot; a cloud model is an amplifier it uses @ipse2026brief.
 
 We do not name the robot. The design brief says it "should not be named by us": it gets a name when it has earned one or arrives at one. Until then it is "the K1".
 
@@ -2218,11 +2218,11 @@ moth is a drone for street perception @mr2026decisions. It flies ahead of the K1
 
 moth is not sold for military use or armed in any form (@sec:safety).
 
-moth is also the cheapest check that the standards in @sec:power are body-agnostic. It is a one-core body on the 36–60 V bus with CAN-FD for management, running the same Ipse seams as a humanoid. It carries its own lighter pack: the 2.65 kg humanoid pack only suits a heavy-lift airframe.
+moth is also the cheapest check that the standards in @sec:power are body-agnostic. It is a one-kore body on the 36–60 V bus with CAN-FD for management, running the same Ipse seams as a humanoid. It carries its own lighter pack: the 2.65 kg humanoid pack only suits a heavy-lift airframe.
 
 *The same street rules.* Mapping needs imagery, so moth's imagery leaves the drone, under the rules of @sec:city: people and cars are removed on the drone before anything is written to storage, pictures are released delayed, and nothing links a person, car or device across frames, places or days. A camera over a residential street is what people fear most, so moth's filter gets its own published test: how often a person or plate survives it, measured on held-out street footage.
 
-Nothing of moth is built. Its airframe, pack and mass budget are not designed, and whether one \~150 g core fits its mass budget is open.
+Nothing of moth is built. Its airframe, pack and mass budget are not designed, and whether one \~150 g kore fits its mass budget is open.
 
 *Gate.* The litter pilot renews for ≥ 12 months after a ≥ 3-month trial, with 0 contact incidents. A city renews fleet and twin for ≥ 12 months. ≥ 90% of fleet repairs done by pairs in the city, by receipts (@tab:arc).
 
@@ -2254,7 +2254,7 @@ Nothing of moth is built. Its airframe, pack and mass budget are not designed, a
 
 *A seed grows a pair, with a lifeline.* The Moon comes first because it is about three days away and 1.3 light-seconds out. A seed there runs the Shop loop with remote approval and teleoperated help when something breaks. It meets vacuum, abrasive dust, regolith as stock and no supply chain, with a lifeline. Its central measure is the same as Shop's: the bought fraction.
 
-The seed is the smallest thing that can grow a pair: one pair, a mill and a router, a collector and a pack, the design in its germ line, and enough bought parts for a few generations. Before it flies, each of its hard problems gets a measured gap on Earth: vacuum and thermal cycling, abrasive dust in simulant, and radiation on a core. A single limb flown as a hosted payload would be the first number off Earth.
+The seed is the smallest thing that can grow a pair: one pair, a mill and a router, a collector and a pack, the design in its germ line, and enough bought parts for a few generations. Before it flies, each of its hard problems gets a measured gap on Earth: vacuum and thermal cycling, abrasive dust in simulant, and radiation on a kore. A single limb flown as a hosted payload would be the first number off Earth.
 
 *Gate.* A seed builds a pair that passes the Earth receipts, ≥ 50% of its mass from local material, with remote approval only (@tab:arc).
 
@@ -2351,7 +2351,7 @@ Most of what this paper describes is *proposed*, not operational. @tab:status se
     table.cell(colspan: 3, inset: (top: 9pt, bottom: 3pt, x: 6pt), stroke: none, text(font: mono-m, size: s-xs, fill: c-label, tracking: track)[CONCEPT]),
     [Pair], pips(1), [Mount not designed],
     [Rose mini], pips(1), [Geometry in progress @rose2026line],
-    [Pack, core, nerv], pips(1), [Mockups @mr2026battery @mr2026compute],
+    [Pack, kore, nerv], pips(1), [Mockups @mr2026battery @mr2026compute],
     [Litter reacher], pips(1), [The K1 has not grasped litter],
     [Lakewood pilot], pips(1), [No agreement],
     [moth], pips(1), [Not designed],
@@ -2406,7 +2406,7 @@ Each open item is limited by one of four things. Sorting them shows which can be
 
 *Software.* Three items: the per-limb controllers and their stated sim-to-real gap; the world format wodl and the iris layer, both new in the stack (@fig:elements); and the K1 body-schema fit, done in simulation but not yet on hardware (@tab:status).
 
-*Hardware revision.* The straight-out continuous hold of about 1.27 kg (modeled) is set by the shoulder; raising it needs a counterbalance spring (@sec:arm). The clock-spring cassettes for the roll joints are drawn but not designed. rana's production stator (SMC or tape-wound) is not yet sourced @rana2026bom. The Rose torso grows to 214 mm to hold the core bay and two packs @mr2026battery.
+*Hardware revision.* The straight-out continuous hold of about 1.27 kg (modeled) is set by the shoulder; raising it needs a counterbalance spring (@sec:arm). The clock-spring cassettes for the roll joints are drawn but not designed. rana's production stator (SMC or tape-wound) is not yet sourced @rana2026bom. The Rose torso grows to 214 mm to hold the kore bay and two packs @mr2026battery.
 
 *Physics.* A hold is a stall and is limited by heat, not peak torque. Payload falls with reach. Off Earth, light-time delay rules out direct remote control.
 
