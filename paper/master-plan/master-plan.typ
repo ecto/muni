@@ -659,44 +659,13 @@
 = Life <sec:kardashev>
 
 #figure(
-  grid(columns: (1fr, 1fr), column-gutter: 0.18in, align: horizon,
-    cetz.canvas(length: 1cm, {
-      import cetz.draw: *
-      let (W, H) = (8.6, 5.73)
-      rect((0, 0), (W, H), fill: rgb("#050403"), stroke: none)
-      // scattered sunlight across the frame, as the camera's optics caught it
-      let band(x0, w, a) = line((x0, H), (x0 + w, H), (x0 + w - 1.6, 0), (x0 - 1.6, 0), close: true, fill: rgb("#e8c9a0").transparentize(a), stroke: none)
-      band(1.6, 0.5, 93%)
-      band(3.3, 0.9, 90%)
-      band(3.55, 0.4, 86%)
-      band(5.5, 0.7, 92%)
-      band(7.4, 0.35, 94%)
-      for i in range(70) {
-        let x = calc.rem(i * 7919, 860) / 100
-        let y = calc.rem(i * 104729, 573) / 100
-        circle((x, y), radius: 0.012, fill: rgb("#a08d70").transparentize(70%), stroke: none)
-      }
-      let (ex, ey) = (3.45, 2.1)
-      circle((ex, ey), radius: 0.15, fill: rgb("#7fb0ff").transparentize(85%), stroke: none)
-      circle((ex, ey), radius: 0.04, fill: rgb("#a9c8ff"), stroke: none)
-      line((ex + 0.1, ey - 0.07), (ex + 0.9, ey - 0.6), stroke: 0.4pt + c-label)
-      content((ex + 1.0, ey - 0.65), anchor: "north-west", text(font: mono-m, size: 5.5pt, fill: c-label, tracking: track, upper[everyone, ever]))
-      content((0.2, H - 0.2), anchor: "north-west", text(font: mono-m, size: 5.5pt, fill: c-label, tracking: track, upper[1990 · Voyager 1]))
-    }),
-    box(clip: true, width: 100%, {
-      image("images-native/artemis2-crescent-earth.jpg", width: 100%)
-      place(top + left, dx: 0.2cm, dy: 0.2cm, text(font: mono-m, size: 5.5pt, fill: c-label, tracking: track, upper[2026 · Artemis II]))
-    }),
-  ),
-  caption: [#lead[Home, twice.] Left: Earth from about 6 billion km, as Voyager 1 saw it on 14 February 1990, redrawn @nasa1990paleblue. Right: a crescent Earth through Orion's window on 3 April 2026, the third day of Artemis II, the first crewed flight past low Earth orbit in more than half a century (photo: NASA @nasa2026crescent). Everyone who has ever lived, and everything this plan would build, starts in that point.],
-) <fig:paleblue>
+  box(clip: true, width: 100%, height: 9.5cm, {
+    place(horizon, image("images-native/artemis2-crescent-earth.jpg", width: 100%))
+    place(top + left, dx: 0.3cm, dy: 0.3cm, text(font: mono-m, size: 6pt, fill: c-label, tracking: track, upper[3 April 2026 · Artemis II]))
+  }),
+  caption: [#lead[Home, from the first crew to leave it in half a century.] A crescent Earth through Orion's window on the third day of Artemis II, the first crewed flight past low Earth orbit since 1972 (photo: NASA @nasa2026crescent). Everyone who has ever lived, and everything this plan would build, starts on that sliver.],
+) <fig:artemis>
 
-In 1964 the astronomer Nikolai Kardashev proposed ranking civilizations by the power they command @kardashev1964. A Type I civilization uses the energy available on its planet, a Type II its star's, and a Type III its galaxy's. Carl Sagan turned the types into a continuous scale for a power $P$ in watts, which puts Type I at 10#super[16] W and Type II at 10#super[26] W @sagan1973cosmic:
-
-$ K = (log_10 P - 6) / 10 $ <eq:kardashev>
-
-
-Humanity used about 620 EJ of primary energy in 2023 @ei2024review: a mean of about 2 × 10#super[13] W, or $K approx 0.73$. Its electricity alone, about 30,000 TWh a year, is a mean of about 3.4 × 10#super[12] W @ei2024review. The sun puts out 3.828 × 10#super[26] W @iau2015b3, about $K approx 2.06$. Between us and Type I lie three orders of magnitude; between us and our star, thirteen.
 
 #figure(
   cetz.canvas(length: 1cm, {
@@ -748,6 +717,15 @@ Humanity used about 620 EJ of primary energy in 2023 @ei2024review: a mean of ab
   caption: [#lead[Where humanity sits on the Kardashev scale.] Humanity's mean primary power use from 1800 to 2023 (estimates from @smil2017energy @ei2024review), against Sagan's continuous form of Kardashev's Types I and II @kardashev1964 @sagan1973cosmic and the sun's output @iau2015b3. Two centuries took us about one and a half orders of magnitude. Type II is thirteen more.],
 ) <fig:kardashev>
 
+In 1964 the astronomer Nikolai Kardashev proposed ranking civilizations by the power they command @kardashev1964. A Type I civilization uses the energy available on its planet, a Type II its star's, and a Type III its galaxy's. Carl Sagan turned the types into a continuous scale for a power $P$ in watts, which puts Type I at 10#super[16] W and Type II at 10#super[26] W @sagan1973cosmic:
+
+$ K = (log_10 P - 6) / 10 $ <eq:kardashev>
+
+
+Humanity used about 620 EJ of primary energy in 2023 @ei2024review: a mean of about 2 × 10#super[13] W, or $K approx 0.73$. Its electricity alone, about 30,000 TWh a year, is a mean of about 3.4 × 10#super[12] W @ei2024review. The sun puts out 3.828 × 10#super[26] W @iau2015b3, about $K approx 2.06$. Between us and Type I lie three orders of magnitude; between us and our star, thirteen.
+
+
+
 Every earlier step up the scale came from a machine that made energy or work cheaper. Fire and farming fed muscle. The steam engine turned heat into work, electricity carried work anywhere, and the transistor made control almost free. One thing has not become cheaper at anything like that rate: making the machines themselves. Every machine still passes through human hands, so the number of machines grows about as fast as the number of people who make them.
 
 #colfig(
@@ -768,7 +746,6 @@ Every earlier step up the scale came from a machine that made energy or work che
   caption: [#lead[Each climb made one thing cheap.] The next is intelligence: machines that make the machines.],
 ) <fig:stairs>
 
-Getting off the planet is now mostly that problem. Launch has become cheap. Reusable rockets cut the cost of reaching low Earth orbit from about \$54,500 per kg on the Space Shuttle to about \$2,700 per kg on a Falcon 9 @csis2022launch. What stays expensive is everything a settlement needs when it arrives, and the people needed to make it. A civilization does not climb toward Type II by launching factories. It climbs by sending a seed that can grow one.
 
 #figure(
   cetz.canvas(length: 1cm, {
@@ -814,11 +791,15 @@ Getting off the planet is now mostly that problem. Launch has become cheap. Reus
   caption: [#lead[Cost to reach low Earth orbit, per kg, by first flight] (approximate, inflation-adjusted @csis2022launch). Filled orange: reusable boosters. The hollow point is a stated target, not a result. Launch fell about fortyfold from the Shuttle to Falcon Heavy. The cost of what a settlement needs on arrival has not moved.],
 ) <fig:launch>
 
+Getting off the planet is now mostly that problem. Launch has become cheap. Reusable rockets cut the cost of reaching low Earth orbit from about \$54,500 per kg on the Space Shuttle to about \$2,700 per kg on a Falcon 9 @csis2022launch. What stays expensive is everything a settlement needs when it arrives, and the people needed to make it. A civilization does not climb toward Type II by launching factories. It climbs by sending a seed that can grow one.
+
+
 This plan gives that climb one number of its own, electrons under management (@sec:eum): the power drawn by machines we built, in service, measured on the same axis as the Kardashev scale. Today it is zero.
 
 == Smart defaults <sec:defaults>
 
 We build arms and humanoids not because they are impressive, though they are. We build them because Earth has been a reinforcement-learning environment for about 3.7 billion years @dodd2017evidence. Its reward is simple: what survives and copies itself is kept. Every body alive today is a policy that passed that test, and the shapes it settled on are the best defaults we have (@fig:life).
+
 
 #figure(
   align(center, cetz.canvas(length: 0.8cm, {
@@ -1035,6 +1016,33 @@ The result is that one person can now write every layer between a parameter in a
 = War <sec:war>
 
 There has not been a year without war in our lifetimes. The longest-running count of armed conflict, kept since 1946, has never recorded a year with none @gleditsch2002armed.
+
+#figure(
+cetz.canvas(length: 1cm, {
+      import cetz.draw: *
+      let (W, H) = (17.6, 6.4)
+      rect((0, 0), (W, H), fill: rgb("#050403"), stroke: none)
+      // scattered sunlight across the frame, as the camera's optics caught it
+      let band(x0, w, a) = line((x0, H), (x0 + w, H), (x0 + w - 2.2, 0), (x0 - 2.2, 0), close: true, fill: rgb("#e8c9a0").transparentize(a), stroke: none)
+      band(3.2, 0.9, 93%)
+      band(6.6, 1.6, 90%)
+      band(7.0, 0.7, 86%)
+      band(10.9, 1.2, 92%)
+      band(14.4, 0.6, 94%)
+      for i in range(140) {
+        let x = calc.rem(i * 7919, 1760) / 100
+        let y = calc.rem(i * 104729, 640) / 100
+        circle((x, y), radius: 0.012, fill: rgb("#a08d70").transparentize(70%), stroke: none)
+      }
+      let (ex, ey) = (6.85, 2.35)
+      circle((ex, ey), radius: 0.15, fill: rgb("#7fb0ff").transparentize(85%), stroke: none)
+      circle((ex, ey), radius: 0.04, fill: rgb("#a9c8ff"), stroke: none)
+      line((ex + 0.1, ey - 0.07), (ex + 0.9, ey - 0.6), stroke: 0.4pt + c-label)
+      content((ex + 1.0, ey - 0.65), anchor: "north-west", text(font: mono-m, size: 5.5pt, fill: c-label, tracking: track, upper[everyone, ever]))
+      content((0.2, H - 0.2), anchor: "north-west", text(font: mono-m, size: 5.5pt, fill: c-label, tracking: track, upper[1990 · Voyager 1]))
+    }),
+  caption: [#lead[A pale blue dot.] Earth from about 6 billion km, as Voyager 1 saw it on 14 February 1990, redrawn @nasa1990paleblue. Every war ever fought was fought on that point.],
+) <fig:paleblue>
 
 
 
