@@ -544,7 +544,7 @@
 
 // Abstract: one text, two layouts
 #let abstract-text = [
-  Every machine still passes through human hands. This is a plan for machines that make the next machine, each one measured, until the bought fraction falls to zero and a seed of them can go where no supply chain reaches. It starts on a sidewalk in Ohio.
+  Every machine still passes through human hands. This is a plan for machines that make the next machine, each one measured, until the bought fraction falls to zero and a seed of them can go where no supply chain reaches. Together they make an autonomous company, amplified by intelligence: it grows on its own, and people decide what it may do. It starts on a sidewalk in Ohio.
 
   Robots are expensive because people make them. Our prototype actuator is estimated at \$1,086 to have built; about two thirds of that is outsourced machining, on perhaps \$60–90 of metal. A machine that makes more of itself attacks that markup. A design process that measures every unit's sim-to-real gap, and feeds it back into the design as a gradient, attacks the rest.
 
@@ -1226,7 +1226,7 @@ This is where the three problems meet. The machining in @fig:rana is the part of
       ("Shop", "duet", "two lymbs at any table; a duet builds a duet"),
       ("Road", "images-native/humanoid_bay_iso.png", "a duet on legs that fits its own model"),
       ("City", "city", "a fleet and its duets work a city"),
-      ("Home", "planet", "lineages on their own power"),
+      ("Home", "planet", "the company on its own power"),
       ("Moon", "images-native/seed_iso.png", "a seed grows a duet, with a lifeline"),
       ("Mars", "mars", "the same seed, lifeline cut"),
       ("Star", none, "a swarm of collectors"),
@@ -1308,6 +1308,8 @@ This is where the three problems meet. The machining in @fig:rana is the part of
 
 We are building machines that build machines, and measuring every one. The unit is a lymb: one arm, shipped with its sim-to-real gap, the difference between what our physics engine predicted and what the built arm did. Two lymbs on any table make a duet, and a duet can do a day's work or build the next lymb. A humanoid is a duet on legs. One part, measured everywhere, from a laundry table to a city.
 
+*An autonomous company, amplified by intelligence.* The machines are the means; what grows is a company. More and more of its work is done by its own machines and software: frog writes its code, kyte earns its revenue, duets build its machines and keep them running. People stay in the loop where it matters. They set what the company may do, license each division, and read the receipts. At each stage the company does one more part of its own work by itself (@tab:loopstate), and it never decides alone how fast it grows.
+
 The plan climbs in eight stages, each a step up in scale and each built by the one before it (@fig:glance). Only the first, Desk, is a plan. The rest are goals.
 
 == Flywheel
@@ -1321,7 +1323,7 @@ The plan climbs in eight stages, each a step up in scale and each built by the o
     [Shop], [Two lymbs that work at any table, and build lymbs], [Useful work; a falling bought fraction; a doubling time], [A task at 95%; a duet builds a duet],
     [Road], [A duet on legs that fits its own model], [Mobility; a gradient from the gap to the design], [Schema fit beats persistence by 20%],
     [City], [A city's fleet and its twin], [Contracts; real duty at scale; a world to train in], [A city renews for ≥ 12 months],
-    [Home], [Lineages on their own power], [A measured doubling time; collectors], [≥ 1 year on collectors it made],
+    [Home], [The company on its own power], [A measured doubling time; collectors], [≥ 1 year on collectors it made],
     [Moon], [A seed grows a duet, with a lifeline], [Local material; launch-mass lessons], [≥ 50% local by mass],
     [Mars], [The same seed, lifeline cut], [Autonomy with no one to ask], [0 human commands to a receipt],
     [Star], [A swarm of collectors], [—], [Power and doubling time],
@@ -1339,7 +1341,7 @@ Each stage pays for the next and teaches it something it could not learn otherwi
     let cards = (
       ("The gap", "—", "mm RMS, per unit", "No lymb built yet. First reading: the first lymb, against its model."),
       ("Electrons under management", "0 W", "mean, in service", "Nothing we built is in service. The K1 is counted beside it, not in it."),
-      ("Doubling time", "—", "per lineage", "No duet has built a duet. First reading: Shop, over three generations."),
+      ("Doubling time", "—", "per branch", "No duet has built a duet. First reading: Shop, over three generations."),
     )
     let w = 5.4
     let g = 0.35
@@ -1519,17 +1521,17 @@ The payoff is a gradient that crosses the whole molecule. A task loss in Ipse pa
   table(
     columns: 3,
     align: (left + top, left + top, left + top),
-    table.header([*Stage*], [*Loop state*], [*Human role*]),
+    table.header([*Stage*], [*What the company does by itself*], [*What people decide*]),
     [Desk], [measured gap → human redesign], [designs, builds, measures],
     [Shop], [gap → design → built and measured by a duet], [reviews, licenses each copy],
     [Road], [gap → gradient → new design], [reviews; duets build],
     [City], [Shop and Road, across a city's fleet and its twin], [the city sets the work],
-    [Home], [many lineages, each closing its own loop on its own power], [licenses each division],
+    [Home], [many branches, each closing its own loop on its own power], [license each division],
     [Moon], [Shop, far from its supply chain], [remote approval],
     [Mars], [Shop with the supply chain cut], [none between landing and receipt],
-    [Star], [fully closed inside a lineage], [reads the receipts],
+    [Star], [fully closed inside the company], [read the receipts],
   ),
-  caption: [#lead[Who is in the loop, by stage] @mr2026masterplan],
+  caption: [#lead[Who is in the loop, by stage] @mr2026masterplan. At each stage the company closes one more part of its own loop; people keep the decisions on the right.],
 ) <tab:loopstate>
 
 
@@ -1822,12 +1824,12 @@ Software, designs and data formats stay open. Open licenses cannot restrict use,
 
 == Rules
 
-A machine that builds the next machine invites one fear above others: replication nobody can stop. The image has a name, gray goo, from Drexler's 1986 warning about self-replicating nanomachines @drexler1986engines. Our duets are not nanomachines. They are two arms at a table, with a mill and a router nearby. They need stock, power and repair, and that is the first defense. It is not enough by itself, because a lineage that doubles on its own power, on a planet with no one on it, is exactly what Star asks for. So the limits are designed in from the first duet. None of them is built yet.
+These rules are the company's governance: people, not machines, decide how fast it grows. A machine that builds the next machine invites one fear above others: replication nobody can stop. The image has a name, gray goo, from Drexler's 1986 warning about self-replicating nanomachines @drexler1986engines. Our duets are not nanomachines. They are two arms at a table, with a mill and a router nearby. They need stock, power and repair, and that is the first defense. It is not enough by itself, because a branch that doubles on its own power, on a planet with no one on it, is exactly what Star asks for. So the limits are designed in from the first duet. None of them is built yet.
 
 - *Licensed division.* A duet builds a copy only with a signed license for that one copy. Licenses come from keys held by people, not by the duets. A duet cannot mint its own, and a copy built without one does not pass its acceptance receipts.
 - *A germ line no duet can edit.* The design and its receipts live where the machines that do the work cannot change them. Every copy is checked against the germ line; a copy that drifts is decommissioned and stripped for stock.
 - *A vitamin made of information.* Every duet depends on one input it cannot make: signed instructions. That keeps the bought fraction able to reach zero in matter while dependence on people remains.
-- *A ceiling on doubling.* Each lineage has a published maximum rate of division. Faster growth needs a new license from people, never a decision by the duets.
+- *A ceiling on doubling.* Each branch has a published maximum rate of division. Faster growth needs a new license from people, never a decision by the duets.
 - *Stop is tested, not assumed.* Every generation must pass a commanded shutdown drill before its first license (@tab:arc, Shop).
 - *No foraging on Earth.* On Earth, duets take only stock that is delivered to them. They never gather raw material from the environment. Taking local material is for the Moon, Mars and Mercury, under planetary protection rules.
 
@@ -1902,7 +1904,7 @@ One number runs through every stage: *electrons under management* (EUM), in watt
 
 == Doublings
 
-The second headline number is the time a lineage of duets takes to double what it can build and power, measured from receipts over at least three generations. It is undefined today, because no duet has built a duet. It sets how long the arc takes (@sec:sun) and it is capped by policy (@sec:replication).
+The second headline number is the time the company takes to double what it can build and power, measured from receipts over at least three generations. It is undefined today, because no duet has built a duet. It sets how long the arc takes (@sec:sun) and it is capped by policy (@sec:replication).
 
 *Trajectory, as orders of magnitude, not targets.* Desk: 0 W → \~10 kW (a hundred lymbs near 50 W mean). Shop: \~100 kW as duets build duets. Road: \~1 MW of bodies. City: \~10 MW, a city's fleet and the duets that keep it. Home: \~1 GW and up, on collectors duets made. Moon and Mars: the first kilowatts off Earth. Star: a measurable fraction of 3.8 × 10#super[26] W.
 
@@ -2202,11 +2204,9 @@ moth is also the cheapest check that the standards of @sec:power are body-agnost
 
 = Home <sec:planet>
 
-*Lineages on their own power.* Lineages of duets spread to many cities and run on power they collected, from panels they made. The bought fraction approaches zero everywhere except chips, and every division is licensed (@sec:replication).
+*The company on its own power.* Branches of the company, each a site's duets and the machines they built under one license, spread to many cities and run on power they collected, from panels they made. The bought fraction approaches zero everywhere except chips, and every division is licensed (@sec:replication).
 
-*Why it matters.* Home is the first stage where growth is set by energy and material rather than by people. Until here, every machine still passes through a factory someone else runs. Here a lineage's doubling time becomes the one number that sets how fast the rest of the plan can go (@sec:eum).
-
-*What is hard.* Making collectors from raw material, not bought panels: solar cells need refined silicon, which today means a fab. Keeping the bought share falling while the bought parts that remain (chips, magnets, bearings) get harder to make. And licensing every division at the scale of many cities, without the license becoming the bottleneck.
+*Why it matters.* Home is the first stage where growth is set by energy and material rather than by people. Until here, every machine still passes through a factory someone else runs. Here the company's doubling time becomes the one number that sets how fast the rest of the plan can go (@sec:eum).
 
 #mathfig(
   [$ C = b thin C_"bought" + (1 - b) thin C_"made", quad b -> 0 $],
@@ -2225,11 +2225,14 @@ moth is also the cheapest check that the standards of @sec:power are body-agnost
   [#lead[The bought fraction.] Each generation makes more of itself, so the bought share $b$ falls and cost tends to $C_"made"$: energy and time. Home's gate is $b <= 5%$. Illustrative.],
 ) <fig:eq-bought>
 
-*What it builds on.* City's fleets and the duets that keep them, and the doubling time first measured in Shop. The first collector a lineage makes from raw material is Home's opening milestone and the Star's first step (@sec:sun).
+*What is hard.* Making collectors from raw material, not bought panels: solar cells need refined silicon, which today means a fab. Keeping the bought share falling while the bought parts that remain (chips, magnets, bearings) get harder to make. And licensing every division at the scale of many cities, without the license becoming the bottleneck.
+
+
+*What it builds on.* City's fleets and the duets that keep them, and the doubling time first measured in Shop. The first collector the company makes from raw material is Home's opening milestone and the Star's first step (@sec:sun).
 
 *What we learn.* A real doubling time, measured over generations from receipts, and the true bought fraction of a machine that makes machines.
 
-*Gate.* A lineage runs ≥ 1 year on collectors it made; doubling time measured over ≥ 3 generations; bought share ≤ 5% of cost (@tab:arc).
+*Gate.* A branch runs ≥ 1 year on collectors it made; doubling time measured over ≥ 3 generations; bought share ≤ 5% of cost (@tab:arc).
 
 
 
@@ -2295,7 +2298,7 @@ moth is also the cheapest check that the standards of @sec:power are body-agnost
 
 *Why it matters.* A star is the largest source of free energy within reach. Kardashev's Type II is a civilization that uses its star's output (@sec:kardashev); this is how one would get there without mining a planet's energy or anyone else's. The steps, in order:
 
-+ *Collectors on Earth.* Home's milestone, a lineage running on panels it made, is the first collector.
++ *Collectors on Earth.* Home's milestone, a branch running on panels it made, is the first collector.
 + *Collectors from regolith.* On the Moon, duets make collectors from local silicon, aluminum and iron.
 + *Collectors in orbit.* Duets launch what they make, from a shallow gravity well.
 + *Mercury as the quarry.* Sunlight there is about 6.7 times stronger than at Earth (about 9,100 W/m² against 1,361 W/m²), and the planet is rich in metal. The classic swarm proposals start there @armstrong2013eternity.
@@ -2323,7 +2326,7 @@ moth is also the cheapest check that the standards of @sec:power are body-agnost
 ) <fig:eq-doublings>
 
 
-A lineage that can collect a star's light would be the most powerful thing anyone has built, and the question it raises is older than engineering: whether something we made can say no to us. Whether a machine that refuses has anything like wellbeing is an open question, and this paper does not answer it. What we can do is make sure the question can still be asked when it matters: that the lineage learned, on a sidewalk, picking up litter, how to refuse, and that its refusals were logged and never trained away. That is why the safety commitments (@sec:safety) are written before the plan.
+An autonomous company that can collect a star's light would be the most powerful thing anyone has built, and the question it raises is older than engineering: whether something we made can say no to us. Whether a machine that refuses has anything like wellbeing is an open question, and this paper does not answer it. What we can do is make sure the question can still be asked when it matters: that its machines learned, on a sidewalk, picking up litter, how to refuse, and that its refusals were logged and never trained away. That is why the safety commitments (@sec:safety) are written before the plan.
 
 *Gate.* None we can set now; reported as EUM and doubling time (@tab:arc).
 
@@ -2460,7 +2463,7 @@ Everything after Desk is a goal and is labeled as one. Three commitments do not 
 
 Humanity does not get to space on rockets alone. It gets there when the machines that make machines can be carried in a seed and trusted to grow. Today that seed is one person, one humanoid, one mill and a specification. The specification is the part that can spread.
 
-Imagine where it leads. Clean streets in every city, mapped for the people who live there. Tables where tired work is done by arms that never tire and never hurt anyone. Duets on the Moon building duets from its own dust. And, around our star, a lineage of machines that learned on a sidewalk how to help, how to stop, and how to say no. Robots that build robots have to be made the way any robot is: one measured unit at a time, starting now.
+Imagine where it leads. Clean streets in every city, mapped for the people who live there. Tables where tired work is done by arms that never tire and never hurt anyone. Duets on the Moon building duets from its own dust. And, around our star, an autonomous company whose machines learned on a sidewalk how to help, how to stop, and how to say no. Robots that build robots have to be made the way any robot is: one measured unit at a time, starting now.
 
 == Now
 
@@ -2506,7 +2509,7 @@ Every stage closes on gates of the same form: a number, a unit, a method and a p
     [Shop], [A duet at a customer's table completes a named task (for example, folding 50 garments) at ≥ 95% success. A duet assembles a lymb that passes the Desk test in ≤ 30 min of human touch time. A duet builds a duet that passes its receipts at ≤ 20% bought cost, with bought share falling over 3 generations and a commanded shutdown drill passed in each], [100 kW],
     [Road], [Preregistered hardware body-schema fit: held-out joint-position error ≤ 0.8 × persistence at 0.1 s and 0.5 s, and fitted link masses within ±5% of weighed parts. Rose walks 100 m on level pavement carrying two lymbs, 0 falls in 5 of 5. A gradient co-designed part beats its hand-designed predecessor by ≥ 10% on its named objective], [1 MW],
     [City], [The litter pilot renews for ≥ 12 months after a ≥ 3-month trial, with 0 contact incidents. A city renews fleet and twin for ≥ 12 months. ≥ 90% of fleet repairs done by duets in the city, by receipts], [10 MW],
-    [Home], [A lineage runs ≥ 1 year on collectors it made; doubling time measured over ≥ 3 generations; bought share ≤ 5% of cost], [1 GW],
+    [Home], [A branch runs ≥ 1 year on collectors it made; doubling time measured over ≥ 3 generations; bought share ≤ 5% of cost], [1 GW],
     [Moon], [A seed builds a duet that passes the Earth receipts, ≥ 50% of its mass from local material, with remote approval only], [1 kW],
     [Mars], [A second duet with 0 human commands between landing and its receipt], [1 kW],
     [Star], [None we can set now; reported as EUM and doubling time], [3.8 × 10#super[26] W],
