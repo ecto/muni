@@ -1944,11 +1944,62 @@ So the margin is not in tokens. Open-model APIs already sell close to cost, and 
 
 tang's edges in kyte are the ones it shares with frog: sessions pinned with their cache kept warm, about 4.8 times less prefill; drafting from the session's own history, 1.5–2.2 times faster decoding @frog2026roadmap; and a warm hand-off from a Mac to kyte without re-sending the session. They make kyte faster and more predictable. They make it cheaper only once tang serves many sessions at once as well as SGLang or vLLM do, and today it does not.
 
-kyte rents compute in three steps, each opened by demand:
+kyte rents compute in three steps, each opened by demand (@fig:kyte):
 
 + *Rent nothing.* kyte routes to open-model APIs. A waitlist and the first users measure tasks per user, how often a task needs more than a local model, and whether \$0.25 holds.
-+ *Rent one GPU.* An H200, about \$2,500 a month, once demand would keep it 30% busy, about 15,000 tasks a month. It runs SGLang with session-affinity routing and suffix drafting. One GPU at that load clears the gate.
++ *Rent one GPU.* An H200, about \$2,500 a month. On cost alone it pays at about 23,000 tasks a month against Qwen's prices and never against DeepSeek Flash's, so it opens at that volume, or sooner if warm sessions and the hand-off are worth more to users than the difference. It runs SGLang with session-affinity routing and suffix drafting, and one GPU carries kyte past the gate.
 + *Run tang.* tang replaces SGLang only when it beats SGLang on frog's own tasks. That is where tang becomes a cost advantage.
+
+#figure(
+  align(center, cetz.canvas(length: 1.1cm, {
+    import cetz.draw: *
+    let kyte = fam.mind.color
+    // ── the three steps, each opened by what is written under its riser
+    let steps = (
+      ([Rent nothing], [open-model APIs], [\$0 fixed · \$0.03–0.11 a task], [with the waitlist]),
+      ([Rent one H200], [SGLang, warm sessions, drafting], [≈ \$2,500 a month], [at ≥ 23,000 tasks a month, or when warm sessions earn it]),
+      ([Run tang], [tang serves kyte], [same GPU, lower cost a task], [when tang beats SGLang on frog's tasks]),
+    )
+    let w = 5.3
+    let gap = 0.75
+    for (i, (name, what, cost, opens)) in steps.enumerate() {
+      let x = i * (w + gap)
+      rect((x, 0), (x + w, 1.55), fill: if i == 0 { kyte.transparentize(80%) } else { c-surface }, stroke: 0.8pt + if i == 0 { kyte } else { c-line-hi })
+      content((x + 0.18, 1.38), anchor: "north-west", text(font: mono-m, size: 6pt, fill: c-label, tracking: track, upper[Step #(i + 1)]))
+      content((x + 0.18, 1.03), anchor: "north-west", text(font: sans-sb, size: 9pt, fill: if i == 0 { kyte } else { c-text }, name))
+      content((x + 0.18, 0.62), anchor: "north-west", text(size: 6.5pt, fill: c-text, what))
+      content((x + 0.18, 0.32), anchor: "north-west", text(font: mono, size: 6pt, fill: c-label, cost))
+      content((x, -0.15), anchor: "north-west", box(width: w * 1cm, text(size: 6pt, fill: c-sel)[Opens #opens]))
+      if i > 0 { line((x - gap + 0.1, 0.78), (x - 0.1, 0.78), stroke: 1pt + c-sel, mark: (end: ">", fill: c-sel, size: 0.12)) }
+    }
+    // ── the money: dollars a month against tasks a month
+    let (ox, oy) = (1.2, -6.2)
+    let X(t) = ox + t / 60000 * 14.8
+    let Y(d) = oy + d / 15000 * 4.6
+    line((X(0), Y(0)), (X(62000), Y(0)), stroke: 0.6pt + c-line-hi, mark: (end: ">", fill: c-line-hi, size: 0.1))
+    line((X(0), Y(0)), (X(0), Y(15800)), stroke: 0.6pt + c-line-hi, mark: (end: ">", fill: c-line-hi, size: 0.1))
+    for t in (0, 20000, 40000, 60000) { content((X(t), Y(0) - 0.12), anchor: "north", text(font: mono, size: 6pt, fill: c-label)[#str(calc.quo(t, 1000))K]) }
+    for d in (5000, 10000, 15000) { content((X(0) - 0.12, Y(d)), anchor: "east", text(font: mono, size: 6pt, fill: c-label)[\$#str(calc.quo(d, 1000))K]) }
+    content((X(60000), Y(0) - 0.5), anchor: "north-east", text(font: mono-m, size: 6pt, fill: c-label, tracking: track, upper[tasks a month]))
+    // API cost: a band from DeepSeek Flash to Qwen
+    line((X(0), Y(0)), (X(60000), Y(1800)), (X(60000), Y(6600)), close: true, fill: c-label.transparentize(80%), stroke: none)
+    line((X(0), Y(0)), (X(60000), Y(6600)), stroke: (paint: c-label, thickness: 0.6pt, dash: (2pt, 2pt)))
+    content((X(60000) + 0.1, Y(3200)), anchor: "west", text(size: 6pt, fill: c-label)[API cost])
+    // rented GPUs: one H200 per ~45K tasks
+    line((X(0), Y(2500)), (X(45000), Y(2500)), (X(45000), Y(5000)), (X(60000), Y(5000)), stroke: 1.1pt + c-info)
+    content((X(60000) + 0.1, Y(5000)), anchor: "west", text(size: 6pt, fill: c-info)[rented H200s])
+    // revenue at $0.25 a task
+    line((X(0), Y(0)), (X(60000), Y(15000)), stroke: 1.3pt + kyte)
+    content((X(60000) + 0.1, Y(15000)), anchor: "west", text(size: 6pt, fill: kyte)[revenue, \$0.25 a task])
+    // where renting pays, and the gate
+    circle((X(22700), Y(2500)), radius: 0.07, fill: c-info, stroke: none)
+    content((X(22700), Y(2500) + 0.15), anchor: "south", text(size: 6pt, fill: c-info)[renting pays, at Qwen prices])
+    line((X(0), Y(10000)), (X(40000), Y(10000)), (X(40000), Y(0)), stroke: (paint: c-ok, thickness: 0.7pt, dash: (2pt, 2pt)))
+    circle((X(40000), Y(10000)), radius: 0.08, fill: c-ok, stroke: none)
+    content((X(40000) + 0.15, Y(10000) - 0.1), anchor: "north-west", text(size: 6pt, fill: c-ok)[the Desk gate: \$10K a month at 40K tasks])
+  })),
+  caption: [#lead[kyte, step by step] (estimates). Top: compute is rented only when demand opens the next step. Bottom: a month's money against tasks. The band is what open-model APIs would cost us, from DeepSeek V4 Flash to Qwen3-Coder-Next; the steps are rented H200s at about \$2,500 a month each. At \$0.25 a task, revenue clears the gate at 40,000 tasks a month on either route.],
+) <fig:kyte>
 
 The risks are plain. GPU rents are rising: one index has H100 rent up 19% in a year, and Nebius raised on-demand prices 17–21% on 1 October @getdeploying2026gpu. A per-task price invites heavy tasks, so each task carries a token cap. And the labs that make open models may host coding agents of their own.
 
@@ -1962,8 +2013,6 @@ The lymb comes in the same three sizes as Rose. *Lymb mini* is K1 size, for Rose
   image("images-dark/fork-v9-lines.png", width: 60%),
   caption: [#lead[The arm, Rose fork v9.] Six joints, every plate 1/8" 5052 except the 1/4" foot, every motor mounted by its back face. Render from the arm repository @rose2026forkv9.],
 ) <fig:arm>
-
-One arm does three jobs: it is sold on its own, it is half of every duet, and it is an arm of the Rose humanoid. Its design idea is that *every pitch joint is a fork* @rose2026forkv9. The parent link holds the motor's stator between its two side plates. The child straddles the parent, with one plate bolted to the output and the other riding a plain bearing on a hollow sleeve on the joint axis. Parent and child share one centerline, so no joint is offset and there is no offset elbow to twist the arm. Cables pass through the hollow sleeves, so they only twist and never loop outside the arm. The name comes from where the design lives. Rose fork v9 is the ninth revision of the fork concept, drawn in the Rose humanoid repository as a table arm that is also Rose's arm @rose2026forkv9. In this paper "the arm" means this design, and "Rose" on its own means the humanoid line (@fig:elements), whose \$15,000 target assumes rana (@sec:rana).
 
 #figure(
   table(
@@ -1991,13 +2040,14 @@ One arm does three jobs: it is sold on its own, it is half of every duet, and it
   caption: [#lead[Rose fork v9 specification.] Every number is a model output; none has been measured on a built arm. Arm-model jaws are the simpler tool in the arm's own model, two flat jaw plates on the same EL05, and are lighter than gripper v2.],
 ) <tab:arm>
 
+One arm does three jobs: it is sold on its own, it is half of every duet, and it is an arm of the Rose humanoid. Its design idea is that *every pitch joint is a fork* @rose2026forkv9. The parent link holds the motor's stator between its two side plates. The child straddles the parent, with one plate bolted to the output and the other riding a plain bearing on a hollow sleeve on the joint axis. Parent and child share one centerline, so no joint is offset and there is no offset elbow to twist the arm. Cables pass through the hollow sleeves, so they only twist and never loop outside the arm. The name comes from where the design lives. Rose fork v9 is the ninth revision of the fork concept, drawn in the Rose humanoid repository as a table arm that is also Rose's arm @rose2026forkv9. In this paper "the arm" means this design, and "Rose" on its own means the humanoid line (@fig:elements), whose \$15,000 target assumes rana (@sec:rana).
+
+
 *Why holding sets the limit.* Holding a pose is a stall, and a stalled actuator is limited by heat, not by peak torque. The vendor's stall-continuous ratings are well below the rotating ratings. For the RS04 at the shoulder, the joint that sets the limit, the manual gives 28.5 N·m stall-continuous against 40 N·m rotating, measured on a 345 × 345 mm aluminum heat-sink plate @robstride2026manual. On a 220 × 200 mm plate, about the size of the fork's parent plates, the manual rates it at 35 N·m rotating. We derate the stall figure by the same 35/40, to 25 N·m (estimate). The hold numbers in @tab:arm use that figure, with the arm straight out, which is the worst pose. Bent working poses hold more. With RobStride's ratings, about 1.25–1.5 kg continuous straight out is close to the limit at this reach without springs, because the shoulder carries the whole arm. The earlier v4/v5 iterations reached the same ceiling @rose2026forkv9.
 
 *Open items* (from the arm repository): RS02 thread depths are assumed at 6 mm and must be measured before screws are ordered. The clock-spring cassettes for the roll joints are drawn but not designed. Crush points found by the audit still need a policy, either soft limits or force limiting. And the motors' unpowered "anti-backdrive" damping is undocumented at the slow speed of a falling arm. It will be tested on the rig @robstride2026manual.
 
 == Hand
-
-The gripper is a parallel-jaw gripper. One RobStride EL05 (1.8 N·m rated, 6 N·m peak, 242 g) turns a pinion of pitch radius $r = 8$ mm between two flat racks, which gives a 0–100 mm opening @mr2026gripper. Squeeze per finger is $T\/(2r)$ for motor torque $T$.
 
 #figure(
   grid(
@@ -2010,6 +2060,9 @@ The gripper is a parallel-jaw gripper. One RobStride EL05 (1.8 N·m rated, 6 N·
   ),
   caption: [#lead[Gripper v2] (modeled). Left: open, on the Ø61 tool flange. Center: section through the pinion and racks. Right: the four swappable tip sets (flat serrated, V, soft TPU, scoop) on dowels and a magnet @mr2026gripper.],
 ) <fig:gripper>
+
+The gripper is a parallel-jaw gripper. One RobStride EL05 (1.8 N·m rated, 6 N·m peak, 242 g) turns a pinion of pitch radius $r = 8$ mm between two flat racks, which gives a 0–100 mm opening @mr2026gripper. Squeeze per finger is $T\/(2r)$ for motor torque $T$.
+
 
 #figure(
   table(
