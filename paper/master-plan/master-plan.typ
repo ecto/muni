@@ -658,6 +658,39 @@
 
 = Life <sec:kardashev>
 
+#figure(
+  grid(columns: (1fr, 1fr), column-gutter: 0.18in, align: horizon,
+    cetz.canvas(length: 1cm, {
+      import cetz.draw: *
+      let (W, H) = (8.6, 5.73)
+      rect((0, 0), (W, H), fill: rgb("#050403"), stroke: none)
+      // scattered sunlight across the frame, as the camera's optics caught it
+      let band(x0, w, a) = line((x0, H), (x0 + w, H), (x0 + w - 1.6, 0), (x0 - 1.6, 0), close: true, fill: rgb("#e8c9a0").transparentize(a), stroke: none)
+      band(1.6, 0.5, 93%)
+      band(3.3, 0.9, 90%)
+      band(3.55, 0.4, 86%)
+      band(5.5, 0.7, 92%)
+      band(7.4, 0.35, 94%)
+      for i in range(70) {
+        let x = calc.rem(i * 7919, 860) / 100
+        let y = calc.rem(i * 104729, 573) / 100
+        circle((x, y), radius: 0.012, fill: rgb("#a08d70").transparentize(70%), stroke: none)
+      }
+      let (ex, ey) = (3.45, 2.1)
+      circle((ex, ey), radius: 0.15, fill: rgb("#7fb0ff").transparentize(85%), stroke: none)
+      circle((ex, ey), radius: 0.04, fill: rgb("#a9c8ff"), stroke: none)
+      line((ex + 0.1, ey - 0.07), (ex + 0.9, ey - 0.6), stroke: 0.4pt + c-label)
+      content((ex + 1.0, ey - 0.65), anchor: "north-west", text(font: mono-m, size: 5.5pt, fill: c-label, tracking: track, upper[everyone, ever]))
+      content((0.2, H - 0.2), anchor: "north-west", text(font: mono-m, size: 5.5pt, fill: c-label, tracking: track, upper[1990 · Voyager 1]))
+    }),
+    box(clip: true, width: 100%, {
+      image("images-native/artemis2-crescent-earth.jpg", width: 100%)
+      place(top + left, dx: 0.2cm, dy: 0.2cm, text(font: mono-m, size: 5.5pt, fill: c-label, tracking: track, upper[2026 · Artemis II]))
+    }),
+  ),
+  caption: [#lead[Home, twice.] Left: Earth from about 6 billion km, as Voyager 1 saw it on 14 February 1990, redrawn @nasa1990paleblue. Right: a crescent Earth through Orion's window on 3 April 2026, the third day of Artemis II, the first crewed flight past low Earth orbit in more than half a century (photo: NASA @nasa2026crescent). Everyone who has ever lived, and everything this plan would build, starts in that point.],
+) <fig:paleblue>
+
 In 1964 the astronomer Nikolai Kardashev proposed ranking civilizations by the power they command @kardashev1964. A Type I civilization uses the energy available on its planet, a Type II its star's, and a Type III its galaxy's. Carl Sagan turned the types into a continuous scale for a power $P$ in watts, which puts Type I at 10#super[16] W and Type II at 10#super[26] W @sagan1973cosmic:
 
 $ K = (log_10 P - 6) / 10 $ <eq:kardashev>
