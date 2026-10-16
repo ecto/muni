@@ -1683,23 +1683,13 @@ The pack is also the EUM instrument. EUM (@sec:eum) is defined at each machine's
   caption: [#lead[The kore and its two hosts] (modeled). Left: one kore, exploded. Center: the humanoid bay, lid lifted and one kore drawn. Right: a 12U rack with a GPU node and three kore chassis. Renders by vcad-render @mr2026compute.],
 ) <fig:blade>
 
-Compute comes in one module, the *kore*: a 132 × 76 × 20 mm carrier on a 3 mm aluminum spine that is both its rail and its heat path, with one rear connector carrying the bus, gigabit Ethernet and CAN-FD @mr2026compute. The same kore slides into a 10-inch rack chassis (eight per 2U, fan-cooled) or into a humanoid's torso bay (up to three, conduction-cooled into cold walls with a fan over the fins). A kore identifies itself and its power class over I²C before the host powers it: 20 W for a Raspberry Pi CM5 carrier, 30 W for a Jetson-class carrier.
+Compute comes in one module, the *kore*: a small carrier on an aluminum spine that is both its rail and its heat path, with one rear connector for the bus, Ethernet and CAN-FD @mr2026compute. The same kore slides into a rack chassis or into a humanoid's torso bay, and tells its host what it is before it takes power.
 
-How a body uses its slots follows the seams Ipse already has (@sec:mind). The fast layers, S0 (whole-body tracking, 50 Hz today, 200 Hz target) and S1 (skills and contact planning, 50 Hz), are deadline-bound and must run on the body. The slow layer, S2 (intent and the world model, 1–5 Hz), may run on the body or off it, and if it is lost, S1 finishes the current skill and stands @ipse2026brief. So:
-
-- *Slot 1* always holds a GPU kore running S0, S1, the abstract state bus and perception, isolated at real-time priority. Nothing else is allowed on it. On the K1, vendor processes share the perception computer, and worst-case walk inference has been seen at 13.7–15.8 ms against a 0.24 ms median off the robot (session notes, probably preemption).
-- *Slots 2 and 3* run S2 when fitted. A full body thinks offline.
-- *With fewer kores*, S2 runs on the rack over the same seam.
-
-Whether a body thinks onboard or leans on the rack is then a slot count, not an architecture. The rack is the same standard at larger scale: a 9U, 450 mm deep frame with a GPU node for training and the twin, two kore chassis, and two 48 V supplies feeding a vertical busbar, about 1 kW in all (estimate) @mr2026compute.
-
-*Rose against the K1.* Rose should out-think the K1: CUDA, real-time scheduling, and our own code from the carrier up. That claim gets the same treatment as every other one. The same Ipse build runs on both bodies, and we report S0 tick jitter, inference latency and where S2 ran, per body. Rose is first run with one kore, close to the K1’s compute, then with more, so the effect of compute is measured one variable at a time.
+How a body uses its slots follows Ipse's seams (@sec:mind). The fast layers, whole-body tracking and skills, are deadline-bound and always run on a body's first kore, isolated. The slow layer, intent and the world model, runs on more kores when a body has them, or on the rack over the same seam when it does not, and if it is lost the body finishes its skill and stands @ipse2026brief. Whether a body thinks onboard or leans on the rack is then a slot count, not an architecture. Rose is run first with one kore, close to the K1's compute, then with more, so the effect of compute is measured one variable at a time.
 
 The open question is the size of S2. A 16 GB Orin NX kore may hold it; a Thor-class module would not fit a 20 mm kore.
 
 == Boards
-
-Bus, pack and kore need a small set of boards. We own a board first when it defines a standard or makes a measurement, and buy the rest until owning it wins (@tab:boards).
 
 #figure(
   table(
@@ -1715,6 +1705,9 @@ Bus, pack and kore need a small set of boards. We own a board first when it defi
   ),
   caption: [#lead[The board library and the order we own it] @mr2026decisions. Every design is open. Fabrication and assembly stay bought.],
 ) <tab:boards>
+
+Bus, pack and kore need a small set of boards. We own a board first when it defines a standard or makes a measurement, and buy the rest until owning it wins (@tab:boards).
+
 
 Every board design is open. Printed-circuit fabrication and assembly stay bought through Road. Boards are, with magnets, bearings and chips, part of the bought fraction that falls last, and a duet at a pick-and-place machine that assembles our own boards is a Shop milestone (@sec:pair).
 
@@ -1925,31 +1918,6 @@ The second headline number is the time a lineage of duets takes to double what i
 
 == kyte <sec:kyte>
 
-kyte earns on a gap in prices. A frog coding task makes about 40 model calls at about 20,000 tokens of context each: roughly 800,000 tokens in and 30,000 out, counting thinking. frog's own logs show that 79% of what goes in is reusable cache (estimates from frog sessions @frog2026roadmap). What that task costs depends on who runs the model (@tab:kyte).
-
-#figure(
-  ptable(
-    columns: (auto, 1fr, auto),
-    align: (left + top, left + top, right + top),
-    table.header([*Route*], [*Price*], [*Cost per task*]),
-    [DeepSeek V4 Flash API], [\$0.14 per million tokens in, \$0.003 cached, \$0.28 out @morph2026coding], [≈ \$0.03],
-    [Qwen3-Coder-Next API], [\$0.11 in, \$0.80 out @therouter2026qwen], [≈ \$0.11],
-    [One rented H200 running tang, 30% busy], [≈ \$3.50 an hour @devto2026gpu; ≈ 20 GPU-seconds a task, batched], [≈ \$0.06],
-    [Frontier models], [what developers compare against], [≈ \$1–3],
-  ),
-  caption: [#lead[What one frog task costs] (estimates, October 2026). Prices are list or index prices and move monthly; the per-task figures are our arithmetic on the workload above.],
-) <tab:kyte>
-
-So the margin is not in tokens. Open-model APIs already sell close to cost, and we will not undercut them per token. It is in pricing per finished task, against a frontier bill of dollars a task. At \$0.25 a task kyte keeps about 75–85%, and the Desk gate of \$10,000 a month is about 40,000 tasks a month.
-
-tang's edges in kyte are the ones it shares with frog: sessions pinned with their cache kept warm, about 4.8 times less prefill; drafting from the session's own history, 1.5–2.2 times faster decoding @frog2026roadmap; and a warm hand-off from a Mac to kyte without re-sending the session. They make kyte faster and more predictable. Owning the engine is where the margin is: no one else's serving layer, kernels tuned to frog's own workload, and every gain in tang landing directly in cost per task. kyte is served by tang alone, so tang has three things to learn first: decoding many sessions at once, cache slots that keep each session warm, and a server backend that reaches full speed on rented NVIDIA GPUs (tang runs through wgpu today, on Metal, Vulkan and DX12).
-
-kyte rents compute in three steps, each opened by demand (@fig:kyte):
-
-+ *Rent nothing.* kyte routes to open-model APIs while tang learns to serve. A waitlist and the first users measure tasks per user, how often a task needs more than a local model, and whether \$0.25 holds.
-+ *Rent one GPU, running tang.* An H200, about \$2,500 a month, opened when tang serves frog's tasks on it and demand is near the point where it pays. At list API prices that point is about 23,000 tasks a month against Qwen and beyond our range against DeepSeek Flash; every gain in tang's throughput moves it lower. One GPU carries kyte past the gate.
-+ *Add GPUs as they fill.* One more H200 each time the last one is about 40% busy, around 45,000 tasks a month each. Each is ours end to end, from the kernels to the bill.
-
 #figure(
   align(center, cetz.canvas(length: 1.1cm, {
     import cetz.draw: *
@@ -2001,7 +1969,11 @@ kyte rents compute in three steps, each opened by demand (@fig:kyte):
   caption: [#lead[kyte, step by step] (estimates). Top: compute is rented only when demand opens the next step. Bottom: a month's money against tasks. The band is what open-model APIs would cost us, from DeepSeek V4 Flash to Qwen3-Coder-Next; the steps are rented H200s at about \$2,500 a month each. At \$0.25 a task, revenue clears the gate at 40,000 tasks a month on either route.],
 ) <fig:kyte>
 
-The risks are plain. GPU rents are rising: one index has H100 rent up 19% in a year, and Nebius raised on-demand prices 17–21% on 1 October @getdeploying2026gpu. A per-task price invites heavy tasks, so each task carries a token cap. And the labs that make open models may host coding agents of their own.
+kyte earns on a gap in prices. Open-model tokens already sell near cost: a frog coding task costs us a few cents on open-model APIs, while the frontier models developers compare against cost dollars a task (@app:kyte). So kyte charges per finished task, not per token. At \$0.25 a task it keeps most of the price, and the Desk gate of \$10,000 a month is about 40,000 tasks.
+
+The margin is in owning the engine. kyte runs on tang alone, so every gain in tang lands in cost per task, and the session work frog already does (warm caches, drafting from a session's own history, a warm hand-off from a Mac) makes kyte faster and more predictable than a generic endpoint. First tang must learn to serve many sessions at once, at full speed on rented NVIDIA GPUs.
+
+kyte rents compute only as demand opens each step (@fig:kyte): open-model APIs while tang learns to serve, one rented H200 running tang near 23,000 tasks a month, and another each time the last is about 40% busy. The risks are rising GPU rents, heavy tasks under a per-task price, and the labs hosting agents of their own.
 
 == Sizes
 
@@ -2009,44 +1981,16 @@ The lymb comes in the same three sizes as Rose. *Lymb mini* is K1 size, for Rose
 
 == Arm
 
+
+
 #colfig(
   image("images-dark/fork-v9-lines.png", width: 60%),
   caption: [#lead[The arm, Rose fork v9.] Six joints, every plate 1/8" 5052 except the 1/4" foot, every motor mounted by its back face. Render from the arm repository @rose2026forkv9.],
 ) <fig:arm>
 
+One arm does three jobs: it is sold on its own, it is half of every duet, and it is an arm of the Rose humanoid. Its design idea is that *every pitch joint is a fork*: the child link straddles the parent on one centerline, so no joint is offset, and cables run through hollow sleeves on the joint axes, so they twist and never loop outside the arm @rose2026forkv9. It is the ninth revision of the fork, drawn in the Rose repository as a table arm that is also Rose's arm.
 
-One arm does three jobs: it is sold on its own, it is half of every duet, and it is an arm of the Rose humanoid. Its design idea is that *every pitch joint is a fork* @rose2026forkv9. The parent link holds the motor's stator between its two side plates. The child straddles the parent, with one plate bolted to the output and the other riding a plain bearing on a hollow sleeve on the joint axis. Parent and child share one centerline, so no joint is offset and there is no offset elbow to twist the arm. Cables pass through the hollow sleeves, so they only twist and never loop outside the arm. The name comes from where the design lives. Rose fork v9 is the ninth revision of the fork concept, drawn in the Rose humanoid repository as a table arm that is also Rose's arm @rose2026forkv9. In this paper "the arm" means this design, and "Rose" on its own means the humanoid line (@fig:elements), whose \$15,000 target assumes rana (@sec:rana).
-
-
-*Why holding sets the limit.* Holding a pose is a stall, and a stalled actuator is limited by heat, not by peak torque. The vendor's stall-continuous ratings are well below the rotating ratings. For the RS04 at the shoulder, the joint that sets the limit, the manual gives 28.5 N·m stall-continuous against 40 N·m rotating, measured on a 345 × 345 mm aluminum heat-sink plate @robstride2026manual. On a 220 × 200 mm plate, about the size of the fork's parent plates, the manual rates it at 35 N·m rotating. We derate the stall figure by the same 35/40, to 25 N·m (estimate). The hold numbers in @tab:arm use that figure, with the arm straight out, which is the worst pose. Bent working poses hold more. With RobStride's ratings, about 1.25–1.5 kg continuous straight out is close to the limit at this reach without springs, because the shoulder carries the whole arm. The earlier v4/v5 iterations reached the same ceiling @rose2026forkv9.
-
-#figure(
-  table(
-    columns: 3,
-    align: (left + top, left + top, left + top),
-    table.header([*Parameter*], [*Value*], [*Source / state*]),
-    [Degrees of freedom], [6 + gripper], [@rose2026forkv9],
-    [Base yaw, shoulder, elbow], [RobStride RS04 × 3], [Peak 120 N·m],
-    [Forearm roll, wrist pitch], [RobStride RS02 × 2], [Roll as a cartridge],
-    [Tool roll], [RobStride RS00 cartridge], [],
-    [Tool flange], [Ø61, 6 × M3 on Ø27], [Matches gripper v2],
-    [Foot], [Ø230, 1/4" 5052, 4 × Ø6.6 on Ø190], [M6 to the duet plate],
-    [Plate stock], [1/8" (3.175 mm) 5052], [Three 15 × 15 in sheets of 1/8"; one 1/4" sheet for the foot],
-    [Router parts], [20 unique], [DXF + nests generated],
-    [Jaw tips from shoulder], [731 mm (786 with gripper v2)], [Modeled],
-    [Mass], [8.21 kg (arm-model jaws)], [Modeled],
-    [Mass with gripper v2 + harness], [8.44 kg], [Modeled: arm plus gripper @mr2026gripper],
-    [Continuous hold, straight out], [1.49 kg (arm-model jaws)], [Modeled; RS04 stall derated (estimate)],
-    [Continuous hold, gripper v2], [1.27 kg (shoulder-limited)], [Modeled; RS04 stall derated (estimate)],
-    [Sag / twist at flange], [0.13 / 0.11 mm], [Modeled],
-    [Elbow / wrist range], [−120 to 115° / ±135°], [],
-    [Interference, 209 poses], [None], [Swept in CAD],
-    [Build state], [Ready to cut], [None built yet],
-  ),
-  caption: [#lead[Rose fork v9 specification.] Every number is a model output; none has been measured on a built arm. Arm-model jaws are the simpler tool in the arm's own model, two flat jaw plates on the same EL05, and are lighter than gripper v2.],
-) <tab:arm>
-
-*Open items* (from the arm repository): RS02 thread depths are assumed at 6 mm and must be measured before screws are ordered. The clock-spring cassettes for the roll joints are drawn but not designed. Crush points found by the audit still need a policy, either soft limits or force limiting. And the motors' unpowered "anti-backdrive" damping is undocumented at the slow speed of a falling arm. It will be tested on the rig @robstride2026manual.
+*Holding sets the limit.* Holding a pose is a stall, and a stalled actuator is limited by heat, not peak torque. At the shoulder, the joint that sets the limit, that gives about 1.25–1.5 kg held straight out at full reach, the worst pose (@tab:arm; derivation in @app:lymb). Bent working poses hold more.
 
 == Hand
 
@@ -2062,21 +2006,7 @@ One arm does three jobs: it is sold on its own, it is half of every duet, and it
   caption: [#lead[Gripper v2] (modeled). Left: open, on the Ø61 tool flange. Center: section through the pinion and racks. Right: the four swappable tip sets (flat serrated, V, soft TPU, scoop) on dowels and a magnet @mr2026gripper.],
 ) <fig:gripper>
 
-The gripper is a parallel-jaw gripper. One RobStride EL05 (1.8 N·m rated, 6 N·m peak, 242 g) turns a pinion of pitch radius $r = 8$ mm between two flat racks, which gives a 0–100 mm opening @mr2026gripper. Squeeze per finger is $T\/(2r)$ for motor torque $T$.
-
-
-#figure(
-  table(
-    columns: 4,
-    align: (left + top, right + top, right + top, right + top),
-    table.header([*Case*], [*Torque*], [*Squeeze / finger*], [*Max lift*]),
-    [Rated], [1.8 N·m], [112.5 N], [5.7 kg],
-    [Peak (do not hold)], [6 N·m], [375 N], [19.1 kg],
-  ),
-  caption: [#lead[Gripper force at rated and peak torque.] μ = 0.5, two faces, safety factor 2, rack friction ignored; with an assumed 0.8 rack efficiency, scale by 0.8 (estimate). Max lift is the gripper's alone. The arm holds 1.27 kg straight out (modeled), so the arm, not the gripper, sets payload @mr2026gripper],
-) <tab:grip>
-
-@tab:grip invites the wrong conclusion. Rated squeeze would crush an empty drinks can (predicted, not tested). Holding that can needs 0.3 N per finger, or 0.3% of rated torque, and a 500 ml bottle needs 9.6%. For litter, what matters is torque resolution at the bottom of the range, not headroom at the top, so the EL05 runs under current (torque) control. The gripper is 485 g at the flange with flat tips, against a 500 g target. A USB camera in the palm (standard UVC video class) runs its data duet through the arm harness straight to the base computer. A soft TPU boot is available for outdoor use.
+The gripper is a parallel jaw on one RobStride EL05 driving two racks from a pinion, opening 0–100 mm, 485 g at the flange against a 500 g target @mr2026gripper. Its rated squeeze would crush an empty can; holding one needs well under 1% of it. So it runs under torque control, where what matters is resolution at the bottom of the range, not headroom at the top (@app:grip). A camera sits in the palm, and a soft boot is available for outdoor use.
 
 == Actuator <sec:rana>
 
@@ -2096,20 +2026,6 @@ The actuators are about 60% of a lymb's materials (\~\$1,200 of \~\$2,000). That
   caption: [#lead[Prices and margin on materials] @mr2026masterplan. List prices are targets, not quotes; materials are estimates. Margin here is list less materials, a ceiling on gross margin: labor, test, warranty, shipping and overhead are not yet known and will reduce it.],
 ) <tab:prices>
 
-#figure(
-  table(
-    columns: 4,
-    align: (left + top, right + top, right + top, left + top),
-    table.header([*Lymb variable*], [*Materials*], [*Materials margin*], [*Note*]),
-    [Base case], [\$2,000], [60%], [\~\$1,200 of it is six RobStride joints],
-    [Actuator cost +25%], [\$2,300], [54%], [Tariffs, currency],
-    [Actuator cost +50%], [\$2,600], [48%], [Supply shock],
-    [rana at \$100/joint (target)], [\$1,400], [\~72%], [Speculative],
-    [rana at \$1,086/joint (today's prototype @rana2026bom)], [\~\$7,300], [about −46%], [Materials exceed list],
-    [Labor, test and warranty before margin reaches zero], [\~\$3,000/lymb], [0%], [List minus materials],
-  ),
-  caption: [#lead[Lymb margin sensitivity and break-even] (estimate, from the figures above). A lymb's economics are mostly the actuator's economics.],
-) <tab:sens>
 
 Until rana succeeds or is abandoned, the lymb business depends on one supplier's pricing. We do not expect the Rose price (\$15,000, the G1’s price class @unitree2024g1) to be reachable on purchased actuators (estimate; the Rose bill of materials is not costed in this paper). That is why it waits for rana.
 
@@ -2169,13 +2085,13 @@ Then come the hard parts. Actuators end to end: magnets stay bought until a ferr
 
 == Bought
 
-We bought a Booster K1 rather than building first. It is 95 cm tall, weighs 19.5 kg, and has 22 degrees of freedom (6 per leg, 4 per arm, 2 in the head). It has force-controlled joints with dual encoders, an RGBD camera and a microphone array @booster2025k1. Its perception computer is a Qualcomm QCS8550 (6 kores, 10 GB, Adreno GPU, Hexagon DSP, no CUDA), beside a separate motion computer that runs the vendor's control; we measured this on the robot, and it differs from the vendor summary we first relied on @ipse2026deploy. A commercial body has known kinematics and a known-good build, so it serves as a *control*: every later body, including Rose, is measured against it.
+We bought a Booster K1 rather than building first: 95 cm, 19.5 kg, 22 degrees of freedom, force-controlled joints @booster2025k1. A commercial body has known kinematics and a known-good build, so it serves as a *control*: every later body, Rose included, is measured against it. Its own computer has no CUDA and little headroom, which we measured on the robot @ipse2026deploy.
 
 The K1 has two jobs. In a proposed Lakewood pilot it would pick up litter (@sec:city); it has not grasped litter yet. In the lab it is the body for Ipse, a developmental research program. The two share hardware, software and one rule: every claim ships with the number that supports it.
 
 == Rose
 
-Rose is the humanoid we will build. The name is the thesis: past tense of rise, the one that stood up. It is a line of three sizes, each anchored to something real (@tab:rose). Every Rose shares one design language: bent 3 mm 5052 sheet as primary structure, cut flat and folded, with no machined blocks; an exposed skeleton for the lymbs against a shaped torso that is itself the structure; contact geometry on the feet only @rose2026line.
+Rose is the humanoid we will build. The name is the thesis: past tense of rise, the one that stood up. It is a line of three sizes, mini, full and mega, each anchored to something real (@tab:rose), all of bent sheet aluminum cut flat and folded, with no machined blocks @rose2026line. Its arms are lymbs of its size, full stop: a humanoid is a duet on legs, with a torso that carries the kore bay and two packs (@sec:power). Rose mini starts now, in parallel, on purchased actuators, because the K1 has shown the limits of a body we did not build; Road overlaps Shop, it does not follow it. Rose full's \$15,000 target is the G1's price class @unitree2024g1, and it waits for rana.
 
 #figure(
   table(
@@ -2188,10 +2104,6 @@ Rose is the humanoid we will build. The name is the thesis: past tense of rise, 
   ),
   caption: [#lead[The Rose line] (modeled) @rose2026line. Masses and holds are model outputs; full's mass is scaled from a smaller actuator, not measured.],
 ) <tab:rose>
-
-In this plan, Rose's arms are lymbs, full stop: a humanoid is a duet on legs, with a torso that carries the kore bay and two packs (@sec:power). Each Rose takes the lymb of its size: mini takes lymb mini, full takes lymb full, mega takes lymb mega. The current drawings still carry four-degree-of-freedom arms on purchased actuators; replacing them with lymbs, and the legs' purchased actuators with rana where it wins, is open work.
-
-Rose mini does not wait for the duet to sell. It starts now, in parallel, on purchased actuators and lymb mini, because the K1 has shown the limits of a body we did not build. Road overlaps Shop; it does not follow it. Rose full's \$15,000 target is the G1’s price class @unitree2024g1, and it waits for rana.
 
 One finding already shapes rana. Sized to jump, Rose mega is limited by speed, not torque. At peak current every rana delivers the same \~1.3 kW of mechanical power, set by the 48 V bus and a 30 A current limit, so a bigger rana buys torque, not power. A higher-voltage leg drive or series elastics, not a larger motor, is the lever for jumping.
 
@@ -2216,25 +2128,15 @@ Its standing constraints are quoted here because they bind the company, not just
 - "Do not optimize for consciousness indicators." Indicator lists such as Butlin et al. @butlin2023consciousness are used as an audit at phase boundaries, never as a training target.
 - "Grown, not built." When a behavior is missing, the first question is what experience would produce it.
 
-One limit is hardware. The K1’s perception computer has no CUDA, its idle vendor stack holds about two of its six kores, and an onboard vision-language model has no measured headroom @ipse2026deploy. So the work is split along Ipse's own seams (@sec:compute). Drives, memory, workspace and refusal stay on the robot; a cloud model is an amplifier it uses @ipse2026brief.
+The K1's computer is the limit, so the work splits along Ipse's own seams (@sec:compute): drives, memory, workspace and refusal stay on the robot, and a cloud model is an amplifier it uses @ipse2026brief @ipse2026deploy.
 
 We do not name the robot. The design brief says it "should not be named by us": it gets a name when it has earned one or arrives at one. Until then it is "the K1".
 
 == Self <sec:schema>
 
-The first claim of Road is Ipse's Phase 1 milestone. It is the body-schema result, not the world model @ipse2026brief @pond2026strategy.
+The first claim of Road is Ipse's Phase 1 milestone: a body schema, not a world model @ipse2026brief @pond2026strategy. The K1 starts from the vendor's model of its own body, which is wrong in places. From its own exploratory movements, and by gradient descent through phyz's contact model, it fits its own masses and inertias, and we publish the residual against the weighed parts as its *measured body schema*.
 
-*Claim.* The K1 starts from the vendor's model of its own body, which is known to be wrong in places. From its own exploratory movements (motor babbling), and by gradient descent through phyz's contact model, it fits a body schema: its own masses and inertias. The fitted schema must predict held-out motion better than persistence (the baseline defined in the falsifier below) and must match the CAD ground truth. We publish the residual between the two as the *measured body schema*.
-
-*Already shown.* In simulation, on motion generated by the same K1 model, five inertial parameters (trunk mass, two trunk center-of-mass coordinates, one thigh mass and one shank mass) recover from ±20% error to machine precision by gradient descent through contact @ipse2026brief. The run used sphere feet and the T-pose. With the arms down, the same squat excitation topples the robot and the fit stalls. The K1’s real flat feet give a contact the gradient cannot yet pass through. This shows the gradient is correct and these parameters are identifiable. It does not show a fit to a real body. In simulation the K1 also stands for 10 s at 1, 2 and 5 ms timesteps and recovers from an 8 N·s push at the trunk.
-
-*Not yet shown.* Everything on hardware. Real data adds actuator friction, backlash, sensor latency and unmodeled compliance. The simulated result has none of them, so it is an upper bound on how well the method can work.
-
-*Preregistration.* The claim, the held-out split, the horizons and the falsifier will be written down and published before the hardware fit runs. This follows the discipline of the project's world-model claims, whose earlier rounds are on the record as void and falsified @pond2026strategy.
-
-*Falsifier.* If the fitted model cannot beat *persistence* ("the next state is the current state") on the R1 capture harness at the stated horizons, the claim fails. Persistence is the bar because on a mostly still body at \~49 Hz it is nearly right. A model with low error has shown nothing until it beats persistence.
-
-Ipse also carries a self-probe from the start. It is an instrument that will later test whether the model forms a self-representation that holds across behaviors. It runs now so its metric has a history @ipse2026brief. We make no claim about what it will show.
+In simulation the method works: five inertial parameters recover from ±20% error to machine precision through contact @ipse2026brief. That shows the gradient is right, not that it fits a real body. Hardware adds friction, backlash, latency and compliance, and the K1's flat feet give a contact the gradient cannot yet pass. So the hardware claim is preregistered, with its falsifier, before it runs: the fitted model must beat *persistence* ("the next state is the current state"), which on a mostly still body is nearly right @pond2026strategy.
 
 *Gate.* Preregistered hardware body-schema fit: held-out joint-position error ≤ 0.8 × persistence at 0.1 s and 0.5 s, and fitted link masses within ±5% of weighed parts. Rose walks 100 m on level pavement carrying two lymbs, 0 falls in 5 of 5. A gradient co-designed part beats its hand-designed predecessor by ≥ 10% on its named objective (@tab:arc).
 
@@ -2252,14 +2154,7 @@ Litter pickup would put robots on every block every week. Most litter goes uncol
 
 Lakewood is a first-ring suburb of Cleveland with 49,517 residents in 5.5 square miles of land @census2024lakewood, about 9,000 people per square mile. It is among the most densely populated cities in Ohio, with more than 180 miles of sidewalk @lakewood2024sidewalks. Our earlier paper used it as the reference case for sidewalk snow clearing @muni2025whitepaper. It is small enough to model whole as a city twin, and its streets are dense enough that a few robots would see a lot of pavement.
 
-How the K1 picks up litter is not settled. The current concept, under design, is a *reacher*: a \~450 mm tube mounted on the K1’s wrist with gripper v2 jaws at its tip, an EL05 at the wrist end driving the jaws through a pushrod, a bag on a back frame, and a dock that is a bin, a charger and a public wifi point at once. The reacher keeps the K1 upright: it picks from standing, without squatting. Later, Rose takes over for two-handed and squatting work.
-
-The concept has four open checks, none done yet:
-
-- *A K1 wrist mount:* the tool changer's adapter plate for the K1 (@sec:tools), which does not exist yet.
-- *A K1 arm load check:* 0.6 kg held 50 cm out from the wrist, against the K1 arm's joint ratings.
-- *A grasp set:* the litter the reacher must pick (cans, bottles, wrappers, cups), with a success rate per item.
-- *Behavior around people:* yield, stop, and never reach toward a person.
+How the K1 picks up litter is not settled. The concept under design is a *reacher*, the grabber of @sec:tools: a tube with gripper v2 jaws on the K1's wrist, so it picks from standing, and a dock that is a bin, a charger and a public wifi point at once. Its open checks are the K1's tool-changer plate, an arm load check, a grasp set with a success rate per item, and behavior around people: yield, stop, and never reach toward a person.
 
 Outdoor grasping, year-round, would give two things the lab cannot. It would produce the duty cycles that will size rana. And it would put the Ipse body on a street, where the gap would be measured on real pavement.
 
@@ -2287,7 +2182,7 @@ These are design rules for the street pilot; none of the street pipeline is buil
 - *No selling or sharing of data that tracks anyone,* and no police access to people-tracking data, because we will not hold any. Street maps, potholes, ramps and litter counts are the city's to use.
 - *We map the city, not the people.* People and cars are removed on the robot before street imagery is written to storage. Pictures are released delayed; live facts (a pothole, ice) can be fresh.
 
-*Ipse's experience store.* Ipse preserves its experience store, versioned, always (@sec:mind). That does not conflict with the line above: the store keeps the robot's own body history in full, and what it keeps from a public street passes through the same on-robot filter first, so it holds scenes, not identities or tracks. The robot's safety log, needed for incident review, follows the same rule; its retention period is not yet decided.
+*Ipse's experience store* keeps the robot's own body history in full, but what it keeps from a public street passes the same on-robot filter first, so it holds scenes, not identities or tracks (@sec:mind).
 
 *Open, so anyone can check.* Everything that can be open is open: our software, our designs, the firmware on hardware we control, and our data formats. The K1 runs Booster's firmware, which is not ours and is not open; on the K1 the check stops at our own code.
 
@@ -2301,19 +2196,17 @@ moth is a drone for street perception @mr2026decisions. It flies ahead of the K1
 
 moth is not sold for military use or armed in any form (@sec:safety).
 
-moth is also the cheapest check that the standards in @sec:power are body-agnostic. It is a one-kore body on the 36–60 V bus with CAN-FD for management, running the same Ipse seams as a humanoid. It carries its own lighter pack: the 2.65 kg humanoid pack only suits a heavy-lift airframe.
-
-*The same street rules.* Mapping needs imagery, so moth's imagery leaves the drone, under the rules of @sec:city: people and cars are removed on the drone before anything is written to storage, pictures are released delayed, and nothing links a person, car or device across frames, places or days. A camera over a residential street is what people fear most, so moth's filter gets its own published test: how often a person or plate survives it, measured on held-out street footage.
-
-Nothing of moth is built. Its airframe, pack and mass budget are not designed, and whether one \~150 g kore fits its mass budget is open.
+moth is also the cheapest check that the standards of @sec:power are body-agnostic: a one-kore body on the same bus, running the same Ipse seams, with a lighter pack of its own. Its imagery follows the street rules above, and because a camera over a residential street is what people fear most, its filter gets its own published test: how often a person or plate survives it. Nothing of moth is built.
 
 *Gate.* The litter pilot renews for ≥ 12 months after a ≥ 3-month trial, with 0 contact incidents. A city renews fleet and twin for ≥ 12 months. ≥ 90% of fleet repairs done by duets in the city, by receipts (@tab:arc).
 
 = Home <sec:planet>
 
-*Lineages on their own power.* Lineages of duets spread to many cities and run on power they collected, from panels they made. The bought fraction approaches zero everywhere except chips, and every division is licensed (@sec:replication). The headline numbers become electrons under management and doubling time (@sec:eum): how long a lineage takes to double what it can build and power.
+*Lineages on their own power.* Lineages of duets spread to many cities and run on power they collected, from panels they made. The bought fraction approaches zero everywhere except chips, and every division is licensed (@sec:replication).
 
-*Gate.* A lineage runs ≥ 1 year on collectors it made; doubling time measured over ≥ 3 generations; bought share ≤ 5% of cost (@tab:arc).
+*Why it matters.* Home is the first stage where growth is set by energy and material rather than by people. Until here, every machine still passes through a factory someone else runs. Here a lineage's doubling time becomes the one number that sets how fast the rest of the plan can go (@sec:eum).
+
+*What is hard.* Making collectors from raw material, not bought panels: solar cells need refined silicon, which today means a fab. Keeping the bought share falling while the bought parts that remain (chips, magnets, bearings) get harder to make. And licensing every division at the scale of many cities, without the license becoming the bottleneck.
 
 #mathfig(
   [$ C = b thin C_"bought" + (1 - b) thin C_"made", quad b -> 0 $],
@@ -2332,18 +2225,41 @@ Nothing of moth is built. Its airframe, pack and mass budget are not designed, a
   [#lead[The bought fraction.] Each generation makes more of itself, so the bought share $b$ falls and cost tends to $C_"made"$: energy and time. Home's gate is $b <= 5%$. Illustrative.],
 ) <fig:eq-bought>
 
+*What it builds on.* City's fleets and the duets that keep them, and the doubling time first measured in Shop. The first collector a lineage makes from raw material is Home's opening milestone and the Star's first step (@sec:sun).
+
+*What we learn.* A real doubling time, measured over generations from receipts, and the true bought fraction of a machine that makes machines.
+
+*Gate.* A lineage runs ≥ 1 year on collectors it made; doubling time measured over ≥ 3 generations; bought share ≤ 5% of cost (@tab:arc).
+
+
 
 = Moon <sec:moon>
 
-*A seed grows a duet, with a lifeline.* The Moon comes first because it is about three days away and 1.3 light-seconds out. A seed there runs the Shop loop with remote approval and teleoperated help when something breaks. It meets vacuum, abrasive dust, regolith as stock and no supply chain, with a lifeline. Its central measure is the same as Shop's: the bought fraction.
+*A seed grows a duet, with a lifeline.* A seed is the smallest thing that can grow a duet: one duet, a mill and a router, a collector and a pack, the design in its germ line, and enough bought parts for a few generations. On the Moon it runs the Shop loop with remote approval and teleoperated help when something breaks.
 
-The seed is the smallest thing that can grow a duet: one duet, a mill and a router, a collector and a pack, the design in its germ line, and enough bought parts for a few generations. Before it flies, each of its hard problems gets a measured gap on Earth: vacuum and thermal cycling, abrasive dust in simulant, and radiation on a kore. A single lymb flown as a hosted payload would be the first number off Earth.
+*Why the Moon first.* It is about three days away and 1.3 light-seconds out, close enough for a lifeline: a person can approve, watch and help in near real time. It is the cheapest place to learn what changes when the supply chain is gone.
+
+*What is hard.* The lunar night lasts about two weeks, so power must be stored or the seed must sleep. Dust is abrasive and clings to everything. Vacuum removes convection, so every kore and motor cools by conduction alone. Regolith is stock, but it is mostly oxides of silicon, iron, aluminum, calcium and magnesium, and turning it into metal and glass is a process we have never run. And every kilogram of the seed is paid for at launch.
+
+*What it builds on.* The seed is Shop's duet in a box, and its tests are Shop's receipts. What changes is the stock, regolith instead of bar and sheet, and the help, a person 1.3 light-seconds away instead of across the room.
+
+*What we learn.* The bought fraction off Earth, and how often a seed needs a human hand. Before it flies, each hard problem gets a measured gap on Earth: vacuum and thermal cycling, abrasive dust in simulant, and radiation on a kore. A single lymb flown as a hosted payload would be the first number off Earth.
 
 *Gate.* A seed builds a duet that passes the Earth receipts, ≥ 50% of its mass from local material, with remote approval only (@tab:arc).
 
 = Mars <sec:mars>
 
-*The same seed, lifeline cut.* Mars is about seven months away and 3–22 light-minutes out, too far for remote hands, so the duet runs with no human commands between landing and its receipt. Moon and Mars add problems Shop never meets (launch mass, radiation, thermal cycling, extracting metal from regolith), and the Earth tests of @sec:moon only begin on them. Mars is where machines go first, so that people can follow: by the time a person lands, duets will have built shelter, collectors and the means to make more of themselves (@sec:war).
+*The same seed, lifeline cut.* A seed lands on Mars and runs with no human commands between landing and its receipt.
+
+*Why Mars.* It is the plainest second home for life, and machines go first so that people can follow: by the time a person lands, duets will have built shelter, collectors and the means to make more of themselves (@sec:war). It has what the Moon lacks: water ice in the ground and a carbon dioxide atmosphere, the raw stock for fuel and oxygen.
+
+*What is hard.* Distance. Mars is about seven months away and 3–22 light-minutes out (@fig:eq-light), too far for remote hands, so every judgment the Moon left to a person must be the seed's own. Launch windows open about every 26 months, so a failure costs two years. Sunlight is about 43% of Earth's, and dust storms can cover the planet for weeks. Moon and Mars add problems Shop never meets, launch mass, radiation, thermal cycling and metal from regolith, and the Earth tests of @sec:moon only begin on them.
+
+*What it builds on.* Everything the Moon measured: the seed, its receipts, and how often it needed a person. Mars is the test of whether that number can reach zero.
+
+*What it does not attempt.* People. A crew needs air, water, shelter and power that the seed's machines must already be making; the plan's work ends where a person's can begin.
+
+*What we learn.* Whether the loop closes with no person in it: a machine that builds the next machine, with no one to ask.
 
 #mathfig(
   [$ t = d / c approx (0.55 "–" 4.0 times 10^8 "km") / (3.0 times 10^5 "km/s") $ #v(0.3em) $ approx 3 "–" 22 "min" $],
@@ -2375,13 +2291,17 @@ The seed is the smallest thing that can grow a duet: one duet, a mill and a rout
 
 = Star <sec:sun>
 
-*A swarm of collectors.* Each one is built by a duet. Not a shell: a rigid shell around a star is mechanically impossible, and a swarm can be built one collector at a time @dyson1960search. The steps, in order:
+*A swarm of collectors.* Each one is built by a duet. Not a shell: a rigid shell around a star is mechanically impossible, and a swarm can be built one collector at a time @dyson1960search.
+
+*Why it matters.* A star is the largest source of free energy within reach. Kardashev's Type II is a civilization that uses its star's output (@sec:kardashev); this is how one would get there without mining a planet's energy or anyone else's. The steps, in order:
 
 + *Collectors on Earth.* Home's milestone, a lineage running on panels it made, is the first collector.
 + *Collectors from regolith.* On the Moon, duets make collectors from local silicon, aluminum and iron.
 + *Collectors in orbit.* Duets launch what they make, from a shallow gravity well.
 + *Mercury as the quarry.* Sunlight there is about 6.7 times stronger than at Earth (about 9,100 W/m² against 1,361 W/m²), and the planet is rich in metal. The classic swarm proposals start there @armstrong2013eternity.
 + *The swarm.* Collectors power duets, and duets build collectors.
+
+*What is hard.* Mass and time. A swarm that catches a real fraction of the sun's output needs material on the scale of a planet; Mercury, about 3.3 × 10#super[23] kg, is the usual quarry @armstrong2013eternity. Collectors close to the sun must shed heat as fast as they catch light. And growth at that scale is replication at that scale, under the limits of @sec:replication, which must hold for every collector, not most of them.
 
 *Where the energy goes.* Power is used where it is collected. Most of it builds more collectors and duets; the rest runs computation, including the minds that operate the swarm. We do not plan to beam power to Earth. What returns to Earth is products, data and knowledge, not energy.
 
@@ -2594,6 +2514,70 @@ Every stage closes on gates of the same form: a number, a unit, a method and a p
   caption: [#lead[Gates, stage by stage] @mr2026masterplan. *Proposed targets, to be confirmed by the author.* The year range for Desk is an aspiration, not a commitment.],
 ) <tab:arc>
 
+
+= kyte numbers <app:kyte>
+
+A frog coding task makes about 40 model calls at about 20,000 tokens of context each: roughly 800,000 tokens in and 30,000 out, counting thinking. frog's own logs show that 79% of what goes in is reusable cache, which pinned sessions turn into about 4.8 times less prefill; drafting from a session's own history decodes 1.5–2.2 times faster (estimates from frog sessions @frog2026roadmap). What one task costs depends on who runs the model (@tab:kyte).
+#figure(
+  ptable(
+    columns: (auto, 1fr, auto),
+    align: (left + top, left + top, right + top),
+    table.header([*Route*], [*Price*], [*Cost per task*]),
+    [DeepSeek V4 Flash API], [\$0.14 per million tokens in, \$0.003 cached, \$0.28 out @morph2026coding], [≈ \$0.03],
+    [Qwen3-Coder-Next API], [\$0.11 in, \$0.80 out @therouter2026qwen], [≈ \$0.11],
+    [One rented H200 running tang, 30% busy], [≈ \$3.50 an hour @devto2026gpu; ≈ 20 GPU-seconds a task, batched], [≈ \$0.06],
+    [Frontier models], [what developers compare against], [≈ \$1–3],
+  ),
+  caption: [#lead[What one frog task costs] (estimates, October 2026). Prices are list or index prices and move monthly; the per-task figures are our arithmetic on the workload above.],
+) <tab:kyte>
+
+
+= Lymb numbers <app:lymb>
+
+#figure(
+  table(
+    columns: 3,
+    align: (left + top, left + top, left + top),
+    table.header([*Parameter*], [*Value*], [*Source / state*]),
+    [Degrees of freedom], [6 + gripper], [@rose2026forkv9],
+    [Base yaw, shoulder, elbow], [RobStride RS04 × 3], [Peak 120 N·m],
+    [Forearm roll, wrist pitch], [RobStride RS02 × 2], [Roll as a cartridge],
+    [Tool roll], [RobStride RS00 cartridge], [],
+    [Tool flange], [Ø61, 6 × M3 on Ø27], [Matches gripper v2],
+    [Foot], [Ø230, 1/4" 5052, 4 × Ø6.6 on Ø190], [M6 to the duet plate],
+    [Plate stock], [1/8" (3.175 mm) 5052], [Three 15 × 15 in sheets of 1/8"; one 1/4" sheet for the foot],
+    [Router parts], [20 unique], [DXF + nests generated],
+    [Jaw tips from shoulder], [731 mm (786 with gripper v2)], [Modeled],
+    [Mass], [8.21 kg (arm-model jaws)], [Modeled],
+    [Mass with gripper v2 + harness], [8.44 kg], [Modeled: arm plus gripper @mr2026gripper],
+    [Continuous hold, straight out], [1.49 kg (arm-model jaws)], [Modeled; RS04 stall derated (estimate)],
+    [Continuous hold, gripper v2], [1.27 kg (shoulder-limited)], [Modeled; RS04 stall derated (estimate)],
+    [Sag / twist at flange], [0.13 / 0.11 mm], [Modeled],
+    [Elbow / wrist range], [−120 to 115° / ±135°], [],
+    [Interference, 209 poses], [None], [Swept in CAD],
+    [Build state], [Ready to cut], [None built yet],
+  ),
+  caption: [#lead[Rose fork v9 specification.] Every number is a model output; none has been measured on a built arm. Arm-model jaws are the simpler tool in the arm's own model, two flat jaw plates on the same EL05, and are lighter than gripper v2.],
+) <tab:arm>
+
+*Open items* (from the arm repository): RS02 thread depths are assumed at 6 mm and must be measured before screws are ordered. The clock-spring cassettes for the roll joints are drawn but not designed. Crush points found by the audit still need a policy, either soft limits or force limiting. And the motors' unpowered "anti-backdrive" damping is undocumented at the slow speed of a falling arm. It will be tested on the rig @robstride2026manual.
+
+#figure(
+  table(
+    columns: 4,
+    align: (left + top, right + top, right + top, left + top),
+    table.header([*Lymb variable*], [*Materials*], [*Materials margin*], [*Note*]),
+    [Base case], [\$2,000], [60%], [\~\$1,200 of it is six RobStride joints],
+    [Actuator cost +25%], [\$2,300], [54%], [Tariffs, currency],
+    [Actuator cost +50%], [\$2,600], [48%], [Supply shock],
+    [rana at \$100/joint (target)], [\$1,400], [\~72%], [Speculative],
+    [rana at \$1,086/joint (today's prototype @rana2026bom)], [\~\$7,300], [about −46%], [Materials exceed list],
+    [Labor, test and warranty before margin reaches zero], [\~\$3,000/lymb], [0%], [List minus materials],
+  ),
+  caption: [#lead[Lymb margin sensitivity and break-even] (estimate, from the figures above). A lymb's economics are mostly the actuator's economics.],
+) <tab:sens>
+
+
 = Gripper numbers <app:grip>
 
 #figure(
@@ -2629,6 +2613,17 @@ Every stage closes on gates of the same form: a number, a unit, a method and a p
   caption: [#lead[Gripper v2 mass budget] (target ≤ 500 g) @mr2026gripper. The optional ISO 9409 adapter adds 52 g.],
 ) <tab:gripmass>
 
+#figure(
+  table(
+    columns: 4,
+    align: (left + top, right + top, right + top, right + top),
+    table.header([*Case*], [*Torque*], [*Squeeze / finger*], [*Max lift*]),
+    [Rated], [1.8 N·m], [112.5 N], [5.7 kg],
+    [Peak (do not hold)], [6 N·m], [375 N], [19.1 kg],
+  ),
+  caption: [#lead[Gripper force at rated and peak torque.] μ = 0.5, two faces, safety factor 2, rack friction ignored; with an assumed 0.8 rack efficiency, scale by 0.8 (estimate). Max lift is the gripper's alone. The arm holds 1.27 kg straight out (modeled), so the arm, not the gripper, sets payload @mr2026gripper],
+) <tab:grip>
+
 = Bill of materials <app:bom>
 
 #figure(
@@ -2642,10 +2637,10 @@ Every stage closes on gates of the same form: a number, a unit, a method and a p
     [Turned parts], [2 RS04 sleeves, 1 RS02 sleeve (6061)], [–],
     [Purchased], [3 flanged plain bushings, 3 retaining rings, 88 screws], [–],
     [Printed], [3 hub caps, base collar (PETG)], [–],
-    [Harness], [Flat CAN duet + 48 V duet, 2.1 m; palm-camera USB 2.0 duet in the same run @mr2026gripper], [–],
+    [Harness], [Flat CAN pair + 48 V pair, 2.1 m; palm-camera USB 2.0 pair in the same run @mr2026gripper], [–],
     [*Arm total*], [], [*\~\$2,000 (est.)*],
   ),
-  caption: [#lead[Arm bill of materials summary] @rose2026forkv9 @mr2026masterplan. Arm materials \~\$2,000 (est.), of which \~\$1,200 is actuators; other lines are not yet broken out. The arm-repo BOM lists the gripper servo generically; the EL05 choice is from the gripper v2 design. The USB duet must stay within USB 2.0’s \~1.5–2 m; at the full 2.1 m harness length this is open.],
+  caption: [#lead[Arm bill of materials summary] @rose2026forkv9 @mr2026masterplan. Arm materials \~\$2,000 (est.), of which \~\$1,200 is actuators; other lines are not yet broken out. The arm-repo BOM lists the gripper servo generically; the EL05 choice is from the gripper v2 design. The USB pair must stay within USB 2.0’s \~1.5–2 m; at the full 2.1 m harness length this is open.],
 ) <tab:bomarm>
 
 #figure(
