@@ -218,10 +218,5 @@ main { padding-top: 3.5rem; }
 /* ── one frame ───────────────────────────────────────────── */
 .home-one { height: 100vh; overflow: hidden; }
 .home-one .post-cover { margin: 0; min-height: 100vh; }
-.home-pitch { margin: 1.1rem 0 0; max-width: 32rem; font-size: 1.05rem; line-height: 1.5; color: var(--p-text); }
-.home-pitch .n-mind { color: #ff5f00; }
 .home-btn.is-quiet { border: 1px solid var(--p-line-hi); color: var(--p-text); }
 .home-btn.is-quiet:hover { border-color: var(--p-sel); }
-.home-small { display: flex; flex-wrap: wrap; gap: 1.4rem; margin-top: 1.6rem; font-family: var(--p-mono); font-size: 0.68rem; letter-spacing: 0.1em; text-transform: uppercase; }
-.home-small a { color: var(--p-label); text-decoration: none; }
-.home-small a:hover { color: var(--p-sel); }
