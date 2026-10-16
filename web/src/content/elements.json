@@ -45,7 +45,7 @@
       "name": "tang",
       "family": "make",
       "maturity": "exists",
-      "note": "math, autodiff, one GPU",
+      "note": "math, inference, one GPU",
       "stage": "desk"
     },
     {
@@ -197,7 +197,7 @@
       "name": "frog",
       "family": "mind",
       "maturity": "exists",
-      "note": "coding agent for local models",
+      "note": "free coding agent; tang gateway",
       "stage": "desk"
     },
     {

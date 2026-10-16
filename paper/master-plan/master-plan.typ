@@ -45,7 +45,7 @@
 // (number, name, family, maturity, note, first stage that needs it)
 #let elements = (
   (1, "loon", "make", "exists", "source for parts, worlds, chips", "desk"),
-  (2, "tang", "make", "exists", "math, autodiff, one GPU", "desk"),
+  (2, "tang", "make", "exists", "math, inference, one GPU", "desk"),
   (3, "vcad", "make", "exists", "CAD kernel with gradients", "desk"),
   (4, "kerf", "make", "exists", "design to part, with a receipt", "desk"),
   (5, "wodl", "world", "concept", "world format", "shop"),
@@ -64,7 +64,7 @@
   (18, "core", "power", "concept", "one compute module", "road"),
   (19, "nerv", "power", "concept", "bus, hub and BMS boards", "road"),
   (20, "Ipse", "mind", "exists", "developmental mind", "road"),
-  (21, "frog", "mind", "exists", "coding agent for local models", "desk"),
+  (21, "frog", "mind", "exists", "free coding agent; tang gateway", "desk"),
   (22, "loom", "silicon", "concept", "hardware description", "home"),
   (23, "rune", "silicon", "concept", "maskless lithography", "home"),
   (24, "chyp", "silicon", "concept", "inference chip", "home"),
@@ -547,9 +547,11 @@
 
   Robots are expensive because people make them. Our prototype actuator is estimated at \$1,086 to have built; about two thirds of that is outsourced machining, on perhaps \$60–90 of metal. A machine that makes more of itself attacks that markup. A design process that measures every unit's sim-to-real gap, and feeds it back into the design as a gradient, attacks the rest.
 
-  The plan is built from one part. A limb is a six-axis arm on purchased actuators (\$5,000 list), designed and ready to cut. Two limbs at any table make a pair (\$12,000, target) that can fold laundry or build the next limb; Rose, our humanoid, is a pair on legs. One stack of our own carries it, from a source language for parts to a physics engine that can be differentiated through contact. Its key result, so far in simulation only: a humanoid's inertial parameters recovered from ±20% error to machine precision.
+  It starts with software. frog, our coding agent for local models, is free. When a task needs more than a local model, frog's default is our tang gateway, and the gateway is what we sell. Its revenue funds the arm.
 
-  Eight stages climb from there, each a step up in scale and each built by the one before: Desk, Shop, Road, City, Home, Moon, Mars and Star. Only Desk is a plan, with exact gates: ten limbs sold at 40% gross margin, each under 2 mm RMS tool-point error. The rest are goals, and they are the point. Progress is one number, electrons under management: the power drawn by machines we built, in service. Today it is zero watts. Every number here is cited, or labeled as an estimate or a model output.
+  The hardware is built from one part. A limb is a six-axis arm on purchased actuators (\$5,000 list), designed and ready to cut. Two limbs at any table make a pair (\$12,000, target) that can fold laundry or build the next limb; Rose, our humanoid, is a pair on legs. One stack of our own carries it, from a source language for parts to a physics engine that can be differentiated through contact. Its key result, so far in simulation only: a humanoid's inertial parameters recovered from ±20% error to machine precision.
+
+  Eight stages climb from there, each a step up in scale and each built by the one before: Desk, Shop, Road, City, Home, Moon, Mars and Star. Only Desk is a plan, with exact gates: gateway revenue that funds the arm, then ten limbs sold at 40% gross margin, each under 2 mm RMS tool-point error. The rest are goals, and they are the point. Progress is one number, electrons under management: the power drawn by machines we built, in service. Today it is zero watts. Every number here is cited, or labeled as an estimate or a model output.
 ]
 #if web {
   html.elem("section", attrs: (class: "abstract", id: "abstract"), {
@@ -1314,7 +1316,7 @@ The plan climbs in eight stages, each a step up in scale and each built by the o
     columns: (auto, 1fr, 1fr, 1fr),
     align: (left + top, left + top, left + top, left + top),
     table.header([*Stage*], [*Delivers*], [*Pays forward*], [*Gate, in short*]),
-    [Desk], [Arms, sold one at a time], [Revenue; the first measured gaps; duty cycles that size rana], [≥ 10 at ≥ 40% margin; ≤ 2 mm RMS each],
+    [Desk], [frog and the gateway; arms, sold one at a time], [Revenue that funds the arm; the first measured gaps; duty cycles that size rana], [Gateway revenue funds the arm; ≥ 10 limbs at ≥ 40% margin; ≤ 2 mm RMS each],
     [Shop], [Two limbs that work at any table, and build limbs], [Useful work; a falling bought fraction; a doubling time], [A task at 95%; a pair builds a pair],
     [Road], [A pair on legs that fits its own model], [Mobility; a gradient from the gap to the design], [Schema fit beats persistence by 20%],
     [City], [A city's fleet and its twin], [Contracts; real duty at scale; a world to train in], [A city renews for ≥ 12 months],
@@ -1718,10 +1720,12 @@ Every board design is open. Printed-circuit fabrication and assembly stay bought
 #if not web { pagebreak(weak: true) }
 == Tools <sec:tools>
 
-A humanoid's tools are bus devices. A drill or a blower in a robot's hand takes power and commands through a coupler at the wrist, 48 V and CAN-FD, and carries no battery of its own. Away from a robot, or for a person, a tool takes a *brick*: half a pack. The pack's 13S2P is two 13S1P strings, so a brick is 13 cells, 46.8 V, 234 Wh and about 1.3 kg (estimate). It needs no new voltage, cell, charger or dock: two bricks clip together into a pack, and a pack comes apart into two bricks.
+A tool goes where the gripper goes: on a *tool changer* at the wrist. Two datum pins locate it and a quarter-turn ring locks it. One face carries four contacts, 48 V and return and the two CAN-FD lines, and a short enable pin that mates last, so a tool stays dead until it is fully seated: the same rule as the pack's connector (@sec:power). A tool is a bus device with no trigger and no battery of its own. The robot commands it over CAN, and it reports back what it did. Tools wait in a passive rack, and a humanoid changes them the way it swaps packs, in about a minute.
+
+Away from a robot, or in a person's hand, a tool takes a *brick*: half a pack. The pack's 13S2P is two 13S1P strings, so a brick is 13 cells, 46.8 V, 234 Wh and about 1.3 kg (estimate). It needs no new voltage, cell, charger or dock: two bricks clip together into a pack, and a pack comes apart into two bricks.
 
 #figure(
-  align(center, cetz.canvas(length: 1cm, {
+  align(center, cetz.canvas(length: 0.85cm, {
     import cetz.draw: *
     let amber = fam.power.color
     // the pack comes apart into two bricks
@@ -1739,12 +1743,19 @@ A humanoid's tools are bus devices. A drill or a blower in a robot's hand takes 
     // the wrist coupler: one bus
     let cx = 6.6
     rect((cx - 0.55, -0.3), (cx + 0.55, 0.9), fill: c-surface, stroke: 0.8pt + fam.body.color)
-    content((cx, 1.1), anchor: "south", text(font: mono-m, size: 6.3pt, fill: c-label, tracking: track, upper[wrist coupler]))
+    content((cx, 1.1), anchor: "south", text(font: mono-m, size: 6.3pt, fill: c-label, tracking: track, upper[tool changer]))
     for (y, t) in ((0.55, [48 V]), (0.05, [CAN-FD])) { content((cx, y), text(font: mono-m, size: 6.3pt, fill: c-text, t)) }
     line((4.2, -0.55), (cx - 0.6, 0.1), stroke: (paint: c-line-hi, thickness: 0.6pt, dash: (2pt, 2pt)))
     content((5.3, -1.05), anchor: "north", text(font: sans, size: 6.5pt, fill: c-label)[or a brick, away from a robot])
     // the tools
-    let tx = 9.6
+    // the grabber: a tube with jaws at its tip
+    let gx = 8.4
+    line((gx, 0.62), (gx + 2.3, 0.62), stroke: (paint: c-text, thickness: 3pt, cap: "round"))
+    line((gx + 2.3, 0.62), (gx + 2.75, 0.9), stroke: 1.2pt + c-text)
+    line((gx + 2.3, 0.62), (gx + 2.75, 0.34), stroke: 1.2pt + c-text)
+    rect((gx - 0.25, 0.42), (gx + 0.05, 0.82), fill: c-raised, stroke: 0.7pt + c-text)
+    content((gx + 1.3, -0.7), anchor: "north", box(align(center, { text(font: sans-sb, size: 8pt, fill: c-text)[grabber]; linebreak(); text(font: sans, size: 6.5pt, fill: c-label)[first, on the K1] })))
+    let tx = 12.0
     // drill: body, handle, chuck
     rect((tx, 0.4), (tx + 1.5, 0.85), fill: c-surface, stroke: 0.8pt + c-text, radius: 0.08)
     rect((tx + 1.5, 0.5), (tx + 1.85, 0.75), fill: c-raised, stroke: 0.7pt + c-text)
@@ -1752,18 +1763,22 @@ A humanoid's tools are bus devices. A drill or a blower in a robot's hand takes 
     line((tx + 0.35, 0.4), (tx + 0.55, -0.45), (tx + 0.9, -0.45), (tx + 0.8, 0.4), close: true, fill: c-surface, stroke: 0.8pt + c-text)
     content((tx + 1.2, -0.7), anchor: "north", box(align(center, { text(font: sans-sb, size: 8pt, fill: c-text)[drill/driver]; linebreak(); text(font: sans, size: 6.5pt, fill: c-label)[torc clutch, every torque logged] })))
     // blower: body and tube
-    let bx = 13.6
+    let bx = 15.8
     circle((bx, 0.35), radius: 0.5, fill: c-surface, stroke: 0.8pt + c-text)
     line((bx + 0.35, 0.1), (bx + 2.4, -0.35), stroke: (paint: c-text, thickness: 4pt, cap: "round"))
     line((bx + 0.35, 0.1), (bx + 2.4, -0.35), stroke: (paint: c-surface, thickness: 2.4pt, cap: "round"))
     line((bx - 0.1, 0.85), (bx + 0.35, 1.05), (bx + 0.7, 0.75), stroke: 1pt + c-text)
     content((bx + 1.0, -0.7), anchor: "north", box(align(center, { text(font: sans-sb, size: 8pt, fill: c-text)[leaf blower]; linebreak(); text(font: sans, size: 6.5pt, fill: c-label)[≈ 14 min a brick, 28 a pack] })))
-    line((cx + 0.6, 0.3), (tx - 0.2, 0.6), stroke: 0.8pt + c-sel, mark: (end: ">", fill: c-sel, size: 0.12))
+    line((cx + 0.6, 0.3), (gx - 0.35, 0.6), stroke: 0.8pt + c-sel, mark: (end: ">", fill: c-sel, size: 0.12))
   })),
-  caption: [#lead[One voltage, cell to tool.] A pack comes apart into two bricks; a tool runs from a robot's wrist on the bus, or from a brick on its own. Illustrative; neither tool is designed, and the blower's draw is an estimate.],
+  caption: [#lead[One voltage, cell to tool.] A pack comes apart into two bricks. A tool runs from a robot's tool changer on the bus, or from a brick on its own. Illustrative: no tool is designed, and the blower's draw is an estimate.],
 ) <fig:tools>
 
-Two tools come first. A *drill/driver* uses a brushless motor run by torc, so its clutch is software: every screw is driven to a torque, and the torque is logged with the unit it went into. A *leaf blower* is the first street tool, for Road and City work; 48 V is already where the strongest cordless blowers sit. At about 1 kW (estimate), a blower runs about 14 minutes on a brick and 28 on a pack, and a humanoid swaps either in about a minute (@sec:power).
+Three tools come first, in this order.
+
++ *The grabber.* The litter reacher of @sec:city is the first tool: a \~450 mm tube with gripper v2 jaws, driven by an EL05 through a pushrod. The K1 is its testbed. The K1's wrist mount, an adapter plate carrying the changer's face, is the first changer we build, and the reacher's open checks (@sec:city) are the changer's first tests.
++ *The drill/driver.* A brushless motor run by torc, through a two-speed planetary, so its clutch is software: every screw is driven to a torque, and the torque is logged with the unit it went into. A pair that assembles a limb leaves a record of every fastener in it. The reaction torque goes into the arm, so a drill's limit is the wrist's rating, checked before each run.
++ *The leaf blower.* The first street tool, for Road and City work; 48 V is already where the strongest cordless blowers sit. At about 1 kW (estimate) it runs about 14 minutes on a brick and 28 on a pack.
 
 
 = Safety <sec:safety>
@@ -1867,8 +1882,6 @@ One number runs through every stage: *electrons under management* (EUM), in watt
   caption: [#lead[The arc.] Eight stages, each a step up in scale; one loop, one number. Each stage contains the one before it, and each removes a person from one more edge of the loop. Watts are electrons under management (@sec:eum), as orders of magnitude, not targets @mr2026masterplan.],
 ) <fig:arc>
 
-*Definition.* EUM is the mean electrical input power, over a trailing 30-day window, of every machine in service that we designed and built, measured at each machine's main power input (a DC-bus shunt or a metered AC outlet) and logged at ≥ 1 Hz. "In service" means doing work for someone other than its maker. Machines we did not build but that run our stack, such as the K1 or a bought mill, are reported beside it as *electrons under control*, never added to the headline.
-
 #mathfig(
   [$ "EUM" = 1/T sum_m integral_0^T V_m (t) I_m (t) dif t $],
   cetz.canvas(length: 1.3cm, {
@@ -1885,6 +1898,9 @@ One number runs through every stage: *electrons under management* (EUM), in watt
   [#lead[Electrons under management.] Power $V_m I_m$ at the input of every machine $m$ we built that is in service, averaged over a trailing window $T$ of 30 days.],
 ) <fig:eq-eum>
 
+*Definition.* EUM is the mean electrical input power, over a trailing 30-day window, of every machine in service that we designed and built, measured at each machine's main power input (a DC-bus shunt or a metered AC outlet) and logged at ≥ 1 Hz. "In service" means doing work for someone other than its maker. Machines we did not build but that run our stack, such as the K1 or a bought mill, are reported beside it as *electrons under control*, never added to the headline.
+
+
 *Baseline, October 2026.*
 
 
@@ -1900,8 +1916,9 @@ The second headline number is the time a lineage of pairs takes to double what i
 
 = Desk <sec:arm>
 
-*An arm that ships with its gap.* Desk has two steps over roughly three years. Each closes on an exact gate (@tab:arc).
+*Software first, then an arm that ships with its gap.* Desk has three steps over roughly three years. Each closes on an exact gate (@tab:arc).
 
++ *Software that pays for the arm.* frog, our coding agent for local models, is free and stays free. When a task needs more than a local model, frog's default is the tang gateway: hosted inference on tang that keeps each session's cache warm, drafts ahead, and hands a session from local to cloud without re-sending it, priced per finished task rather than per token. The gateway is what we sell, and its revenue funds the limb. frog runs today; the gateway does not exist yet.
 + *An arm worth buying.* Build it on RobStride actuators. The actuator is a commodity. Our edge is everything around it: geometry checked against real loads, a measured model of every unit, a controller trained against that model, and a stated sim-to-real gap on every limb.
 + *Own the actuator, where it wins.* Desk revenue funds rana and torc. A purchased joint is replaced only where rana wins on a measured metric. Dropping rana is a valid outcome, not a failure.
 
@@ -2155,7 +2172,7 @@ How the K1 picks up litter is not settled. The current concept, under design, is
 
 The concept has four open checks, none done yet:
 
-- *A K1 wrist mount* for the reacher tube, which does not exist yet.
+- *A K1 wrist mount:* the tool changer's adapter plate for the K1 (@sec:tools), which does not exist yet.
 - *A K1 arm load check:* 0.6 kg held 50 cm out from the wrist, against the K1 arm's joint ratings.
 - *A grasp set:* the litter the reacher must pick (cans, bottles, wrappers, cups), with a success rate per item.
 - *Behavior around people:* yield, stop, and never reach toward a person.
@@ -2323,6 +2340,8 @@ Most of what this paper describes is *proposed*, not operational. @tab:status se
     [Booster K1], pips(3), [Bought @booster2025k1],
     [CNC mill], pips(3), [Bought],
     [Software stack], pips(3), [In use, not finished (@fig:elements)],
+    [frog], pips(3), [In use; free],
+    [tang gateway], pips(0), [Not built],
     table.cell(colspan: 3, inset: (top: 9pt, bottom: 3pt, x: 6pt), stroke: none, text(font: mono-m, size: s-xs, fill: c-label, tracking: track)[DESIGNED]),
     [Limb full (fork v9)], pips(2), [Ready to cut @rose2026forkv9],
     [Gripper v2], pips(2), [CAD and force model @mr2026gripper],
@@ -2479,7 +2498,7 @@ Every stage closes on gates of the same form: a number, a unit, a method and a p
     columns: (auto, 2fr, auto),
     align: (left + top, left + top, left + top),
     table.header([*Stage*], [*Gate: number, method, pass condition*], [*EUM, order*]),
-    [Desk (yrs 1–3)], [≥ 10 limbs sold to outside buyers at ≥ 40% gross margin, after materials, labor, test and warranty (invoices, trailing 12 months). Tool-point error ≤ 2.0 mm RMS on every limb shipped: 50 fixed poses, unloaded and at 1.0 kg, probe against a calibrated plate, printed on its receipt. rana ≥ 1.2 × RS04 in continuous stall torque per kg or per dollar, on one dyno at 25 °C, or rana is dropped], [0 W → 10 kW],
+    [Desk (yrs 1–3)], [Gateway revenue ≥ \$10,000 a month for 3 months running, with no outside money (proposed). ≥ 10 limbs sold to outside buyers at ≥ 40% gross margin, after materials, labor, test and warranty (invoices, trailing 12 months). Tool-point error ≤ 2.0 mm RMS on every limb shipped: 50 fixed poses, unloaded and at 1.0 kg, probe against a calibrated plate, printed on its receipt. rana ≥ 1.2 × RS04 in continuous stall torque per kg or per dollar, on one dyno at 25 °C, or rana is dropped], [0 W → 10 kW],
     [Shop], [A pair at a customer's table completes a named task (for example, folding 50 garments) at ≥ 95% success. A pair assembles a limb that passes the Desk test in ≤ 30 min of human touch time. A pair builds a pair that passes its receipts at ≤ 20% bought cost, with bought share falling over 3 generations and a commanded shutdown drill passed in each], [100 kW],
     [Road], [Preregistered hardware body-schema fit: held-out joint-position error ≤ 0.8 × persistence at 0.1 s and 0.5 s, and fitted link masses within ±5% of weighed parts. Rose walks 100 m on level pavement carrying two limbs, 0 falls in 5 of 5. A gradient co-designed part beats its hand-designed predecessor by ≥ 10% on its named objective], [1 MW],
     [City], [The litter pilot renews for ≥ 12 months after a ≥ 3-month trial, with 0 contact incidents. A city renews fleet and twin for ≥ 12 months. ≥ 90% of fleet repairs done by pairs in the city, by receipts], [10 MW],

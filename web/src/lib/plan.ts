@@ -64,7 +64,7 @@ export interface Stage {
 
 /** The eight stages, each a step up in scale and each built by the one before. Only Desk is a plan. */
 export const stages: Stage[] = [
-  { name: "Desk", what: "An arm that ships with its gap", watts: "0 W → 10 kW" },
+  { name: "Desk", what: "Software that funds an arm that ships with its gap", watts: "0 W → 10 kW" },
   { name: "Shop", what: "Two limbs at any table; a pair builds a pair", watts: "100 kW" },
   { name: "Road", what: "A pair on legs that fits its own model", watts: "1 MW" },
   { name: "City", what: "A fleet and its pairs work a city", watts: "10 MW" },
@@ -74,4 +74,5 @@ export const stages: Stage[] = [
   { name: "Star", what: "A swarm of collectors around a star", watts: "3.8 × 10²⁶ W" },
 ];
 
-export const deskGate = "Ten limbs sold at 40% gross margin, each with its tool-point error ε̄ measured and under 2 mm.";
+export const deskGate =
+  "First, gateway revenue that pays for the arm. Then ten limbs sold at 40% gross margin, each with its tool-point error ε̄ measured and under 2 mm.";
