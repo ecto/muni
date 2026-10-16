@@ -59,18 +59,18 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* the limb: reserve */}
+        {/* the lymb: reserve */}
         <section className="tile tile-limb">
           <div className="tile-copy is-center">
-            <h2 className="tile-name is-body">limb</h2>
+            <h2 className="tile-name is-body">lymb</h2>
             <p className="tile-line">An arm that ships with its gap.</p>
             <p className="tile-sub">Six axes. Every unit measured against its own model, and the error printed on its receipt. $5,000.</p>
             <div className="tile-links">
-              <a className="home-btn is-primary" href={mail("Reserve one of the first ten limbs")}>Reserve one of the first ten</a>
+              <a className="home-btn is-primary" href={mail("Reserve one of the first ten lymbs")}>Reserve one of the first ten</a>
               <Link className="tile-more" href="/blog/master-plan">Learn more</Link>
             </div>
           </div>
-          <Image className="tile-img" src="/images/home/limb.png" alt="The limb, Rose fork v9: a six-axis arm" width={927} height={702} priority />
+          <Image className="tile-img" src="/images/home/limb.png" alt="The lymb, Rose fork v9: a six-axis arm" width={927} height={702} priority />
         </section>
 
         {/* what comes next */}
@@ -79,10 +79,10 @@ export default function HomePage() {
             <div className="tile-copy is-center">
               <h2 className="tile-name is-body">pair</h2>
               <p className="tile-line">Two arms. Any table.</p>
-              <p className="tile-sub">Folds laundry, tends a machine, builds the next limb. $12,000, target.</p>
+              <p className="tile-sub">Folds laundry, tends a machine, builds the next lymb. $12,000, target.</p>
               <span className="tile-soon">Coming later</span>
             </div>
-            <Image className="tile-img" src="/images/home/pair.png" alt="A pair of limbs at a bench" width={743} height={876} />
+            <Image className="tile-img" src="/images/home/pair.png" alt="A pair of lymbs at a bench" width={743} height={876} />
           </section>
           <section className="tile tile-half">
             <div className="tile-copy is-center">
