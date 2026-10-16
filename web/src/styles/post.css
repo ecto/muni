@@ -49,10 +49,13 @@
 }
 .post-cover-text {
   position: relative;
-  max-width: var(--p-wide);
+  max-width: 44rem;
   margin: 0 auto;
-  padding: 7.5rem 1.25rem 0;
+  padding: 22vh 1.25rem 0; /* centered, and set a little low, over the sun */
+  text-align: center;
 }
+.post-cover-text .post-subtitle { max-width: 34rem; margin-left: auto; margin-right: auto; text-wrap: balance; }
+.post-cover-text .post-byline { justify-content: center; }
 .post-kicker,
 .post .part-label,
 .post .fig-label {
