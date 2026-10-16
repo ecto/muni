@@ -1934,7 +1934,7 @@ kyte earns on a gap in prices. A frog coding task makes about 40 model calls at 
     table.header([*Route*], [*Price*], [*Cost per task*]),
     [DeepSeek V4 Flash API], [\$0.14 per million tokens in, \$0.003 cached, \$0.28 out @morph2026coding], [≈ \$0.03],
     [Qwen3-Coder-Next API], [\$0.11 in, \$0.80 out @therouter2026qwen], [≈ \$0.11],
-    [One rented H200, 30% busy], [≈ \$3.50 an hour @devto2026gpu; ≈ 20 GPU-seconds a task, batched], [≈ \$0.06],
+    [One rented H200 running tang, 30% busy], [≈ \$3.50 an hour @devto2026gpu; ≈ 20 GPU-seconds a task, batched], [≈ \$0.06],
     [Frontier models], [what developers compare against], [≈ \$1–3],
   ),
   caption: [#lead[What one frog task costs] (estimates, October 2026). Prices are list or index prices and move monthly; the per-task figures are our arithmetic on the workload above.],
@@ -1942,13 +1942,13 @@ kyte earns on a gap in prices. A frog coding task makes about 40 model calls at 
 
 So the margin is not in tokens. Open-model APIs already sell close to cost, and we will not undercut them per token. It is in pricing per finished task, against a frontier bill of dollars a task. At \$0.25 a task kyte keeps about 75–85%, and the Desk gate of \$10,000 a month is about 40,000 tasks a month.
 
-tang's edges in kyte are the ones it shares with frog: sessions pinned with their cache kept warm, about 4.8 times less prefill; drafting from the session's own history, 1.5–2.2 times faster decoding @frog2026roadmap; and a warm hand-off from a Mac to kyte without re-sending the session. They make kyte faster and more predictable. They make it cheaper only once tang serves many sessions at once as well as SGLang or vLLM do, and today it does not.
+tang's edges in kyte are the ones it shares with frog: sessions pinned with their cache kept warm, about 4.8 times less prefill; drafting from the session's own history, 1.5–2.2 times faster decoding @frog2026roadmap; and a warm hand-off from a Mac to kyte without re-sending the session. They make kyte faster and more predictable. Owning the engine is where the margin is: no one else's serving layer, kernels tuned to frog's own workload, and every gain in tang landing directly in cost per task. kyte is served by tang alone, so tang has three things to learn first: decoding many sessions at once, cache slots that keep each session warm, and a server backend that reaches full speed on rented NVIDIA GPUs (tang runs through wgpu today, on Metal, Vulkan and DX12).
 
 kyte rents compute in three steps, each opened by demand (@fig:kyte):
 
-+ *Rent nothing.* kyte routes to open-model APIs. A waitlist and the first users measure tasks per user, how often a task needs more than a local model, and whether \$0.25 holds.
-+ *Rent one GPU.* An H200, about \$2,500 a month. On cost alone it pays at about 23,000 tasks a month against Qwen's prices and never against DeepSeek Flash's, so it opens at that volume, or sooner if warm sessions and the hand-off are worth more to users than the difference. It runs SGLang with session-affinity routing and suffix drafting, and one GPU carries kyte past the gate.
-+ *Run tang.* tang replaces SGLang only when it beats SGLang on frog's own tasks. That is where tang becomes a cost advantage.
++ *Rent nothing.* kyte routes to open-model APIs while tang learns to serve. A waitlist and the first users measure tasks per user, how often a task needs more than a local model, and whether \$0.25 holds.
++ *Rent one GPU, running tang.* An H200, about \$2,500 a month, opened when tang serves frog's tasks on it and demand is near the point where it pays. At list API prices that point is about 23,000 tasks a month against Qwen and beyond our range against DeepSeek Flash; every gain in tang's throughput moves it lower. One GPU carries kyte past the gate.
++ *Add GPUs as they fill.* One more H200 each time the last one is about 40% busy, around 45,000 tasks a month each. Each is ours end to end, from the kernels to the bill.
 
 #figure(
   align(center, cetz.canvas(length: 1.1cm, {
@@ -1957,8 +1957,8 @@ kyte rents compute in three steps, each opened by demand (@fig:kyte):
     // ── the three steps, each opened by what is written under its riser
     let steps = (
       ([Rent nothing], [open-model APIs], [\$0 fixed · \$0.03–0.11 a task], [with the waitlist]),
-      ([Rent one H200], [SGLang, warm sessions, drafting], [≈ \$2,500 a month], [at ≥ 23,000 tasks a month, or when warm sessions earn it]),
-      ([Run tang], [tang serves kyte], [same GPU, lower cost a task], [when tang beats SGLang on frog's tasks]),
+      ([Rent one H200], [tang: warm sessions, drafting], [≈ \$2,500 a month], [when tang serves frog's tasks, near ≈ 23,000 a month]),
+      ([Add GPUs], [one H200 per ≈ 45,000 tasks], [≈ \$2,500 a month each], [when the last GPU is about 40% busy]),
     )
     let w = 5.3
     let gap = 0.75
@@ -2014,6 +2014,12 @@ The lymb comes in the same three sizes as Rose. *Lymb mini* is K1 size, for Rose
   caption: [#lead[The arm, Rose fork v9.] Six joints, every plate 1/8" 5052 except the 1/4" foot, every motor mounted by its back face. Render from the arm repository @rose2026forkv9.],
 ) <fig:arm>
 
+
+One arm does three jobs: it is sold on its own, it is half of every duet, and it is an arm of the Rose humanoid. Its design idea is that *every pitch joint is a fork* @rose2026forkv9. The parent link holds the motor's stator between its two side plates. The child straddles the parent, with one plate bolted to the output and the other riding a plain bearing on a hollow sleeve on the joint axis. Parent and child share one centerline, so no joint is offset and there is no offset elbow to twist the arm. Cables pass through the hollow sleeves, so they only twist and never loop outside the arm. The name comes from where the design lives. Rose fork v9 is the ninth revision of the fork concept, drawn in the Rose humanoid repository as a table arm that is also Rose's arm @rose2026forkv9. In this paper "the arm" means this design, and "Rose" on its own means the humanoid line (@fig:elements), whose \$15,000 target assumes rana (@sec:rana).
+
+
+*Why holding sets the limit.* Holding a pose is a stall, and a stalled actuator is limited by heat, not by peak torque. The vendor's stall-continuous ratings are well below the rotating ratings. For the RS04 at the shoulder, the joint that sets the limit, the manual gives 28.5 N·m stall-continuous against 40 N·m rotating, measured on a 345 × 345 mm aluminum heat-sink plate @robstride2026manual. On a 220 × 200 mm plate, about the size of the fork's parent plates, the manual rates it at 35 N·m rotating. We derate the stall figure by the same 35/40, to 25 N·m (estimate). The hold numbers in @tab:arm use that figure, with the arm straight out, which is the worst pose. Bent working poses hold more. With RobStride's ratings, about 1.25–1.5 kg continuous straight out is close to the limit at this reach without springs, because the shoulder carries the whole arm. The earlier v4/v5 iterations reached the same ceiling @rose2026forkv9.
+
 #figure(
   table(
     columns: 3,
@@ -2039,11 +2045,6 @@ The lymb comes in the same three sizes as Rose. *Lymb mini* is K1 size, for Rose
   ),
   caption: [#lead[Rose fork v9 specification.] Every number is a model output; none has been measured on a built arm. Arm-model jaws are the simpler tool in the arm's own model, two flat jaw plates on the same EL05, and are lighter than gripper v2.],
 ) <tab:arm>
-
-One arm does three jobs: it is sold on its own, it is half of every duet, and it is an arm of the Rose humanoid. Its design idea is that *every pitch joint is a fork* @rose2026forkv9. The parent link holds the motor's stator between its two side plates. The child straddles the parent, with one plate bolted to the output and the other riding a plain bearing on a hollow sleeve on the joint axis. Parent and child share one centerline, so no joint is offset and there is no offset elbow to twist the arm. Cables pass through the hollow sleeves, so they only twist and never loop outside the arm. The name comes from where the design lives. Rose fork v9 is the ninth revision of the fork concept, drawn in the Rose humanoid repository as a table arm that is also Rose's arm @rose2026forkv9. In this paper "the arm" means this design, and "Rose" on its own means the humanoid line (@fig:elements), whose \$15,000 target assumes rana (@sec:rana).
-
-
-*Why holding sets the limit.* Holding a pose is a stall, and a stalled actuator is limited by heat, not by peak torque. The vendor's stall-continuous ratings are well below the rotating ratings. For the RS04 at the shoulder, the joint that sets the limit, the manual gives 28.5 N·m stall-continuous against 40 N·m rotating, measured on a 345 × 345 mm aluminum heat-sink plate @robstride2026manual. On a 220 × 200 mm plate, about the size of the fork's parent plates, the manual rates it at 35 N·m rotating. We derate the stall figure by the same 35/40, to 25 N·m (estimate). The hold numbers in @tab:arm use that figure, with the arm straight out, which is the worst pose. Bent working poses hold more. With RobStride's ratings, about 1.25–1.5 kg continuous straight out is close to the limit at this reach without springs, because the shoulder carries the whole arm. The earlier v4/v5 iterations reached the same ceiling @rose2026forkv9.
 
 *Open items* (from the arm repository): RS02 thread depths are assumed at 6 mm and must be measured before screws are ordered. The clock-spring cassettes for the roll joints are drawn but not designed. Crush points found by the audit still need a policy, either soft limits or force limiting. And the motors' unpowered "anti-backdrive" damping is undocumented at the slow speed of a falling arm. It will be tested on the rig @robstride2026manual.
 
