@@ -154,27 +154,63 @@
 .key-swatch.is-exists { background: var(--p-text); }
 .key-swatch.is-concept { border-style: dashed; opacity: 0.7; }
 
-/* ── three ways in ───────────────────────────────────────── */
-.doors { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; }
-.door {
+/* ── product tiles, store-style ─────────────────────────── */
+main { padding-top: 3.5rem; }
+.tile {
+  position: relative;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
-  padding: 1.3rem 1.3rem 1.5rem;
-  border: 1px solid var(--p-line-hi);
-  background: var(--p-surface);
-  color: var(--p-text);
-  text-decoration: none;
-  transition: border-color 120ms ease;
+  align-items: center;
+  gap: 2.4rem;
+  margin: 0 0.75rem 0.75rem;
+  padding: 4.5rem 1.5rem 0;
+  background: var(--p-bg); /* the renders' own background, so images sit flush */
+  border: 1px solid var(--p-line);
+  overflow: hidden;
+  text-align: center;
 }
-.door:hover { border-color: var(--p-sel); }
-.door:focus-visible { outline: 2px solid var(--p-sel); outline-offset: 2px; }
-.door-title { font-size: 1.1rem; font-weight: 600; letter-spacing: -0.01em; }
-.door-title::after { content: " →"; color: var(--p-sel); }
-.door-desc { font-size: 0.85rem; line-height: 1.5; color: var(--p-label); }
-@media (max-width: 52rem) { .doors { grid-template-columns: 1fr; } }
+.tile-copy { max-width: 40rem; display: flex; flex-direction: column; align-items: center; }
+.tile-name { margin: 0; font-size: clamp(2.6rem, 6vw, 4.2rem); font-weight: 600; letter-spacing: -0.03em; line-height: 1; }
+.tile-name.is-mind { color: #ff5f00; }
+.tile-name.is-make { color: #39ff14; }
+.tile-name.is-body { color: #ff2052; }
+.tile-line { margin: 0.7rem 0 0; font-size: clamp(1.2rem, 2.4vw, 1.7rem); font-weight: 500; letter-spacing: -0.01em; color: var(--p-text); }
+.tile-sub { margin: 0.7rem 0 0; max-width: 32rem; font-size: 0.98rem; line-height: 1.5; color: var(--p-label); }
+.tile-links { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 1.4rem; margin-top: 1.5rem; }
+.tile-more { color: var(--p-sel); font-size: 0.95rem; text-decoration: none; }
+.tile-more::after { content: " ›"; }
+.tile-more:hover { text-decoration: underline; }
+.tile-soon { margin-top: 1.3rem; font-family: var(--p-mono); font-size: 0.68rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--p-label); }
+.tile-img { display: block; width: min(100%, 40rem); max-width: none; height: auto; } /* globals.css caps img at 80px */
+.tile-img.is-tall { width: auto; max-width: 100%; max-height: 26rem; }
 
-.home-latest { margin-top: 3.5rem; }
-.home-post { display: flex; gap: 1.2rem; align-items: baseline; padding: 0.7rem 0; border-top: 1px solid var(--p-line); color: var(--p-text); text-decoration: none; }
-.home-post:hover span { color: var(--p-sel); }
-.home-post time { flex: none; width: 9rem; font-family: var(--p-mono); font-size: 0.68rem; color: var(--p-label); }
+.tile-hero { min-height: calc(100vh - 4.25rem); justify-content: center; padding-bottom: 4rem; }
+.tile-limb { padding-bottom: 2rem; }
+.tile-gateway { padding-bottom: 4.5rem; }
+
+.tile-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin: 0 0.75rem 0.75rem; }
+.tile-pair .tile { margin: 0; padding-bottom: 0; justify-content: space-between; }
+.tile-pair .tile-name { font-size: clamp(2.2rem, 4.2vw, 3.2rem); }
+.tile-pair .tile-img { width: min(100%, 24rem); }
+.tile-pair .tile-img.is-tall { width: auto; height: 26rem; max-height: none; }
+@media (max-width: 52rem) { .tile-pair { grid-template-columns: 1fr; } }
+
+/* frog's session, illustrative */
+.term { width: min(100%, 38rem); text-align: left; border: 1px solid var(--p-line-hi); background: #0b0907; box-shadow: 0 30px 80px -30px rgba(255, 95, 0, 0.35); }
+.term-bar { display: flex; align-items: center; gap: 0.4rem; padding: 0.55rem 0.8rem; border-bottom: 1px solid var(--p-line); font-family: var(--p-mono); font-size: 0.65rem; color: var(--p-label); }
+.term-bar i { width: 0.6rem; height: 0.6rem; border-radius: 50%; background: var(--p-line-hi); }
+.term-bar span { margin-left: 0.5rem; }
+.term-body { margin: 0; padding: 1rem 1.1rem 1.2rem; font-family: var(--p-mono); font-size: 0.78rem; line-height: 1.75; color: var(--p-text); white-space: pre-wrap; }
+.post-page .term-body span { font-family: var(--p-mono); } /* the page sets spans in sans */
+.t-dim { color: var(--p-label); }
+.t-tool { color: #ff5f00; }
+.t-ok { color: #39ff14; }
+
+/* local to cloud, one line */
+.handoff { display: flex; align-items: center; gap: 0.8rem; width: min(100%, 30rem); font-family: var(--p-mono); font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--p-label); }
+.handoff-node { flex: none; padding: 0.5rem 0.8rem; border: 1px solid var(--p-line-hi); }
+.handoff-node.is-lit { border-color: #39ff14; color: #39ff14; }
+.handoff-line { flex: 1; height: 1px; background: linear-gradient(90deg, var(--p-line-hi), #39ff14); }
+
+/* the plan's cover, as the investors' tile */
+.home-page .post-cover { margin: 0 0.75rem; }
