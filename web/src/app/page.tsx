@@ -1,127 +1,87 @@
-import {
-  ArrowRight,
-  GithubLogo,
-} from "@phosphor-icons/react/dist/ssr";
 import Link from "next/link";
 import { Footer, FloatingHeader } from "@/components/layout";
-import { HeroAnimation } from "@/components/home/HeroAnimation";
-import { VcadViewer } from "@/components/home/VcadViewer";
-import { RoverViewer } from "@/components/home/RoverViewer";
-import { ExplodedViewer } from "@/components/home/ExplodedViewer";
+import { PostCover } from "@/components/blog/PostCover";
+import { StageStrip } from "@/components/home/StageStrip";
+import { PeriodicTable } from "@/components/home/PeriodicTable";
+import { formatDate, posts } from "@/lib/posts";
+import "@/styles/post.css";
+import "@/styles/home.css";
 
+// The homepage is a trailer for the master plan: its cover, the climb, the stack, and three ways in.
 export default function HomePage() {
+  const plan = posts.find((p) => p.slug === "master-plan");
+
   return (
-    <>
+    <div className="post-page home-page">
       <FloatingHeader />
-      <main className="landing">
-        {/* ═══════════════════════════════════════════════════════════════════
-            SCREEN 1 — Hero
-            Animated dot-grid canvas. Company identity.
-            ═══════════════════════════════════════════════════════════════════ */}
-        <section className="screen hero">
-          <HeroAnimation />
-          <div className="hero-overlay">
-            <h1 className="hero-headline">
-              Municipal<br />Robotics
-            </h1>
-            <p className="hero-sub">
-              Building robots to help people.
-            </p>
-          </div>
-        </section>
 
-        {/* ═══════════════════════════════════════════════════════════════════
-            SCREEN 2 — The Rover
-            ═══════════════════════════════════════════════════════════════════ */}
-        <section className="screen card card-rover">
-          <div className="card-viewer-bg">
-            <RoverViewer />
-          </div>
-          <div className="card-scrim card-scrim-solid" />
-          <div className="card-body">
-            <h2 className="card-title">The Rover</h2>
-            <p className="card-desc">
-              Autonomous sidewalk clearing. 50 miles per night, zero labor cost.
-              Snow, debris, pressure wash — swap the tool, not the fleet.
-            </p>
-            <Link href="/rover" className="card-link">
-              View specs <ArrowRight size={16} weight="bold" />
-            </Link>
-          </div>
-        </section>
+      <PostCover title="Robots that build robots" subtitle="What would it take for a machine to make the next one?">
+        <div className="post-byline home-cta">
+          <Link className="home-btn is-primary" href="/blog/master-plan">
+            Read the plan
+          </Link>
+          <a className="pdf" href="/blog/master-plan.pdf">
+            <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M6 1v7M3 5.5 6 8.5 9 5.5M2 11h8" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" /></svg>
+            PDF
+          </a>
+        </div>
+      </PostCover>
 
-        {/* ═══════════════════════════════════════════════════════════════════
-            SCREEN 3 — vcad
-            ═══════════════════════════════════════════════════════════════════ */}
-        <section className="screen card card-vcad">
-          <div className="vcad-viewer-bg">
-            <VcadViewer />
-          </div>
-          <div className="card-scrim card-scrim-solid" />
-          <div className="card-body">
-            <h2 className="card-title">vcad</h2>
-            <p className="card-desc">
-              Open-source parametric CAD for the AI era. Modeling, simulation,
-              and manufacturing — from sketch to STEP to slicer.
-            </p>
-            <a href="https://vcad.io" className="card-link" target="_blank" rel="noopener noreferrer">
-              Try vcad <ArrowRight size={16} weight="bold" />
-            </a>
-          </div>
-        </section>
+      <section className="home-section">
+        <div className="home-head">
+          <span className="home-eyebrow">The climb</span>
+          <h2>Eight stages, one scale.</h2>
+          <p>Each stage is a step up in scale, and each is built by the one before. Only the first is a plan; the rest are goals, and they are the point.</p>
+        </div>
+        <StageStrip />
+      </section>
 
-        {/* ═══════════════════════════════════════════════════════════════════
-            SCREEN 4 — Open Source
-            ═══════════════════════════════════════════════════════════════════ */}
-        <section className="screen card card-open">
-          <div className="card-viewer-bg">
-            <ExplodedViewer />
-          </div>
-          <div className="card-scrim card-scrim-solid" />
-          <div className="card-body">
-            <h2 className="card-title">Open Source</h2>
-            <p className="card-desc">
-              Firmware, schematics, mechanical design — MIT licensed on GitHub.
-              Build your own or buy from us.
-            </p>
-            <a href="https://github.com/ecto/muni" className="card-link" target="_blank" rel="noopener noreferrer">
-              <GithubLogo size={16} weight="bold" />
-              Browse on GitHub <ArrowRight size={16} weight="bold" />
-            </a>
-          </div>
-        </section>
+      <section className="home-section">
+        <div className="home-head">
+          <span className="home-eyebrow">The stack</span>
+          <h2>One table, built in order.</h2>
+          <p>Every project, software and hardware, is one element: Make turns source into parts, World simulates them, Body moves, Power feeds and thinks, Mind learns, Silicon is the far future.</p>
+        </div>
+        <PeriodicTable />
+      </section>
 
-        {/* ═══════════════════════════════════════════════════════════════════
-            SCREEN 5 — Closer
-            ═══════════════════════════════════════════════════════════════════ */}
-        <section className="screen closer">
-          <div className="closer-inner">
-            <span className="closer-eyebrow">Pilot Program — Summer 2026</span>
-            <h2 className="closer-headline">
-              Let&apos;s talk about<br />your sidewalks.
-            </h2>
-            <p className="closer-desc">
-              We&apos;re deploying with 3–5 Midwest cities this summer.
-              Early partners shape the product.
-            </p>
-            <a href="https://muni.cal.com/cam/30min" className="btn btn-primary btn-lg">
-              Schedule a Call
-              <ArrowRight size={20} weight="bold" />
-            </a>
-            <div className="closer-alt">
-              <a href="/docs/whitepaper.pdf" target="_blank" rel="noopener noreferrer">Read the whitepaper</a>
-              <span className="closer-alt-sep">/</span>
-              <a href="mailto:info@muni.works?subject=Pilot%20program">Join pilot program</a>
-            </div>
+      <section className="home-section">
+        <div className="home-head">
+          <span className="home-eyebrow">Get involved</span>
+          <h2>Three ways in.</h2>
+        </div>
+        <div className="doors">
+          <a className="door" href="mailto:info@muni.works?subject=One%20of%20the%20first%20ten%20limbs">
+            <span className="door-title">Buy one of the first ten limbs</span>
+            <span className="door-desc">A six-axis arm that ships with its measured gap. $5,000 list.</span>
+          </a>
+          <a className="door" href="mailto:info@muni.works?subject=Our%20city">
+            <span className="door-title">Bring us your city</span>
+            <span className="door-desc">A one-city, one-task pilot: litter first, sidewalks after.</span>
+          </a>
+          <a className="door" href="https://github.com/ecto/muni" target="_blank" rel="noopener noreferrer">
+            <span className="door-title">Build with us</span>
+            <span className="door-desc">Everything that can be open is open. Start with the plan's source.</span>
+          </a>
+        </div>
+        {plan && (
+          <div className="home-latest">
+            <span className="home-eyebrow">Latest</span>
+            {posts.slice(0, 3).map((p) => (
+              <Link key={p.slug} href={`/blog/${p.slug}`} className="home-post">
+                <time dateTime={p.date}>{formatDate(p.date)}</time>
+                <span>{p.title}</span>
+              </Link>
+            ))}
           </div>
-        </section>
+        )}
+      </section>
 
-        <footer className="landing-footer">
-          <div className="landing-container">
-            <Footer />
-          </div>
-        </footer>
-      </main>
-    </>
+      <div className="landing-footer">
+        <div className="landing-container">
+          <Footer />
+        </div>
+      </div>
+    </div>
   );
 }

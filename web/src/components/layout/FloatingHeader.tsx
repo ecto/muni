@@ -20,7 +20,7 @@ export function FloatingHeader() {
     <header className={`site-nav ${scrolled ? "site-nav-scrolled" : ""}`}>
       <div className="site-nav-inner">
         <nav className="site-nav-left" aria-label="Main navigation">
-          <Link href="/rover" className="site-nav-link">Rover</Link>
+          <Link href="/blog/master-plan" className="site-nav-link">Plan</Link>
           <Link href="/about" className="site-nav-link">About</Link>
           <Link href="/blog" className="site-nav-link">Blog</Link>
         </nav>

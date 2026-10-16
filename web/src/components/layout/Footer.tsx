@@ -12,10 +12,10 @@ export function Footer() {
         </Link>
 
         <nav className="site-footer-links">
-          <Link href="/rover">Rover</Link>
+          <Link href="/blog/master-plan">Plan</Link>
           <Link href="/about">About</Link>
           <Link href="/blog">Blog</Link>
-          <a href="/docs/whitepaper.pdf" target="_blank" rel="noopener noreferrer">Whitepaper</a>
+          <a href="/blog/master-plan.pdf" target="_blank" rel="noopener noreferrer">PDF</a>
           <a href="https://github.com/ecto/muni" target="_blank" rel="noopener noreferrer">GitHub</a>
           <a href="mailto:info@muni.works">Contact</a>
         </nav>

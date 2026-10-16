@@ -76,6 +76,11 @@
 // every product name takes its family color, in any case: limb, Limb and LIMB alike
 #let brand-re = regex("(?i)\\b(" + brand-names.map(n => n.at(0)).sorted(key: n => -n.len()).join("|") + ")\\b")
 #metadata(brand-names) <brand-names>
+// the periodic table as data, for the website (web/scripts/build-posts.mjs writes it to elements.json)
+#metadata((
+  families: fam.pairs().map(((k, v)) => (key: k, name: v.name, color: v.color.to-hex())),
+  elements: elements.map(e => (num: e.at(0), name: e.at(1), family: e.at(2), maturity: e.at(3), note: e.at(4), stage: e.at(5))),
+)) <elements-data>
 // on the web, scripts/build-posts.mjs wraps names in spans (Typst cannot put HTML inside SVG frames)
 #show brand-re: it => if web { it } else { text(fill: fam.at(brand-family(it.text)).color, it) }
 

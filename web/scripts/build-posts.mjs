@@ -16,14 +16,19 @@ const pdfDir = join(web, "public/blog");
 mkdirSync(contentDir, { recursive: true });
 mkdirSync(pdfDir, { recursive: true });
 
-// Product names, as [name, family] pairs, if the source publishes them as <brand-names> metadata.
-function brandNames(common, src) {
+// A <label>'s metadata value from the source, or null if it publishes none.
+function queryMetadata(common, src, label) {
   try {
-    const out = execFileSync("typst", ["query", ...common, src, "<brand-names>", "--field", "value", "--one"], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
+    const out = execFileSync("typst", ["query", ...common, src, label, "--field", "value", "--one"], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
     return JSON.parse(out);
   } catch {
-    return [];
+    return null;
   }
+}
+
+// Product names, as [name, family] pairs, if the source publishes them as <brand-names> metadata.
+function brandNames(common, src) {
+  return queryMetadata(common, src, "<brand-names>") ?? [];
 }
 
 // Wrap each product name in <span class="name n-<family>">, in text only: never inside
@@ -57,6 +62,8 @@ for (const post of posts) {
   const full = readFileSync(htmlOut, "utf8");
   let body = full.slice(full.indexOf("<body>") + 6, full.lastIndexOf("</body>")).trim();
   body = colorNames(body, brandNames(common, src));
+  const table = queryMetadata(common, src, "<elements-data>");
+  if (table) writeFileSync(join(contentDir, "..", "elements.json"), JSON.stringify(table, null, 2) + "\n");
   writeFileSync(join(contentDir, `${post.slug}.html`), body);
   execFileSync("rm", [htmlOut]);
 
