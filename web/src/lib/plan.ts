@@ -35,8 +35,8 @@ export const layout: [string, number[][]][] = [
   ["world", [[5, 6, 7, 8]]],
   ["body", [[9, 10, 11], [12, 13, 14], [15, 16]]],
   ["power", [[17, 18, 19]]],
-  ["mind", [[20, 21]]],
-  ["silicon", [[22, 23, 24]]],
+  ["mind", [[20, 21, 22]]],
+  ["silicon", [[23, 24, 25]]],
 ];
 
 /** Public homes for the projects that have one. */
@@ -75,4 +75,4 @@ export const stages: Stage[] = [
 ];
 
 export const deskGate =
-  "First, gateway revenue that pays for the arm. Then ten limbs sold at 40% gross margin, each with its tool-point error ε̄ measured and under 2 mm.";
+  "First, kyte revenue that pays for the arm. Then ten limbs sold at 40% gross margin, each with its tool-point error ε̄ measured and under 2 mm.";

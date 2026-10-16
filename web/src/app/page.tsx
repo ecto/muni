@@ -42,20 +42,20 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* the gateway: what we sell */}
+        {/* kyte: what we sell */}
         <section className="tile tile-gateway">
           <div className="tile-copy is-center">
-            <h2 className="tile-name is-make">tang gateway</h2>
+            <h2 className="tile-name is-mind">kyte</h2>
             <p className="tile-line">When local isn&apos;t enough.</p>
             <p className="tile-sub">frog&apos;s default cloud model. Your session stays warm, so you pay per finished task, not per token.</p>
             <div className="tile-links">
-              <a className="home-btn is-primary" href={mail("tang gateway waitlist")}>Join the waitlist</a>
+              <a className="home-btn is-primary" href={mail("kyte waitlist")}>Join the waitlist</a>
             </div>
           </div>
           <div className="handoff" aria-hidden="true">
             <span className="handoff-node">your Mac</span>
             <span className="handoff-line" />
-            <span className="handoff-node is-lit">tang gateway</span>
+            <span className="handoff-node is-lit">kyte</span>
           </div>
         </section>
 

@@ -64,10 +64,11 @@
   (18, "core", "power", "concept", "one compute module", "road"),
   (19, "nerv", "power", "concept", "bus, hub and BMS boards", "road"),
   (20, "Ipse", "mind", "exists", "developmental mind", "road"),
-  (21, "frog", "mind", "exists", "free coding agent; tang gateway", "desk"),
-  (22, "loom", "silicon", "concept", "hardware description", "home"),
-  (23, "rune", "silicon", "concept", "maskless lithography", "home"),
-  (24, "chyp", "silicon", "concept", "inference chip", "home"),
+  (21, "frog", "mind", "exists", "free coding agent for local models", "desk"),
+  (22, "kyte", "mind", "concept", "inference for frog, on tang", "desk"),
+  (23, "loom", "silicon", "concept", "hardware description", "home"),
+  (24, "rune", "silicon", "concept", "maskless lithography", "home"),
+  (25, "chyp", "silicon", "concept", "inference chip", "home"),
 )
 // product names colored wherever they appear in running text
 #let brand-names = elements.filter(e => e.at(1) not in ("hand",)).map(e => (lower(e.at(1)), e.at(2)))
@@ -547,11 +548,11 @@
 
   Robots are expensive because people make them. Our prototype actuator is estimated at \$1,086 to have built; about two thirds of that is outsourced machining, on perhaps \$60–90 of metal. A machine that makes more of itself attacks that markup. A design process that measures every unit's sim-to-real gap, and feeds it back into the design as a gradient, attacks the rest.
 
-  It starts with software. frog, our coding agent for local models, is free. When a task needs more than a local model, frog's default is our tang gateway, and the gateway is what we sell. Its revenue funds the arm.
+  It starts with software. frog, our coding agent for local models, is free. When a task needs more than a local model, frog's default is kyte, our inference service on tang, and kyte is what we sell. Its revenue funds the arm.
 
   The hardware is built from one part. A limb is a six-axis arm on purchased actuators (\$5,000 list), designed and ready to cut. Two limbs at any table make a pair (\$12,000, target) that can fold laundry or build the next limb; Rose, our humanoid, is a pair on legs. One stack of our own carries it, from a source language for parts to a physics engine that can be differentiated through contact. Its key result, so far in simulation only: a humanoid's inertial parameters recovered from ±20% error to machine precision.
 
-  Eight stages climb from there, each a step up in scale and each built by the one before: Desk, Shop, Road, City, Home, Moon, Mars and Star. Only Desk is a plan, with exact gates: gateway revenue that funds the arm, then ten limbs sold at 40% gross margin, each under 2 mm RMS tool-point error. The rest are goals, and they are the point. Progress is one number, electrons under management: the power drawn by machines we built, in service. Today it is zero watts. Every number here is cited, or labeled as an estimate or a model output.
+  Eight stages climb from there, each a step up in scale and each built by the one before: Desk, Shop, Road, City, Home, Moon, Mars and Star. Only Desk is a plan, with exact gates: kyte revenue that funds the arm, then ten limbs sold at 40% gross margin, each under 2 mm RMS tool-point error. The rest are goals, and they are the point. Progress is one number, electrons under management: the power drawn by machines we built, in service. Today it is zero watts. Every number here is cited, or labeled as an estimate or a model output.
 ]
 #if web {
   html.elem("section", attrs: (class: "abstract", id: "abstract"), {
@@ -1316,7 +1317,7 @@ The plan climbs in eight stages, each a step up in scale and each built by the o
     columns: (auto, 1fr, 1fr, 1fr),
     align: (left + top, left + top, left + top, left + top),
     table.header([*Stage*], [*Delivers*], [*Pays forward*], [*Gate, in short*]),
-    [Desk], [frog and the gateway; arms, sold one at a time], [Revenue that funds the arm; the first measured gaps; duty cycles that size rana], [Gateway revenue funds the arm; ≥ 10 limbs at ≥ 40% margin; ≤ 2 mm RMS each],
+    [Desk], [frog and kyte; arms, sold one at a time], [Revenue that funds the arm; the first measured gaps; duty cycles that size rana], [kyte revenue funds the arm; ≥ 10 limbs at ≥ 40% margin; ≤ 2 mm RMS each],
     [Shop], [Two limbs that work at any table, and build limbs], [Useful work; a falling bought fraction; a doubling time], [A task at 95%; a pair builds a pair],
     [Road], [A pair on legs that fits its own model], [Mobility; a gradient from the gap to the design], [Schema fit beats persistence by 20%],
     [City], [A city's fleet and its twin], [Contracts; real duty at scale; a world to train in], [A city renews for ≥ 12 months],
@@ -1390,8 +1391,8 @@ The stack is a tree rooted at one language, loon. Every project in it, software 
       ("world", ((5, 6, 7, 8),)),
       ("body", ((9, 10, 11), (12, 13, 14), (15, 16))),
       ("power", ((17, 18, 19),)),
-      ("mind", ((20, 21),)),
-      ("silicon", ((22, 23, 24),)),
+      ("mind", ((20, 21, 22),)),
+      ("silicon", ((23, 24, 25),)),
     )
     // word joiners keep the name-coloring rule off the card's own text
     let wj(t) = t.clusters().join("\u{2060}")
@@ -1918,7 +1919,7 @@ The second headline number is the time a lineage of pairs takes to double what i
 
 *Software first, then an arm that ships with its gap.* Desk has three steps over roughly three years. Each closes on an exact gate (@tab:arc).
 
-+ *Software that pays for the arm.* frog, our coding agent for local models, is free and stays free. When a task needs more than a local model, frog's default is the tang gateway: hosted inference on tang that keeps each session's cache warm, drafts ahead, and hands a session from local to cloud without re-sending it, priced per finished task rather than per token. The gateway is what we sell, and its revenue funds the limb. frog runs today; the gateway does not exist yet.
++ *Software that pays for the arm.* frog, our coding agent for local models, is free and stays free. When a task needs more than a local model, frog's default is kyte: hosted inference on tang that keeps each session's cache warm, drafts ahead, and hands a session from local to cloud without re-sending it, priced per finished task rather than per token. kyte is what we sell, and its revenue funds the limb. frog runs today; kyte does not exist yet.
 + *An arm worth buying.* Build it on RobStride actuators. The actuator is a commodity. Our edge is everything around it: geometry checked against real loads, a measured model of every unit, a controller trained against that model, and a stated sim-to-real gap on every limb.
 + *Own the actuator, where it wins.* Desk revenue funds rana and torc. A purchased joint is replaced only where rana wins on a measured metric. Dropping rana is a valid outcome, not a failure.
 
@@ -2341,7 +2342,7 @@ Most of what this paper describes is *proposed*, not operational. @tab:status se
     [CNC mill], pips(3), [Bought],
     [Software stack], pips(3), [In use, not finished (@fig:elements)],
     [frog], pips(3), [In use; free],
-    [tang gateway], pips(0), [Not built],
+    [kyte], pips(0), [Not built],
     table.cell(colspan: 3, inset: (top: 9pt, bottom: 3pt, x: 6pt), stroke: none, text(font: mono-m, size: s-xs, fill: c-label, tracking: track)[DESIGNED]),
     [Limb full (fork v9)], pips(2), [Ready to cut @rose2026forkv9],
     [Gripper v2], pips(2), [CAD and force model @mr2026gripper],
@@ -2498,7 +2499,7 @@ Every stage closes on gates of the same form: a number, a unit, a method and a p
     columns: (auto, 2fr, auto),
     align: (left + top, left + top, left + top),
     table.header([*Stage*], [*Gate: number, method, pass condition*], [*EUM, order*]),
-    [Desk (yrs 1–3)], [Gateway revenue ≥ \$10,000 a month for 3 months running, with no outside money (proposed). ≥ 10 limbs sold to outside buyers at ≥ 40% gross margin, after materials, labor, test and warranty (invoices, trailing 12 months). Tool-point error ≤ 2.0 mm RMS on every limb shipped: 50 fixed poses, unloaded and at 1.0 kg, probe against a calibrated plate, printed on its receipt. rana ≥ 1.2 × RS04 in continuous stall torque per kg or per dollar, on one dyno at 25 °C, or rana is dropped], [0 W → 10 kW],
+    [Desk (yrs 1–3)], [kyte revenue ≥ \$10,000 a month for 3 months running, with no outside money (proposed). ≥ 10 limbs sold to outside buyers at ≥ 40% gross margin, after materials, labor, test and warranty (invoices, trailing 12 months). Tool-point error ≤ 2.0 mm RMS on every limb shipped: 50 fixed poses, unloaded and at 1.0 kg, probe against a calibrated plate, printed on its receipt. rana ≥ 1.2 × RS04 in continuous stall torque per kg or per dollar, on one dyno at 25 °C, or rana is dropped], [0 W → 10 kW],
     [Shop], [A pair at a customer's table completes a named task (for example, folding 50 garments) at ≥ 95% success. A pair assembles a limb that passes the Desk test in ≤ 30 min of human touch time. A pair builds a pair that passes its receipts at ≤ 20% bought cost, with bought share falling over 3 generations and a commanded shutdown drill passed in each], [100 kW],
     [Road], [Preregistered hardware body-schema fit: held-out joint-position error ≤ 0.8 × persistence at 0.1 s and 0.5 s, and fitted link masses within ±5% of weighed parts. Rose walks 100 m on level pavement carrying two limbs, 0 falls in 5 of 5. A gradient co-designed part beats its hand-designed predecessor by ≥ 10% on its named objective], [1 MW],
     [City], [The litter pilot renews for ≥ 12 months after a ≥ 3-month trial, with 0 contact incidents. A city renews fleet and twin for ≥ 12 months. ≥ 90% of fleet repairs done by pairs in the city, by receipts], [10 MW],

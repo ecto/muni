@@ -209,8 +209,8 @@ main { padding-top: 3.5rem; }
 /* local to cloud, one line */
 .handoff { display: flex; align-items: center; gap: 0.8rem; width: min(100%, 30rem); font-family: var(--p-mono); font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--p-label); }
 .handoff-node { flex: none; padding: 0.5rem 0.8rem; border: 1px solid var(--p-line-hi); }
-.handoff-node.is-lit { border-color: #39ff14; color: #39ff14; }
-.handoff-line { flex: 1; height: 1px; background: linear-gradient(90deg, var(--p-line-hi), #39ff14); }
+.handoff-node.is-lit { border-color: #ff5f00; color: #ff5f00; }
+.handoff-line { flex: 1; height: 1px; background: linear-gradient(90deg, var(--p-line-hi), #ff5f00); }
 
 /* the plan's cover, as the investors' tile */
 .home-page .post-cover { margin: 0 0.75rem; }

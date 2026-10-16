@@ -197,11 +197,19 @@
       "name": "frog",
       "family": "mind",
       "maturity": "exists",
-      "note": "free coding agent; tang gateway",
+      "note": "free coding agent for local models",
       "stage": "desk"
     },
     {
       "num": 22,
+      "name": "kyte",
+      "family": "mind",
+      "maturity": "concept",
+      "note": "inference for frog, on tang",
+      "stage": "desk"
+    },
+    {
+      "num": 23,
       "name": "loom",
       "family": "silicon",
       "maturity": "concept",
@@ -209,7 +217,7 @@
       "stage": "home"
     },
     {
-      "num": 23,
+      "num": 24,
       "name": "rune",
       "family": "silicon",
       "maturity": "concept",
@@ -217,7 +225,7 @@
       "stage": "home"
     },
     {
-      "num": 24,
+      "num": 25,
       "name": "chyp",
       "family": "silicon",
       "maturity": "concept",
