@@ -16,14 +16,17 @@ export default function ResearchIndex() {
       <FloatingHeader />
       <main className="blog-index">
         <h1>Research</h1>
-        <p className="blog-index-lede">Research and plans, each one a web page and a PDF from the same source.</p>
+        <p className="blog-index-lede">Each one a web page and a PDF, from the same source.</p>
         <ol className="blog-list">
-          {posts.map((p) => (
+          {posts.map((p, i) => (
             <li key={p.slug}>
               <Link href={`/research/${p.slug}`}>
+                <span className="blog-list-num">{String(posts.length - i).padStart(2, "0")}</span>
+                <span className="blog-list-body">
+                  <span className="blog-list-title">{p.title}</span>
+                  <span className="blog-list-desc">{p.description}</span>
+                </span>
                 <time dateTime={p.date}>{formatDate(p.date)}</time>
-                <span className="blog-list-title">{p.title}</span>
-                <span className="blog-list-desc">{p.description}</span>
               </Link>
             </li>
           ))}

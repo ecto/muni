@@ -288,16 +288,22 @@
 }
 
 /* blog index */
-.blog-index { max-width: var(--p-measure); margin: 0 auto; padding: 9rem 1.25rem 6rem; }
-.blog-index h1 { margin: 0; font-size: 3rem; font-weight: 600; letter-spacing: -0.02em; }
-.blog-index-lede { color: var(--p-label); margin: 0.8rem 0 3rem; }
-.blog-list { list-style: none; margin: 0; padding: 0; }
-.blog-list li { border-top: 1px solid var(--p-line); }
-.blog-list a { display: grid; gap: 0.35rem; padding: 1.4rem 0; color: inherit; text-decoration: none; }
-.blog-list time { font-family: var(--p-mono); font-size: 0.72rem; letter-spacing: 0.02em; color: var(--p-label); }
-.blog-list-title { font-size: 1.5rem; font-weight: 600; letter-spacing: -0.01em; }
+/* the research index, set like the plan's contents: a quiet title, numbered rows, mono figures */
+.blog-index { max-width: var(--p-measure); min-height: 100vh; min-height: 100svh; margin: 0 auto; padding: 18svh 1.25rem 8svh; }
+.blog-index h1 { margin: 0; font-size: 1.35rem; font-weight: 600; letter-spacing: -0.01em; }
+.blog-index-lede { margin: 0.4rem 0 2.2rem; font-size: 0.86rem; color: var(--p-label); }
+.blog-list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--p-line); }
+.blog-list li { border-bottom: 1px solid var(--p-line); }
+.blog-list li::before { content: none; }
+.blog-list a { display: grid; grid-template-columns: 2.1rem 1fr auto; column-gap: 1rem; align-items: baseline; padding: 0.9rem 0; color: inherit; text-decoration: none; font-weight: 400; }
+.blog-list-num { font-family: var(--p-mono); font-size: 0.62rem; letter-spacing: 0.08em; color: var(--p-label); font-variant-numeric: tabular-nums; }
+.blog-list-body { display: flex; flex-direction: column; gap: 0.25rem; }
+.blog-list-title { font-size: 0.95rem; font-weight: 500; line-height: var(--p-lh-tight); color: var(--p-text); transition: color 120ms ease; }
+.blog-list-desc { font-size: 0.8rem; line-height: 1.45; color: var(--p-label); }
+.blog-list time { font-family: var(--p-mono); font-size: 0.62rem; letter-spacing: 0.06em; color: var(--p-label); white-space: nowrap; }
 .blog-list a:hover .blog-list-title { color: var(--p-sel); }
-.blog-list-desc { color: var(--p-label); }
+.blog-list a:focus-visible { outline: 2px solid var(--p-sel); outline-offset: 2px; }
+@media (max-width: 36rem) { .blog-list a { grid-template-columns: 2.1rem 1fr; } .blog-list time { grid-column: 2; margin-top: 0.3rem; } }
 .post .toc-col { break-before: column; margin-top: 0 !important; }
 
 /* the PDF's all-caps labels, kept: parts, figure and table labels, table headers, the signature's place */
