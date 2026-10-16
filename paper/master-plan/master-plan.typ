@@ -640,12 +640,18 @@
 
   So I retired the rover #text(fill: c-warn)[[TODO: when, and why, in your words]] and kept what mattered: the city, the sidewalk, and the habit of plain claims and sourced numbers.
 
-  What follows is a plan for machines that build machines, from one arm on an Ohio table to a swarm of collectors around the sun. Most of it is not built. Today there is one person, one bought humanoid, a CNC mill, a stack of software, and these pages. I have written it down anyway, at full strength, with every gate stated and every number labeled, because a plan this large is only worth trusting if it is honest about where it stands.
+  What follows is a plan for machines that build machines, from one arm on a desk in Ohio to a swarm of collectors around a star. Most of it is not built. Today there is one person, one bought humanoid, a CNC mill, a stack of software, and these pages. I have written it down anyway, at full strength, with every gate stated and every number labeled, because a plan this large is only worth trusting if it is honest about where it stands.
 
   Read it to check it, or to join it.]
   v(1.4em)
-  let sig = { text(font: sans-m, size: s-md)[Cam Pedersen]; linebreak(); text(font: mono-m, size: s-xs, fill: c-label, tracking: track)[#upper[Cleveland · October 2026]] }
-  if web { html.elem("p", attrs: (class: "signature"), [#html.elem("span", attrs: (class: "sig-name"))[Cam Pedersen] #html.elem("span", attrs: (class: "sig-place"))[Cleveland · October 2026]]) } else { sig }
+  // the signature: a small round portrait beside the name and a quiet place line
+  let sig = grid(columns: (auto, auto), column-gutter: 0.75em, align: horizon,
+    box(clip: true, radius: 50%, width: 2.6em, height: 2.6em, image("images-native/cam.jpg", width: 2.6em, height: 2.6em)),
+    { text(font: sans-m, size: s-md)[Cam Pedersen]; v(0.15em, weak: true); linebreak(); text(font: mono, size: 5.5pt, fill: c-label, tracking: 0.16em)[#upper[Cleveland · October 2026]] })
+  if web { html.elem("div", attrs: (class: "signature"), {
+    html.elem("img", attrs: (class: "sig-photo", src: "/images/cam.jpg", alt: "Cam Pedersen", width: "44", height: "44"))
+    html.elem("p", attrs: (class: "sig-text"), [#html.elem("span", attrs: (class: "sig-name"))[Cam Pedersen] #html.elem("span", attrs: (class: "sig-place"))[Cleveland · October 2026]])
+  }) } else { sig }
 })
 
 #pagebreak(weak: true)

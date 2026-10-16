@@ -182,8 +182,11 @@
 
 /* the letter's signature */
 .post .signature { margin-top: 2.2em; display: grid; gap: 0.2em; }
-.post .sig-name { font-weight: 500; }
-.post .sig-place { font-family: var(--p-mono); font-size: 0.78rem; color: var(--p-label); }
+.post .signature { display: flex; align-items: center; gap: 0.85rem; margin-top: 2.4rem; }
+.post .sig-photo { width: 44px; height: 44px; max-width: none; border-radius: 50%; object-fit: cover; filter: saturate(0.85); }
+.post .sig-text { margin: 0; display: flex; flex-direction: column; gap: 0.2rem; }
+.post .sig-name { font-weight: 500; line-height: 1.2; }
+.post .sig-place { font-family: var(--p-mono); font-size: 0.6rem; line-height: 1.2; letter-spacing: 0.16em; color: var(--p-label); }
 .post .math svg { display: inline-block; vertical-align: -0.2em; height: 1.05em; width: auto; }
 
 /* part dividers: a label, a title, a lede and the part's illustration */
@@ -309,7 +312,8 @@
 .post .toc-col { break-before: column; margin-top: 0 !important; }
 
 /* the PDF's all-caps labels, kept: parts, figure and table labels, table headers, the signature's place */
-.post :is(.part-label, .toc-part a, .fig-label, thead th, .sig-place) { text-transform: uppercase; letter-spacing: 0.12em; }
+.post :is(.part-label, .toc-part a, .fig-label, thead th) { text-transform: uppercase; letter-spacing: 0.12em; }
+.post .sig-place { text-transform: uppercase; }
 
 /* back matter: appendices and references in two columns, one on narrow screens */
 .post .back-matter {
