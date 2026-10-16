@@ -19,7 +19,7 @@ muni/
 │   ├── posts.json      # Blog posts: slug, title, Typst source
 │   ├── scripts/build-posts.mjs   # Typst → HTML post + PDF (npm run posts)
 │   ├── src/content/posts/        # Generated post HTML (committed)
-│   └── public/blog/              # Generated post PDFs (committed)
+│   └── public/research/              # Generated post PDFs (committed)
 ├── hardware/           # Hardware concepts and mockups (loon sources, renders)
 ├── design/             # Design system
 ├── docs/               # Notes and architecture
@@ -39,12 +39,12 @@ make                     # builds master-plan.pdf (Typst 0.14, fonts in fonts/)
 - No page may start with a figure or table. Check with `typst query --font-path fonts --input figpos=1 master-plan.typ "<figpos>" --field value` (any figure with y < 110 pt is at a page top).
 - Record decisions in `decisions.md` (D1, D2, …).
 
-## Blog (web)
+## Research posts (web)
 
 ```bash
 cd web
 npm install
-npm run dev              # http://localhost:3000/blog
+npm run dev              # http://localhost:3000/research
 npm run posts            # rebuild every post from its Typst source (needs typst on PATH)
 npm run build            # static export
 ```

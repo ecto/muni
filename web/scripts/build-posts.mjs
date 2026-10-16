@@ -3,7 +3,7 @@
 //   npm run posts
 //
 // Needs typst ≥ 0.14 on PATH. Vercel's build image has no typst, so the outputs
-// are committed: src/content/posts/<slug>.html and public/blog/<slug>.pdf.
+// are committed: src/content/posts/<slug>.html and public/research/<slug>.pdf.
 import { execFileSync } from "node:child_process";
 import { mkdirSync, readFileSync, writeFileSync, copyFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
@@ -12,7 +12,7 @@ import { fileURLToPath } from "node:url";
 const web = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const posts = JSON.parse(readFileSync(join(web, "posts.json"), "utf8"));
 const contentDir = join(web, "src/content/posts");
-const pdfDir = join(web, "public/blog");
+const pdfDir = join(web, "public/research");
 mkdirSync(contentDir, { recursive: true });
 mkdirSync(pdfDir, { recursive: true });
 

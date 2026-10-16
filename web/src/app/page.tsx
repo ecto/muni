@@ -15,7 +15,7 @@ export default function HomePage() {
       <PostCover title="Robots that build robots" subtitle="First, software that writes software. Then arms that build arms.">
         <div className="post-byline home-cta">
           <a className="home-btn is-primary" href={mail("frog early access")}>Try frog, free</a>
-          <Link className="home-btn is-quiet" href="/blog/master-plan">Read the plan</Link>
+          <Link className="home-btn is-quiet" href="/research/master-plan">Read the plan</Link>
         </div>
       </PostCover>
     </div>
