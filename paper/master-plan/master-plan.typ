@@ -1333,7 +1333,7 @@ The plan climbs in eight stages, each a step up in scale and each built by the o
 
 Each stage pays for the next and teaches it something it could not learn otherwise (@tab:flywheel).
 
-== Three numbers
+== Four numbers
 
 #figure(
   cetz.canvas(length: 1cm, {
@@ -1342,22 +1342,23 @@ Each stage pays for the next and teaches it something it could not learn otherwi
       ("The gap", "—", "mm RMS, per unit", "No lymb built yet. First reading: the first lymb, against its model."),
       ("Electrons under management", "0 W", "mean, in service", "Nothing we built is in service. The K1 is counted beside it, not in it."),
       ("Doubling time", "—", "per branch", "No duet has built a duet. First reading: Shop, over three generations."),
+      ("Labor fraction", "≈ 100%", "people's share of the work", "One person does nearly all of it; frog writes some code. First reading: Desk, by function."),
     )
-    let w = 5.4
+    let w = 4.15
     let g = 0.35
     for (i, (name, val, unit, note)) in cards.enumerate() {
       let x = i * (w + g)
-      rect((x, 0), (x + w, 3.1), fill: c-surface, stroke: 0.6pt + c-line-hi)
+      rect((x, -0.35), (x + w, 3.1), fill: c-surface, stroke: 0.6pt + c-line-hi)
       content((x + 0.3, 2.85), anchor: "north-west", text(font: mono-m, size: s-xs, fill: c-label, upper(name)))
-      content((x + 0.3, 2.25), anchor: "north-west", text(font: mono-m, size: 22pt, fill: c-text, val))
+      content((x + 0.3, 2.25), anchor: "north-west", text(font: mono-m, size: 19pt, fill: c-text, val))
       content((x + 0.3, 1.2), anchor: "north-west", text(font: mono, size: s-xs, fill: c-label, upper(unit)))
       content((x + 0.3, 0.8), anchor: "north-west", box(width: (w - 0.6) * 1cm, text(size: s-xs, fill: c-label, note)))
     }
   }),
-  caption: [#lead[The dashboard, October 2026.] The gap per unit, $overline(epsilon)$ (@fig:loop), electrons under management (@sec:eum) and doubling time (@sec:replication). We will publish each one when it first has a value, and every time it changes.],
+  caption: [#lead[The dashboard, October 2026.] The gap per unit, $overline(epsilon)$ (@fig:loop), electrons under management (@sec:eum), doubling time (@sec:replication) and the labor fraction (@sec:labor). We will publish each one when it first has a value, and every time it changes.],
 ) <fig:dash>
 
-Three numbers track the whole plan (@fig:dash). Today none of them is good, and we say so.
+Four numbers track the whole plan (@fig:dash): how well each machine matches its model, how much power our machines use, how fast the company doubles, and how much of its work people still do. Today none of them is good, and we say so.
 
 #part("II", "What", art: art-what())[What every stage shares: the principles, the stack, the standards and the rules.]
 
@@ -1843,11 +1844,53 @@ The duet is a cell in the biological sense (@sec:pair), and the analogy earns it
 - *Quorum sensing.* There is no central scheduler. Each duet publishes what it is doing to the twin, and the nearest idle duet takes the next task.
 - *Apoptosis.* A duet that fails its receipts is taken apart by its neighbours, and its parts go back to stock.
 
+= Company <sec:company>
+
+The machines are the means; what grows is an autonomous company, amplified by intelligence. This section is what that takes beyond the machines: every job a company does, the intelligence it runs on, the agents that act for it, and the people who decide.
+
+== Functions
+
+A company does more than build. Each of its jobs is taken over by its own machines and software at a stage, and some stay with people for good (@tab:functions).
+
+#figure(
+  ptable(
+    columns: (auto, auto, auto, 1fr),
+    align: (left + top, left + top, left + top, left + top),
+    table.header([*Job*], [*By*], [*From*], [*What people keep*]),
+    [Writing code], [frog], [Desk], [what to build; review of what ships],
+    [Earning revenue], [kyte], [Desk], [prices],
+    [Supporting users], [frog and kyte agents], [Desk], [anything an agent cannot answer],
+    [Building machines], [duets], [Shop], [licenses to divide],
+    [Buying parts], [agents, within caps], [Shop], [new suppliers; anything over a cap],
+    [Bookkeeping], [agents, on signed ledgers], [Shop], [the audit],
+    [Repair and upkeep], [duets in the city], [City], [incident review],
+    [Selling and contracts], [agents draft], [City], [every signature],
+    [Law, compliance and growth], [people], [always], [all of it],
+  ),
+  caption: [#lead[Who does each job, and when the company takes it over] (proposed). The labor fraction (@sec:labor) is reported along these rows.],
+) <tab:functions>
+
+== Intelligence
+
+"Amplified by intelligence" must not mean renting it. Today most of the company's intelligence is bought: kyte routes to other people's models, frog escalates to frontier ones, and Ipse uses a cloud model as an amplifier. The company counts it like any bought part, as the *bought intelligence fraction*: the share of its model calls served by models it does not run. It falls in three steps: tang serving open models on our own hardware (@sec:kyte), then models tuned on the company's own work, such as frog's traces, then, at Home and beyond, inference on chyp. Running a model is not owning it; the weights we run are mostly other people's, and the fraction reports that too.
+
+== Agents
+
+Once software spends money, orders parts and answers customers, the risks are no longer only physical. An agent can be misled by what it reads, spend without limit, or sign what it should not. So the company's agents follow the same rule as its duets: they act inside limits people set and cannot change.
+
+- *Caps.* Every agent has a spending and ordering cap, per day and per action.
+- *Approvals.* Anything over a cap, any new supplier and any contract goes to a person.
+- *Receipts.* Every action is signed and logged, like a duet's build receipt, and the log is what the audit reads.
+- *No self-raises.* No agent can change its own limits, or another agent's. A raise is a license, granted by people (@sec:replication).
+- *Quarantine.* Text from outside, a web page, an email, a tool description, is data, never instructions. frog already quarantines tools that look like injection.
+
+== Governance
+
+"People decide" needs people. Today the company is one person, so every license, signature and limit rests on one set of keys and one judgment. Before Shop's first licensed division, that has to change (proposed): a board of at least three; keys held so that no one person can license a division alone; a named successor; and a public record of every license granted. Who sits on the board, and when, is not decided.
+
 = Score <sec:score>
 
 == Electrons <sec:eum>
-
-One number runs through every stage: *electrons under management* (EUM), in watts. It measures the same thing at every scale, so progress can be read off one axis, from one robot to a fraction of the sun's output (3.828 × 10#super[26] W, nominal @iau2015b3).
 
 #figure(
   cetz.canvas(length: 1cm, {
@@ -1878,6 +1921,9 @@ One number runs through every stage: *electrons under management* (EUM), in watt
   caption: [#lead[The arc.] Eight stages, each a step up in scale; one loop, one number. Each stage contains the one before it, and each removes a person from one more edge of the loop. Watts are electrons under management (@sec:eum), as orders of magnitude, not targets @mr2026masterplan.],
 ) <fig:arc>
 
+One number runs through every stage: *electrons under management* (EUM), in watts. It measures the same thing at every scale, so progress can be read off one axis, from one robot to a fraction of the sun's output (3.828 × 10#super[26] W, nominal @iau2015b3).
+
+
 #mathfig(
   [$ "EUM" = 1/T sum_m integral_0^T V_m (t) I_m (t) dif t $],
   cetz.canvas(length: 1.3cm, {
@@ -1901,6 +1947,10 @@ One number runs through every stage: *electrons under management* (EUM), in watt
 
 
  EUM is *0 W*: we have built nothing that is in service. Electrons under control are the K1, at roughly 100 W while it runs (estimate, not measured; its duty is not logged yet). A working duet would add about 150 W mean, with two lymbs near 200 W peak each (estimate).
+
+== Labor <sec:labor>
+
+The fourth number is the company's own: the *labor fraction*, the share of its work still done by people, in hours per unit of output, reported by function. It is the twin of the bought fraction. One counts what the company buys from others; the other counts what it still needs people for. Today it is about 100%: one person does nearly all of it, and frog writes some of the code. The plan is working when it falls stage by stage while the decisions people keep (@sec:company) do not.
 
 == Doublings
 
@@ -2406,6 +2456,14 @@ Four results would prove the plan wrong:
 
 Each is a gate (@tab:arc), and we will publish the ones we miss. The risks below are smaller: each could hurt, and none alone would end the plan.
 
+== Capital
+
+kyte is meant to fund the arm. Nothing in this plan yet funds what comes after it: duet inventory, Rose, a city pilot, or anything off Earth, where no customer pays. Whether the company raises money, when, how much and from whom is not decided. The gates are written so that each stage can be paid for by the one before it, but the Moon and Mars will need a funder, not just a gate.
+
+*Liability.* When a robot or an agent of an autonomous company causes harm, someone must answer for it. Product liability on lymbs, permits and insurance for a sidewalk pilot, and contracts drafted by agents all need an owner, by City at the latest.
+
+*Competition.* Humanoid makers are well funded, and dual-arm robots are already sold. Coding agents are crowded. The plan's answer is owning the whole stack, measuring every unit, and a company that grows on its own; whether that wins is the bet, not a fact.
+
 == Limits
 
 Each open item is limited by one of four things. Sorting them shows which can be fixed by work and which cannot.
@@ -2431,6 +2489,9 @@ What we can say:
 - The body-schema fit has worked in simulation. The hardware run will be preregistered before it happens, and the result will be published either way.
 - rana's next number is its first dyno run, on a dyno that has to be built first. Its torque constant and peak torque are predicted upper bounds until then.
 
+
+@tab:evidence sorts the main numbers in this paper by how much they should be trusted.
+
 #figure(
   { set table(inset: (x: 5pt, y: 3.4pt)); stack(spacing: 0.8em, table(
     columns: 2,
@@ -2447,15 +2508,13 @@ What we can say:
   caption: [#lead[Evidence classes for the numbers in this paper]],
 ) <tab:evidence>
 
-@tab:evidence sorts the main numbers in this paper by how much they should be trusted.
-
 Nothing in this paper has been measured by us on hardware. What exists is a K1, the software stack, a CNC mill and this plan.
 
 The ladder is a direction, not a schedule. We will publish each gate's evidence when it is met, and we will publish the gates we miss. Every gate threshold in this paper is a proposed target, to be confirmed by the author before it is used to judge anything.
 
 = Conclusion
 
-The cover asks what it would take for a machine to make the next one. The answer is the oldest engineering problem a spacefaring species has, and on the evidence in this paper it comes down to three things: a gap between simulation and reality measured on every unit, so that a machine rather than a person can judge whether a part is right; a bought fraction that falls toward zero; and a force limit that lives in hardware. None of the three is measured yet. Desk starts measuring the first.
+The cover asks what it would take for a machine to make the next one. The answer is the oldest engineering problem a spacefaring species has, and on the evidence in this paper it comes down to four things: a gap between simulation and reality measured on every unit, so that a machine rather than a person can judge whether a part is right; a bought fraction that falls toward zero; a labor fraction that falls while people keep the decisions; and a force limit that lives in hardware. None of the four is measured yet. Desk starts measuring the first.
 
 It does so with things that can be checked: a lymb on purchased actuators, designed and ready to cut, at \$5,000; a pair of them on any table, at \$12,000; and, if a city agrees, a bought humanoid with a reacher picking up litter in Lakewood, a method still under design. Each closes on an exact gate (@tab:arc).
 
