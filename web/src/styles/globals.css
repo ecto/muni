@@ -3022,8 +3022,8 @@ body > div:not(.frame-footer):not([class*="frame"]) > .formkit-form[data-uid="cb
   max-width: 1200px;
   margin: 0 auto;
   padding: 24px 32px;
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
+  display: flex; /* logo left, every link right */
+  justify-content: space-between;
   align-items: center;
   transition: padding 0.4s ease;
 }

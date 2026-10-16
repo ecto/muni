@@ -427,3 +427,26 @@ html.post-rail-on::-webkit-scrollbar { display: none; }
 .post aside.aside .aside-title::before { content: "Aside · "; }
 .post aside.aside p { margin: 0 0 0.8em; }
 .post aside.aside p:last-child { margin-bottom: 0; }
+
+/* a quiet hint that the post goes on below the cover */
+.post-cover-scroll {
+  position: absolute;
+  left: 50%;
+  bottom: 2.2rem;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  font-family: var(--p-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--p-label);
+  text-decoration: none;
+}
+.post-cover-scroll svg { width: 0.9rem; height: 0.9rem; animation: post-scroll-bob 2.4s ease-in-out infinite; }
+.post-cover-scroll:hover { color: var(--p-sel); }
+.post-cover-scroll:focus-visible { outline: 2px solid var(--p-sel); outline-offset: 4px; }
+@keyframes post-scroll-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(4px); } }
+@media (prefers-reduced-motion: reduce) { .post-cover-scroll svg { animation: none; } }

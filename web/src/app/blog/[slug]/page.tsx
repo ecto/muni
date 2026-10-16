@@ -29,7 +29,7 @@ export default function PostPage({ params }: { params: { slug: string } }) {
   return (
     <div className="post-page">
       <FloatingHeader />
-      <PostCover title={post.title} subtitle={post.subtitle}>
+      <PostCover title={post.title} subtitle={post.subtitle} scrollTo="abstract">
         <div className="post-byline">
           <span className="by">{post.author}</span>
           <time dateTime={post.date}>{formatDate(post.date)}</time>
