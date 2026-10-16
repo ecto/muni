@@ -117,7 +117,7 @@
       "name": "lymb",
       "family": "body",
       "maturity": "designed",
-      "note": "the arm: product, half a pair",
+      "note": "the arm: product, half a duet",
       "stage": "desk"
     },
     {
@@ -130,7 +130,7 @@
     },
     {
       "num": 13,
-      "name": "pair",
+      "name": "duet",
       "family": "body",
       "maturity": "concept",
       "note": "two lymbs, any table",
@@ -157,7 +157,7 @@
       "name": "seed",
       "family": "body",
       "maturity": "concept",
-      "note": "a pair, packed to go",
+      "note": "a duet, packed to go",
       "stage": "moon"
     },
     {

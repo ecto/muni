@@ -77,7 +77,7 @@ export default function HomePage() {
         <div className="tile-pair">
           <section className="tile tile-half">
             <div className="tile-copy is-center">
-              <h2 className="tile-name is-body">pair</h2>
+              <h2 className="tile-name is-body">duet</h2>
               <p className="tile-line">Two arms. Any table.</p>
               <p className="tile-sub">Folds laundry, tends a machine, builds the next lymb. $12,000, target.</p>
               <span className="tile-soon">Coming later</span>
@@ -87,7 +87,7 @@ export default function HomePage() {
           <section className="tile tile-half">
             <div className="tile-copy is-center">
               <h2 className="tile-name is-body">Rose</h2>
-              <p className="tile-line">A pair on legs.</p>
+              <p className="tile-line">A duet on legs.</p>
               <p className="tile-sub">Our humanoid, in three sizes: mini, full and mega.</p>
               <span className="tile-soon">Coming later</span>
             </div>

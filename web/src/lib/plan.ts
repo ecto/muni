@@ -65,11 +65,11 @@ export interface Stage {
 /** The eight stages, each a step up in scale and each built by the one before. Only Desk is a plan. */
 export const stages: Stage[] = [
   { name: "Desk", what: "Software that funds an arm that ships with its gap", watts: "0 W → 10 kW" },
-  { name: "Shop", what: "Two lymbs at any table; a pair builds a pair", watts: "100 kW" },
-  { name: "Road", what: "A pair on legs that fits its own model", watts: "1 MW" },
-  { name: "City", what: "A fleet and its pairs work a city", watts: "10 MW" },
+  { name: "Shop", what: "Two lymbs at any table; a duet builds a duet", watts: "100 kW" },
+  { name: "Road", what: "A duet on legs that fits its own model", watts: "1 MW" },
+  { name: "City", what: "A fleet and its duets work a city", watts: "10 MW" },
   { name: "Home", what: "Lineages on their own power", watts: "1 GW" },
-  { name: "Moon", what: "A seed grows a pair, with a lifeline", watts: "1 kW off Earth" },
+  { name: "Moon", what: "A seed grows a duet, with a lifeline", watts: "1 kW off Earth" },
   { name: "Mars", what: "The same seed, lifeline cut", watts: "1 kW off Earth" },
   { name: "Star", what: "A swarm of collectors around a star", watts: "3.8 × 10²⁶ W" },
 ];
