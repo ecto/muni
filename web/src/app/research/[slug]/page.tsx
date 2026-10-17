@@ -16,7 +16,7 @@ export function generateMetadata({ params }: { params: { slug: string } }): Meta
   return {
     title: post.title,
     description: post.description,
-    alternates: { canonical: `https://muni.works/blog/${post.slug}` },
+    alternates: { canonical: `https://muni.works/research/${post.slug}` },
     openGraph: { title: post.title, description: post.description, type: "article", publishedTime: post.date },
   };
 }
@@ -29,11 +29,11 @@ export default function PostPage({ params }: { params: { slug: string } }) {
   return (
     <div className="post-page">
       <FloatingHeader />
-      <PostCover title={post.title} subtitle={post.subtitle}>
+      <PostCover title={post.title} subtitle={post.subtitle} scrollTo="abstract">
         <div className="post-byline">
           <span className="by">{post.author}</span>
           <time dateTime={post.date}>{formatDate(post.date)}</time>
-          <a className="pdf" href={`/blog/${post.slug}.pdf`}>
+          <a className="pdf" href={`/research/${post.slug}.pdf`}>
             <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M6 1v7M3 5.5 6 8.5 9 5.5M2 11h8" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" /></svg>
             Read the PDF
           </a>

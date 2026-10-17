@@ -49,10 +49,13 @@
 }
 .post-cover-text {
   position: relative;
-  max-width: var(--p-wide);
+  max-width: 44rem;
   margin: 0 auto;
-  padding: 7.5rem 1.25rem 0;
+  padding: 22vh 1.25rem 0; /* centered, and set a little low, over the sun */
+  text-align: center;
 }
+.post-cover-text .post-subtitle { max-width: 34rem; margin-left: auto; margin-right: auto; text-wrap: balance; }
+.post-cover-text .post-byline { justify-content: center; }
 .post-kicker,
 .post .part-label,
 .post .fig-label {
@@ -179,8 +182,11 @@
 
 /* the letter's signature */
 .post .signature { margin-top: 2.2em; display: grid; gap: 0.2em; }
-.post .sig-name { font-weight: 500; }
-.post .sig-place { font-family: var(--p-mono); font-size: 0.78rem; color: var(--p-label); }
+.post .signature { display: flex; align-items: center; gap: 0.85rem; margin-top: 2.4rem; }
+.post .sig-photo { width: 44px; height: 44px; max-width: none; border-radius: 50%; object-fit: cover; filter: saturate(0.85); }
+.post .sig-text { margin: 0; display: flex; flex-direction: column; gap: 0.2rem; }
+.post .sig-name { font-weight: 500; line-height: 1.2; }
+.post .sig-place { font-family: var(--p-mono); font-size: 0.6rem; line-height: 1.2; letter-spacing: 0.16em; color: var(--p-label); }
 .post .math svg { display: inline-block; vertical-align: -0.2em; height: 1.05em; width: auto; }
 
 /* part dividers: a label, a title, a lede and the part's illustration */
@@ -285,20 +291,29 @@
 }
 
 /* blog index */
-.blog-index { max-width: var(--p-measure); margin: 0 auto; padding: 9rem 1.25rem 6rem; }
-.blog-index h1 { margin: 0; font-size: 3rem; font-weight: 600; letter-spacing: -0.02em; }
-.blog-index-lede { color: var(--p-label); margin: 0.8rem 0 3rem; }
+/* the research index, set like the plan's contents: a quiet title, numbered rows, mono figures */
+.blog-index { max-width: var(--p-measure); min-height: 100vh; min-height: 100svh; margin: 0 auto; padding: 18svh 1.25rem 8svh; }
+.blog-index h1 { margin: 0; font-size: 1.35rem; font-weight: 600; letter-spacing: -0.01em; }
+.blog-index-lede { margin: 0.4rem 0 2.2rem; font-size: 0.86rem; color: var(--p-label); }
 .blog-list { list-style: none; margin: 0; padding: 0; }
-.blog-list li { border-top: 1px solid var(--p-line); }
-.blog-list a { display: grid; gap: 0.35rem; padding: 1.4rem 0; color: inherit; text-decoration: none; }
-.blog-list time { font-family: var(--p-mono); font-size: 0.72rem; letter-spacing: 0.02em; color: var(--p-label); }
-.blog-list-title { font-size: 1.5rem; font-weight: 600; letter-spacing: -0.01em; }
+.blog-list li::before { content: none; }
+.blog-list a { display: grid; grid-template-columns: 2.1rem 1fr auto; column-gap: 1rem; align-items: baseline; margin: 0 -0.75rem; padding: 0.95rem 0.75rem; border-radius: 3px; color: inherit; text-decoration: none; font-weight: 400; transition: background-color 160ms ease; }
+.blog-list-num { font-family: var(--p-mono); font-size: 0.62rem; letter-spacing: 0.08em; color: var(--p-label); font-variant-numeric: tabular-nums; transition: color 160ms ease; }
+.blog-list-body { display: flex; flex-direction: column; gap: 0.25rem; }
+.blog-list-title { font-size: 0.95rem; font-weight: 500; line-height: var(--p-lh-tight); color: var(--p-text); transition: color 120ms ease; }
+.blog-list-desc { font-size: 0.8rem; line-height: 1.45; color: var(--p-label); transition: color 160ms ease; }
+.blog-list time { font-family: var(--p-mono); font-size: 0.62rem; letter-spacing: 0.06em; color: var(--p-label); white-space: nowrap; }
+.blog-list a:hover { background: var(--p-surface); }
+.blog-list a:hover .blog-list-num,
 .blog-list a:hover .blog-list-title { color: var(--p-sel); }
-.blog-list-desc { color: var(--p-label); }
+.blog-list a:hover .blog-list-desc { color: var(--p-text); }
+.blog-list a:focus-visible { outline: 2px solid var(--p-sel); outline-offset: 2px; }
+@media (max-width: 36rem) { .blog-list a { grid-template-columns: 2.1rem 1fr; } .blog-list time { grid-column: 2; margin-top: 0.3rem; } }
 .post .toc-col { break-before: column; margin-top: 0 !important; }
 
 /* the PDF's all-caps labels, kept: parts, figure and table labels, table headers, the signature's place */
-.post :is(.part-label, .toc-part a, .fig-label, thead th, .sig-place) { text-transform: uppercase; letter-spacing: 0.12em; }
+.post :is(.part-label, .toc-part a, .fig-label, thead th) { text-transform: uppercase; letter-spacing: 0.12em; }
+.post .sig-place { text-transform: uppercase; }
 
 /* back matter: appendices and references in two columns, one on narrow screens */
 .post .back-matter {
@@ -424,3 +439,26 @@ html.post-rail-on::-webkit-scrollbar { display: none; }
 .post aside.aside .aside-title::before { content: "Aside · "; }
 .post aside.aside p { margin: 0 0 0.8em; }
 .post aside.aside p:last-child { margin-bottom: 0; }
+
+/* a quiet hint that the post goes on below the cover */
+.post-cover-scroll {
+  position: absolute;
+  left: 50%;
+  bottom: 2.2rem;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  font-family: var(--p-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--p-label);
+  text-decoration: none;
+}
+.post-cover-scroll svg { width: 0.9rem; height: 0.9rem; animation: post-scroll-bob 2.4s ease-in-out infinite; }
+.post-cover-scroll:hover { color: var(--p-sel); }
+.post-cover-scroll:focus-visible { outline: 2px solid var(--p-sel); outline-offset: 4px; }
+@keyframes post-scroll-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(4px); } }
+@media (prefers-reduced-motion: reduce) { .post-cover-scroll svg { animation: none; } }

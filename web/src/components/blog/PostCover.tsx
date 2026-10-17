@@ -36,7 +36,7 @@ function trajectory(n: number) {
   return pts;
 }
 
-export function PostCover({ title, subtitle, children }: { title: string; subtitle: string; children?: React.ReactNode }) {
+export function PostCover({ title, subtitle, children, scrollTo }: { title: string; subtitle: string; children?: React.ReactNode; scrollTo?: string }) {
   const ref = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -197,6 +197,12 @@ export function PostCover({ title, subtitle, children }: { title: string; subtit
         <p className="post-subtitle">{subtitle}</p>
         {children}
       </div>
+      {scrollTo && (
+        <a className="post-cover-scroll" href={`#${scrollTo}`} aria-label="Scroll to the text">
+          <span>Scroll</span>
+          <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 4.5 6 8l3.5-3.5" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" /></svg>
+        </a>
+      )}
     </header>
   );
 }

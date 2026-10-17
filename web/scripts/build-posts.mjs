@@ -3,7 +3,7 @@
 //   npm run posts
 //
 // Needs typst ≥ 0.14 on PATH. Vercel's build image has no typst, so the outputs
-// are committed: src/content/posts/<slug>.html and public/blog/<slug>.pdf.
+// are committed: src/content/posts/<slug>.html and public/research/<slug>.pdf.
 import { execFileSync } from "node:child_process";
 import { mkdirSync, readFileSync, writeFileSync, copyFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
@@ -12,18 +12,23 @@ import { fileURLToPath } from "node:url";
 const web = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const posts = JSON.parse(readFileSync(join(web, "posts.json"), "utf8"));
 const contentDir = join(web, "src/content/posts");
-const pdfDir = join(web, "public/blog");
+const pdfDir = join(web, "public/research");
 mkdirSync(contentDir, { recursive: true });
 mkdirSync(pdfDir, { recursive: true });
 
-// Product names, as [name, family] pairs, if the source publishes them as <brand-names> metadata.
-function brandNames(common, src) {
+// A <label>'s metadata value from the source, or null if it publishes none.
+function queryMetadata(common, src, label) {
   try {
-    const out = execFileSync("typst", ["query", ...common, src, "<brand-names>", "--field", "value", "--one"], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
+    const out = execFileSync("typst", ["query", ...common, src, label, "--field", "value", "--one"], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
     return JSON.parse(out);
   } catch {
-    return [];
+    return null;
   }
+}
+
+// Product names, as [name, family] pairs, if the source publishes them as <brand-names> metadata.
+function brandNames(common, src) {
+  return queryMetadata(common, src, "<brand-names>") ?? [];
 }
 
 // Wrap each product name in <span class="name n-<family>">, in text only: never inside
@@ -57,6 +62,8 @@ for (const post of posts) {
   const full = readFileSync(htmlOut, "utf8");
   let body = full.slice(full.indexOf("<body>") + 6, full.lastIndexOf("</body>")).trim();
   body = colorNames(body, brandNames(common, src));
+  const table = queryMetadata(common, src, "<elements-data>");
+  if (table) writeFileSync(join(contentDir, "..", "elements.json"), JSON.stringify(table, null, 2) + "\n");
   writeFileSync(join(contentDir, `${post.slug}.html`), body);
   execFileSync("rm", [htmlOut]);
 
