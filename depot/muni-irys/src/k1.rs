@@ -58,7 +58,6 @@ pub struct K1Model {
     pub meshes: Vec<LinkMesh>,
     /// `Head_2`'s link index.
     pub head: usize,
-    feet: Vec<usize>,
 }
 
 impl K1Model {
@@ -86,13 +85,7 @@ impl K1Model {
         let head = robot
             .link(HEAD_LINK)
             .ok_or_else(|| Error::Urdf(format!("no {HEAD_LINK} link")))?;
-        let feet = meshes
-            .iter()
-            .enumerate()
-            .filter(|(_, m)| robot.links[m.link].name.contains("foot"))
-            .map(|(i, _)| i)
-            .collect();
-        Ok(Self { robot, meshes, head, feet })
+        Ok(Self { robot, meshes, head })
     }
 
     /// Triangles over all meshes.
@@ -117,15 +110,13 @@ impl K1Model {
     }
 
     /// A pose standing on `ground_z`: trunk at `(x, y)` heading `yaw`, tilted
-    /// by `roll`/`pitch`, joints `q`, lowered until the lowest foot vertex
-    /// touches the ground.
+    /// by `roll`/`pitch`, joints `q`, lowered until its lowest vertex touches
+    /// the ground (the feet when standing, the seat when sitting).
     pub fn standing(&self, x: f64, y: f64, yaw: f64, roll: f64, pitch: f64, q: HashMap<String, f64>, ground_z: f64) -> K1Pose {
         let mut pose = K1Pose { base: Xf::from_xyz_rpy([x, y, 0.0], [roll, pitch, yaw]), q };
         let poses = self.mesh_poses(&pose);
-        let lowest = self
-            .feet
-            .iter()
-            .flat_map(|&i| self.meshes[i].tris.positions.iter().map(move |p| (i, p)))
+        let lowest = (0..self.meshes.len())
+            .flat_map(|i| self.meshes[i].tris.positions.iter().map(move |p| (i, p)))
             .map(|(i, p)| poses[i].point([p[0] as f64, p[1] as f64, p[2] as f64])[2])
             .fold(f64::INFINITY, f64::min);
         if lowest.is_finite() {
