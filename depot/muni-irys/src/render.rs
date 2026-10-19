@@ -57,6 +57,9 @@ pub struct SimCamera {
     poses: Vec<K1Pose>,
     /// Seconds the last scene upload (BLAS + TLAS build) took.
     pub upload_seconds: f64,
+    /// Seconds the last render spent in its dispatch loop (irys `Frame::seconds`),
+    /// i.e. without the clear, the readback and the CPU conversion.
+    pub gpu_seconds: std::cell::Cell<f64>,
 }
 
 fn tile(i: usize) -> Xf {
@@ -128,6 +131,7 @@ impl SimCamera {
             street_meshes,
             street_instances,
             poses: Vec::new(),
+            gpu_seconds: Default::default(),
             upload_seconds: t0.elapsed().as_secs_f64(),
         };
         s.set_poses(poses)?;
@@ -185,6 +189,7 @@ impl SimCamera {
         let c = self.camera(env, eye);
         let opts = Opts { spp: 1, max_bounces: 1, debug: 3, seed: env as u64, ..Opts::default() };
         let f = self.look.render(&c, &opts);
+        self.gpu_seconds.set(f.seconds);
         let (w, h) = (self.cam.width as usize, self.cam.height as usize);
         let aspect = w as f64 / h as f64;
         let mut z = Vec::with_capacity(w * h);
@@ -221,6 +226,7 @@ impl SimCamera {
     fn render_rgb_from_seeded(&self, c: &Camera, spp: u32, exposure: f32, seed: u64) -> RgbImage {
         let opts = Opts { spp, max_bounces: 4, seed, ..Opts::default() };
         let f = self.look.render(c, &opts);
+        self.gpu_seconds.set(f.seconds);
         RgbImage {
             width: self.cam.width,
             height: self.cam.height,
