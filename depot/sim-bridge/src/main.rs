@@ -5,6 +5,8 @@
 
 mod can_protocol;
 mod imu_sim;
+#[cfg(feature = "irys")]
+mod irys_depth;
 mod lidar_sim;
 mod livox_protocol;
 mod physics;
@@ -57,10 +59,21 @@ async fn main() -> anyhow::Result<()> {
     );
     let world = Arc::new(scenario.build_world());
 
+    let sources: Vec<rover::LidarSource> = match scenario.sensors.depth.as_str() {
+        #[cfg(feature = "irys")]
+        "irys" => {
+            let spawns = scenario.rovers.iter().map(|r| (r.spawn.x, r.spawn.y, r.spawn.theta)).collect();
+            let irys = irys_depth::IrysDepth::spawn(&world, spawns, 0.4)?;
+            (0..scenario.rovers.len()).map(|i| rover::LidarSource::Irys(irys.clone(), i)).collect()
+        }
+        "geometric" => vec![rover::LidarSource::Geometric; scenario.rovers.len()],
+        other => anyhow::bail!("sensors.depth = {other:?} is not available in this build (features: irys)"),
+    };
+
     // Create per-rover status handles
     let mut statuses: Vec<Arc<tokio::sync::Mutex<RoverStatus>>> = Vec::new();
 
-    for config in &scenario.rovers {
+    for (config, source) in scenario.rovers.iter().zip(sources) {
         let status = Arc::new(tokio::sync::Mutex::new(RoverStatus {
             id: config.id.clone(),
             connected: false,
@@ -76,7 +89,7 @@ async fn main() -> anyhow::Result<()> {
         let rover_config = config.clone();
         let rover_world = world.clone();
         tokio::spawn(async move {
-            rover::run_rover(rover_config, rover_world, status).await;
+            rover::run_rover(rover_config, rover_world, status, source).await;
         });
     }
 

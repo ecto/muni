@@ -21,6 +21,16 @@ use tokio::net::{TcpListener, UdpSocket};
 use tokio::time::{interval, Duration};
 use tracing::{debug, error, info, warn};
 
+/// Where a rover's LiDAR points come from.
+#[derive(Clone)]
+pub enum LidarSource {
+    /// Raycast against the parry world.
+    Geometric,
+    /// Rendered head-camera depth from irys; the index is this rover's env.
+    #[cfg(feature = "irys")]
+    Irys(crate::irys_depth::IrysDepth, usize),
+}
+
 /// Shared rover state for status API.
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct RoverStatus {
@@ -41,6 +51,7 @@ pub async fn run_rover(
     config: RoverConfig,
     world: Arc<World>,
     status: Arc<tokio::sync::Mutex<RoverStatus>>,
+    source: LidarSource,
 ) {
     let id = config.id.clone();
     info!(rover = %id, can_port = config.can_port, "Starting rover simulation");
@@ -65,7 +76,7 @@ pub async fn run_rover(
                     let mut s = status.lock().await;
                     s.connected = true;
                 }
-                run_rover_session(&config, &world, stream, &status).await;
+                run_rover_session(&config, &world, stream, &status, &source).await;
                 {
                     let mut s = status.lock().await;
                     s.connected = false;
@@ -85,6 +96,7 @@ async fn run_rover_session(
     world: &World,
     stream: tokio::net::TcpStream,
     status: &Arc<tokio::sync::Mutex<RoverStatus>>,
+    source: &LidarSource,
 ) {
     let id = &config.id;
     stream.set_nodelay(true).ok();
@@ -228,8 +240,14 @@ async fn run_rover_session(
             let (x, y, theta) = physics.position();
             let timestamp_ns = start.elapsed().as_nanos() as u64;
 
-            // Raycast LiDAR
-            let points = lidar.scan(world, x, y, theta);
+            let points = match source {
+                LidarSource::Geometric => lidar.scan(world, x, y, theta),
+                #[cfg(feature = "irys")]
+                LidarSource::Irys(irys, env) => match irys.scan(*env, x, y, theta).await {
+                    Some(p) => p,
+                    None => lidar.scan(world, x, y, theta),
+                },
+            };
 
             // Split into Livox packets and send via UDP
             let packets = livox_protocol::split_into_packets(&points, udp_seq, timestamp_ns);

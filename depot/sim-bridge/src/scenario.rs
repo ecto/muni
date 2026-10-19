@@ -6,6 +6,8 @@ use serde::Deserialize;
 #[derive(Debug, Deserialize)]
 pub struct Scenario {
     pub world: WorldConfig,
+    #[serde(default)]
+    pub sensors: SensorsConfig,
     #[serde(rename = "rover")]
     pub rovers: Vec<RoverConfig>,
 }
@@ -32,6 +34,19 @@ fn default_wall_height() -> f32 {
 }
 fn default_seed() -> u64 {
     42
+}
+
+/// Where LiDAR points come from.
+#[derive(Debug, Deserialize, Default)]
+pub struct SensorsConfig {
+    /// `"geometric"` (parry raycast, default) or `"irys"` (rendered head-camera
+    /// depth, needs the `irys` feature, a ray-query GPU and the K1 assets).
+    #[serde(default = "default_depth")]
+    pub depth: String,
+}
+
+fn default_depth() -> String {
+    "geometric".into()
 }
 
 #[derive(Debug, Deserialize, Clone)]

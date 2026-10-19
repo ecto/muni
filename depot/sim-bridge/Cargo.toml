@@ -17,3 +17,14 @@ clap = { version = "4", features = ["derive"] }
 axum = "0.8"
 serde_json = "1"
 anyhow = "1"
+# Rendered depth from irys (in-process GPU), replacing the planned
+# Python/gsplat sim-world. Off by default: needs a ray-query GPU.
+muni-irys = { path = "../muni-irys", optional = true }
+
+[features]
+irys = ["dep:muni-irys"]
+
+# muni-irys pulls irys, which needs tang at the same git rev as irys itself.
+[patch.crates-io]
+tang = { git = "https://github.com/ecto/tang", rev = "bfc8003" }
+tang-expr = { git = "https://github.com/ecto/tang", rev = "bfc8003" }
