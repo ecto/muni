@@ -1,0 +1,26 @@
+[package]
+name = "muni-irys"
+version = "0.1.0"
+edition = "2021"
+description = "In-process GPU sim camera for muni: the Booster K1's head camera rendered by irys"
+publish = false
+
+[dependencies]
+# irys is private and unpublished; pinned by rev. A local checkout can be
+# patched in through an untracked .cargo/config.toml (see docs/irys-camera.md).
+irys-diff = { git = "https://github.com/ecto/irys", rev = "942c17e", features = ["gpu", "assets"] }
+image = { version = "0.25", default-features = false, features = ["png"] }
+roxmltree = "0.20"
+thiserror = "1"
+serde_json = "1"
+
+[dev-dependencies]
+anyhow = "1"
+
+# irys-diff needs every tang crate at the same git rev as irys's own workspace.
+[patch.crates-io]
+tang = { git = "https://github.com/ecto/tang", rev = "bfc8003" }
+tang-expr = { git = "https://github.com/ecto/tang", rev = "bfc8003" }
+
+[profile.release]
+debug = false
