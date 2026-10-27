@@ -107,16 +107,16 @@ export default function DocsPage() {
               <strong>Guides</strong>
 {`
 ├─ `}
-              <a href="https://github.com/ecto/muni/blob/main/docs/hardware/bom.md">Bill of Materials</a>
+              <a href="https://github.com/muni-works/muni/blob/main/docs/hardware/bom.md">Bill of Materials</a>
 {`
 ├─ `}
-              <a href="https://github.com/ecto/muni/blob/main/docs/hardware/motors.md">Motor Configuration</a>
+              <a href="https://github.com/muni-works/muni/blob/main/docs/hardware/motors.md">Motor Configuration</a>
 {`
 ├─ `}
-              <a href="https://github.com/ecto/muni/blob/main/docs/hardware/networking.md">Networking Setup</a>
+              <a href="https://github.com/muni-works/muni/blob/main/docs/hardware/networking.md">Networking Setup</a>
 {`
 └─ `}
-              <a href="https://github.com/ecto/muni/blob/main/docs/hardware/rtk.md">RTK GPS</a>
+              <a href="https://github.com/muni-works/muni/blob/main/docs/hardware/rtk.md">RTK GPS</a>
             </Pre>
           </Card>
 

@@ -1,0 +1,1031 @@
+---
+import Base from "../layouts/Base.astro";
+import ComponentDemo from "../components/ComponentDemo.astro";
+---
+
+<Base title="Components">
+  <div class="page-header">
+    <p class="overline">Library</p>
+    <h1>Components</h1>
+    <p class="desc">
+      React primitives built on shadcn/ui with muni tokens. Zero border radius.
+      Terminal aesthetic. Every component earns its place.
+    </p>
+  </div>
+
+  <!-- ═══ BUTTONS ════════════════════════════════════════════════ -->
+
+  <section>
+    <h2 class="section-title">Buttons</h2>
+    <ComponentDemo label="Variants">
+      <button class="btn btn-primary">Primary</button>
+      <button class="btn btn-secondary">Secondary</button>
+      <button class="btn btn-ghost">Ghost</button>
+      <button class="btn btn-danger">E-Stop</button>
+      <button class="btn btn-primary" disabled>Disabled</button>
+    </ComponentDemo>
+    <ComponentDemo label="Sizes">
+      <button class="btn btn-primary btn-sm">Small</button>
+      <button class="btn btn-primary">Default</button>
+      <button class="btn btn-primary btn-lg">Large</button>
+    </ComponentDemo>
+    <ComponentDemo label="Icon Buttons">
+      <button class="btn btn-primary btn-icon">+</button>
+      <button class="btn btn-secondary btn-icon">×</button>
+      <button class="btn btn-ghost btn-icon">⟲</button>
+      <button class="btn btn-danger btn-icon">■</button>
+    </ComponentDemo>
+    <ComponentDemo label="Button Group">
+      <div class="btn-group">
+        <button class="btn btn-secondary btn-group-item active">Map</button>
+        <button class="btn btn-secondary btn-group-item">Satellite</button>
+        <button class="btn btn-secondary btn-group-item">Terrain</button>
+      </div>
+    </ComponentDemo>
+  </section>
+
+  <!-- ═══ BADGES ═════════════════════════════════════════════════ -->
+
+  <section>
+    <h2 class="section-title">Badges</h2>
+    <ComponentDemo label="Rover Status">
+      <span class="badge badge-active">active</span>
+      <span class="badge badge-yield">yielding</span>
+      <span class="badge badge-charge">charging</span>
+      <span class="badge badge-off">offline</span>
+      <span class="badge badge-maint">maintenance</span>
+    </ComponentDemo>
+    <ComponentDemo label="Priority">
+      <span class="badge badge-critical">critical</span>
+      <span class="badge badge-high">high</span>
+      <span class="badge badge-normal">normal</span>
+      <span class="badge badge-low">low</span>
+    </ComponentDemo>
+    <ComponentDemo label="Category">
+      <span class="badge badge-cat">snow</span>
+      <span class="badge badge-cat">leaves</span>
+      <span class="badge badge-cat">patrol</span>
+      <span class="badge badge-cat">delivery</span>
+    </ComponentDemo>
+  </section>
+
+  <!-- ═══ STATUS INDICATORS ══════════════════════════════════════ -->
+
+  <section>
+    <h2 class="section-title">Status Indicators</h2>
+    <ComponentDemo label="States">
+      <div class="status">
+        <span class="status-icon status-complete"></span>
+        <span>Complete</span>
+      </div>
+      <div class="status">
+        <span class="status-icon status-active"></span>
+        <span>In Progress</span>
+      </div>
+      <div class="status">
+        <span class="status-icon status-pending"></span>
+        <span>Pending</span>
+      </div>
+      <div class="status">
+        <span class="status-icon status-error"></span>
+        <span>Error</span>
+      </div>
+      <div class="status">
+        <span class="status-icon status-offline"></span>
+        <span>Offline</span>
+      </div>
+    </ComponentDemo>
+    <ComponentDemo label="Inline">
+      <span class="status-inline"><span class="status-dot dot-green"></span> 3 online</span>
+      <span class="status-inline"><span class="status-dot dot-orange"></span> 1 yielding</span>
+      <span class="status-inline"><span class="status-dot dot-red"></span> E-stop</span>
+      <span class="status-inline"><span class="status-dot dot-muted"></span> 1 offline</span>
+    </ComponentDemo>
+  </section>
+
+  <!-- ═══ PROGRESS & DATA VIZ ════════════════════════════════════ -->
+
+  <section>
+    <h2 class="section-title">Progress &amp; Data Viz</h2>
+    <ComponentDemo label="Progress Bars">
+      <div class="progress-stack">
+        <div class="progress-row">
+          <span class="progress-label">Battery</span>
+          <div class="progress-track"><div class="progress-fill fill-green" style="width: 73%"></div></div>
+          <span class="progress-value">73%</span>
+        </div>
+        <div class="progress-row">
+          <span class="progress-label">Route</span>
+          <div class="progress-track"><div class="progress-fill fill-orange" style="width: 67%"></div></div>
+          <span class="progress-value">67%</span>
+        </div>
+        <div class="progress-row">
+          <span class="progress-label">Battery</span>
+          <div class="progress-track"><div class="progress-fill fill-red" style="width: 12%"></div></div>
+          <span class="progress-value">12%</span>
+        </div>
+        <div class="progress-row">
+          <span class="progress-label">Coverage</span>
+          <div class="progress-track"><div class="progress-fill fill-green" style="width: 100%"></div></div>
+          <span class="progress-value">100%</span>
+        </div>
+      </div>
+    </ComponentDemo>
+    <ComponentDemo label="Sparklines">
+      <div class="sparkline-group">
+        <div class="sparkline-item">
+          <span class="sparkline-label">Cleared / hr</span>
+          <svg class="sparkline" viewBox="0 0 120 32">
+            <polyline points="0,28 10,24 20,26 30,20 40,22 50,16 60,18 70,12 80,14 90,8 100,10 110,6 120,4" fill="none" stroke="oklch(0.705 0.213 47.604)" stroke-width="1.5"/>
+          </svg>
+          <span class="sparkline-val">2.4 km</span>
+        </div>
+        <div class="sparkline-item">
+          <span class="sparkline-label">Energy / hr</span>
+          <svg class="sparkline" viewBox="0 0 120 32">
+            <polyline points="0,8 10,12 20,10 30,16 40,14 50,18 60,16 70,20 80,18 90,22 100,20 110,24 120,22" fill="none" stroke="oklch(0.723 0.191 149)" stroke-width="1.5"/>
+          </svg>
+          <span class="sparkline-val">1.2 kWh</span>
+        </div>
+        <div class="sparkline-item">
+          <span class="sparkline-label">Interactions</span>
+          <svg class="sparkline" viewBox="0 0 120 32">
+            <polyline points="0,20 10,18 20,22 30,16 40,24 50,12 60,20 70,8 80,16 90,14 100,18 110,10 120,16" fill="none" stroke="oklch(0.546 0.215 264)" stroke-width="1.5"/>
+          </svg>
+          <span class="sparkline-val">23</span>
+        </div>
+      </div>
+    </ComponentDemo>
+  </section>
+
+  <!-- ═══ CARDS ══════════════════════════════════════════════════ -->
+
+  <section>
+    <h2 class="section-title">Cards</h2>
+    <ComponentDemo label="Rover Card">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">beaver-12</span>
+          <span class="card-badge card-badge-active">operational</span>
+        </div>
+        <div class="card-body">
+          <div class="card-row">
+            <span class="card-label">Task</span>
+            <span>Clearing snow — Oak St</span>
+          </div>
+          <div class="card-row">
+            <span class="card-label">Battery</span>
+            <span>73%</span>
+          </div>
+          <div class="card-row">
+            <span class="card-label">Uptime</span>
+            <span>4h 22m</span>
+          </div>
+        </div>
+      </div>
+    </ComponentDemo>
+    <ComponentDemo label="Metric Cards">
+      <div class="metric-card">
+        <div class="metric-head">
+          <span class="metric-label">Snow Cleared</span>
+          <span class="metric-trend trend-up">+12%</span>
+        </div>
+        <span class="metric-value">2.4 km</span>
+        <svg class="sparkline" viewBox="0 0 120 24">
+          <polyline points="0,20 15,16 30,18 45,12 60,14 75,8 90,10 105,4 120,2" fill="none" stroke="oklch(0.705 0.213 47.604)" stroke-width="1.5"/>
+        </svg>
+      </div>
+      <div class="metric-card">
+        <div class="metric-head">
+          <span class="metric-label">Fleet Availability</span>
+        </div>
+        <span class="metric-value">75%</span>
+        <div class="metric-bar">
+          <div class="metric-seg" style="width:50%; background: oklch(0.723 0.191 149)"></div>
+          <div class="metric-seg" style="width:25%; background: oklch(0.546 0.215 264)"></div>
+          <div class="metric-seg" style="width:25%; background: oklch(0.4 0 0)"></div>
+        </div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-head">
+          <span class="metric-label">Energy</span>
+          <span class="metric-trend trend-down">-8%</span>
+        </div>
+        <span class="metric-value">1.2 kWh</span>
+        <svg class="sparkline" viewBox="0 0 120 24">
+          <polyline points="0,4 15,8 30,6 45,12 60,10 75,14 90,12 105,18 120,16" fill="none" stroke="oklch(0.723 0.191 149)" stroke-width="1.5"/>
+        </svg>
+      </div>
+    </ComponentDemo>
+  </section>
+
+  <!-- ═══ DATA DISPLAY ═══════════════════════════════════════════ -->
+
+  <section>
+    <h2 class="section-title">Data Display</h2>
+    <ComponentDemo label="Table">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Unit</th>
+            <th>Status</th>
+            <th>Battery</th>
+            <th>Task</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>beaver-12</td>
+            <td><span class="inline-status active"></span> Active</td>
+            <td>73%</td>
+            <td>Snow — Oak St</td>
+          </tr>
+          <tr>
+            <td>beaver-07</td>
+            <td><span class="inline-status yield"></span> Yielding</td>
+            <td>45%</td>
+            <td>Snow — Elm Ave</td>
+          </tr>
+          <tr>
+            <td>beaver-03</td>
+            <td><span class="inline-status offline"></span> Charging</td>
+            <td>12%</td>
+            <td>—</td>
+          </tr>
+        </tbody>
+      </table>
+    </ComponentDemo>
+    <ComponentDemo label="Key-Value List">
+      <div class="kv-list">
+        <div class="kv-row"><span class="kv-key">Unit</span><span class="kv-val">beaver-12</span></div>
+        <div class="kv-row"><span class="kv-key">Firmware</span><span class="kv-val">bvrd v0.8.2</span></div>
+        <div class="kv-row"><span class="kv-key">Position</span><span class="kv-val">44.9778°N 93.2650°W</span></div>
+        <div class="kv-row"><span class="kv-key">RTK</span><span class="kv-val">Fixed — 1.2 cm</span></div>
+        <div class="kv-row"><span class="kv-key">CAN</span><span class="kv-val">5 devices · 24 ms</span></div>
+      </div>
+    </ComponentDemo>
+  </section>
+
+  <!-- ═══ TIMELINE ═══════════════════════════════════════════════ -->
+
+  <section>
+    <h2 class="section-title">Timeline</h2>
+    <ComponentDemo label="Event Log">
+      <div class="timeline">
+        <div class="tl-entry">
+          <span class="tl-time">14:32</span>
+          <span class="tl-dot tl-dot-green"></span>
+          <div class="tl-content">
+            <span class="tl-msg">Route progress 67% — Oak St NW</span>
+            <span class="tl-meta">beaver-12</span>
+          </div>
+        </div>
+        <div class="tl-entry">
+          <span class="tl-time">14:31</span>
+          <span class="tl-dot tl-dot-orange"></span>
+          <div class="tl-content">
+            <span class="tl-msg">Battery below 50% threshold</span>
+            <span class="tl-meta">beaver-07</span>
+          </div>
+        </div>
+        <div class="tl-entry">
+          <span class="tl-time">14:31</span>
+          <span class="tl-dot tl-dot-blue"></span>
+          <div class="tl-content">
+            <span class="tl-msg">Returned to depot — bay 2</span>
+            <span class="tl-meta">beaver-03</span>
+          </div>
+        </div>
+        <div class="tl-entry">
+          <span class="tl-time">14:31</span>
+          <span class="tl-dot tl-dot-red"></span>
+          <div class="tl-content">
+            <span class="tl-msg">CAN bus timeout on vesc-3 (retry 2/3)</span>
+            <span class="tl-meta">beaver-01</span>
+          </div>
+        </div>
+        <div class="tl-entry">
+          <span class="tl-time">14:31</span>
+          <span class="tl-dot tl-dot-green"></span>
+          <div class="tl-content">
+            <span class="tl-msg">Pedestrian yield completed — 4.2s wait</span>
+            <span class="tl-meta">beaver-12</span>
+          </div>
+        </div>
+      </div>
+    </ComponentDemo>
+  </section>
+
+  <!-- ═══ CALLOUTS ═══════════════════════════════════════════════ -->
+
+  <section>
+    <h2 class="section-title">Callouts</h2>
+    <ComponentDemo label="Severity Levels">
+      <div class="callouts">
+        <div class="callout callout-danger">
+          <div class="callout-title">Danger</div>
+          <p>Emergency stop engaged. All rovers halted. Manual reset required.</p>
+        </div>
+        <div class="callout callout-warning">
+          <div class="callout-title">Warning</div>
+          <p>Battery below 20%. Rover returning to depot for charging.</p>
+        </div>
+        <div class="callout callout-info">
+          <div class="callout-title">Note</div>
+          <p>Firmware update available. Schedule during next maintenance window.</p>
+        </div>
+        <div class="callout callout-success">
+          <div class="callout-title">Success</div>
+          <p>Route completed. 2.4km cleared in 1h 12m. Returning to depot.</p>
+        </div>
+      </div>
+    </ComponentDemo>
+  </section>
+
+  <!-- ═══ TOASTS ═════════════════════════════════════════════════ -->
+
+  <section>
+    <h2 class="section-title">Toast Notifications</h2>
+    <ComponentDemo label="Variants">
+      <div class="toast-stack">
+        <div class="toast toast-success">
+          <span class="toast-icon">✓</span>
+          <span class="toast-msg">Deploy complete. frog-0 running bvrd v0.8.2</span>
+          <button class="toast-close">×</button>
+        </div>
+        <div class="toast toast-warning">
+          <span class="toast-icon">!</span>
+          <span class="toast-msg">beaver-07 battery below 25%. Returning to depot.</span>
+          <button class="toast-close">×</button>
+        </div>
+        <div class="toast toast-error">
+          <span class="toast-icon">×</span>
+          <span class="toast-msg">Connection lost to beaver-01. Last seen 2m ago.</span>
+          <button class="toast-close">×</button>
+        </div>
+        <div class="toast toast-info">
+          <span class="toast-icon">i</span>
+          <span class="toast-msg">Firmware v0.8.3 available for 3 rovers.</span>
+          <button class="toast-close">×</button>
+        </div>
+      </div>
+    </ComponentDemo>
+  </section>
+
+  <!-- ═══ MODAL ══════════════════════════════════════════════════ -->
+
+  <section>
+    <h2 class="section-title">Modal / Dialog</h2>
+    <ComponentDemo label="Confirmation">
+      <div class="modal-demo">
+        <div class="modal-box">
+          <div class="modal-header">Confirm E-Stop</div>
+          <div class="modal-body">
+            <p>This will immediately halt all motors on <strong>beaver-12</strong>. The rover will stop in place and require manual reset.</p>
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-ghost">Cancel</button>
+            <button class="btn btn-danger">E-Stop</button>
+          </div>
+        </div>
+      </div>
+    </ComponentDemo>
+    <ComponentDemo label="Info">
+      <div class="modal-demo">
+        <div class="modal-box">
+          <div class="modal-header">Firmware Update</div>
+          <div class="modal-body">
+            <p>bvrd v0.8.3 is available. Changes:</p>
+            <ul class="modal-list">
+              <li>Fix: CAN bus timeout recovery</li>
+              <li>Fix: GPS drift during RTK reacquisition</li>
+              <li>New: Pedestrian detection confidence threshold</li>
+            </ul>
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-ghost">Later</button>
+            <button class="btn btn-primary">Schedule Update</button>
+          </div>
+        </div>
+      </div>
+    </ComponentDemo>
+  </section>
+
+  <!-- ═══ INPUTS ═════════════════════════════════════════════════ -->
+
+  <section>
+    <h2 class="section-title">Inputs</h2>
+    <ComponentDemo label="Text & Select">
+      <div class="form-group">
+        <label class="form-label">Unit ID</label>
+        <input type="text" class="form-input" value="beaver-12" readonly />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Route</label>
+        <select class="form-input">
+          <option>Oak St — North</option>
+          <option>Elm Ave — Full</option>
+          <option>Main St — South</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Speed Limit</label>
+        <input type="text" class="form-input" placeholder="0.8 m/s" />
+      </div>
+    </ComponentDemo>
+    <ComponentDemo label="Toggle">
+      <label class="toggle">
+        <input type="checkbox" checked />
+        <span class="toggle-track"><span class="toggle-thumb"></span></span>
+        <span class="toggle-text">Autonomous mode</span>
+      </label>
+      <label class="toggle">
+        <input type="checkbox" />
+        <span class="toggle-track"><span class="toggle-thumb"></span></span>
+        <span class="toggle-text">Headlights</span>
+      </label>
+      <label class="toggle">
+        <input type="checkbox" checked />
+        <span class="toggle-track"><span class="toggle-thumb"></span></span>
+        <span class="toggle-text">Telemetry</span>
+      </label>
+    </ComponentDemo>
+    <ComponentDemo label="Checkbox & Radio">
+      <div class="check-group">
+        <label class="check">
+          <input type="checkbox" checked />
+          <span class="check-box"></span>
+          <span>Snow removal</span>
+        </label>
+        <label class="check">
+          <input type="checkbox" checked />
+          <span class="check-box"></span>
+          <span>Leaf clearing</span>
+        </label>
+        <label class="check">
+          <input type="checkbox" />
+          <span class="check-box"></span>
+          <span>Patrol</span>
+        </label>
+      </div>
+      <div class="check-group">
+        <label class="check">
+          <input type="radio" name="mode" checked />
+          <span class="radio-dot"></span>
+          <span>Autonomous</span>
+        </label>
+        <label class="check">
+          <input type="radio" name="mode" />
+          <span class="radio-dot"></span>
+          <span>Teleop</span>
+        </label>
+        <label class="check">
+          <input type="radio" name="mode" />
+          <span class="radio-dot"></span>
+          <span>Idle</span>
+        </label>
+      </div>
+    </ComponentDemo>
+    <ComponentDemo label="Slider">
+      <div class="slider-group">
+        <div class="form-group">
+          <label class="form-label">Speed limit</label>
+          <div class="slider-wrap">
+            <input type="range" class="slider" min="0" max="100" value="60" />
+            <span class="slider-val">0.6 m/s</span>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Volume</label>
+          <div class="slider-wrap">
+            <input type="range" class="slider" min="0" max="100" value="35" />
+            <span class="slider-val">35%</span>
+          </div>
+        </div>
+      </div>
+    </ComponentDemo>
+  </section>
+
+  <!-- ═══ NAVIGATION ═════════════════════════════════════════════ -->
+
+  <section>
+    <h2 class="section-title">Navigation</h2>
+    <ComponentDemo label="Tabs">
+      <div class="tab-bar">
+        <button class="tab tab-active">Dashboard</button>
+        <button class="tab">Fleet</button>
+        <button class="tab">Dispatch</button>
+        <button class="tab">Maps</button>
+        <button class="tab">Metrics</button>
+      </div>
+    </ComponentDemo>
+    <ComponentDemo label="Breadcrumbs">
+      <nav class="breadcrumb">
+        <a class="crumb" href="#">Depot</a>
+        <span class="crumb-sep">/</span>
+        <a class="crumb" href="#">Fleet</a>
+        <span class="crumb-sep">/</span>
+        <span class="crumb crumb-current">beaver-12</span>
+      </nav>
+    </ComponentDemo>
+    <ComponentDemo label="Pagination">
+      <nav class="pagination">
+        <button class="page-btn" disabled>←</button>
+        <button class="page-btn page-active">1</button>
+        <button class="page-btn">2</button>
+        <button class="page-btn">3</button>
+        <span class="page-dots">…</span>
+        <button class="page-btn">12</button>
+        <button class="page-btn">→</button>
+      </nav>
+    </ComponentDemo>
+  </section>
+
+  <!-- ═══ KEYBOARD SHORTCUTS ═════════════════════════════════════ -->
+
+  <section>
+    <h2 class="section-title">Keyboard Shortcuts</h2>
+    <ComponentDemo label="Key Combos">
+      <div class="kbd-list">
+        <div class="kbd-row"><div class="kbd-combo"><kbd>⌘</kbd><kbd>K</kbd></div><span class="kbd-desc">Command palette</span></div>
+        <div class="kbd-row"><div class="kbd-combo"><kbd>⌘</kbd><kbd>⇧</kbd><kbd>E</kbd></div><span class="kbd-desc">E-stop all rovers</span></div>
+        <div class="kbd-row"><div class="kbd-combo"><kbd>Space</kbd></div><span class="kbd-desc">Toggle selected rover</span></div>
+        <div class="kbd-row"><div class="kbd-combo"><kbd>J</kbd> / <kbd>K</kbd></div><span class="kbd-desc">Navigate fleet list</span></div>
+        <div class="kbd-row"><div class="kbd-combo"><kbd>M</kbd></div><span class="kbd-desc">Toggle map view</span></div>
+        <div class="kbd-row"><div class="kbd-combo"><kbd>?</kbd></div><span class="kbd-desc">Show all shortcuts</span></div>
+      </div>
+    </ComponentDemo>
+  </section>
+
+  <!-- ═══ LOADING & EMPTY STATES ═════════════════════════════════ -->
+
+  <section>
+    <h2 class="section-title">Loading &amp; Empty States</h2>
+    <ComponentDemo label="Spinners">
+      <div class="spinner spin-sm"></div>
+      <div class="spinner"></div>
+      <div class="spinner spin-lg"></div>
+    </ComponentDemo>
+    <ComponentDemo label="Skeleton">
+      <div class="skeleton-group">
+        <div class="skeleton skel-line" style="width: 40%"></div>
+        <div class="skeleton skel-line"></div>
+        <div class="skeleton skel-line" style="width: 70%"></div>
+        <div class="skeleton skel-block"></div>
+      </div>
+    </ComponentDemo>
+    <ComponentDemo label="Empty State">
+      <div class="empty-state">
+        <span class="empty-icon">○</span>
+        <span class="empty-title">No rovers connected</span>
+        <span class="empty-desc">Rovers will appear here once they come online and register with the depot.</span>
+        <button class="btn btn-secondary btn-sm">Scan network</button>
+      </div>
+    </ComponentDemo>
+    <ComponentDemo label="Error State">
+      <div class="empty-state empty-error">
+        <span class="empty-icon">!</span>
+        <span class="empty-title">Connection lost</span>
+        <span class="empty-desc">Cannot reach the depot server. Check your network connection or VPN status.</span>
+        <button class="btn btn-secondary btn-sm">Retry</button>
+      </div>
+    </ComponentDemo>
+  </section>
+
+  <!-- ═══ ROVER IDENTITY ═════════════════════════════════════════ -->
+
+  <section>
+    <h2 class="section-title">Rover Identity</h2>
+    <ComponentDemo label="Unit Cards">
+      <div class="rover-unit">
+        <div class="rover-avatar"><span class="rover-dot dot-green"></span></div>
+        <div class="rover-info">
+          <span class="rover-name">beaver-12</span>
+          <span class="rover-sub">Clearing snow — Oak St NW</span>
+        </div>
+        <span class="rover-batt">73%</span>
+      </div>
+      <div class="rover-unit">
+        <div class="rover-avatar"><span class="rover-dot dot-orange"></span></div>
+        <div class="rover-info">
+          <span class="rover-name">beaver-07</span>
+          <span class="rover-sub">Yielding — pedestrian</span>
+        </div>
+        <span class="rover-batt">45%</span>
+      </div>
+      <div class="rover-unit">
+        <div class="rover-avatar"><span class="rover-dot dot-blue"></span></div>
+        <div class="rover-info">
+          <span class="rover-name">beaver-03</span>
+          <span class="rover-sub">Charging — depot bay 2</span>
+        </div>
+        <span class="rover-batt">12%</span>
+      </div>
+      <div class="rover-unit rover-unit-off">
+        <div class="rover-avatar"><span class="rover-dot dot-muted"></span></div>
+        <div class="rover-info">
+          <span class="rover-name">beaver-01</span>
+          <span class="rover-sub">Offline — motor replacement</span>
+        </div>
+        <span class="rover-batt">—</span>
+      </div>
+    </ComponentDemo>
+    <ComponentDemo label="Map Markers">
+      <div class="map-markers">
+        <div class="map-marker marker-active">
+          <div class="marker-ping"></div>
+          <span class="marker-label">beaver-12</span>
+        </div>
+        <div class="map-marker marker-yield">
+          <span class="marker-label">beaver-07</span>
+        </div>
+        <div class="map-marker marker-depot">
+          <span class="marker-label">Depot</span>
+        </div>
+      </div>
+    </ComponentDemo>
+  </section>
+
+  <!-- ═══ COMMAND PALETTE ════════════════════════════════════════ -->
+
+  <section>
+    <h2 class="section-title">Command Palette</h2>
+    <ComponentDemo label="Search">
+      <div class="cmd-palette">
+        <div class="cmd-input-wrap">
+          <span class="cmd-prefix">></span>
+          <input type="text" class="cmd-input" placeholder="Type a command..." value="deploy" />
+        </div>
+        <div class="cmd-results">
+          <div class="cmd-result cmd-result-active">
+            <span class="cmd-result-icon">→</span>
+            <span class="cmd-result-label">Deploy to rover</span>
+            <span class="cmd-result-hint">muni deploy rover</span>
+          </div>
+          <div class="cmd-result">
+            <span class="cmd-result-icon">→</span>
+            <span class="cmd-result-label">Deploy to depot</span>
+            <span class="cmd-result-hint">muni deploy depot</span>
+          </div>
+          <div class="cmd-result">
+            <span class="cmd-result-icon">⟲</span>
+            <span class="cmd-result-label">Redeploy last</span>
+            <span class="cmd-result-hint">muni deploy --last</span>
+          </div>
+        </div>
+      </div>
+    </ComponentDemo>
+  </section>
+
+</Base>
+
+<style>
+  /* ═══════════════════════════════════════════════════════════════
+     BUTTONS
+     ═══════════════════════════════════════════════════════════════ */
+
+  .btn {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 700;
+    padding: 8px 16px;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: background-color 100ms ease, color 100ms ease, border-color 100ms ease;
+  }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-primary { background: var(--primary); color: var(--black); }
+  .btn-primary:hover:not(:disabled) { background: oklch(0.75 0.17 47.604); }
+  .btn-secondary { background: transparent; color: var(--fg); border-color: var(--border); }
+  .btn-secondary:hover { border-color: var(--fg); }
+  .btn-ghost { background: transparent; color: var(--fg-muted); }
+  .btn-ghost:hover { color: var(--fg); background: var(--surface); }
+  .btn-danger { background: oklch(0.467 0.186 18.5); color: var(--white); }
+  .btn-danger:hover { background: oklch(0.53 0.19 18.5); }
+  .btn-sm { font-size: 11px; padding: 4px 12px; }
+  .btn-lg { font-size: 14px; padding: 12px 24px; }
+  .btn-icon { padding: 8px; min-width: 36px; text-align: center; }
+
+  .btn-group { display: flex; }
+  .btn-group .btn-group-item { border-right: none; }
+  .btn-group .btn-group-item:last-child { border-right: 1px solid var(--border); }
+  .btn-group .btn-group-item.active {
+    background: var(--surface);
+    color: var(--fg);
+    border-color: var(--fg-muted);
+  }
+
+  /* ═══════════════════════════════════════════════════════════════
+     BADGES
+     ═══════════════════════════════════════════════════════════════ */
+
+  .badge {
+    font-size: 10px;
+    font-family: var(--font-mono);
+    padding: 2px 8px;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    font-weight: 700;
+  }
+  .badge-active { background: oklch(0.723 0.191 149 / 0.15); color: oklch(0.723 0.191 149); }
+  .badge-yield { background: oklch(0.705 0.213 47.604 / 0.15); color: oklch(0.705 0.213 47.604); }
+  .badge-charge { background: oklch(0.546 0.215 264 / 0.15); color: oklch(0.65 0.17 264); }
+  .badge-off { background: oklch(0.5 0 0 / 0.15); color: var(--fg-muted); }
+  .badge-maint { background: oklch(0.68 0.22 300 / 0.15); color: oklch(0.68 0.22 300); }
+  .badge-critical { background: oklch(0.467 0.186 18.5 / 0.15); color: oklch(0.60 0.17 18.5); }
+  .badge-high { background: oklch(0.705 0.213 47.604 / 0.15); color: oklch(0.705 0.213 47.604); }
+  .badge-normal { background: oklch(0.546 0.215 264 / 0.15); color: oklch(0.65 0.17 264); }
+  .badge-low { background: oklch(0.5 0 0 / 0.10); color: var(--fg-muted); }
+  .badge-cat { background: var(--surface); color: var(--fg-muted); border: 1px solid var(--border); }
+
+  /* ═══════════════════════════════════════════════════════════════
+     STATUS INDICATORS
+     ═══════════════════════════════════════════════════════════════ */
+
+  .status { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+  .status-icon { width: 8px; height: 8px; }
+  .status-complete { background: oklch(0.723 0.191 149); }
+  .status-active { background: oklch(0.705 0.213 47.604); animation: pulse 2s ease-in-out infinite; }
+  .status-pending { background: var(--fg-muted); }
+  .status-error { background: oklch(0.467 0.186 18.5); animation: pulse 1s ease-in-out infinite; }
+  .status-offline { border: 1px solid var(--fg-muted); background: transparent; }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+  .status-inline { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--fg-muted); }
+  .status-dot { width: 6px; height: 6px; display: inline-block; }
+  .dot-green { background: oklch(0.723 0.191 149); }
+  .dot-orange { background: oklch(0.705 0.213 47.604); }
+  .dot-red { background: oklch(0.467 0.186 18.5); }
+  .dot-blue { background: oklch(0.546 0.215 264); }
+  .dot-muted { background: oklch(0.4 0 0); }
+
+  /* ═══════════════════════════════════════════════════════════════
+     PROGRESS & DATA VIZ
+     ═══════════════════════════════════════════════════════════════ */
+
+  .progress-stack { display: flex; flex-direction: column; gap: 12px; width: 100%; }
+  .progress-row { display: flex; align-items: center; gap: 12px; font-size: 12px; }
+  .progress-label { color: var(--fg-muted); min-width: 56px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .progress-track { flex: 1; height: 4px; background: var(--border); }
+  .progress-fill { height: 100%; transition: width 300ms ease; }
+  .fill-green { background: oklch(0.723 0.191 149); }
+  .fill-orange { background: oklch(0.705 0.213 47.604); }
+  .fill-red { background: oklch(0.467 0.186 18.5); }
+  .progress-value { min-width: 36px; text-align: right; font-variant-numeric: tabular-nums; }
+
+  .sparkline-group { display: flex; flex-direction: column; gap: 16px; width: 100%; }
+  .sparkline-item { display: flex; align-items: center; gap: 16px; }
+  .sparkline-label { font-size: 10px; color: var(--fg-muted); min-width: 80px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .sparkline { width: 120px; height: 32px; flex-shrink: 0; }
+  .sparkline-val { font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+  /* ═══════════════════════════════════════════════════════════════
+     CARDS
+     ═══════════════════════════════════════════════════════════════ */
+
+  .card { border: 1px solid var(--border); width: 320px; }
+  .card-header { padding: 12px 16px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+  .card-title { font-size: 13px; font-weight: 700; }
+  .card-badge { font-size: 10px; padding: 2px 8px; letter-spacing: 0.02em; }
+  .card-badge-active { background: oklch(0.723 0.191 149 / 0.15); color: oklch(0.723 0.191 149); }
+  .card-body { padding: 12px 16px; }
+  .card-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 12px; }
+  .card-label { color: var(--fg-muted); }
+
+  .metric-card { border: 1px solid var(--border); padding: 16px; width: 220px; }
+  .metric-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; }
+  .metric-label { font-size: 10px; color: var(--fg-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+  .metric-trend { font-size: 10px; font-weight: 700; }
+  .trend-up { color: oklch(0.723 0.191 149); }
+  .trend-down { color: oklch(0.723 0.191 149); }
+  .metric-value { font-size: 28px; font-weight: 700; display: block; margin-bottom: 8px; font-variant-numeric: tabular-nums; }
+  .metric-bar { display: flex; height: 4px; gap: 2px; }
+  .metric-seg { height: 100%; }
+  .metric-card .sparkline { width: 100%; height: 24px; }
+
+  /* ═══════════════════════════════════════════════════════════════
+     DATA DISPLAY
+     ═══════════════════════════════════════════════════════════════ */
+
+  .data-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .data-table th { text-align: left; font-weight: 700; font-size: 10px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--fg-muted); padding: 8px 12px; border-bottom: 1px solid var(--border); }
+  .data-table td { padding: 8px 12px; border-bottom: 1px solid var(--border); }
+  .data-table tr:last-child td { border-bottom: none; }
+  .inline-status { display: inline-block; width: 6px; height: 6px; margin-right: 4px; vertical-align: middle; }
+  .inline-status.active { background: oklch(0.723 0.191 149); }
+  .inline-status.yield { background: oklch(0.705 0.213 47.604); }
+  .inline-status.offline { border: 1px solid var(--fg-muted); }
+
+  .kv-list { width: 320px; border: 1px solid var(--border); }
+  .kv-row { display: flex; justify-content: space-between; padding: 8px 16px; font-size: 12px; border-bottom: 1px solid var(--border); }
+  .kv-row:last-child { border-bottom: none; }
+  .kv-key { color: var(--fg-muted); font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .kv-val { font-variant-numeric: tabular-nums; }
+
+  /* ═══════════════════════════════════════════════════════════════
+     TIMELINE
+     ═══════════════════════════════════════════════════════════════ */
+
+  .timeline { display: flex; flex-direction: column; width: 100%; }
+  .tl-entry { display: flex; align-items: flex-start; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .tl-entry:last-child { border-bottom: none; }
+  .tl-time { font-size: 10px; color: var(--fg-muted); min-width: 36px; padding-top: 2px; font-variant-numeric: tabular-nums; }
+  .tl-dot { width: 6px; height: 6px; margin-top: 5px; flex-shrink: 0; }
+  .tl-dot-green { background: oklch(0.723 0.191 149); }
+  .tl-dot-orange { background: oklch(0.705 0.213 47.604); }
+  .tl-dot-red { background: oklch(0.467 0.186 18.5); }
+  .tl-dot-blue { background: oklch(0.546 0.215 264); }
+  .tl-content { display: flex; flex-direction: column; gap: 2px; }
+  .tl-msg { font-size: 12px; }
+  .tl-meta { font-size: 10px; color: var(--fg-muted); }
+
+  /* ═══════════════════════════════════════════════════════════════
+     CALLOUTS
+     ═══════════════════════════════════════════════════════════════ */
+
+  .callouts { display: flex; flex-direction: column; gap: 12px; width: 100%; }
+  .callout { padding: 16px; border-left: 3px solid; font-size: 12px; line-height: 1.5; }
+  .callout-title { font-weight: 700; margin-bottom: 4px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .callout p { color: var(--fg-muted); }
+  .callout-danger { border-color: oklch(0.467 0.186 18.5); background: oklch(0.467 0.186 18.5 / 0.08); }
+  .callout-danger .callout-title { color: oklch(0.60 0.17 18.5); }
+  .callout-warning { border-color: oklch(0.705 0.213 47.604); background: oklch(0.705 0.213 47.604 / 0.08); }
+  .callout-warning .callout-title { color: oklch(0.705 0.213 47.604); }
+  .callout-info { border-color: oklch(0.546 0.215 264); background: oklch(0.546 0.215 264 / 0.08); }
+  .callout-info .callout-title { color: oklch(0.65 0.17 264); }
+  .callout-success { border-color: oklch(0.723 0.191 149); background: oklch(0.723 0.191 149 / 0.08); }
+  .callout-success .callout-title { color: oklch(0.723 0.191 149); }
+
+  /* ═══════════════════════════════════════════════════════════════
+     TOASTS
+     ═══════════════════════════════════════════════════════════════ */
+
+  .toast-stack { display: flex; flex-direction: column; gap: 8px; width: 100%; max-width: 480px; }
+  .toast { display: flex; align-items: center; gap: 10px; padding: 10px 14px; font-size: 12px; border: 1px solid var(--border); }
+  .toast-icon { width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; flex-shrink: 0; }
+  .toast-msg { flex: 1; }
+  .toast-close { background: none; border: none; color: var(--fg-muted); cursor: pointer; font-size: 14px; padding: 0 2px; }
+  .toast-close:hover { color: var(--fg); }
+  .toast-success .toast-icon { background: oklch(0.723 0.191 149 / 0.15); color: oklch(0.723 0.191 149); }
+  .toast-warning .toast-icon { background: oklch(0.705 0.213 47.604 / 0.15); color: oklch(0.705 0.213 47.604); }
+  .toast-error .toast-icon { background: oklch(0.467 0.186 18.5 / 0.15); color: oklch(0.60 0.17 18.5); }
+  .toast-info .toast-icon { background: oklch(0.546 0.215 264 / 0.15); color: oklch(0.65 0.17 264); }
+
+  /* ═══════════════════════════════════════════════════════════════
+     MODAL
+     ═══════════════════════════════════════════════════════════════ */
+
+  .modal-demo { position: relative; width: 400px; }
+  .modal-box { border: 1px solid var(--border); background: var(--bg); }
+  .modal-header { padding: 16px 20px; border-bottom: 1px solid var(--border); font-size: 14px; font-weight: 700; }
+  .modal-body { padding: 20px; font-size: 12px; line-height: 1.5; color: var(--fg-muted); }
+  .modal-body strong { color: var(--fg); }
+  .modal-list { margin: 8px 0 0 16px; list-style: disc; }
+  .modal-list li { padding: 2px 0; }
+  .modal-footer { padding: 12px 20px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 8px; }
+
+  /* ═══════════════════════════════════════════════════════════════
+     INPUTS
+     ═══════════════════════════════════════════════════════════════ */
+
+  .form-group { display: flex; flex-direction: column; gap: 4px; }
+  .form-label { font-size: 10px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--fg-muted); }
+  .form-input { font-family: var(--font-mono); font-size: 13px; padding: 8px 12px; background: var(--surface); border: 1px solid var(--border); color: var(--fg); outline: none; transition: border-color 100ms ease; }
+  .form-input:focus { border-color: var(--primary); }
+  .form-input::placeholder { color: var(--fg-muted); }
+
+  /* Toggle */
+  .toggle { display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 12px; }
+  .toggle input { display: none; }
+  .toggle-track { width: 32px; height: 16px; background: var(--border); position: relative; transition: background-color 150ms ease; flex-shrink: 0; }
+  .toggle-thumb { position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; background: var(--fg-muted); transition: transform 150ms ease, background-color 150ms ease; }
+  .toggle input:checked + .toggle-track { background: oklch(0.723 0.191 149 / 0.3); }
+  .toggle input:checked + .toggle-track .toggle-thumb { transform: translateX(16px); background: oklch(0.723 0.191 149); }
+  .toggle-text { color: var(--fg-muted); }
+
+  /* Checkbox & Radio */
+  .check-group { display: flex; flex-direction: column; gap: 8px; }
+  .check { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 12px; }
+  .check input { display: none; }
+  .check-box { width: 14px; height: 14px; border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: border-color 150ms ease, background-color 150ms ease; }
+  .check input:checked + .check-box { background: var(--primary); border-color: var(--primary); }
+  .check input:checked + .check-box::after { content: "✓"; font-size: 9px; color: var(--black); font-weight: 700; }
+  .radio-dot { width: 14px; height: 14px; border: 1px solid var(--border); border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: border-color 150ms ease; }
+  .check input:checked + .radio-dot { border-color: var(--primary); }
+  .check input:checked + .radio-dot::after { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--primary); }
+
+  /* Slider */
+  .slider-group { display: flex; flex-direction: column; gap: 16px; width: 280px; }
+  .slider-wrap { display: flex; align-items: center; gap: 12px; }
+  .slider { flex: 1; -webkit-appearance: none; appearance: none; height: 4px; background: var(--border); outline: none; }
+  .slider::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; background: var(--primary); cursor: pointer; }
+  .slider::-moz-range-thumb { width: 14px; height: 14px; background: var(--primary); border: none; cursor: pointer; }
+  .slider-val { font-size: 12px; min-width: 48px; text-align: right; font-variant-numeric: tabular-nums; }
+
+  /* ═══════════════════════════════════════════════════════════════
+     NAVIGATION
+     ═══════════════════════════════════════════════════════════════ */
+
+  .tab-bar { display: flex; gap: 2px; border-bottom: 1px solid var(--border); }
+  .tab { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.04em; text-transform: uppercase; padding: 8px 14px; background: none; border: none; color: var(--fg-muted); cursor: pointer; transition: color 100ms ease, background-color 100ms ease; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+  .tab:hover { color: var(--fg); background: var(--surface); }
+  .tab-active { color: var(--fg); border-bottom-color: var(--primary); }
+
+  .breadcrumb { display: flex; align-items: center; gap: 6px; font-size: 12px; }
+  .crumb { color: var(--fg-muted); }
+  .crumb:hover { color: var(--primary); }
+  .crumb-current { color: var(--fg); }
+  .crumb-sep { color: oklch(0.3 0 0); }
+
+  .pagination { display: flex; gap: 2px; }
+  .page-btn { font-family: var(--font-mono); font-size: 12px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; background: none; border: 1px solid var(--border); color: var(--fg-muted); cursor: pointer; transition: all 100ms ease; }
+  .page-btn:hover:not(:disabled) { border-color: var(--fg); color: var(--fg); }
+  .page-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+  .page-active { background: var(--primary); color: var(--black); border-color: var(--primary); }
+  .page-dots { display: flex; align-items: center; justify-content: center; width: 32px; font-size: 12px; color: var(--fg-muted); }
+
+  /* ═══════════════════════════════════════════════════════════════
+     KEYBOARD SHORTCUTS
+     ═══════════════════════════════════════════════════════════════ */
+
+  .kbd-list { display: flex; flex-direction: column; width: 100%; }
+  .kbd-row { display: flex; align-items: center; gap: 16px; padding: 8px 0; border-bottom: 1px solid var(--border); }
+  .kbd-row:last-child { border-bottom: none; }
+  .kbd-combo { display: flex; align-items: center; gap: 4px; min-width: 120px; }
+  kbd { font-family: var(--font-mono); font-size: 11px; padding: 2px 6px; background: var(--surface); border: 1px solid var(--border); color: var(--fg); min-width: 20px; text-align: center; }
+  .kbd-desc { font-size: 12px; color: var(--fg-muted); }
+
+  /* ═══════════════════════════════════════════════════════════════
+     LOADING & EMPTY STATES
+     ═══════════════════════════════════════════════════════════════ */
+
+  .spinner { width: 20px; height: 20px; border: 2px solid var(--border); border-top-color: var(--primary); border-radius: 50%; animation: spin 0.8s linear infinite; }
+  .spin-sm { width: 14px; height: 14px; }
+  .spin-lg { width: 28px; height: 28px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .skeleton-group { display: flex; flex-direction: column; gap: 10px; width: 300px; }
+  .skeleton { background: var(--surface); animation: shimmer 1.5s ease-in-out infinite; }
+  .skel-line { height: 12px; width: 100%; }
+  .skel-block { height: 64px; width: 100%; }
+  @keyframes shimmer { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+  .empty-state { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 48px 24px; text-align: center; border: 1px dashed var(--border); width: 100%; }
+  .empty-icon { font-size: 24px; color: var(--fg-muted); }
+  .empty-title { font-size: 14px; font-weight: 700; }
+  .empty-desc { font-size: 12px; color: var(--fg-muted); max-width: 320px; line-height: 1.5; }
+  .empty-error .empty-icon { color: oklch(0.60 0.17 18.5); }
+  .empty-error { border-color: oklch(0.467 0.186 18.5 / 0.3); }
+
+  /* ═══════════════════════════════════════════════════════════════
+     ROVER IDENTITY
+     ═══════════════════════════════════════════════════════════════ */
+
+  .rover-unit { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border: 1px solid var(--border); width: 320px; transition: background-color 100ms ease; cursor: pointer; }
+  .rover-unit:hover { background: var(--surface); }
+  .rover-unit-off { opacity: 0.5; }
+  .rover-avatar { width: 28px; height: 28px; background: var(--surface); display: flex; align-items: center; justify-content: center; position: relative; }
+  .rover-dot { width: 8px; height: 8px; }
+  .rover-info { flex: 1; display: flex; flex-direction: column; gap: 1px; }
+  .rover-name { font-size: 13px; font-weight: 700; }
+  .rover-sub { font-size: 10px; color: var(--fg-muted); }
+  .rover-batt { font-size: 12px; font-variant-numeric: tabular-nums; color: var(--fg-muted); }
+
+  /* Map markers */
+  .map-markers { display: flex; gap: 32px; align-items: flex-end; }
+  .map-marker { display: flex; flex-direction: column; align-items: center; gap: 6px; position: relative; }
+  .marker-active::before { content: ""; width: 14px; height: 8px; background: oklch(0.723 0.191 149); }
+  .marker-yield::before { content: ""; width: 14px; height: 8px; background: oklch(0.705 0.213 47.604); }
+  .marker-depot::before { content: ""; width: 14px; height: 14px; border: 1px solid var(--fg-muted); }
+  .marker-label { font-size: 9px; color: var(--fg-muted); }
+  .marker-ping { position: absolute; top: -4px; left: 50%; transform: translateX(-50%); width: 22px; height: 16px; border: 1px solid oklch(0.723 0.191 149 / 0.4); animation: ping 2s ease-out infinite; }
+  @keyframes ping { 0% { opacity: 1; transform: translateX(-50%) scale(1); } 100% { opacity: 0; transform: translateX(-50%) scale(1.8); } }
+
+  /* ═══════════════════════════════════════════════════════════════
+     COMMAND PALETTE
+     ═══════════════════════════════════════════════════════════════ */
+
+  .cmd-palette { width: 420px; border: 1px solid var(--border); background: var(--bg); box-shadow: 0 8px 32px oklch(0 0 0 / 0.5); }
+  .cmd-input-wrap { display: flex; align-items: center; gap: 8px; padding: 12px 16px; border-bottom: 1px solid var(--border); }
+  .cmd-prefix { color: var(--fg-muted); font-size: 14px; }
+  .cmd-input { flex: 1; background: none; border: none; color: var(--fg); font-family: var(--font-mono); font-size: 14px; outline: none; }
+  .cmd-results { padding: 4px 0; }
+  .cmd-result { display: flex; align-items: center; gap: 10px; padding: 8px 16px; font-size: 12px; cursor: pointer; transition: background-color 100ms ease; }
+  .cmd-result:hover { background: var(--surface); }
+  .cmd-result-active { background: var(--surface); }
+  .cmd-result-icon { color: var(--fg-muted); font-size: 11px; }
+  .cmd-result-label { flex: 1; }
+  .cmd-result-hint { color: var(--fg-muted); font-size: 10px; }
+
+  /* ═══════════════════════════════════════════════════════════════
+     RESPONSIVE
+     ═══════════════════════════════════════════════════════════════ */
+
+  @media (max-width: 768px) {
+    .card, .kv-list, .rover-unit { width: 100%; }
+    .metric-card { width: 100%; }
+    .modal-demo { width: 100%; }
+    .cmd-palette { width: 100%; }
+    .slider-group { width: 100%; }
+  }
+</style>

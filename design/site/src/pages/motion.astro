@@ -1,0 +1,375 @@
+---
+import Base from "../layouts/Base.astro";
+import MotionDemo from "../components/MotionDemo.astro";
+---
+
+<Base title="Motion">
+  <div class="page-header">
+    <p class="overline">Tokens</p>
+    <h1>Motion</h1>
+    <p class="desc">
+      Purposeful, not decorative. Every animation communicates state or guides
+      attention. Inspired by the physical robot: predictable movements,
+      deliberate pauses, no sudden motion.
+    </p>
+  </div>
+
+  <section>
+    <h2 class="section-title">Easing Curves</h2>
+    <p class="hint">Hover each card to preview the curve.</p>
+    <div class="easing-grid">
+      <MotionDemo
+        label="Default"
+        easing="cubic-bezier(0.25, 0.1, 0.25, 1)"
+        duration="300ms"
+      />
+      <MotionDemo
+        label="Out (decelerate)"
+        easing="cubic-bezier(0, 0, 0.2, 1)"
+        duration="300ms"
+      />
+      <MotionDemo
+        label="In (accelerate)"
+        easing="cubic-bezier(0.4, 0, 1, 1)"
+        duration="300ms"
+      />
+      <MotionDemo
+        label="Spring"
+        easing="cubic-bezier(0.34, 1.56, 0.64, 1)"
+        duration="300ms"
+      />
+      <MotionDemo label="Linear" easing="linear" duration="300ms" />
+    </div>
+  </section>
+
+  <section>
+    <h2 class="section-title">Duration Scale</h2>
+    <div class="duration-table">
+      <div class="dur-row">
+        <code class="dur-token">instant</code>
+        <span class="dur-value">0ms</span>
+        <span class="dur-use">Immediate feedback</span>
+      </div>
+      <div class="dur-row">
+        <code class="dur-token">fast</code>
+        <span class="dur-value">100ms</span>
+        <span class="dur-use">Color changes, hover states</span>
+      </div>
+      <div class="dur-row">
+        <code class="dur-token">normal</code>
+        <span class="dur-value">200ms</span>
+        <span class="dur-use">Most transitions</span>
+      </div>
+      <div class="dur-row">
+        <code class="dur-token">slow</code>
+        <span class="dur-value">300ms</span>
+        <span class="dur-use">Layout changes, expanding sections</span>
+      </div>
+      <div class="dur-row">
+        <code class="dur-token">slower</code>
+        <span class="dur-value">500ms</span>
+        <span class="dur-use">Large layout shifts</span>
+      </div>
+      <div class="dur-row">
+        <code class="dur-token">deliberate</code>
+        <span class="dur-value">700ms</span>
+        <span class="dur-use">Attention-drawing, warnings</span>
+      </div>
+      <div class="dur-row">
+        <code class="dur-token">enter</code>
+        <span class="dur-value">400ms</span>
+        <span class="dur-use">Page/route enter</span>
+      </div>
+      <div class="dur-row">
+        <code class="dur-token">exit</code>
+        <span class="dur-value">200ms</span>
+        <span class="dur-use">Page/route exit (faster than enter)</span>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2 class="section-title">Interaction Patterns</h2>
+    <div class="patterns">
+      <div class="pattern-card">
+        <p class="pattern-label">Hover — Underline Expand</p>
+        <div class="pattern-demo">
+          <a href="#" class="underline-link" onclick="return false">Fleet Status</a>
+          <a href="#" class="underline-link" onclick="return false">Dispatch</a>
+          <a href="#" class="underline-link" onclick="return false">Map View</a>
+        </div>
+      </div>
+      <div class="pattern-card">
+        <p class="pattern-label">Hover — Invert</p>
+        <div class="pattern-demo">
+          <button class="btn-invert">Deploy</button>
+          <button class="btn-invert">Recall</button>
+          <button class="btn-invert">E-Stop</button>
+        </div>
+      </div>
+      <div class="pattern-card">
+        <p class="pattern-label">State — Pulse</p>
+        <div class="pattern-demo">
+          <div class="status-row">
+            <span class="status-dot status-active"></span>
+            <span>Operational</span>
+          </div>
+          <div class="status-row">
+            <span class="status-dot status-yield"></span>
+            <span>Yielding</span>
+          </div>
+          <div class="status-row">
+            <span class="status-dot status-error"></span>
+            <span>Error</span>
+          </div>
+        </div>
+      </div>
+      <div class="pattern-card">
+        <p class="pattern-label">Loading — Progress Slide</p>
+        <div class="pattern-demo">
+          <div class="progress-track">
+            <div class="progress-bar"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2 class="section-title">Spring Physics</h2>
+    <p class="desc" style="margin-bottom: 24px;">
+      For JS animation libraries (Framer Motion, React Spring). Use spring
+      configs instead of CSS easing for interactive, physics-based feel.
+    </p>
+    <div class="spring-table">
+      <div class="spring-row">
+        <code>snappy</code>
+        <span class="spring-vals">stiffness: 400, damping: 30</span>
+        <span class="spring-use">Buttons, toggles</span>
+      </div>
+      <div class="spring-row">
+        <code>default</code>
+        <span class="spring-vals">stiffness: 200, damping: 24</span>
+        <span class="spring-use">Most transitions</span>
+      </div>
+      <div class="spring-row">
+        <code>gentle</code>
+        <span class="spring-vals">stiffness: 120, damping: 20</span>
+        <span class="spring-use">Page transitions</span>
+      </div>
+      <div class="spring-row">
+        <code>bouncy</code>
+        <span class="spring-vals">stiffness: 300, damping: 15</span>
+        <span class="spring-use">Playful moments (rare)</span>
+      </div>
+    </div>
+  </section>
+</Base>
+
+<style>
+  .hint {
+    font-size: 11px;
+    color: var(--fg-muted);
+    margin-bottom: 16px;
+  }
+
+  /* Easing grid */
+  .easing-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  /* Duration table */
+  .duration-table {
+    border: 1px solid var(--border);
+  }
+  .dur-row {
+    display: grid;
+    grid-template-columns: 100px 80px 1fr;
+    padding: 12px 24px;
+    border-bottom: 1px solid var(--border);
+    align-items: baseline;
+    gap: 16px;
+  }
+  .dur-row:last-child {
+    border-bottom: none;
+  }
+  .dur-token {
+    font-size: 11px;
+    color: var(--primary);
+  }
+  .dur-value {
+    font-size: 11px;
+    color: var(--fg);
+  }
+  .dur-use {
+    font-size: 11px;
+    color: var(--fg-muted);
+  }
+
+  /* Interaction patterns */
+  .patterns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+  }
+  .pattern-card {
+    padding: 24px;
+    background: var(--bg);
+  }
+  .pattern-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--fg-muted);
+    margin-bottom: 20px;
+  }
+  .pattern-demo {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  /* Underline expand */
+  .underline-link {
+    position: relative;
+    color: var(--fg);
+    font-size: 13px;
+    padding-bottom: 2px;
+  }
+  .underline-link::after {
+    content: "";
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 0;
+    height: 1px;
+    background: var(--primary);
+    transition: width 200ms cubic-bezier(0, 0, 0.2, 1);
+  }
+  .underline-link:hover {
+    color: var(--primary);
+  }
+  .underline-link:hover::after {
+    width: 100%;
+  }
+
+  /* Button invert */
+  .btn-invert {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 700;
+    padding: 8px 16px;
+    border: 1px solid var(--fg);
+    background: transparent;
+    color: var(--fg);
+    cursor: pointer;
+    transition:
+      background-color 100ms ease,
+      color 100ms ease;
+  }
+  .btn-invert:hover {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: var(--black);
+  }
+
+  /* Status dots */
+  .status-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+  }
+  .status-dot {
+    width: 8px;
+    height: 8px;
+  }
+  .status-active {
+    background: oklch(0.723 0.191 149);
+  }
+  .status-yield {
+    background: oklch(0.705 0.213 47.604);
+    animation: pulse 2s ease-in-out infinite;
+  }
+  .status-error {
+    background: oklch(0.467 0.186 18.5);
+    animation: pulse 1s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.4;
+    }
+  }
+
+  /* Progress */
+  .progress-track {
+    width: 100%;
+    height: 2px;
+    background: var(--border);
+    overflow: hidden;
+    position: relative;
+  }
+  .progress-bar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 40%;
+    height: 100%;
+    background: var(--primary);
+    animation: progress-slide 2s linear infinite;
+  }
+
+  @keyframes progress-slide {
+    from {
+      transform: translateX(-100%);
+    }
+    to {
+      transform: translateX(350%);
+    }
+  }
+
+  /* Spring table */
+  .spring-table {
+    border: 1px solid var(--border);
+  }
+  .spring-row {
+    display: grid;
+    grid-template-columns: 100px 1fr 1fr;
+    padding: 12px 24px;
+    border-bottom: 1px solid var(--border);
+    align-items: baseline;
+    gap: 16px;
+  }
+  .spring-row:last-child {
+    border-bottom: none;
+  }
+  .spring-row code {
+    font-size: 11px;
+    color: var(--primary);
+  }
+  .spring-vals {
+    font-size: 11px;
+    color: var(--fg);
+  }
+  .spring-use {
+    font-size: 11px;
+    color: var(--fg-muted);
+  }
+
+  @media (max-width: 768px) {
+    .patterns {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

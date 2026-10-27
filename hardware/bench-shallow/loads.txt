@@ -1,0 +1,20 @@
+arm (rose v9 + gripper v2): structure 2.37 kg, actuators 5.33, gripper 0.485, harness 0.25 -> 8.44 kg; moving 5.55 kg, COM 278 mm from shoulder; TCP 785 mm
+plinth: plate 4.49 kg + 4 blocks 0.8 + chain share 0.5 + 2 arms 16.87 = 22.7 kg -> 222 N (56 N/block static)
+one arm straight out horizontal + 2.5 kg at 785 mm: self 15.2 + payload 19.3 = 34.4 N.m about its shoulder
+
+rail gap 220 mm (blocks at X -/+180, Y -/+110); order (-X-Y) (-X+Y) (+X-Y) (+X+Y):
+  static, both tucked, no payload                    Mx    0.0 My   0.0 N.m ->   +56   +56   +56   +56 N; max comp   56, max lift-off    0
+  A: R arm straight out to -Y (front bay), 2.5 kg    Mx   34.4 My   4.9 N.m ->  +133   -23  +147   -10 N; max comp  147, max lift-off   23
+  B: A + RS04 peak 120 N.m reacting                  Mx  154.4 My   4.9 N.m ->  +406  -296  +419  -282 N; max comp  419, max lift-off  296
+  C: both arms straight out to -Y, 2.5 kg each       Mx   68.9 My   0.0 N.m ->  +224   -89  +224   -89 N; max comp  224, max lift-off   89
+  E: R arm straight out along +X, 2.5 kg             Mx    0.0 My  39.3 N.m ->    +7    +7  +116  +116 N; max comp  116, max lift-off    0
+
+rail gap 300 mm (blocks at X -/+180, Y -/+150); order (-X-Y) (-X+Y) (+X-Y) (+X+Y):
+  static, both tucked, no payload                    Mx    0.0 My   0.0 N.m ->   +56   +56   +56   +56 N; max comp   56, max lift-off    0
+  A: R arm straight out to -Y (front bay), 2.5 kg    Mx   34.4 My   4.9 N.m ->  +112    -2  +126   +11 N; max comp  126, max lift-off    2
+  B: A + RS04 peak 120 N.m reacting                  Mx  154.4 My   4.9 N.m ->  +312  -202  +326  -189 N; max comp  326, max lift-off  202
+  C: both arms straight out to -Y, 2.5 kg each       Mx   68.9 My   0.0 N.m ->  +183   -47  +183   -47 N; max comp  183, max lift-off   47
+  E: R arm straight out along +X, 2.5 kg             Mx    0.0 My  39.3 N.m ->    +7    +7  +116  +116 N; max comp  116, max lift-off    0
+
+ASSUMED SBR16UU ratings (typical catalogue, verify): C ~1.2 kN dynamic, C0 ~1.4 kN static, open-block pull-off ~0.7 kN (50 % C0).
+Tip-over of the plinth itself is not possible (bolted to blocks); lift-off = tension on the open block's retention.

@@ -1,35 +1,32 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { MuniLogo } from "./Header";
-import { ArrowRight } from "@phosphor-icons/react";
 
 export function FloatingHeader() {
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    function onScroll() {
+      setScrolled(window.scrollY > 60);
+    }
+    window.addEventListener("scroll", onScroll, { passive: true });
+    onScroll();
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
   return (
-    <header className="floating-header">
-      <div className="floating-header-content">
-        <Link href="/" className="floating-header-brand">
-          <MuniLogo className="floating-header-logo" />
-          <span className="floating-header-name">Municipal Robotics</span>
+    <header className={`site-nav ${scrolled ? "site-nav-scrolled" : ""}`}>
+      <div className="site-nav-inner">
+        <Link href="/" className="site-nav-brand" aria-label="Home">
+          <MuniLogo className="site-nav-logo" />
         </Link>
 
-        <nav className="floating-header-nav" aria-label="Main navigation">
-          <Link href="/rover" className="floating-header-link">
-            Rover
-          </Link>
-          <a href="/docs/whitepaper.pdf" className="floating-header-link" target="_blank" rel="noopener noreferrer">
-            Whitepaper
-          </a>
-          <a href="https://github.com/ecto/muni" className="floating-header-link" target="_blank" rel="noopener noreferrer">
-            GitHub
-          </a>
-          <a
-            href="https://muni.cal.com/cam/30min"
-            className="floating-header-cta"
-          >
-            Talk to Us
-            <ArrowRight size={14} weight="bold" />
-          </a>
+        <nav className="site-nav-right" aria-label="Main navigation">
+          <Link href="/research/vision" className="site-nav-link">Vision</Link>
+          <Link href="/research" className="site-nav-link">Research</Link>
+          <a href="https://github.com/muni-works/muni" className="site-nav-link" target="_blank" rel="noopener noreferrer">Code</a>
         </nav>
       </div>
     </header>

@@ -1,0 +1,464 @@
+/* Blog posts compiled from Typst. The body arrives as plain semantic HTML with
+   figures as inline SVG; this sheet gives it the paper's look: warm black, IBM
+   Plex, a 36rem measure, and wide figures that break out of it. */
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap");
+
+.post-page {
+  --p-bg: #0b0907;
+  --p-surface: #15110d;
+  --p-line: #2a2119;
+  --p-line-hi: #4a3a2a;
+  --p-text: #e8e1d2;
+  --p-label: #a08d70;
+  --p-sel: #ff5f00;
+  --p-warn: #ffd400;
+  --p-sans: "IBM Plex Sans", "Helvetica Neue", system-ui, sans-serif;
+  --p-mono: "IBM Plex Mono", ui-monospace, "SF Mono", monospace;
+  /* one rhythm: running text shares one line height; headings and labels a tighter one */
+  /* the PDF sets 9pt Plex on a 4.8in column (38.4 em) with lines 1.54 em apart; the web keeps those ratios */
+  --p-lh: 1.54;
+  --p-lh-tight: 1.2;
+  --p-measure: 35.575rem; /* 37.8em of 0.875rem text plus 2.5rem of padding: breaks lines where the PDF does */
+  --p-wide: 49.7rem;    /* wide figures: 7.1in against the 4.8in column */
+  background: var(--p-bg);
+  color: var(--p-text);
+  font-family: var(--p-sans);
+  min-height: 100vh;
+  color-scheme: dark;
+  /* full-bleed art is sized to 100vw, which includes the scrollbar; clip the overhang */
+  overflow-x: clip;
+}
+
+/* the site's global sheet sets mono and display faces on bare elements; the post uses Plex throughout */
+.post-page :is(p, h1, h2, h3, li, figcaption, td, th, time, span, a, ol, ul) { font-family: var(--p-sans); }
+.post-page :is(.post-kicker, .part-label, .fig-label, .blog-list time, thead th) { font-family: var(--p-mono); }
+
+/* cover: the live solar system, text over it */
+.post-cover {
+  position: relative;
+  height: 100vh;
+  height: 100svh;
+  min-height: 34rem;
+  overflow: hidden;
+}
+.post-cover-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.post-cover-text {
+  position: relative;
+  max-width: 44rem;
+  margin: 0 auto;
+  padding: 22vh 1.25rem 0; /* centered, and set a little low, over the sun */
+  text-align: center;
+}
+.post-cover-text .post-subtitle { max-width: 34rem; margin-left: auto; margin-right: auto; text-wrap: balance; }
+.post-cover-text .post-byline { justify-content: center; }
+.post-kicker,
+.post .part-label,
+.post .fig-label {
+  font-family: var(--p-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  color: var(--p-label);
+}
+.post-cover h1 {
+  margin: 0.9rem 0 0;
+  font-size: clamp(2.4rem, 6.5vw, 4.2rem);
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.025em;
+  text-wrap: balance;
+}
+.post-subtitle {
+  margin: 1.1rem 0 0;
+  font-size: 1.05rem;
+  line-height: var(--p-lh);
+  color: var(--p-label);
+}
+/* byline: under the subtitle, quiet, with the PDF as the one control */
+.post-byline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1.4rem;
+  margin-top: 2.2rem;
+  font-size: 0.88rem;
+  color: var(--p-label);
+}
+.post-byline .by { color: var(--p-text); font-weight: 500; }
+.post-byline .pdf {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.38rem 0.8rem 0.38rem 0.7rem;
+  border: 1px solid var(--p-line-hi);
+  border-radius: 999px;
+  color: var(--p-text);
+  text-decoration: none;
+  font-size: 0.85rem;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+.post-byline .pdf:hover { border-color: var(--p-sel); background: rgba(255, 95, 0, 0.08); }
+.post-byline .pdf:focus-visible { outline: 2px solid var(--p-sel); outline-offset: 2px; }
+.post-byline .pdf svg { width: 0.85em; height: 0.85em; }
+
+/* the body */
+.post {
+  max-width: var(--p-measure);
+  margin: 0 auto;
+  padding: 0 1.25rem 6rem;
+  font-size: 0.875rem;
+  line-height: var(--p-lh);
+}
+.post p { margin: 0 0 0.56em; text-wrap: pretty; } /* PDF paragraph spacing 1.4em, less the 0.84em leading */
+.post a { color: var(--p-text); font-weight: inherit; text-underline-offset: 3px; }
+.post strong { font-weight: 600; }
+.post sup { font-size: 0.68em; line-height: 0; }
+.post a[role="doc-biblioref"] { color: var(--p-label); text-decoration: none; }
+.post h2 {
+  margin: 3.4rem 0 1rem;
+  font-size: 1.37rem;
+  font-weight: 600;
+  line-height: var(--p-lh-tight);
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+}
+.post h3 {
+  margin: 2.4rem 0 0.6rem;
+  font-size: 1.05rem;
+  line-height: var(--p-lh-tight);
+  font-weight: 500;
+}
+/* lists as in the PDF: small grey mono numbers without a period; small square bullets */
+.post ul,
+.post ol { margin: 0 0 1.2em; padding: 0; list-style: none; }
+.post ol { counter-reset: item; }
+.post li { position: relative; margin: 0 0 0.55em; padding-left: 1.5em; }
+.post ol > li { counter-increment: item; }
+.post ol > li::before {
+  content: counter(item);
+  position: absolute;
+  left: 0;
+  top: 0;
+  font-family: var(--p-mono);
+  font-size: 0.72em;
+  /* the number's line box matches the text's, so their lines align */
+  line-height: calc(var(--p-lh) / 0.72);
+  color: var(--p-label);
+  font-variant-numeric: tabular-nums;
+}
+.post ul > li::before {
+  content: "";
+  position: absolute;
+  left: 0.15em;
+  top: calc((var(--p-lh) * 1em - 0.36em) / 2);
+  width: 0.36em;
+  height: 0.36em;
+  background: var(--p-label);
+}
+
+/* section numbers hang to the left of the heading, small and grey, as in the PDF */
+.post :is(h2, h3) { position: relative; }
+.post :is(h2, h3) > .sec-num {
+  position: absolute;
+  right: calc(100% + 1.1rem);
+  top: 0.5em;
+  font-family: var(--p-mono);
+  font-size: 0.72rem;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  color: var(--p-label);
+  white-space: nowrap;
+}
+@media (max-width: 52rem) {
+  .post :is(h2, h3) > .sec-num { position: static; display: block; margin-bottom: 0.45rem; }
+}
+/* in prose, a reference's number reads as plain text */
+.post a .sec-num, .post p .sec-num { position: static; font: inherit; color: inherit; letter-spacing: 0; }
+
+/* the letter's signature */
+.post .signature { margin-top: 2.2em; display: grid; gap: 0.2em; }
+.post .signature { display: flex; align-items: center; gap: 0.85rem; margin-top: 2.4rem; }
+.post .sig-photo { width: 44px; height: 44px; max-width: none; border-radius: 50%; object-fit: cover; filter: saturate(0.85); }
+.post .sig-text { margin: 0; display: flex; flex-direction: column; gap: 0.2rem; }
+.post .sig-name { font-weight: 500; line-height: 1.2; }
+.post .sig-place { font-family: var(--p-mono); font-size: 0.6rem; line-height: 1.2; letter-spacing: 0.16em; color: var(--p-label); }
+.post .math svg { display: inline-block; vertical-align: -0.2em; height: 1.05em; width: auto; }
+
+/* part dividers: a label, a title, a lede and the part's illustration */
+/* rough paging, as in the PDF: each part divider fills a screen, its art along the bottom */
+.post .part {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  min-height: 100svh;
+  margin: 0;
+  padding-top: 26svh;
+}
+.post .part:first-child { margin-top: 0; }
+.post .part h2 { margin: 0.4rem 0 0.6rem; font-size: clamp(2.2rem, 6vw, 3.2rem); letter-spacing: -0.02em; }
+.post .part-lede { color: var(--p-label); font-size: 1.05rem; line-height: var(--p-lh); }
+.post .part-art { margin: auto calc(50% - 50vw) 0; padding-top: 2rem; overflow: hidden; }
+.post .part-art > svg { display: block; width: 100% !important; height: auto !important; }
+
+/* abstract and contents: a screen each, as in the PDF */
+.post .abstract,
+.post .toc { min-height: 100vh; min-height: 100svh; padding-top: 18svh; padding-bottom: 8svh; }
+.post .abstract-title,
+.post .toc-title { margin: 0 0 1.4rem; font-size: 1.35rem; font-weight: 600; letter-spacing: -0.01em; }
+.post .abstract p { font-size: inherit; }
+
+.post .toc { max-width: var(--p-wide); margin-inline: calc((var(--p-measure) - min(var(--p-wide), 100vw - 2.5rem)) / 2); }
+.post .toc ol { columns: 2 18rem; column-gap: 3.5rem; padding: 0; margin: 0; counter-reset: part; }
+.post .toc li { padding: 0; margin: 0; break-inside: avoid; }
+.post .toc li::before { content: none; }
+/* the PDF's contents: tight leading, medium sections, light grey subsections, tiny tracked numbers */
+.post .toc a { display: grid; grid-template-columns: 2.1rem 1fr; align-items: baseline; padding: 0.06rem 0; line-height: var(--p-lh-tight); font-size: 0.86rem; color: var(--p-text); text-decoration: none; font-weight: 400; }
+.post .toc a:hover .toc-text { color: var(--p-sel); }
+.post .toc-num { font-family: var(--p-mono); font-size: 0.62rem; font-weight: 400; letter-spacing: 0.08em; color: var(--p-label); font-variant-numeric: tabular-nums; }
+.post .toc-l1 { margin-top: 0.5rem !important; }
+.post .toc-l1 .toc-text { font-size: 0.95rem; font-weight: 500; }
+.post .toc-l2 a { grid-template-columns: 2.1rem 2.5rem 1fr; }
+.post .toc-l2 .toc-num { grid-column: 2; }
+.post .toc-l2 .toc-text { font-size: 0.86rem; font-weight: 400; color: var(--p-label); }
+.post .toc-part { margin-top: 1.5rem !important; break-after: avoid; }
+.post .toc-part:first-child { margin-top: 0 !important; }
+.post .toc-part a { display: block; margin-bottom: 0.15rem; font-family: var(--p-mono); font-size: 0.62rem; font-weight: 400; letter-spacing: 0.08em; color: var(--p-label); }
+.post .toc-part { counter-increment: part; }
+.post .toc-part a::before { content: "Part " counter(part, upper-roman) " · "; }
+
+/* the intro letter gets a page of its own */
+.post #part-i + h2 { margin-top: 0; padding-top: 22svh; }
+.post #part-i + h2 + div { min-height: 62svh; padding-bottom: 12svh; }
+
+/* figures: drawn ones arrive as inline SVG; wide ones break out of the measure */
+.post figure { margin: 2.6rem 0; }
+.post figure.wide { margin-inline: calc((var(--p-measure) - min(var(--p-wide), 100vw - 2.5rem)) / 2); }
+.post figure > svg { display: block; width: 100%; height: auto; border-radius: 2px; }
+.post figcaption { margin-top: 0.8rem; font-size: 0.73rem; line-height: var(--p-lh); color: var(--p-label); }
+.post figure:has(> table) figcaption { margin: 0 0 0.7rem; }
+.post .fig-label { margin-right: 0.5em; color: var(--p-text); }
+
+/* real tables, for the plain ones */
+.post figure > table {
+  display: block;
+  overflow-x: auto;
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.73rem;
+  line-height: var(--p-lh);
+  font-variant-numeric: tabular-nums;
+}
+.post th,
+.post td { padding: 0.45rem 0.6rem; text-align: left; vertical-align: top; border-bottom: 1px solid var(--p-line); }
+.post thead th,
+.post tr:first-child th {
+  font-family: var(--p-mono);
+  font-size: 0.68rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: var(--p-label);
+  border-bottom-color: var(--p-line-hi);
+}
+.post td:first-child { font-weight: 500; }
+
+/* references */
+.post [role="doc-bibliography"],
+.post section:last-of-type ol { font-size: 0.85rem; color: var(--p-label); }
+
+/* Figures are still. A few of their parts move, slowly, where motion means something:
+   a sunrise breathes, city lights twinkle, the current stage and the gap glow,
+   a target that is not yet a result pulses. Shapes are picked by their Typst colors. */
+@keyframes p-breathe { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
+@keyframes p-twinkle { 0%, 100% { opacity: 1; } 50% { opacity: 0.2; } }
+@keyframes p-glow { 0%, 100% { filter: drop-shadow(0 0 0 rgba(255, 95, 0, 0)); } 50% { filter: drop-shadow(0 0 6px rgba(255, 95, 0, 0.75)); } }
+@media (prefers-reduced-motion: no-preference) {
+  .post #part-i [fill^="#ff5f00"] { animation: p-breathe 6s ease-in-out infinite; }
+  .post #part-i [fill^="#ffd400"] { animation: p-twinkle 3.2s ease-in-out infinite; }
+  .post #part-i [fill^="#ffd400"]:nth-of-type(3n) { animation-duration: 4.6s; animation-delay: -1.3s; }
+  .post #part-i [fill^="#ffd400"]:nth-of-type(5n) { animation-duration: 5.8s; animation-delay: -2.9s; }
+  .post #part-i [fill^="#ffd400"]:nth-of-type(7n) { animation-duration: 2.4s; animation-delay: -0.7s; }
+  .post #part-iii [fill^="#ff5f00"] { animation: p-breathe 5s ease-in-out infinite; }
+  .post #part-iv [stroke^="#ffd400"] { animation: p-breathe 4s ease-in-out infinite; }
+  .post [id="fig:loop"] [stroke="#ff5f00"],
+  .post [id="fig:glance"] [stroke="#ff5f00"] { animation: p-glow 4s ease-in-out infinite; }
+  .post [id="fig:launch"] [stroke="#ff5f00"][fill="#0b0907"],
+  .post [id="fig:launch"] [stroke="#ff5f00"]:not([fill]) { animation: p-breathe 2.6s ease-in-out infinite; }
+}
+
+/* blog index */
+/* the research index, set like the plan's contents: a quiet title, numbered rows, mono figures */
+.blog-index { max-width: var(--p-measure); min-height: 100vh; min-height: 100svh; margin: 0 auto; padding: 18svh 1.25rem 8svh; }
+.blog-index h1 { margin: 0; font-size: 1.35rem; font-weight: 600; letter-spacing: -0.01em; }
+.blog-index-lede { margin: 0.4rem 0 2.2rem; font-size: 0.86rem; color: var(--p-label); }
+.blog-list { list-style: none; margin: 0; padding: 0; }
+.blog-list li::before { content: none; }
+.blog-list a { display: grid; grid-template-columns: 2.1rem 1fr auto; column-gap: 1rem; align-items: baseline; margin: 0 -0.75rem; padding: 0.95rem 0.75rem; border-radius: 3px; color: inherit; text-decoration: none; font-weight: 400; transition: background-color 160ms ease; }
+.blog-list-num { font-family: var(--p-mono); font-size: 0.62rem; letter-spacing: 0.08em; color: var(--p-label); font-variant-numeric: tabular-nums; transition: color 160ms ease; }
+.blog-list-body { display: flex; flex-direction: column; gap: 0.25rem; }
+.blog-list-title { font-size: 0.95rem; font-weight: 500; line-height: var(--p-lh-tight); color: var(--p-text); transition: color 120ms ease; }
+.blog-list-desc { font-size: 0.8rem; line-height: 1.45; color: var(--p-label); transition: color 160ms ease; }
+.blog-list time { font-family: var(--p-mono); font-size: 0.62rem; letter-spacing: 0.06em; color: var(--p-label); white-space: nowrap; }
+.blog-list a:hover { background: var(--p-surface); }
+.blog-list a:hover .blog-list-num,
+.blog-list a:hover .blog-list-title { color: var(--p-sel); }
+.blog-list a:hover .blog-list-desc { color: var(--p-text); }
+.blog-list a:focus-visible { outline: 2px solid var(--p-sel); outline-offset: 2px; }
+@media (max-width: 36rem) { .blog-list a { grid-template-columns: 2.1rem 1fr; } .blog-list time { grid-column: 2; margin-top: 0.3rem; } }
+.post .toc-col { break-before: column; margin-top: 0 !important; }
+
+/* the PDF's all-caps labels, kept: parts, figure and table labels, table headers, the signature's place */
+.post :is(.part-label, .toc-part a, .fig-label, thead th) { text-transform: uppercase; letter-spacing: 0.12em; }
+.post .sig-place { text-transform: uppercase; }
+
+/* back matter: appendices and references in two columns, one on narrow screens */
+.post .back-matter {
+  columns: 2 19rem;
+  column-gap: 2.6rem;
+  margin-inline: calc((var(--p-measure) - min(var(--p-wide), 100vw - 2.5rem)) / 2);
+  font-size: 0.86rem;
+}
+.post .back-matter > * { break-inside: avoid; }
+.post .back-matter h2 { break-after: avoid; margin-top: 2.2rem; font-size: 1.15rem; }
+.post .back-matter h2:first-child { margin-top: 0; }
+.post .back-matter figure,
+.post .back-matter figure.wide { margin: 1.2rem 0; }
+.post .back-matter figure > table { font-size: 0.76rem; }
+.post .back-matter [role="doc-bibliography"] li,
+.post .back-matter ol li { break-inside: avoid; }
+/* in columns there is no margin to hang a number in: the appendix label sits above its title, as in the PDF */
+.post .back-matter :is(h2, h3) > .sec-num { position: static; display: block; margin-bottom: 0.4rem; text-transform: uppercase; letter-spacing: 0.12em; }
+.post .back-matter h2 > .sec-num::before { content: "Appendix "; }
+
+/* ─── The rail: a scrollbar with a map in it ─────────────────────────────
+   Earth at the top, the Sun at the end, the reader as the cover's probe.
+   Parts are the cover's cyan diamonds; sections are ticks. */
+html.post-rail-on { scrollbar-width: none; }
+html.post-rail-on::-webkit-scrollbar { display: none; }
+.post-rail {
+  position: fixed;
+  z-index: 40;
+  top: 4.5rem;
+  bottom: 2rem;
+  right: 1.1rem;
+  width: 1.4rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+  font-family: var(--p-mono);
+}
+.post-rail-end { font-size: 0.56rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--p-label); opacity: 0.6; }
+.post-rail-earth { color: #00f0ff; }
+.post-rail-sun { color: var(--p-sel); }
+.post-rail-track { position: relative; flex: 1; width: 100%; cursor: pointer; touch-action: none; }
+.post-rail-track::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+  background: linear-gradient(to bottom, rgba(0, 240, 255, 0.35), var(--p-line-hi) 12%, var(--p-line-hi) 88%, rgba(255, 95, 0, 0.45));
+}
+/* the path already travelled */
+.post-rail-trail {
+  position: absolute;
+  top: 0;
+  left: calc(50% - 0.5px);
+  width: 1px;
+  background: linear-gradient(to bottom, rgba(255, 95, 0, 0.1), var(--p-sel));
+  box-shadow: 0 0 6px rgba(255, 95, 0, 0.5);
+}
+.post-rail-mark { position: absolute; left: 50%; transform: translate(-50%, -50%); display: block; padding: 0.3rem 0.45rem; }
+.post-rail-mark::before { content: ""; display: block; width: 7px; height: 1px; background: var(--p-label); opacity: 0.55; transition: width 0.2s, opacity 0.2s; }
+.post-rail-mark.is-part::before { width: 6px; height: 6px; background: none; border: 1px solid #00f0ff; transform: rotate(45deg); opacity: 0.85; }
+.post-rail-mark:hover::before,
+.post-rail-mark.is-current::before { opacity: 1; width: 11px; }
+.post-rail-mark.is-part:hover::before { width: 6px; box-shadow: 0 0 6px rgba(0, 240, 255, 0.7); }
+.post-rail-mark:focus-visible { outline: 1px solid var(--p-sel); outline-offset: 2px; }
+/* labels slide out to the left of the rail */
+.post-rail-tip,
+.post-rail-now {
+  position: absolute;
+  right: calc(100% + 0.5rem);
+  top: 50%;
+  transform: translate(0.3rem, -50%);
+  white-space: nowrap;
+  padding: 0.28rem 0.55rem;
+  border: 1px solid var(--p-line-hi);
+  border-radius: 999px;
+  background: rgba(11, 9, 7, 0.92);
+  backdrop-filter: blur(6px);
+  font-family: var(--p-sans);
+  font-size: 0.74rem;
+  color: var(--p-text);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+.post-rail-tip b,
+.post-rail-now b { margin-right: 0.45rem; font-family: var(--p-mono); font-weight: 400; font-size: 0.66rem; color: var(--p-label); }
+.post-rail-mark:hover .post-rail-tip,
+.post-rail-mark:focus-visible .post-rail-tip { opacity: 1; transform: translate(0, -50%); }
+/* the probe: the cover's orange dot with its glow */
+.post-rail-probe {
+  position: absolute;
+  left: 50%;
+  width: 7px;
+  height: 7px;
+  margin: -3.5px 0 0 -3.5px;
+  border-radius: 50%;
+  background: #fff4e8;
+  box-shadow: 0 0 0 2px rgba(255, 95, 0, 0.9), 0 0 12px 3px rgba(255, 95, 0, 0.55);
+  pointer-events: none;
+}
+.post-rail.is-awake .post-rail-now { opacity: 1; transform: translate(0, -50%); }
+.post-rail:hover .post-rail-now { opacity: 0; }
+@media (prefers-reduced-motion: reduce) {
+  .post-rail-tip, .post-rail-now, .post-rail-mark::before { transition: none; }
+}
+
+/* product names take their family color (periodic table, fig:elements) */
+.post .name { font-weight: inherit; }
+.post .n-make { color: #39ff14; }
+.post .n-world { color: #00f0ff; }
+.post .n-body { color: #ff2052; }
+.post .n-power { color: #ffd400; }
+.post .n-mind { color: #ff5f00; }
+.post .n-silicon { color: #a08d70; }
+
+/* aside: a boxed digression */
+.post aside.aside { margin: 2.4em 2em; padding: 0.1em 0 0.1em 1em; border-left: 1px solid #4a3a2a; font-size: 0.9em; color: #a08d70; }
+.post aside.aside strong { color: #e8e1d2; }
+.post aside.aside .aside-title { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 0.72em; letter-spacing: 0.12em; text-transform: uppercase; color: #ff5f00; margin-bottom: 0.8em; }
+.post aside.aside .aside-title::before { content: "Aside · "; }
+.post aside.aside p { margin: 0 0 0.8em; }
+.post aside.aside p:last-child { margin-bottom: 0; }
+
+/* a quiet hint that the post goes on below the cover */
+.post-cover-scroll {
+  position: absolute;
+  left: 50%;
+  bottom: 2.2rem;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  font-family: var(--p-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--p-label);
+  text-decoration: none;
+}
+.post-cover-scroll svg { width: 0.9rem; height: 0.9rem; animation: post-scroll-bob 2.4s ease-in-out infinite; }
+.post-cover-scroll:hover { color: var(--p-sel); }
+.post-cover-scroll:focus-visible { outline: 2px solid var(--p-sel); outline-offset: 4px; }
+@keyframes post-scroll-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(4px); } }
+@media (prefers-reduced-motion: reduce) { .post-cover-scroll svg { animation: none; } }

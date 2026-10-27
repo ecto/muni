@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "next lint",
     "deploy": "next build && wrangler deploy",
-    "preview": "next build && wrangler dev"
+    "preview": "next build && wrangler dev",
+    "posts": "node scripts/build-posts.mjs"
   },
   "dependencies": {
     "@phosphor-icons/react": "^2.1.7",
