@@ -3118,8 +3118,8 @@ body > div:not(.frame-footer):not([class*="frame"]) > .formkit-form[data-uid="cb
   .site-nav-left {
     display: none;
   }
-  .site-nav-right .site-nav-link {
-    display: none;
+  .site-nav-right {
+    gap: 20px; /* three short links fit on any phone */
   }
   .site-nav-logo {
     height: 16px;
