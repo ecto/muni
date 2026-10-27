@@ -1,6 +1,6 @@
 # Hardware mockups
 
-Concept mockups for the master plan (`../paper/master-plan/`). Everything here is generated from
+Concept mockups for the vision (`../paper/vision/`). Everything here is generated from
 Python/loon sources and rendered with vcad; the numbers are modelled, not measured. Nothing has been built.
 
 | folder | what |

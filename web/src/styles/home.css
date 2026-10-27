@@ -1,21 +1,84 @@
-/* The homepage: a trailer for the master plan, in the paper's look. Tokens come from post.css
+/* The homepage: a trailer for the vision, in the paper's look. Tokens come from post.css
    (.post-page); this sheet adds the climb, the periodic table and the doors. */
 
 .home-page { --h-max: 72rem; }
 
-.home-cta { gap: 0.9rem; }
-.home-btn {
-  display: inline-flex;
+/* one gap everywhere in the door group: between cards, and between the bar and the cards */
+.home-one { --door-gap: 0.75rem; }
+.home-cta { gap: var(--door-gap); align-items: center; }
+/* frog's element card as the landing call to action */
+.pcard.home-tile { width: 8.5rem; height: 8.5rem; padding: 0.55rem 0.6rem 0.6rem; text-decoration: none; }
+.pcard.home-tile .pcard-num { font-size: 0.7rem; }
+.pcard.home-tile .pcard-stage { font-size: 0.6rem; top: 0.55rem; right: 0.6rem; }
+.pcard.home-tile .pcard-name { font-size: 2rem; margin-top: 0.9rem; }
+.pcard.home-tile .pcard-note { margin-top: 0.6rem; font-size: 0.66rem; }
+/* the vision door: an orange bar the width of the card row, in the cards' own language */
+.home-vision {
+  display: flex;
   align-items: center;
-  padding: 0.5rem 1rem;
-  border-radius: 999px;
-  font-size: 0.85rem;
-  font-weight: 500;
+  justify-content: space-between;
+  gap: 1rem;
+  box-sizing: border-box;
+  width: min(100%, calc(4 * 8.5rem + 3 * var(--door-gap)));
+  height: 3rem;
+  margin: 2.75rem auto 0;
+  padding: 0 0.6rem; /* the cards' own inner edge, so text lines up down the column */
+  background: var(--p-sel);
+  color: #000;
+  font-size: 1.05rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
   text-decoration: none;
+  transition: transform 120ms ease, box-shadow 120ms ease;
 }
-.home-btn.is-primary { background: var(--p-sel); color: #000; }
-.home-btn.is-primary:hover { background: #ff7a2b; }
-.home-btn:focus-visible { outline: 2px solid var(--p-sel); outline-offset: 3px; }
+.home-vision-meta { font-family: var(--p-mono); font-size: 0.66rem; font-weight: 500; letter-spacing: 0; white-space: nowrap; opacity: 0.7; }
+.home-vision:hover { transform: translateY(-2px); box-shadow: 0 0 0 1px var(--p-sel), 0 6px 18px -6px var(--p-sel); }
+.home-vision:focus-visible { outline: 2px solid var(--p-text); outline-offset: 2px; }
+@media (max-width: 40rem) { .home-vision-meta { display: none; } } /* the stage list needs the full row */
+.home-cta { flex-wrap: wrap; justify-content: center; }
+.post-cover-text .home-cta { margin-top: var(--door-gap); }
+.pcard.home-tile { height: 10rem; }
+/* the glyph takes the stage tag's corner, so the name can sit higher and the note can breathe */
+.home-tile-glyph { position: absolute; top: 0.4rem; right: 0.5rem; display: block; width: 48px; height: 24px; }
+.home-tile-glyph svg { width: 100%; height: 100%; display: block; overflow: hidden; }
+
+/* glyph motion, after campedersen.com's project cards */
+/* frog: a line types with the cursor at its tip, then lifts away while the next one types */
+@keyframes eg-frog-lift {
+  0% { transform: translateY(0); opacity: 1; }
+  45% { transform: translateY(0); opacity: 1; }
+  65% { transform: translateY(-9px); opacity: 0; }
+  100% { transform: translateY(-9px); opacity: 0; }
+}
+@keyframes eg-frog-type { 0% { stroke-dashoffset: var(--len); } 40%, 100% { stroke-dashoffset: 0; } }
+@keyframes eg-frog-tip { 0% { transform: translateX(0); } 40%, 100% { transform: translateX(calc(var(--len) * 1px)); } }
+.eg-frog-line { animation: eg-frog-lift 3.6s cubic-bezier(0.2, 0, 0, 1) infinite; }
+.eg-frog-line line { stroke-dasharray: var(--len); animation: eg-frog-type 3.6s cubic-bezier(0.3, 0, 0.4, 1) infinite; }
+.eg-frog-line rect { animation: eg-frog-tip 3.6s cubic-bezier(0.3, 0, 0.4, 1) infinite; }
+.eg-frog-line:nth-of-type(2), .eg-frog-line:nth-of-type(2) line, .eg-frog-line:nth-of-type(2) rect { animation-delay: 1.8s; }
+.eg-frog-line:nth-of-type(2) { opacity: 0; }
+@keyframes eg-tang-scroll { from { transform: translateX(0); } to { transform: translateX(-32px); } }
+.eg-tang-wave { animation: eg-tang-scroll 2.4s linear infinite; }
+@keyframes eg-vcad-dim-pulse { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }
+.eg-vcad-dim { animation: eg-vcad-dim-pulse 2.4s ease-in-out infinite; }
+@keyframes eg-vcad-draw { 0% { stroke-dashoffset: 80; } 60%, 90% { stroke-dashoffset: 0; } 100% { stroke-dashoffset: -80; } }
+.eg-vcad-box path { stroke-dasharray: 80; animation: eg-vcad-draw 3.6s ease-in-out infinite; }
+.eg-vcad-box path:nth-child(2) { animation-delay: 0.15s; }
+.eg-vcad-box path:nth-child(3) { animation-delay: 0.3s; }
+@keyframes eg-phyz-bounce {
+  0% { transform: translateY(-4px) scaleY(1); animation-timing-function: cubic-bezier(0.55, 0.06, 0.68, 0.19); }
+  45% { transform: translateY(16px) scaleY(1); animation-timing-function: linear; }
+  50% { transform: translateY(17px) scaleY(0.6); animation-timing-function: linear; }
+  55% { transform: translateY(16px) scaleY(1); animation-timing-function: cubic-bezier(0.22, 0.61, 0.36, 1); }
+  100% { transform: translateY(-4px) scaleY(1); }
+}
+.eg-phyz-ball { transform-origin: 50% 100%; transform-box: fill-box; animation: eg-phyz-bounce 1.1s infinite; }
+@keyframes eg-phyz-shadow { 0%, 100% { transform: scaleX(0.55); opacity: 0.2; } 50% { transform: scaleX(1.1); opacity: 0.55; } }
+.eg-phyz-shadow ellipse { transform-origin: center; transform-box: fill-box; animation: eg-phyz-shadow 1.1s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .eg-frog-line, .eg-frog-line line, .eg-frog-line rect, .eg-tang-wave, .eg-vcad-dim, .eg-vcad-box path, .eg-phyz-ball, .eg-phyz-shadow ellipse { animation: none; stroke-dashoffset: 0; }
+}
+.home-tile-cta { margin-top: auto; font-family: var(--p-mono); font-size: 0.66rem; font-weight: 500; }
 
 .home-section {
   max-width: var(--h-max);
@@ -218,5 +281,3 @@ main { padding-top: 3.5rem; }
 /* ── one frame ───────────────────────────────────────────── */
 .home-one { height: 100vh; overflow: hidden; }
 .home-one .post-cover { margin: 0; min-height: 100vh; }
-.home-btn.is-quiet { border: 1px solid var(--p-line-hi); color: var(--p-text); }
-.home-btn.is-quiet:hover { border-color: var(--p-sel); }

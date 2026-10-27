@@ -11,7 +11,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${baseUrl}/investors`, lastModified: new Date(), priority: 0.5 },
     { url: `${baseUrl}/log`, lastModified: new Date(), priority: 0.5 },
     { url: `${baseUrl}/research`, lastModified: new Date(), priority: 0.7 },
-    { url: `${baseUrl}/research/master-plan`, lastModified: new Date(), priority: 0.8 },
+    { url: `${baseUrl}/research/vision`, lastModified: new Date(), priority: 0.8 },
     { url: `${baseUrl}/viewer`, lastModified: new Date(), priority: 0.6 },
     { url: `${baseUrl}/sidewalk-laws`, lastModified: new Date(), priority: 0.8 },
   ];

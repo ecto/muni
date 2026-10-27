@@ -52,6 +52,21 @@
       "permanent": true
     },
     {
+      "source": "/research/master-plan",
+      "destination": "/research/vision",
+      "permanent": true
+    },
+    {
+      "source": "/research/master-plan.pdf",
+      "destination": "/research/vision.pdf",
+      "permanent": true
+    },
+    {
+      "source": "/blog/master-plan",
+      "destination": "/research/vision",
+      "permanent": true
+    },
+    {
       "source": "/blog",
       "destination": "/research",
       "permanent": true

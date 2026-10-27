@@ -1,13 +1,13 @@
-# Robots that build robots — master plan whitepaper
+# Robots that build robots — vision whitepaper
 
 25-page whitepaper in the dark muon-neon design system (IBM Plex Sans/Mono on a near-black page).
-Source is `master-plan.typ`; `master-plan.pdf` is the committed build.
+Source is `vision.typ`; `vision.pdf` is the committed build.
 
 ## Build
 
 ```bash
-cd paper/master-plan
-make            # -> master-plan.pdf
+cd paper/vision
+make            # -> vision.pdf
 make png        # page PNGs in out/ (gitignored scratch)
 make watch      # live rebuild
 ```

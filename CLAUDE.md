@@ -4,7 +4,7 @@ This document provides an overview of the Muni repository for AI assistants.
 
 ## Project Overview
 
-Muni (Municipal Robotics) is building machines that make the next machine: a six-axis arm (the limb), two limbs at any table (a pair), and the Rose humanoid, on a stack of our own. The plan, its stages (Desk → Shop → Road → City → Home → Moon → Mars → Star) and its products are in the master plan, `paper/master-plan/master-plan.typ`.
+Muni (Municipal Robotics) is building machines that make the next machine: a six-axis arm (the limb), two limbs at any table (a pair), and the Rose humanoid, on a stack of our own. The plan, its stages (Desk → Shop → Road → City → Home → Moon → Mars → Star) and its products are in the vision, `paper/vision/vision.typ`.
 
 The BVR rover era is archived (see `ARCHIVE.md`): rover firmware and MCU code live at tag `archive/bvr-2026-10`, and the depot moved to `ecto/depo`.
 
@@ -13,7 +13,7 @@ The BVR rover era is archived (see `ARCHIVE.md`): rover firmware and MCU code li
 ```
 muni/
 ├── paper/              # Technical documents (Typst)
-│   ├── master-plan/    # The current plan: master-plan.typ, refs.bib, decisions.md, images
+│   ├── vision/         # The current plan: vision.typ, refs.bib, decisions.md, images
 │   └── ...             # Earlier rover-era documents (manuals, whitepaper, deck)
 ├── web/                # muni.works (Next.js 14, static export, deployed by Vercel)
 │   ├── posts.json      # Blog posts: slug, title, Typst source
@@ -26,17 +26,17 @@ muni/
 └── video/              # Video tooling
 ```
 
-## Master plan (paper/master-plan)
+## Vision (paper/vision)
 
 ```bash
-cd paper/master-plan
-make                     # builds master-plan.pdf (Typst 0.14, fonts in fonts/)
+cd paper/vision
+make                     # builds vision.pdf (Typst 0.14, fonts in fonts/)
 ```
 
 - One source, two outputs: `--input target=html` builds the web post. Guard print-only show rules with `if web`.
 - Product names are colored by family (`fam`, `elements`, `brand-names` near the top). The PDF colors them with a show rule; on the web, `build-posts.mjs` wraps them in `.name.n-<family>` spans.
 - Equations inside drawn figures must carry `alt: "in-frame"` (figures and `mathfig` set it) so HTML export keeps them.
-- No page may start with a figure or table. Check with `typst query --font-path fonts --input figpos=1 master-plan.typ "<figpos>" --field value` (any figure with y < 110 pt is at a page top).
+- No page may start with a figure or table. Check with `typst query --font-path fonts --input figpos=1 vision.typ "<figpos>" --field value` (any figure with y < 110 pt is at a page top).
 - Record decisions in `decisions.md` (D1, D2, …).
 
 ## Research posts (web)

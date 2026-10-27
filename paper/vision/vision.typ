@@ -1,4 +1,4 @@
-// Whitepaper: Robots that build robots (Municipal Robotics master plan)
+// Whitepaper: Robots that build robots (Municipal Robotics vision)
 // Styled to the muon "Pilot Light" treatment, dark theme with the neon accent set, translated to print.
 // Tokens: frame-bootc/design/agency/treatment/tokens.toml [dark] + palette.toml [neon] + [type].
 
@@ -65,7 +65,7 @@
   (19, "nerv", "power", "concept", "bus, hub and BMS boards", "road"),
   (20, "Ipse", "mind", "exists", "developmental mind", "road"),
   (21, "frog", "mind", "exists", "free coding agent for local models", "desk"),
-  (22, "kyte", "mind", "concept", "inference for frog, on tang", "desk"),
+  (22, "pond", "mind", "concept", "model gateway for frog: ours and others'", "desk"),
   (23, "loom", "silicon", "concept", "hardware description", "home"),
   (24, "rune", "silicon", "concept", "maskless lithography", "home"),
   (25, "chyp", "silicon", "concept", "inference chip", "home"),
@@ -548,11 +548,11 @@
 
   Robots are expensive because people make them. Our prototype actuator is estimated at \$1,086 to have built; about two thirds of that is outsourced machining, on perhaps \$60–90 of metal. A machine that makes more of itself attacks that markup. A design process that measures every unit's sim-to-real gap, and feeds it back into the design as a gradient, attacks the rest.
 
-  It starts with software. frog, our coding agent for local models, is free. When a task needs more than a local model, frog's default is kyte, our inference service on tang, and kyte is what we sell. Its revenue funds the arm.
+  It starts with software. frog, our coding agent for local models, is free. When a task needs more than a local model, frog's default is pond, our model gateway: it serves our own models on tang and routes to anyone else's, and pond is what we sell. Its revenue funds the arm.
 
   The hardware is built from one part. A lymb is a six-axis arm on purchased actuators (\$5,000 list), designed and ready to cut. Two lymbs at any table make a duet (\$12,000, target) that can fold laundry or build the next lymb; Rose, our humanoid, is a duet on legs. One stack of our own carries it, from a source language for parts to a physics engine that can be differentiated through contact. Its key result, so far in simulation only: a humanoid's inertial parameters recovered from ±20% error to machine precision.
 
-  Eight stages climb from there, each a step up in scale and each built by the one before: Desk, Shop, Road, City, Home, Moon, Mars and Star. Only Desk is a plan, with exact gates: kyte revenue that funds the arm, then ten lymbs sold at 40% gross margin, each under 2 mm RMS tool-point error. The rest are goals, and they are the point. Progress is one number, electrons under management: the power drawn by machines we built, in service. Today it is zero watts. Every number here is cited, or labeled as an estimate or a model output.
+  Eight stages climb from there, each a step up in scale and each built by the one before: Desk, Shop, Road, City, Home, Moon, Mars and Star. Only Desk is a plan, with exact gates: pond revenue that funds the arm, then ten lymbs sold at 40% gross margin, each under 2 mm RMS tool-point error. The rest are goals, and they are the point. Progress is one number, electrons under management: the power drawn by machines we built, in service. Today it is zero watts. Every number here is cited, or labeled as an estimate or a model output.
 ]
 #if web {
   html.elem("section", attrs: (class: "abstract", id: "abstract"), {
@@ -1179,7 +1179,7 @@ About two thirds of the cost is machining that someone else does, on metal worth
 
 
 
-The same structure repeats one level up. A lymb's materials are about \$2,000, of which about \$1,200 is the six purchased actuators @mr2026masterplan. The plates are cheap. The actuators are someone else's margin. Owning the actuator is Desk's second step (@sec:arm), and we take that step only where rana wins on a measured metric.
+The same structure repeats one level up. A lymb's materials are about \$2,000, of which about \$1,200 is the six purchased actuators @mr2026vision. The plates are cheap. The actuators are someone else's margin. Owning the actuator is Desk's second step (@sec:arm), and we take that step only where rana wins on a measured metric.
 
 == Math
 
@@ -1355,7 +1355,7 @@ This is where the three problems meet. The machining in @fig:rana is the part of
 
 We are building machines that build machines, and measuring every one. The unit is a lymb: one arm, shipped with its sim-to-real gap, the difference between what our physics engine predicted and what the built arm did. Two lymbs on any table make a duet, and a duet can do a day's work or build the next lymb. A humanoid is a duet on legs. One part, measured everywhere, from a laundry table to a city.
 
-*An autonomous company, amplified by intelligence.* The machines are the means; what grows is a company. More and more of its work is done by its own machines and software: frog writes its code, kyte earns its revenue, duets build its machines and keep them running. People stay in the loop where it matters. They set what the company may do, license each division, and read the receipts. At each stage the company does one more part of its own work by itself (@tab:loopstate), and it never decides alone how fast it grows.
+*An autonomous company, amplified by intelligence.* The machines are the means; what grows is a company. More and more of its work is done by its own machines and software: frog writes its code, pond earns its revenue, duets build its machines and keep them running. People stay in the loop where it matters. They set what the company may do, license each division, and read the receipts. At each stage the company does one more part of its own work by itself (@tab:loopstate), and it never decides alone how fast it grows.
 
 The plan climbs in eight stages, each a step up in scale and each built by the one before it (@fig:glance). Only the first, Desk, is a plan. The rest are goals.
 
@@ -1366,7 +1366,7 @@ The plan climbs in eight stages, each a step up in scale and each built by the o
     columns: (auto, 1fr, 1fr, 1fr),
     align: (left + top, left + top, left + top, left + top),
     table.header([*Stage*], [*Delivers*], [*Pays forward*], [*Gate, in short*]),
-    [Desk], [frog and kyte; arms, sold one at a time], [Revenue that funds the arm; the first measured gaps; duty cycles that size rana], [kyte revenue funds the arm; ≥ 10 lymbs at ≥ 40% margin; ≤ 2 mm RMS each],
+    [Desk], [frog and pond; arms, sold one at a time], [Revenue that funds the arm; the first measured gaps; duty cycles that size rana], [pond revenue funds the arm; ≥ 10 lymbs at ≥ 40% margin; ≤ 2 mm RMS each],
     [Shop], [Two lymbs that work at any table, and build lymbs], [Useful work; a falling bought fraction; a doubling time], [A task at 95%; a duet builds a duet],
     [Road], [A duet on legs that fits its own model], [Mobility; a gradient from the gap to the design], [Schema fit beats persistence by 20%],
     [City], [A city's fleet and its twin], [Contracts; real duty at scale; a world to train in], [A city renews for ≥ 12 months],
@@ -1431,26 +1431,24 @@ The stack is a tree rooted at one language, loon. Every project in it, software 
 #figure(
   cetz.canvas(length: 1cm, {
     import cetz.draw: *
-    let s = 1.95   // card
+    let s = 1.95   // card, at scale 1
+    let k = 0.66   // cards are smaller here: the table now has a row per stage
+    let w = s * k
     let gi = 0.12  // gap inside a family
     let gf = 0.34  // gap between families
+    let gs = 0.3   // gap between stages
+    let lw = 0.95  // stage label column
     let byn(n) = elements.find(e => e.at(0) == n)
-    // families left to right; each is a list of columns, read top to bottom in build order
-    let fams = (
-      ("make", ((1, 2, 3, 4),)),
-      ("world", ((5, 6, 7, 8),)),
-      ("body", ((9, 10, 11), (12, 13, 14), (15, 16))),
-      ("power", ((17, 18, 19),)),
-      ("mind", ((20, 21, 22),)),
-      ("silicon", ((23, 24, 25),)),
-    )
+    // families left to right, each a fixed number of columns; stages top to bottom, Desk to Moon.
+    // Each element sits in the row of the stage that first needs it, so reading down is the climb.
+    let fams = (("make", 2), ("world", 1), ("body", 2), ("power", 2), ("mind", 2), ("silicon", 2))
+    let stages = ("desk", "shop", "road", "city", "home", "moon")
+    let at(f, st) = elements.filter(e => e.at(2) == f and e.at(5) == st)
     // word joiners keep the name-coloring rule off the card's own text
     let wj(t) = t.clusters().join("\u{2060}")
-    let card(x, y, e, scale: 1, color: none) = {
+    let card(x, y, e, color: none) = {
       let (num, name, f, mat, note, stage) = e
       let col = if color != none { color } else { fam.at(f).color }
-      let k = scale
-      let w = s * k
       let (fl, st, ink, meta) = if mat == "exists" {
         (col, none, c-sel-ink, c-sel-ink.transparentize(35%))
       } else if mat == "designed" {
@@ -1460,41 +1458,45 @@ The stack is a tree rooted at one language, loon. Every project in it, software 
       }
       rect((x, y), (x + w, y - w), fill: fl, stroke: st)
       content((x + 0.13 * k, y - 0.12 * k), anchor: "north-west", text(font: mono-m, size: 5.5pt * k, fill: meta, number-width: "tabular", str(num)))
-      content((x + w - 0.13 * k, y - 0.12 * k), anchor: "north-east", text(font: mono-m, size: 4.6pt * k, fill: meta, tracking: track, wj(upper(stage))))
-      content((x + 0.11 * k, y - 0.5 * k), anchor: "north-west", text(font: sans-sb, size: 19pt * k, tracking: -0.02em, fill: ink, wj(lower(name))))
-      content((x + 0.13 * k, y - w + 0.13 * k), anchor: "south-west", box(width: (w - 0.26 * k) * 1cm, par(leading: 0.32em, text(font: sans, size: 5.2pt * k, fill: meta, note.split(" ").map(wj).join(" ")))))
+      content((x + 0.11 * k, y - 0.42 * k), anchor: "north-west", text(font: sans-sb, size: 19pt * k, tracking: -0.02em, fill: ink, wj(lower(name))))
+      content((x + 0.13 * k, y - w + 0.13 * k), anchor: "south-west", box(width: (w - 0.26 * k) * 1cm, par(leading: 0.3em, text(font: sans, size: 4.3pt, fill: meta, note.split(" ").map(wj).join(" ")))))
     }
-    let x = 0
-    for (fi, (f, cols)) in fams.enumerate() {
+    // family x positions and headers
+    let xs = ()
+    let x = lw
+    for (fi, (f, n)) in fams.enumerate() {
       if fi > 0 { x += gf }
+      xs.push(x)
       let col = fam.at(f).color
-      let span = cols.len() * s + (cols.len() - 1) * gi
+      let span = n * w + (n - 1) * gi
       content((x, 0.62), anchor: "south-west", text(font: mono-m, size: 5.5pt, fill: col, tracking: track, upper(fam.at(f).name)))
       line((x, 0.42), (x + span, 0.42), stroke: 0.7pt + col)
-      for (ci, ns) in cols.enumerate() {
-        let cx = x + ci * (s + gi)
-        for (r, n) in ns.enumerate() { card(cx, 0.22 - r * (s + gi), byn(n)) }
-      }
       x += span
     }
-    // how to read a card, in the hole under Body
-    let ky = 0.22 - 3 * (s + gi)
-    let kx = 2 * (s + gi) + gf
-    card(kx, ky, ("n", "name", "body", "designed", "what it is", "stage"), color: c-text)
-    let lab(y, t) = content((kx + s + 0.2, y), anchor: "west", text(font: mono-m, size: 5pt, fill: c-label, tracking: track, upper(t)))
-    lab(ky - 0.2, [Order · first stage])
-    lab(ky - 0.85, [Name])
-    lab(ky - s + 0.22, [What it is])
-    // maturity
-    let mx = kx + s + 3.4
-    for (k, (lbl, mat)) in (("exists", "exists"), ("designed", "designed"), ("concept", "concept")).enumerate() {
-      let yy = ky - k * 0.62
+    let right = x
+    // one band per stage; its height is the tallest family stack in it
+    let y = 0.22
+    for (si, st) in stages.enumerate() {
+      let rows = calc.max(1, ..fams.map(((f, n)) => calc.ceil(at(f, st).len() / n)))
+      if si > 0 { line((0, y + gs / 2), (right, y + gs / 2), stroke: 0.5pt + c-line) }
+      content((0, y - 0.04), anchor: "north-west", text(font: mono-m, size: 5.5pt, fill: c-label, tracking: track, upper(st)))
+      for (fi, (f, n)) in fams.enumerate() {
+        for (i, e) in at(f, st).enumerate() {
+          card(xs.at(fi) + calc.rem(i, n) * (w + gi), y - calc.quo(i, n) * (w + gi), e)
+        }
+      }
+      y -= rows * (w + gi) - gi + gs
+    }
+    // maturity key under the table
+    let ky = y - 0.1
+    for (i, (lbl, mat)) in (("exists", "exists"), ("designed", "designed"), ("concept", "concept")).enumerate() {
+      let kx = lw + i * 2.4
       let (fl, st) = if mat == "exists" { (c-text, none) } else if mat == "designed" { (c-surface, 0.9pt + c-text) } else { (none, (paint: c-text.transparentize(45%), thickness: 0.7pt, dash: (2pt, 2pt))) }
-      rect((mx, yy), (mx + 0.42, yy - 0.42), fill: fl, stroke: st)
-      content((mx + 0.6, yy - 0.21), anchor: "west", text(font: mono-m, size: 5pt, fill: c-label, tracking: track, upper(lbl)))
+      rect((kx, ky), (kx + 0.42, ky - 0.42), fill: fl, stroke: st)
+      content((kx + 0.6, ky - 0.21), anchor: "west", text(font: mono-m, size: 5pt, fill: c-label, tracking: track, upper(lbl)))
     }
   }),
-  caption: [#lead[The periodic table of Municipal Robotics] @mr2026masterplan. Every project, by family: Make turns source into parts, World simulates them, Body moves, Power feeds and thinks, Mind learns, Silicon is the far future. Solid cards are in use today (in use, not finished), outlined ones are designed or prototyped, dashed ones are concepts. The K1, our bought reference body, is not on the table.],
+  caption: [#lead[The periodic table of Municipal Robotics] @mr2026vision. Every project, by family (columns) and by the stage that first needs it (rows), so reading down is the climb: Make turns source into parts, World simulates them, Body moves, Power feeds and thinks, Mind learns, Silicon is the far future. Solid cards are in use today (in use, not finished), outlined ones are designed or prototyped, dashed ones are concepts. The K1, our bought reference body, is not on the table.],
 ) <fig:elements>
 
 Most robots are assembled from other people's tools. The body is drawn in a CAD program such as SolidWorks or Onshape @onshape, exported as meshes into a URDF file @urdf, loaded into a simulator such as Isaac Sim @isaacsim or MuJoCo @todorov2012mujoco, and wired together with ROS @macenski2022ros2. Each is excellent at its job. But every handoff is a translation, and what does not survive translation is the reason a design is what it is. A wall thickness becomes a triangle mesh. A motor constant becomes a number in a file. The simulator can say how the robot moved, but not which line of the design to change.
@@ -1579,7 +1581,7 @@ The payoff is a gradient that crosses the whole molecule. A task loss in Ipse pa
     [Mars], [Shop with the supply chain cut], [none between landing and receipt],
     [Star], [fully closed inside the company], [read the receipts],
   ),
-  caption: [#lead[Who is in the loop, by stage] @mr2026masterplan. At each stage the company closes one more part of its own loop; people keep the decisions on the right.],
+  caption: [#lead[Who is in the loop, by stage] @mr2026vision. At each stage the company closes one more part of its own loop; people keep the decisions on the right.],
 ) <tab:loopstate>
 
 
@@ -1829,7 +1831,7 @@ Three tools come first, in this order.
 
 == Inheritance
 
-Nothing we build can be turned against a person, whether by force, by data or by instruction. These commitments carry forward to any acquirer @mr2026masterplan:
+Nothing we build can be turned against a person, whether by force, by data or by instruction. These commitments carry forward to any acquirer @mr2026vision:
 
 - *Not by force.* No sales for weapons or military use.
 - *Not by data.* Never be Flock Safety (@sec:city). Not negotiable.
@@ -1859,7 +1861,7 @@ ISO/TS 15066 was written for industrial cobots. For a humanoid on a public sidew
     [Mind], [Ipse can refuse; refusals are logged, never trained against], [#status("label", "Planned") Ipse is K1 research, not on the lymb], [Misuse by instruction],
     [Terms], [Sales terms ban weapons use; fleet buyers vetted], [#status("label", "Planned") no terms written], [Resale, mostly],
   ),
-  caption: [#lead[Safety layers, what exists on the lymb today, and what each layer would survive] @mr2026masterplan. Today the lymb has only a design-level interface layer and vendor firmware current limits; it is not physically incapable of harm.],
+  caption: [#lead[Safety layers, what exists on the lymb today, and what each layer would survive] @mr2026vision. Today the lymb has only a design-level interface layer and vendor firmware current limits; it is not physically incapable of harm.],
 ) <tab:safety>
 
 The table is ordered by strength. A guarantee in the physics layer survives anything short of building a different robot. A guarantee in the terms layer is a promise. We do not claim the lower layers are as strong as the upper ones.
@@ -1885,7 +1887,7 @@ The arc ends where people are least able to watch: on Mars, with no commands bet
 
 == Biology
 
-The duet is a cell in the biological sense (@sec:pair), and the analogy earns its place in three engineering decisions, none built yet @mr2026masterplan:
+The duet is a cell in the biological sense (@sec:pair), and the analogy earns its place in three engineering decisions, none built yet @mr2026vision:
 
 - *Germ line.* The design and its receipts live where no duet can change them, so the machines that do the work are not the ones that carry the design forward (@sec:replication).
 - *Quorum sensing.* There is no central scheduler. Each duet publishes what it is doing to the twin, and the nearest idle duet takes the next task.
@@ -1905,8 +1907,8 @@ A company does more than build. Each of its jobs is taken over by its own machin
     align: (left + top, left + top, left + top, left + top),
     table.header([*Job*], [*By*], [*From*], [*What people keep*]),
     [Writing code], [frog], [Desk], [what to build; review of what ships],
-    [Earning revenue], [kyte], [Desk], [prices],
-    [Supporting users], [frog and kyte agents], [Desk], [anything an agent cannot answer],
+    [Earning revenue], [pond], [Desk], [prices],
+    [Supporting users], [frog and pond agents], [Desk], [anything an agent cannot answer],
     [Building machines], [duets], [Shop], [licenses to divide],
     [Buying parts], [agents, within caps], [Shop], [new suppliers; anything over a cap],
     [Bookkeeping], [agents, on signed ledgers], [Shop], [the audit],
@@ -1919,7 +1921,7 @@ A company does more than build. Each of its jobs is taken over by its own machin
 
 == Intelligence
 
-"Amplified by intelligence" must not mean renting it. Today most of the company's intelligence is bought: kyte routes to other people's models, frog escalates to frontier ones, and Ipse uses a cloud model as an amplifier. The company counts it like any bought part, as the *bought intelligence fraction*: the share of its model calls served by models it does not run. It falls in three steps: tang serving open models on our own hardware (@sec:kyte), then models tuned on the company's own work, such as frog's traces, then, at Home and beyond, inference on chyp. Running a model is not owning it; the weights we run are mostly other people's, and the fraction reports that too.
+"Amplified by intelligence" must not mean renting it. Today most of the company's intelligence is bought: pond routes to other people's models, frog escalates to frontier ones, and Ipse uses a cloud model as an amplifier. The company counts it like any bought part, as the *bought intelligence fraction*: the share of its model calls served by models it does not run. It falls in three steps: tang serving open models on our own hardware (@sec:pond), then models tuned on the company's own work, such as frog's traces, then, at Home and beyond, inference on chyp. Running a model is not owning it; the weights we run are mostly other people's, and the fraction reports that too.
 
 == Agents
 
@@ -1965,7 +1967,7 @@ Once software spends money, orders parts and answers customers, the risks are no
       content((w - inset - 0.25, h - top - 0.24), anchor: "north-east", text(font: mono-m, size: s-xs, fill: c-label, watts))
     }
   }),
-  caption: [#lead[The arc.] Eight stages, each a step up in scale; one loop, one number. Each stage contains the one before it, and each removes a person from one more edge of the loop. Watts are electrons under management (@sec:eum), as orders of magnitude, not targets @mr2026masterplan.],
+  caption: [#lead[The arc.] Eight stages, each a step up in scale; one loop, one number. Each stage contains the one before it, and each removes a person from one more edge of the loop. Watts are electrons under management (@sec:eum), as orders of magnitude, not targets @mr2026vision.],
 ) <fig:arc>
 
 One number runs through every stage: *electrons under management* (EUM), in watts. It measures the same thing at every scale, so progress can be read off one axis, from one robot to a fraction of the sun's output (3.828 × 10#super[26] W, nominal @iau2015b3).
@@ -2011,16 +2013,16 @@ The second headline number is the time the company takes to double what it can b
 
 *Software first, then an arm that ships with its gap.* Desk has three steps over roughly three years. Each closes on an exact gate (@tab:arc).
 
-+ *Software that pays for the arm.* frog, our coding agent for local models, is free and stays free. When a task needs more than a local model, frog's default is kyte: hosted inference on tang that keeps each session's cache warm, drafts ahead, and hands a session from local to cloud without re-sending it, priced per finished task rather than per token. kyte is what we sell, and its revenue funds the lymb (@sec:kyte). frog runs today; kyte does not exist yet.
++ *Software that pays for the arm.* frog, our coding agent for local models, is free and stays free. When a task needs more than a local model, frog's default is pond: a gateway to many models, ours on tang and other people's, that keeps each session's cache warm, drafts ahead, and hands a session from local to cloud without re-sending it, priced per finished task rather than per token. pond is what we sell, and its revenue funds the lymb (@sec:pond). frog runs today; pond is early, built on our zest codebase.
 + *An arm worth buying.* Build it on RobStride actuators. The actuator is a commodity. Our edge is everything around it: geometry checked against real loads, a measured model of every unit, a controller trained against that model, and a stated sim-to-real gap on every lymb.
 + *Own the actuator, where it wins.* Desk revenue funds rana and torc. A purchased joint is replaced only where rana wins on a measured metric. Dropping rana is a valid outcome, not a failure.
 
-== kyte <sec:kyte>
+== pond <sec:pond>
 
 #figure(
   align(center, cetz.canvas(length: 1.1cm, {
     import cetz.draw: *
-    let kyte = fam.mind.color
+    let pond = fam.mind.color
     // ── the three steps, each opened by what is written under its riser
     let steps = (
       ([Rent nothing], [open-model APIs], [\$0 fixed · \$0.03–0.11 a task], [with the waitlist]),
@@ -2031,9 +2033,9 @@ The second headline number is the time the company takes to double what it can b
     let gap = 0.75
     for (i, (name, what, cost, opens)) in steps.enumerate() {
       let x = i * (w + gap)
-      rect((x, 0), (x + w, 1.55), fill: if i == 0 { kyte.transparentize(80%) } else { c-surface }, stroke: 0.8pt + if i == 0 { kyte } else { c-line-hi })
+      rect((x, 0), (x + w, 1.55), fill: if i == 0 { pond.transparentize(80%) } else { c-surface }, stroke: 0.8pt + if i == 0 { pond } else { c-line-hi })
       content((x + 0.18, 1.38), anchor: "north-west", text(font: mono-m, size: 6pt, fill: c-label, tracking: track, upper[Step #(i + 1)]))
-      content((x + 0.18, 1.03), anchor: "north-west", text(font: sans-sb, size: 9pt, fill: if i == 0 { kyte } else { c-text }, name))
+      content((x + 0.18, 1.03), anchor: "north-west", text(font: sans-sb, size: 9pt, fill: if i == 0 { pond } else { c-text }, name))
       content((x + 0.18, 0.62), anchor: "north-west", text(size: 6.5pt, fill: c-text, what))
       content((x + 0.18, 0.32), anchor: "north-west", text(font: mono, size: 6pt, fill: c-label, cost))
       content((x, -0.15), anchor: "north-west", box(width: w * 1cm, text(size: 6pt, fill: c-sel)[Opens #opens]))
@@ -2056,8 +2058,8 @@ The second headline number is the time the company takes to double what it can b
     line((X(0), Y(2500)), (X(45000), Y(2500)), (X(45000), Y(5000)), (X(60000), Y(5000)), stroke: 1.1pt + c-info)
     content((X(60000) + 0.1, Y(5000)), anchor: "west", text(size: 6pt, fill: c-info)[rented H200s])
     // revenue at $0.25 a task
-    line((X(0), Y(0)), (X(60000), Y(15000)), stroke: 1.3pt + kyte)
-    content((X(60000) + 0.1, Y(15000)), anchor: "west", text(size: 6pt, fill: kyte)[revenue, \$0.25 a task])
+    line((X(0), Y(0)), (X(60000), Y(15000)), stroke: 1.3pt + pond)
+    content((X(60000) + 0.1, Y(15000)), anchor: "west", text(size: 6pt, fill: pond)[revenue, \$0.25 a task])
     // where renting pays, and the gate
     circle((X(22700), Y(2500)), radius: 0.07, fill: c-info, stroke: none)
     content((X(22700), Y(2500) + 0.15), anchor: "south", text(size: 6pt, fill: c-info)[renting pays, at Qwen prices])
@@ -2065,14 +2067,14 @@ The second headline number is the time the company takes to double what it can b
     circle((X(40000), Y(10000)), radius: 0.08, fill: c-ok, stroke: none)
     content((X(40000) + 0.15, Y(10000) - 0.1), anchor: "north-west", text(size: 6pt, fill: c-ok)[the Desk gate: \$10K a month at 40K tasks])
   })),
-  caption: [#lead[kyte, step by step] (estimates). Top: compute is rented only when demand opens the next step. Bottom: a month's money against tasks. The band is what open-model APIs would cost us, from DeepSeek V4 Flash to Qwen3-Coder-Next; the steps are rented H200s at about \$2,500 a month each. At \$0.25 a task, revenue clears the gate at 40,000 tasks a month on either route.],
-) <fig:kyte>
+  caption: [#lead[pond, step by step] (estimates). Top: compute is rented only when demand opens the next step. Bottom: a month's money against tasks. The band is what open-model APIs would cost us, from DeepSeek V4 Flash to Qwen3-Coder-Next; the steps are rented H200s at about \$2,500 a month each. At \$0.25 a task, revenue clears the gate at 40,000 tasks a month on either route.],
+) <fig:pond>
 
-kyte earns on a gap in prices. Open-model tokens already sell near cost: a frog coding task costs us a few cents on open-model APIs, while the frontier models developers compare against cost dollars a task (@app:kyte). So kyte charges per finished task, not per token. At \$0.25 a task it keeps most of the price, and the Desk gate of \$10,000 a month is about 40,000 tasks.
+pond earns on a gap in prices. Open-model tokens already sell near cost: a frog coding task costs us a few cents on open-model APIs, while the frontier models developers compare against cost dollars a task (@app:pond). So pond charges per finished task, not per token. At \$0.25 a task it keeps most of the price, and the Desk gate of \$10,000 a month is about 40,000 tasks.
 
-The margin is in owning the engine. kyte runs on tang alone, so every gain in tang lands in cost per task, and the session work frog already does (warm caches, drafting from a session's own history, a warm hand-off from a Mac) makes kyte faster and more predictable than a generic endpoint. First tang must learn to serve many sessions at once, at full speed on rented NVIDIA GPUs.
+pond routes each call to the model that fits it, ours or anyone else's, so frog's users are never tied to one lab. The margin is in owning the engine: calls served on tang carry it, since every gain in tang lands in cost per task, and the session work frog already does (warm caches, drafting from a session's own history, a warm hand-off from a Mac) makes pond faster and more predictable than a generic endpoint. First tang must learn to serve many sessions at once, at full speed on rented NVIDIA GPUs.
 
-kyte rents compute only as demand opens each step (@fig:kyte): open-model APIs while tang learns to serve, one rented H200 running tang near 23,000 tasks a month, and another each time the last is about 40% busy. The risks are rising GPU rents, heavy tasks under a per-task price, and the labs hosting agents of their own.
+pond rents compute only as demand opens each step (@fig:pond): open-model APIs while tang learns to serve, one rented H200 running tang near 23,000 tasks a month, and another each time the last is about 40% busy. The risks are rising GPU rents, heavy tasks under a per-task price, and the labs hosting agents of their own.
 
 == Sizes
 
@@ -2122,7 +2124,7 @@ The actuators are about 60% of a lymb's materials (\~\$1,200 of \~\$2,000). That
     [Duet], [\$12,000], [\~\$4,400], [63%], [Two lymbs, a table plate, a duet hub, a camera pair, a kore],
     [Rose], [\$15,000], [not costed], [–], [A duet on legs. Needs rana at a few hundred dollars per joint],
   ),
-  caption: [#lead[Prices and margin on materials] @mr2026masterplan. List prices are targets, not quotes; materials are estimates. Margin here is list less materials, a ceiling on gross margin: labor, test, warranty, shipping and overhead are not yet known and will reduce it.],
+  caption: [#lead[Prices and margin on materials] @mr2026vision. List prices are targets, not quotes; materials are estimates. Margin here is list less materials, a ceiling on gross margin: labor, test, warranty, shipping and overhead are not yet known and will reduce it.],
 ) <tab:prices>
 
 
@@ -2259,7 +2261,7 @@ Outdoor grasping, year-round, would give two things the lab cannot. It would pro
 
 == Map
 
-The robots would map the streets while they work. Two products come out of the map @mr2026masterplan:
+The robots would map the streets while they work. Two products come out of the map @mr2026vision:
 
 - *Live facts:* a pothole, a blocked curb ramp, ice, a dark streetlight.
 - *Delayed pictures*, with people and cars removed before anything leaves the robot.
@@ -2272,7 +2274,7 @@ Each dock along the routes is a litter bin, a charger and a free public wifi poi
 
 == Privacy
 
-#flame[*We will never be Flock Safety.*] Storing data is fine; a street robot that learns has to remember. What we will never build is a system that watches people @mr2026masterplan.
+#flame[*We will never be Flock Safety.*] Storing data is fine; a street robot that learns has to remember. What we will never build is a system that watches people @mr2026vision.
 
 These are design rules for the street pilot; none of the street pipeline is built yet.
 
@@ -2287,7 +2289,7 @@ These are design rules for the street pilot; none of the street pipeline is buil
 
 == Scope
 
-The pilot does not automate interaction with the public beyond yielding and stopping. It does not enter private property, and it does not touch sharps, hazardous waste or anything a person is holding. Remote assistance may be a product feature, but data from it never trains Ipse @mr2026masterplan. *Proposed scope, pending confirmation:* this list is a draft and has not been agreed internally or with any city.
+The pilot does not automate interaction with the public beyond yielding and stopping. It does not enter private property, and it does not touch sharps, hazardous waste or anything a person is holding. Remote assistance may be a product feature, but data from it never trains Ipse @mr2026vision. *Proposed scope, pending confirmation:* this list is a draft and has not been agreed internally or with any city.
 
 == moth <sec:moth>
 
@@ -2445,7 +2447,7 @@ Most of what this paper describes is *proposed*, not operational. @tab:status se
     [CNC mill], pips(3), [Bought],
     [Software stack], pips(3), [In use, not finished (@fig:elements)],
     [frog], pips(3), [In use; free],
-    [kyte], pips(0), [Not built],
+    [pond], pips(0), [Early, on zest],
     table.cell(colspan: 3, inset: (top: 9pt, bottom: 3pt, x: 6pt), stroke: none, text(font: mono-m, size: s-xs, fill: c-label, tracking: track)[DESIGNED]),
     [Lymb full (fork v9)], pips(2), [Ready to cut @rose2026forkv9],
     [Gripper v2], pips(2), [CAD and force model @mr2026gripper],
@@ -2505,7 +2507,7 @@ Each is a gate (@tab:arc), and we will publish the ones we miss. The risks below
 
 == Capital
 
-kyte is meant to fund the arm. Nothing in this plan yet funds what comes after it: duet inventory, Rose, a city pilot, or anything off Earth, where no customer pays. Whether the company raises money, when, how much and from whom is not decided. The gates are written so that each stage can be paid for by the one before it, but the Moon and Mars will need a funder, not just a gate.
+pond is meant to fund the arm. Nothing in this plan yet funds what comes after it: duet inventory, Rose, a city pilot, or anything off Earth, where no customer pays. Whether the company raises money, when, how much and from whom is not decided. The gates are written so that each stage can be paid for by the one before it, but the Moon and Mars will need a funder, not just a gate.
 
 *Liability.* When a robot or an agent of an autonomous company causes harm, someone must answer for it. Product liability on lymbs, permits and insurance for a sidewalk pilot, and contracts drafted by agents all need an owner, by City at the latest.
 
@@ -2611,7 +2613,7 @@ Every stage closes on gates of the same form: a number, a unit, a method and a p
     columns: (auto, 2fr, auto),
     align: (left + top, left + top, left + top),
     table.header([*Stage*], [*Gate: number, method, pass condition*], [*EUM, order*]),
-    [Desk (yrs 1–3)], [kyte revenue ≥ \$10,000 a month for 3 months running, with no outside money (proposed). ≥ 10 lymbs sold to outside buyers at ≥ 40% gross margin, after materials, labor, test and warranty (invoices, trailing 12 months). Tool-point error ≤ 2.0 mm RMS on every lymb shipped: 50 fixed poses, unloaded and at 1.0 kg, probe against a calibrated plate, printed on its receipt. rana ≥ 1.2 × RS04 in continuous stall torque per kg or per dollar, on one dyno at 25 °C, or rana is dropped], [0 W → 10 kW],
+    [Desk (yrs 1–3)], [pond revenue ≥ \$10,000 a month for 3 months running, with no outside money (proposed). ≥ 10 lymbs sold to outside buyers at ≥ 40% gross margin, after materials, labor, test and warranty (invoices, trailing 12 months). Tool-point error ≤ 2.0 mm RMS on every lymb shipped: 50 fixed poses, unloaded and at 1.0 kg, probe against a calibrated plate, printed on its receipt. rana ≥ 1.2 × RS04 in continuous stall torque per kg or per dollar, on one dyno at 25 °C, or rana is dropped], [0 W → 10 kW],
     [Shop], [A duet at a customer's table completes a named task (for example, folding 50 garments) at ≥ 95% success. A duet assembles a lymb that passes the Desk test in ≤ 30 min of human touch time. A duet builds a duet that passes its receipts at ≤ 20% bought cost, with bought share falling over 3 generations and a commanded shutdown drill passed in each], [100 kW],
     [Road], [Preregistered hardware body-schema fit: held-out joint-position error ≤ 0.8 × persistence at 0.1 s and 0.5 s, and fitted link masses within ±5% of weighed parts. Rose walks 100 m on level pavement carrying two lymbs, 0 falls in 5 of 5. A gradient co-designed part beats its hand-designed predecessor by ≥ 10% on its named objective], [1 MW],
     [City], [The litter pilot renews for ≥ 12 months after a ≥ 3-month trial, with 0 contact incidents. A city renews fleet and twin for ≥ 12 months. ≥ 90% of fleet repairs done by duets in the city, by receipts], [10 MW],
@@ -2620,13 +2622,13 @@ Every stage closes on gates of the same form: a number, a unit, a method and a p
     [Mars], [A second duet with 0 human commands between landing and its receipt], [1 kW],
     [Star], [None we can set now; reported as EUM and doubling time], [3.8 × 10#super[26] W],
   ),
-  caption: [#lead[Gates, stage by stage] @mr2026masterplan. *Proposed targets, to be confirmed by the author.* The year range for Desk is an aspiration, not a commitment.],
+  caption: [#lead[Gates, stage by stage] @mr2026vision. *Proposed targets, to be confirmed by the author.* The year range for Desk is an aspiration, not a commitment.],
 ) <tab:arc>
 
 
-= kyte numbers <app:kyte>
+= pond numbers <app:pond>
 
-A frog coding task makes about 40 model calls at about 20,000 tokens of context each: roughly 800,000 tokens in and 30,000 out, counting thinking. frog's own logs show that 79% of what goes in is reusable cache, which pinned sessions turn into about 4.8 times less prefill; drafting from a session's own history decodes 1.5–2.2 times faster (estimates from frog sessions @frog2026roadmap). What one task costs depends on who runs the model (@tab:kyte).
+A frog coding task makes about 40 model calls at about 20,000 tokens of context each: roughly 800,000 tokens in and 30,000 out, counting thinking. frog's own logs show that 79% of what goes in is reusable cache, which pinned sessions turn into about 4.8 times less prefill; drafting from a session's own history decodes 1.5–2.2 times faster (estimates from frog sessions @frog2026roadmap). What one task costs depends on who runs the model (@tab:pond).
 #figure(
   ptable(
     columns: (auto, 1fr, auto),
@@ -2638,7 +2640,7 @@ A frog coding task makes about 40 model calls at about 20,000 tokens of context 
     [Frontier models], [what developers compare against], [≈ \$1–3],
   ),
   caption: [#lead[What one frog task costs] (estimates, October 2026). Prices are list or index prices and move monthly; the per-task figures are our arithmetic on the workload above.],
-) <tab:kyte>
+) <tab:pond>
 
 
 = Lymb numbers <app:lymb>
@@ -2749,7 +2751,7 @@ A frog coding task makes about 40 model calls at about 20,000 tokens of context 
     [Harness], [Flat CAN pair + 48 V pair, 2.1 m; palm-camera USB 2.0 pair in the same run @mr2026gripper], [–],
     [*Arm total*], [], [*\~\$2,000 (est.)*],
   ),
-  caption: [#lead[Arm bill of materials summary] @rose2026forkv9 @mr2026masterplan. Arm materials \~\$2,000 (est.), of which \~\$1,200 is actuators; other lines are not yet broken out. The arm-repo BOM lists the gripper servo generically; the EL05 choice is from the gripper v2 design. The USB pair must stay within USB 2.0’s \~1.5–2 m; at the full 2.1 m harness length this is open.],
+  caption: [#lead[Arm bill of materials summary] @rose2026forkv9 @mr2026vision. Arm materials \~\$2,000 (est.), of which \~\$1,200 is actuators; other lines are not yet broken out. The arm-repo BOM lists the gripper servo generically; the EL05 choice is from the gripper v2 design. The USB pair must stay within USB 2.0’s \~1.5–2 m; at the full 2.1 m harness length this is open.],
 ) <tab:bomarm>
 
 #figure(

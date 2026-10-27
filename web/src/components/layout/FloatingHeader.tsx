@@ -24,7 +24,7 @@ export function FloatingHeader() {
         </Link>
 
         <nav className="site-nav-right" aria-label="Main navigation">
-          <Link href="/research/master-plan" className="site-nav-link">Plan</Link>
+          <Link href="/research/vision" className="site-nav-link">Vision</Link>
           <Link href="/research" className="site-nav-link">Research</Link>
           <a href="https://github.com/ecto/muni" className="site-nav-link" target="_blank" rel="noopener noreferrer">GitHub</a>
         </nav>

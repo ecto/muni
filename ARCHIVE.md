@@ -1,6 +1,6 @@
 # Archive
 
-Muni began with the BVR, a sidewalk rover for snow removal. The plan has since moved to arms, pairs and humanoids (see the [master plan](paper/master-plan/master-plan.typ)), and the rover-era code left this repository in October 2026.
+Muni began with the BVR, a sidewalk rover for snow removal. The plan has since moved to arms, pairs and humanoids (see the [vision](paper/vision/vision.typ)), and the rover-era code left this repository in October 2026.
 
 | What | Where it is now |
 |---|---|
