@@ -26,7 +26,7 @@ export function FloatingHeader() {
         <nav className="site-nav-right" aria-label="Main navigation">
           <Link href="/research/vision" className="site-nav-link">Vision</Link>
           <Link href="/research" className="site-nav-link">Research</Link>
-          <a href="https://github.com/muni-works/muni" className="site-nav-link" target="_blank" rel="noopener noreferrer">GitHub</a>
+          <a href="https://github.com/muni-works/muni" className="site-nav-link" target="_blank" rel="noopener noreferrer">Code</a>
         </nav>
       </div>
     </header>
