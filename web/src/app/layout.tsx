@@ -45,7 +45,7 @@ const organizationSchema = {
     name: "Cleveland, Ohio",
   },
   sameAs: [
-    "https://github.com/ecto/muni",
+    "https://github.com/muni-works/muni",
     "https://www.linkedin.com/company/municipal-robotics",
     "https://x.com/campedersen",
   ],

@@ -114,7 +114,9 @@ export function PostCover({ title, subtitle, children, scrollTo }: { title: stri
       pointer.y += (pointer.ty - pointer.y) * 0.04;
 
       // unit: scale so Mars' orbit spans most of the width; system sits low
-      const u = Math.min(w / 9.5, h / 5.2);
+      // on a phone the system is drawn bigger (Mars' orbit runs off the sides) and only the key bodies are labelled
+      const narrow = w < 640;
+      const u = Math.min(w / (narrow ? 6.4 : 9.5), h / 5.2);
       const cx = w * 0.5 - pointer.x * 10;
       const cy = h * 0.66 - pointer.y * 6;
       const tilt = TILT + pointer.y * 0.06;
@@ -418,21 +420,25 @@ export function PostCover({ title, subtitle, children, scrollTo }: { title: stri
         ctx.textAlign = "start";
         ctx.globalAlpha = 1;
       };
-      callout(me, ["MERCURY", "0.39 AU"], C.label, 6);
-      callout(ve, ["VENUS", "0.72 AU"], C.label, 6);
+      if (!narrow) {
+        callout(me, ["MERCURY", "0.39 AU"], C.label, 6);
+        callout(ve, ["VENUS", "0.72 AU"], C.label, 6);
+      }
       callout(e, ["EARTH", "1.00 AU"], C.info);
       callout(m, ["MARS", "1.52 AU"], C.fault);
-      if (ju[0] > 0 && ju[0] < w && ju[1] > 0 && ju[1] < h) callout(ju, ["JUPITER", "5.20 AU"], C.warn, 10);
+      if (!narrow && ju[0] > 0 && ju[0] < w && ju[1] > 0 && ju[1] < h) callout(ju, ["JUPITER", "5.20 AU"], C.warn, 10);
 
-      // Lagrange point designators
-      ctx.font = `500 8px ${mono}`;
-      ctx.fillStyle = C.info;
-      ctx.globalAlpha = 0.6;
-      ([[2.4, 0, "L1"], [3.1, 0, "L2"], [2.75, Math.PI, "L3"], [2.75, Math.PI / 3, "L4"], [2.75, -Math.PI / 3, "L5"]] as const).forEach(([r, da, t]) => {
-        const [x, y] = P(r, ea + da);
-        ctx.fillText(t, x + 6, y + 10);
-      });
-      ctx.globalAlpha = 1;
+      // Lagrange point designators (too small to read on a phone)
+      if (!narrow) {
+        ctx.font = `500 8px ${mono}`;
+        ctx.fillStyle = C.info;
+        ctx.globalAlpha = 0.6;
+        ([[2.4, 0, "L1"], [3.1, 0, "L2"], [2.75, Math.PI, "L3"], [2.75, Math.PI / 3, "L4"], [2.75, -Math.PI / 3, "L5"]] as const).forEach(([r, da, t]) => {
+          const [x, y] = P(r, ea + da);
+          ctx.fillText(t, x + 6, y + 10);
+        });
+        ctx.globalAlpha = 1;
+      }
 
       // the probe: mission, clock, range and speed, live
       if (!reduce && fade > 0 && progress > 0 && progress < 1) {

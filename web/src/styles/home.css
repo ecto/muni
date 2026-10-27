@@ -4,7 +4,8 @@
 .home-page { --h-max: 72rem; }
 
 /* one gap everywhere in the door group: between cards, and between the bar and the cards */
-.home-one { --door-gap: 0.75rem; }
+.home-one { --door-gap: 0.75rem; --door-card: 8.5rem; }
+@media (min-width: 90rem) { .home-one { --door-card: 9.75rem; } } /* big screens get bigger doors */
 .home-cta { gap: var(--door-gap); align-items: center; }
 /* frog's element card as the landing call to action */
 .pcard.home-tile { width: 8.5rem; height: 8.5rem; padding: 0.55rem 0.6rem 0.6rem; text-decoration: none; }
@@ -19,7 +20,7 @@
   justify-content: space-between;
   gap: 1rem;
   box-sizing: border-box;
-  width: min(100%, calc(4 * 8.5rem + 3 * var(--door-gap)));
+  width: min(100%, calc(4 * var(--door-card) + 3 * var(--door-gap)));
   height: 3rem;
   margin: 2.75rem auto 0;
   padding: 0 0.6rem; /* the cards' own inner edge, so text lines up down the column */
@@ -35,9 +36,15 @@
 .home-vision:hover { transform: translateY(-2px); box-shadow: 0 0 0 1px var(--p-sel), 0 6px 18px -6px var(--p-sel); }
 .home-vision:focus-visible { outline: 2px solid var(--p-text); outline-offset: 2px; }
 @media (max-width: 40rem) { .home-vision-meta { display: none; } } /* the stage list needs the full row */
-.home-cta { flex-wrap: wrap; justify-content: center; }
-.post-cover-text .home-cta { margin-top: var(--door-gap); }
-.pcard.home-tile { height: 10rem; }
+/* the cards are a grid exactly as wide as the vision bar, so both share one edge at every size */
+.post-cover-text .home-cta {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  width: min(100%, calc(4 * var(--door-card) + 3 * var(--door-gap)));
+  margin: var(--door-gap) auto 0;
+}
+.post-cover-text .home-cta .pcard.home-tile { width: auto; }
+.pcard.home-tile { height: calc(var(--door-card) * 1.18); }
 /* the glyph takes the stage tag's corner, so the name can sit higher and the note can breathe */
 .home-tile-glyph { position: absolute; top: 0.4rem; right: 0.5rem; display: block; width: 48px; height: 24px; }
 .home-tile-glyph svg { width: 100%; height: 100%; display: block; overflow: hidden; }
@@ -279,5 +286,12 @@ main { padding-top: 3.5rem; }
 .home-page .post-cover { margin: 0 0.75rem; }
 
 /* ── one frame ───────────────────────────────────────────── */
-.home-one { height: 100vh; overflow: hidden; }
-.home-one .post-cover { margin: 0; min-height: 100vh; }
+/* one frame when it fits; when the screen is short or narrow the cover grows with its content
+   and keeps a band at the bottom for the Earth, instead of clipping the cards */
+.home-one .post-cover { margin: 0; height: auto; min-height: 100svh; padding-bottom: max(26vh, 11rem); box-sizing: border-box; }
+.home-one .post-cover-text { padding-top: clamp(5.5rem, 18vh, 22vh); }
+/* narrow screens: cards go two by two, and the page scrolls so the Earth gets the space under them */
+@media (max-width: 40rem) {
+  .post-cover-text .home-cta { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .home-one .post-cover { padding-bottom: 42vh; }
+}
