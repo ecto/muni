@@ -15,7 +15,7 @@ export function Footer() {
           <Link href="/research/vision">Vision</Link>
           <Link href="/research">Research</Link>
           <a href="/research/vision.pdf" target="_blank" rel="noopener noreferrer">PDF</a>
-          <a href="https://github.com/ecto/muni" target="_blank" rel="noopener noreferrer">GitHub</a>
+          <a href="https://github.com/muni-works/muni" target="_blank" rel="noopener noreferrer">GitHub</a>
           <a href="mailto:info@muni.works">Contact</a>
         </nav>
       </div>

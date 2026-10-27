@@ -232,7 +232,7 @@ export default function RoverPage() {
                 <ArrowRight size={16} weight="bold" />
               </a>
 
-              <a href="https://github.com/ecto/muni" className="products-resource" target="_blank" rel="noopener noreferrer">
+              <a href="https://github.com/muni-works/muni" className="products-resource" target="_blank" rel="noopener noreferrer">
                 <GithubLogo size={24} weight="bold" />
                 <div>
                   <strong>Source Code</strong>
