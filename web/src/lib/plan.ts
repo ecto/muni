@@ -1,6 +1,6 @@
 import table from "@/content/elements.json";
 
-// The master plan, as data for the homepage. The periodic table comes from the paper's own source
+// The vision, as data for the homepage. The periodic table comes from the paper's own source
 // (`npm run posts` writes elements.json); the stages mirror its overview.
 
 export interface Family {
@@ -42,11 +42,11 @@ export const layout: [string, number[][]][] = [
 /** Public homes for the projects that have one. */
 export const links: Record<string, string> = {
   loon: "https://github.com/ecto/loon",
-  tang: "https://github.com/ecto/tang",
+  tang: "https://tang.toys",
   vcad: "https://vcad.io",
   kerf: "https://github.com/ecto/kerf",
   kosm: "https://github.com/ecto/kosm",
-  phyz: "https://github.com/ecto/phyz",
+  phyz: "https://phyz.dev",
   torc: "https://github.com/ecto/torc",
 };
 
@@ -75,4 +75,4 @@ export const stages: Stage[] = [
 ];
 
 export const deskGate =
-  "First, kyte revenue that pays for the arm. Then ten lymbs sold at 40% gross margin, each with its tool-point error ε̄ measured and under 2 mm.";
+  "First, pond revenue that pays for the arm. Then ten lymbs sold at 40% gross margin, each with its tool-point error ε̄ measured and under 2 mm.";

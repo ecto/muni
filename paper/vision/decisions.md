@@ -1,6 +1,6 @@
-# Master plan decisions
+# Vision decisions
 
-Decisions taken while reviewing the master plan. Each one is cited by the paper
+Decisions taken while reviewing the vision. Each one is cited by the paper
 or the hardware mockups. Newest first within a date.
 
 ## 2026-10-15 · Power, data and compute
@@ -43,6 +43,7 @@ or the hardware mockups. Newest first within a date.
 | D30 | **kyte rents compute in three steps, each opened by demand, and runs on tang alone (no SGLang or vLLM):** open-model APIs first while tang learns to serve (batched decode, session cache slots, full-speed backend on rented NVIDIA GPUs; tang runs through wgpu today); one rented H200 (~\$2,500/month) running tang once it serves frog's tasks and demand nears ~23,000 tasks/month; another H200 each time the last is ~40% busy. Price per finished task (~\$0.25 proposed) with a token cap. | Owning the whole stack is the margin: no one else's serving layer, kernels tuned to frog's workload, every tang gain lands in cost per task. Open-model tokens sell near cost (~\$0.03 a task on DeepSeek V4 Flash), so the margin is per task against a frontier bill of \$1–3. | Renting GPUs up front; serving on SGLang first (decided against 2026-10-16: owning the engine is the advantage); reselling a speed provider; charging per token. |
 | D31 | **The plan's organizing idea is an autonomous company, amplified by intelligence:** a company that grows on its own, its work increasingly done by its own machines and software (frog writes its code, kyte earns its revenue, duets build its machines), with people in the loop where it matters: they set what it may do, license each division, read the receipts. "Lineage" gives way to "the company" and "branch" (a site's duets and the machines they built, under one license). | Legible to investors and cities; honest about control (a company has owners and a board, a lineage sounds unsupervised); the replication rules read as governance. | Lineages of machines (sounds biological and unsupervised); a DAO framing (reads as crypto). |
 | D32 | **The autonomous company gets its own number and section.** A fourth headline number, the labor fraction (people's share of the work, by function); a Company section in What: functions × stages, the bought intelligence fraction, controls on agents (caps, approvals, signed receipts, no self-raises, quarantine), governance (proposed: a board of ≥ 3, no single key can license a division, a named successor, a public license record). Capital, liability and competition are named as unknowns. | Without its own metric and controls, "grows on its own" is a slogan; agents with authority need the same limits as duets; governance by one person is the largest real risk. | Leaving the company implicit in the stages. Board members and timing are not decided. |
+| D33 | **kyte is renamed pond and becomes a model gateway** (2026-10-27; supersedes the name in D28 and "tang alone" in D30). pond serves our own models on tang and routes to anyone else's, so frog's users are never tied to one lab; calls served on tang carry the margin. It is built on the zest codebase. | A gateway that supports many models is more useful to frog's users than one engine, and it earns from day one instead of waiting for tang to serve. | Keep kyte on tang alone (D30). |
 
 ## Corrections found in review
 

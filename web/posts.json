@@ -1,12 +1,12 @@
 [
   {
-    "slug": "master-plan",
+    "slug": "vision",
     "title": "Robots that build robots",
     "subtitle": "What would it take for a machine to make the next one?",
     "date": "2026-10-15",
     "author": "Cam Pedersen",
-    "description": "The Municipal Robotics master plan: an autonomous company, amplified by intelligence. Software first, then arms that build arms, from a desk to a swarm of collectors around a star.",
-    "root": "../paper/master-plan",
-    "source": "master-plan.typ"
+    "description": "The Municipal Robotics vision: an autonomous company, amplified by intelligence. Software first, then arms that build arms, from a desk to a swarm of collectors around a star.",
+    "root": "../paper/vision",
+    "source": "vision.typ"
   }
 ]
