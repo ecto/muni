@@ -1,0 +1,236 @@
+{
+  "families": [
+    {
+      "key": "make",
+      "name": "Make",
+      "color": "#39ff14"
+    },
+    {
+      "key": "world",
+      "name": "World",
+      "color": "#00f0ff"
+    },
+    {
+      "key": "body",
+      "name": "Body",
+      "color": "#ff2052"
+    },
+    {
+      "key": "power",
+      "name": "Power",
+      "color": "#ffd400"
+    },
+    {
+      "key": "mind",
+      "name": "Mind",
+      "color": "#ff5f00"
+    },
+    {
+      "key": "silicon",
+      "name": "Silicon",
+      "color": "#a08d70"
+    }
+  ],
+  "elements": [
+    {
+      "num": 1,
+      "name": "loon",
+      "family": "make",
+      "maturity": "exists",
+      "note": "source for parts, worlds, chips",
+      "stage": "desk"
+    },
+    {
+      "num": 2,
+      "name": "tang",
+      "family": "make",
+      "maturity": "exists",
+      "note": "math, inference, one GPU",
+      "stage": "desk"
+    },
+    {
+      "num": 3,
+      "name": "vcad",
+      "family": "make",
+      "maturity": "exists",
+      "note": "CAD kernel with gradients",
+      "stage": "desk"
+    },
+    {
+      "num": 4,
+      "name": "kerf",
+      "family": "make",
+      "maturity": "exists",
+      "note": "design to part, with a receipt",
+      "stage": "desk"
+    },
+    {
+      "num": 5,
+      "name": "wodl",
+      "family": "world",
+      "maturity": "concept",
+      "note": "world format",
+      "stage": "shop"
+    },
+    {
+      "num": 6,
+      "name": "kosm",
+      "family": "world",
+      "maturity": "exists",
+      "note": "runs wodl worlds",
+      "stage": "desk"
+    },
+    {
+      "num": 7,
+      "name": "phyz",
+      "family": "world",
+      "maturity": "exists",
+      "note": "physics, contact adjoint",
+      "stage": "desk"
+    },
+    {
+      "num": 8,
+      "name": "iris",
+      "family": "world",
+      "maturity": "concept",
+      "note": "renderer, robot cameras",
+      "stage": "shop"
+    },
+    {
+      "num": 9,
+      "name": "rana",
+      "family": "body",
+      "maturity": "designed",
+      "note": "axial-flux actuator",
+      "stage": "desk"
+    },
+    {
+      "num": 10,
+      "name": "torc",
+      "family": "body",
+      "maturity": "designed",
+      "note": "motor control",
+      "stage": "desk"
+    },
+    {
+      "num": 11,
+      "name": "lymb",
+      "family": "body",
+      "maturity": "designed",
+      "note": "the arm: product, half a duet",
+      "stage": "desk"
+    },
+    {
+      "num": 12,
+      "name": "hand",
+      "family": "body",
+      "maturity": "designed",
+      "note": "485 g gripper",
+      "stage": "desk"
+    },
+    {
+      "num": 13,
+      "name": "duet",
+      "family": "body",
+      "maturity": "concept",
+      "note": "two lymbs, any table",
+      "stage": "shop"
+    },
+    {
+      "num": 14,
+      "name": "Rose",
+      "family": "body",
+      "maturity": "concept",
+      "note": "humanoid: mini, full, mega",
+      "stage": "road"
+    },
+    {
+      "num": 15,
+      "name": "moth",
+      "family": "body",
+      "maturity": "concept",
+      "note": "street-perception drone",
+      "stage": "city"
+    },
+    {
+      "num": 16,
+      "name": "seed",
+      "family": "body",
+      "maturity": "concept",
+      "note": "a duet, packed to go",
+      "stage": "moon"
+    },
+    {
+      "num": 17,
+      "name": "pack",
+      "family": "power",
+      "maturity": "concept",
+      "note": "one battery, every body",
+      "stage": "road"
+    },
+    {
+      "num": 18,
+      "name": "kore",
+      "family": "power",
+      "maturity": "concept",
+      "note": "one compute module",
+      "stage": "road"
+    },
+    {
+      "num": 19,
+      "name": "nerv",
+      "family": "power",
+      "maturity": "concept",
+      "note": "bus, hub and BMS boards",
+      "stage": "road"
+    },
+    {
+      "num": 20,
+      "name": "Ipse",
+      "family": "mind",
+      "maturity": "exists",
+      "note": "developmental mind",
+      "stage": "road"
+    },
+    {
+      "num": 21,
+      "name": "frog",
+      "family": "mind",
+      "maturity": "exists",
+      "note": "free coding agent for local models",
+      "stage": "desk"
+    },
+    {
+      "num": 22,
+      "name": "kyte",
+      "family": "mind",
+      "maturity": "concept",
+      "note": "inference for frog, on tang",
+      "stage": "desk"
+    },
+    {
+      "num": 23,
+      "name": "loom",
+      "family": "silicon",
+      "maturity": "concept",
+      "note": "hardware description",
+      "stage": "home"
+    },
+    {
+      "num": 24,
+      "name": "rune",
+      "family": "silicon",
+      "maturity": "concept",
+      "note": "maskless lithography",
+      "stage": "home"
+    },
+    {
+      "num": 25,
+      "name": "chyp",
+      "family": "silicon",
+      "maturity": "concept",
+      "note": "inference chip",
+      "stage": "home"
+    }
+  ]
+}

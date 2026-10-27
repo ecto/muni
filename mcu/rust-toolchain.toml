@@ -1,4 +1,0 @@
-[toolchain]
-channel = "stable"
-targets = ["thumbv8m.main-none-eabihf", "thumbv6m-none-eabi"]
-

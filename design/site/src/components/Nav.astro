@@ -1,0 +1,98 @@
+---
+const links = [
+  { href: "/", label: "System" },
+  { href: "/color", label: "Color" },
+  { href: "/typography", label: "Type" },
+  { href: "/components", label: "Components" },
+  { href: "/motion", label: "Motion" },
+  { href: "/3d", label: "3D" },
+  { href: "/sound", label: "Sound" },
+  { href: "/identity", label: "Identity" },
+  { href: "/terminal", label: "Terminal" },
+  { href: "/specimen", label: "Specimen" },
+];
+
+const currentPath = Astro.url.pathname;
+---
+
+<nav>
+  <a href="/" class="brand">muni/design</a>
+  <div class="links">
+    {
+      links.map((link) => (
+        <a
+          href={link.href}
+          class:list={[
+            "link",
+            {
+              active:
+                currentPath === link.href ||
+                (link.href !== "/" && currentPath.startsWith(link.href)),
+            },
+          ]}
+        >
+          {link.label}
+        </a>
+      ))
+    }
+  </div>
+</nav>
+
+<style>
+  nav {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 0 16px;
+    height: 44px;
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: var(--bg);
+    overflow: hidden;
+  }
+  .brand {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: var(--fg);
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .brand:hover {
+    color: var(--primary);
+  }
+  .links {
+    display: flex;
+    gap: 2px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    mask-image: linear-gradient(to right, transparent 0%, black 8px, black calc(100% - 16px), transparent 100%);
+    -webkit-mask-image: linear-gradient(to right, transparent 0%, black 8px, black calc(100% - 16px), transparent 100%);
+  }
+  .links::-webkit-scrollbar {
+    display: none;
+  }
+  .link {
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    padding: 6px 10px;
+    color: var(--fg-muted);
+    text-transform: uppercase;
+    white-space: nowrap;
+    flex-shrink: 0;
+    transition:
+      color 100ms ease,
+      background-color 100ms ease;
+  }
+  .link:hover {
+    color: var(--fg);
+    background: var(--surface);
+  }
+  .link.active {
+    color: var(--black);
+    background: var(--primary);
+  }
+</style>

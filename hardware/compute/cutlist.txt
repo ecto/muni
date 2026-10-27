@@ -1,0 +1,149 @@
+# cut list - 6U, depth 450 mm; frame/trays 2.0 mm 5052-H32, rails + combs 3 mm 5052, blade spines 3 mm 6061-T6
+# (outline L x W, before slots; ESTIMATES below)
+part                       qty     L mm     W mm    t  mat   note
+side_l                       1    450.0    278.7  2.0  5052  6 x 2 hook slots, 6 rail-tab slots (3 mm), 6 lid tabs, 4 grips
+side_r                       1    450.0    278.7  2.0  5052  6 x 2 hook slots, 6 rail-tab slots (3 mm), 6 lid tabs, 4 grips
+lid_top                      1    254.0    450.0  2.0  5052  6 slide-lock notches, 9 vent slots
+lid_bottom                   1    254.0    450.0  2.0  5052  6 slide-lock notches, 4 stick-on feet
+rail_front                   2    270.7     16.5  3.0  5052  18 x M6 tapped (5.0 drill), 3 hook tabs; web 4.2 mm outside hole
+rail_rear                    2    270.7     16.5  3.0  5052  18 x M6 tapped (5.0 drill), 3 hook tabs; web 4.2 mm outside hole
+cable_fin                    2     38.0    266.7  2.0  5052  flat, L-hook into side-panel rear slot
+cable_comb                   1    250.0    266.7  2.0  5052  24 cable windows
+psu_tray                     1    255.2    422.0  2.0  5052  4 hook tabs (L hooks, drop 4 mm)
+psu_face                     1    249.0     43.6  2.0  5052  faceplate
+gpu_tray                     1    255.2    422.0  2.0  5052  4 hook tabs (L hooks, drop 4 mm)
+gpu_face                     1    249.0    132.6  2.0  5052  faceplate
+gpu_mezzanine                1    249.2    412.0  2.0  5052  on 4 x M4 posts, riser + cable cut-outs, 5 vent slots
+blades_a_tray                1    255.2    422.0  2.0  5052  4 hook tabs (L hooks, drop 4 mm)
+blades_a_face_l              1     22.9     88.1  2.0  5052  filler faceplate
+blades_a_face_r              1     22.9     88.1  2.0  5052  filler faceplate
+blades_a_comb_lower          1    214.0    120.0  3.0  5052  8 open-ended 3.4 mm guide slots
+blades_a_comb_upper          1    214.0    120.0  3.0  5052  8 open-ended 3.4 mm guide slots
+blades_a_ceiling             1    218.0    316.0  2.0  5052  rests on cheek tabs
+blades_a_cheek               2    314.0     76.0  2.0  5052  tabs into tray + ceiling slots
+blades_a_blade_spine         8    128.0     76.0  3.0  6061  blade spine / cold rail, 6061-T6
+blades_a_blade_panel         8     24.6     84.0  2.0  5052  blade front panel
+blades_a_fan_wall            1    214.0     76.0  2.0  5052  3 x 60 mm fan holes
+# ESTIMATE 5052 2.0 mm: 1.189 m^2 gross, ~6.38 kg, ~$64 raw at $10/kg
+# ESTIMATE 5052 3.0 mm: 0.069 m^2 gross, ~0.56 kg, ~$6 raw at $10/kg
+# ESTIMATE 6061 3.0 mm: 0.078 m^2 gross, ~0.63 kg, ~$8 raw at $12/kg
+# ESTIMATE frame only: ~3.18 kg, ~$32 raw
+# ESTIMATE total sheet: ~7.56 kg, ~$77 raw stock (no slot deduction, no nesting waste, no cutting service)
+
+# cut list - 9U, depth 450 mm; frame/trays 2.0 mm 5052-H32, rails + combs 3 mm 5052, blade spines 3 mm 6061-T6
+# (outline L x W, before slots; ESTIMATES below)
+part                       qty     L mm     W mm    t  mat   note
+side_l                       1    450.0    412.1  2.0  5052  9 x 2 hook slots, 10 rail-tab slots (3 mm), 6 lid tabs, 4 grips
+side_r                       1    450.0    412.1  2.0  5052  9 x 2 hook slots, 10 rail-tab slots (3 mm), 6 lid tabs, 4 grips
+lid_top                      1    254.0    450.0  2.0  5052  6 slide-lock notches, 9 vent slots
+lid_bottom                   1    254.0    450.0  2.0  5052  6 slide-lock notches, 4 stick-on feet
+rail_front                   2    404.1     16.5  3.0  5052  27 x M6 tapped (5.0 drill), 5 hook tabs; web 4.2 mm outside hole
+rail_rear                    2    404.1     16.5  3.0  5052  27 x M6 tapped (5.0 drill), 5 hook tabs; web 4.2 mm outside hole
+cable_fin                    2     38.0    400.1  2.0  5052  flat, L-hook into side-panel rear slot
+cable_comb                   1    250.0    400.1  2.0  5052  36 cable windows
+psu_tray                     1    255.2    422.0  2.0  5052  4 hook tabs (L hooks, drop 4 mm)
+psu_face                     1    249.0     43.6  2.0  5052  faceplate
+gpu_tray                     1    255.2    422.0  2.0  5052  4 hook tabs (L hooks, drop 4 mm)
+gpu_face                     1    249.0    132.6  2.0  5052  faceplate
+gpu_mezzanine                1    249.2    412.0  2.0  5052  on 4 x M4 posts, riser + cable cut-outs, 5 vent slots
+blades_a_tray                1    255.2    422.0  2.0  5052  4 hook tabs (L hooks, drop 4 mm)
+blades_a_face_l              1     22.9     88.1  2.0  5052  filler faceplate
+blades_a_face_r              1     22.9     88.1  2.0  5052  filler faceplate
+blades_a_comb_lower          1    214.0    120.0  3.0  5052  8 open-ended 3.4 mm guide slots
+blades_a_comb_upper          1    214.0    120.0  3.0  5052  8 open-ended 3.4 mm guide slots
+blades_a_ceiling             1    218.0    316.0  2.0  5052  rests on cheek tabs
+blades_a_cheek               2    314.0     76.0  2.0  5052  tabs into tray + ceiling slots
+blades_a_blade_spine         8    128.0     76.0  3.0  6061  blade spine / cold rail, 6061-T6
+blades_a_blade_panel         8     24.6     84.0  2.0  5052  blade front panel
+blades_a_fan_wall            1    214.0     76.0  2.0  5052  3 x 60 mm fan holes
+blades_b_tray                1    255.2    422.0  2.0  5052  4 hook tabs (L hooks, drop 4 mm)
+blades_b_face_l              1     22.9     88.1  2.0  5052  filler faceplate
+blades_b_face_r              1     22.9     88.1  2.0  5052  filler faceplate
+blades_b_comb_lower          1    214.0    120.0  3.0  5052  8 open-ended 3.4 mm guide slots
+blades_b_comb_upper          1    214.0    120.0  3.0  5052  8 open-ended 3.4 mm guide slots
+blades_b_ceiling             1    218.0    316.0  2.0  5052  rests on cheek tabs
+blades_b_cheek               2    314.0     76.0  2.0  5052  tabs into tray + ceiling slots
+blades_b_blade_spine         8    128.0     76.0  3.0  6061  blade spine / cold rail, 6061-T6
+blades_b_blade_panel         8     24.6     84.0  2.0  5052  blade front panel
+blades_b_fan_wall            1    214.0     76.0  2.0  5052  3 x 60 mm fan holes
+patch_tray                   1    255.2    422.0  2.0  5052  4 hook tabs (L hooks, drop 4 mm)
+patch_face                   1    249.0     43.6  2.0  5052  faceplate
+# ESTIMATE 5052 2.0 mm: 1.733 m^2 gross, ~9.29 kg, ~$93 raw at $10/kg
+# ESTIMATE 5052 3.0 mm: 0.129 m^2 gross, ~1.04 kg, ~$10 raw at $10/kg
+# ESTIMATE 6061 3.0 mm: 0.156 m^2 gross, ~1.26 kg, ~$15 raw at $12/kg
+# ESTIMATE frame only: ~4.13 kg, ~$41 raw
+# ESTIMATE total sheet: ~11.59 kg, ~$118 raw stock (no slot deduction, no nesting waste, no cutting service)
+
+# cut list - 12U, depth 450 mm; frame/trays 2.0 mm 5052-H32, rails + combs 3 mm 5052, blade spines 3 mm 6061-T6
+# (outline L x W, before slots; ESTIMATES below)
+part                       qty     L mm     W mm    t  mat   note
+side_l                       1    450.0    545.4  2.0  5052  12 x 2 hook slots, 12 rail-tab slots (3 mm), 6 lid tabs, 4 grips
+side_r                       1    450.0    545.4  2.0  5052  12 x 2 hook slots, 12 rail-tab slots (3 mm), 6 lid tabs, 4 grips
+lid_top                      1    254.0    450.0  2.0  5052  6 slide-lock notches, 9 vent slots
+lid_bottom                   1    254.0    450.0  2.0  5052  6 slide-lock notches, 4 stick-on feet
+rail_front                   2    537.4     16.5  3.0  5052  36 x M6 tapped (5.0 drill), 6 hook tabs; web 4.2 mm outside hole
+rail_rear                    2    537.4     16.5  3.0  5052  36 x M6 tapped (5.0 drill), 6 hook tabs; web 4.2 mm outside hole
+cable_fin                    2     38.0    533.4  2.0  5052  flat, L-hook into side-panel rear slot
+cable_comb                   1    250.0    533.4  2.0  5052  48 cable windows
+psu_tray                     1    255.2    422.0  2.0  5052  4 hook tabs (L hooks, drop 4 mm)
+psu_face                     1    249.0     43.6  2.0  5052  faceplate
+gpu_tray                     1    255.2    422.0  2.0  5052  4 hook tabs (L hooks, drop 4 mm)
+gpu_face                     1    249.0    132.6  2.0  5052  faceplate
+gpu_mezzanine                1    249.2    412.0  2.0  5052  on 4 x M4 posts, riser + cable cut-outs, 5 vent slots
+blades_a_tray                1    255.2    422.0  2.0  5052  4 hook tabs (L hooks, drop 4 mm)
+blades_a_face_l              1     22.9     88.1  2.0  5052  filler faceplate
+blades_a_face_r              1     22.9     88.1  2.0  5052  filler faceplate
+blades_a_comb_lower          1    214.0    120.0  3.0  5052  8 open-ended 3.4 mm guide slots
+blades_a_comb_upper          1    214.0    120.0  3.0  5052  8 open-ended 3.4 mm guide slots
+blades_a_ceiling             1    218.0    316.0  2.0  5052  rests on cheek tabs
+blades_a_cheek               2    314.0     76.0  2.0  5052  tabs into tray + ceiling slots
+blades_a_blade_spine         8    128.0     76.0  3.0  6061  blade spine / cold rail, 6061-T6
+blades_a_blade_panel         8     24.6     84.0  2.0  5052  blade front panel
+blades_a_fan_wall            1    214.0     76.0  2.0  5052  3 x 60 mm fan holes
+blades_b_tray                1    255.2    422.0  2.0  5052  4 hook tabs (L hooks, drop 4 mm)
+blades_b_face_l              1     22.9     88.1  2.0  5052  filler faceplate
+blades_b_face_r              1     22.9     88.1  2.0  5052  filler faceplate
+blades_b_comb_lower          1    214.0    120.0  3.0  5052  8 open-ended 3.4 mm guide slots
+blades_b_comb_upper          1    214.0    120.0  3.0  5052  8 open-ended 3.4 mm guide slots
+blades_b_ceiling             1    218.0    316.0  2.0  5052  rests on cheek tabs
+blades_b_cheek               2    314.0     76.0  2.0  5052  tabs into tray + ceiling slots
+blades_b_blade_spine         8    128.0     76.0  3.0  6061  blade spine / cold rail, 6061-T6
+blades_b_blade_panel         8     24.6     84.0  2.0  5052  blade front panel
+blades_b_fan_wall            1    214.0     76.0  2.0  5052  3 x 60 mm fan holes
+blades_c_tray                1    255.2    422.0  2.0  5052  4 hook tabs (L hooks, drop 4 mm)
+blades_c_face_l              1     22.9     88.1  2.0  5052  filler faceplate
+blades_c_face_r              1     22.9     88.1  2.0  5052  filler faceplate
+blades_c_comb_lower          1    214.0    120.0  3.0  5052  8 open-ended 3.4 mm guide slots
+blades_c_comb_upper          1    214.0    120.0  3.0  5052  8 open-ended 3.4 mm guide slots
+blades_c_ceiling             1    218.0    316.0  2.0  5052  rests on cheek tabs
+blades_c_cheek               2    314.0     76.0  2.0  5052  tabs into tray + ceiling slots
+blades_c_blade_spine         8    128.0     76.0  3.0  6061  blade spine / cold rail, 6061-T6
+blades_c_blade_panel         8     24.6     84.0  2.0  5052  blade front panel
+blades_c_fan_wall            1    214.0     76.0  2.0  5052  3 x 60 mm fan holes
+blank_tray                   1    255.2    422.0  2.0  5052  4 hook tabs (L hooks, drop 4 mm)
+blank_face                   1    249.0     43.6  2.0  5052  faceplate
+patch_tray                   1    255.2    422.0  2.0  5052  4 hook tabs (L hooks, drop 4 mm)
+patch_face                   1    249.0     43.6  2.0  5052  faceplate
+# ESTIMATE 5052 2.0 mm: 2.276 m^2 gross, ~12.20 kg, ~$122 raw at $10/kg
+# ESTIMATE 5052 3.0 mm: 0.190 m^2 gross, ~1.52 kg, ~$15 raw at $10/kg
+# ESTIMATE 6061 3.0 mm: 0.233 m^2 gross, ~1.89 kg, ~$23 raw at $12/kg
+# ESTIMATE frame only: ~5.07 kg, ~$51 raw
+# ESTIMATE total sheet: ~15.61 kg, ~$160 raw stock (no slot deduction, no nesting waste, no cutting service)
+
+# GPU fit checks (3U node, depth 450)
+card length 340 + rear bracket 2: y 50..392; behind it to the tray end y 436: 44 mm for exhaust; front fans y 16..41, plenum 9 mm
+longest card that fits: 380 mm (keeps 6 mm at the rear grille); 12V-2x6 is on the top edge, so no length penalty
+across: riser block x 18..30, card height 150 -> x 180, + 35 mm straight run before the 12V-2x6 bend -> x 215; opening edge x 238.1 -> 23.1 mm spare
+tallest card with the bend: 170 mm (3 mm clear of the rail line)
+vertical: tray top 3.0, intake gap 15, card 61 (3-slot incl. backplate), 3 clear, mezz 2, posts 6, board 1.6, cooler 37 -> top 128.6 vs next tray underside 134.4: 5.8 mm spare
+2-GPU 4U, 2-slot (40 mm) cards, 12 mm gaps: needs 156.6 of 178.8 -> FITS (+22.2)
+2-GPU 4U, 2.5-slot (51 mm) cards, 12 mm gaps: needs 178.6 of 178.8 -> DOES NOT FIT (+0.2)
+2-GPU 4U, 3-slot (61 mm) cards, 12 mm gaps: needs 198.6 of 178.8 -> DOES NOT FIT (-19.8)
+
+# humanoid blade bay (4 blades): outer 109.6 W x 84 D (+10 fins) x 158 H mm; torso interior ~206 x 126 x 234 -> spare 96 / 32 / 76 mm
+cold wall (grooved)     2   109.6   146.0   8.0  6061 plate, 4 x 3.4 x 4.0 grooves, machined
+side wall               2    68.0   146.0   4.0  6061, laser + tapped
+base                    1   109.6    84.0   6.0  6061, connector bore + backplane bosses
+lid                     1   111.6    86.0   6.0  6061, O-ring groove
+rear fin block          1   104.0   118.0  10.0  6061, 13 fins (or skip: bolt the cold wall to the torso)
+# ESTIMATE bay metal ~1.54 kg (solid outline, before pockets), ~$19 raw 6061 at $12/kg; machining not priced

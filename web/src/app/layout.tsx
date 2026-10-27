@@ -4,18 +4,18 @@ import "@/styles/globals.css";
 
 export const metadata: Metadata = {
   title: {
-    default: "Municipal Robotics: Autonomous Sidewalk Maintenance",
+    default: "Municipal Robotics: Robots that build robots",
     template: "%s | Municipal Robotics",
   },
   description:
-    "Fully autonomous sidewalk clearing. Zero labor cost, operates 24/7. $18k hardware, $300/month software.",
+    "Robots that build robots: arms, pairs and the Rose humanoid, each one measured, from a desk in Ohio to a swarm around a star.",
   metadataBase: new URL("https://muni.works"),
   alternates: {
     canonical: "https://muni.works",
   },
   openGraph: {
     title: "Municipal Robotics",
-    description: "Fully autonomous sidewalk maintenance. Zero labor cost. Operates 24/7.",
+    description: "Robots that build robots: arms, pairs and the Rose humanoid, each one measured, from a desk in Ohio to a swarm around a star.",
     url: "https://muni.works",
     siteName: "Municipal Robotics",
     images: [
@@ -38,7 +38,7 @@ const organizationSchema = {
   name: "Municipal Robotics",
   url: "https://muni.works",
   logo: "https://muni.works/images/og.png",
-  description: "Autonomous sidewalk maintenance robots for municipalities.",
+  description: "Robots that build robots: arms, pairs and humanoids, measured on every unit.",
   foundingDate: "2025",
   foundingLocation: {
     "@type": "Place",
@@ -64,6 +64,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
+        <link rel="preload" href="/models/bvr1_assembly.glb" as="fetch" crossOrigin="anonymous" />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }}

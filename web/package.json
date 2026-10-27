@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "posts": "node scripts/build-posts.mjs"
   },
   "dependencies": {
     "@phosphor-icons/react": "^2.1.7",

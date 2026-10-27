@@ -1,0 +1,20 @@
+"""Shared cell_v2 parameters (mm). gen_cell_v2 / kin_v2 / reach_v2 / loads_v2 / make_frames_v2 all import this."""
+cell_l, cell_d, cell_h = 1500, 1000, 1000
+deck_z = 200            # deck top
+deck_t = 20
+aisle_y = 500           # aisle centreline (aisle Y 350..650)
+rail_gap = 300          # SBR rail spacing in Y -> rails at aisle_y -/+ 150
+arm_pitch = 400         # arm feet spacing along X
+plinth_h = 55           # deck top -> plinth top (SBR16 rail+block 45 + 10 mm plate)
+plinth_t = 10
+plinth_l, plinth_w = 520, 320
+block_pitch_x = 360     # SBR block centres along X (plinth centre -/+ 180)
+block_l, block_w = 45, 45
+foot_r = 115            # rose v6 base foot radius
+# carriage: plinth centre X = car_x0 + q. Feet (r 115) must stay inside the side panels (X 0..1500):
+car_x0 = foot_r + arm_pitch // 2                    # 315
+travel = cell_l - 2 * car_x0                        # 870 (1000 does not fit, see report)
+rail_l = travel + block_pitch_x + block_l + 30      # 1305 -> blocks stay on the rod with 15 mm spare each end
+rail_x0 = car_x0 - block_pitch_x // 2 - block_l // 2 - 15
+Z_SH = 200              # rose_fork.Z_SH (foot underside -> shoulder axis)
+sh_z = deck_z + plinth_h + Z_SH                     # 455

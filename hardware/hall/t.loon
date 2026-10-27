@@ -1,0 +1,7 @@
+[material "a" 0.7 0.7 0.7 0.5 0.5]
+[assembly
+ #[[part "box" [cube 100 100 100] "a"]
+   [part "cyl" [rotate 0 45 0 [cylinder 20 200]] "a"]]
+ #[[instance "box_a" "box" 0 0 0] [instance "cyl_b" "cyl" 300 0 0] [instance "box_c" "box" 0 300 0]]
+ #[]
+ "box_a"]
