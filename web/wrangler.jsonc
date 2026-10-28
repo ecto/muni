@@ -6,5 +6,9 @@
     "directory": "./out",
     "not_found_handling": "404-page",
     "html_handling": "drop-trailing-slash"
-  }
+  },
+  "routes": [
+    { "pattern": "muni.works", "custom_domain": true },
+    { "pattern": "www.muni.works", "custom_domain": true }
+  ]
 }
