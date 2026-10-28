@@ -1,0 +1,14 @@
+/products.html /products 301
+/docs.html /docs 301
+/investors.html /investors 301
+/viewer.html /viewer 301
+/success.html /success 301
+/cancel.html /cancel 301
+/log.html /log 301
+/about.html / 301
+/about / 301
+/research/master-plan /research/vision 301
+/research/master-plan.pdf /research/vision.pdf 301
+/blog/master-plan /research/vision 301
+/blog /research 301
+/blog/* /research/:splat 301

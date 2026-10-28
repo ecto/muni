@@ -7,6 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "deploy": "next build && wrangler deploy",
+    "preview": "next build && wrangler dev",
     "posts": "node scripts/build-posts.mjs"
   },
   "dependencies": {
@@ -33,6 +35,7 @@
     "eslint-config-next": "^15.0.0",
     "tailwindcss": "^4.0.0",
     "typescript": "^5.7.2",
-    "typescript-eslint": "^8.52.0"
+    "typescript-eslint": "^8.52.0",
+    "wrangler": "^4.86.0"
   }
 }
