@@ -8,5 +8,15 @@
     "description": "The Municipal Robotics vision: an autonomous company, amplified by intelligence. Software first, then arms that build arms, from a desk to a swarm of collectors around a star.",
     "root": "../paper/vision",
     "source": "vision.typ"
+  },
+  {
+    "slug": "zero-context-memory",
+    "title": "Zero-context compiled memory",
+    "subtitle": "Exact, persistent memory in a model's recurrent state, served by tang",
+    "date": "2026-10-29",
+    "author": "Cam Pedersen",
+    "description": "A model's recurrent state, with its gates pinned, is exact RAM. We verified qwenputer's compiled filesystem on our own stack, from tang's kernel to a CUDA window in our engine, and found memory that costs no context and needs no training.",
+    "root": "../paper/zero-context-memory",
+    "source": "zero-context-memory.typ"
   }
 ]
