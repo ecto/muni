@@ -299,7 +299,7 @@
   let rungs = (
     ([Kernel one-hot write], [bitwise]),
     ([50,000-step free run], [bitwise on CPU and 3090]),
-    ([Author's checkpoint, 3090], [160 tokens, 0 mismatches; recall from a 14 KB file]),
+    ([Author's checkpoint], [0 mismatches; recall from 14 KB]),
     ([tang reference math], [126 tokens, states bitwise]),
     ([tang compiler], [168 tensors bitwise]),
     ([GPU chip window], [0 mismatching layer steps]),
