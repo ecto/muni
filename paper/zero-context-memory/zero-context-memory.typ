@@ -202,7 +202,7 @@
   lbl((X(4), top + 0.25), [g = 0.9999])
   // the unreachable line
   line((X(7.25), -0.1), (X(7.25), top + 0.1), stroke: (paint: c-fault, thickness: 0.6pt, dash: "dashed"))
-  lbl((X(7.25), top + 0.55), [exact RAM needs 1 − g = 0\ (never reached)], fill: c-fault, anchor: "south")
+  lbl((X(7.25), top + 0.55), [exact RAM: 1 − g → 0\ (off this axis, never reached)], fill: c-fault, anchor: "south")
   for (i, (name, layers, med, best)) in rows.enumerate() {
     let y = top - 0.55 - i * 0.95
     lbl((0, y + 0.12), name, anchor: "west", fill: c-text)
@@ -258,7 +258,7 @@
   // engine → chip tokens → chip column
   line((ex + 2.2, H - 0.4), (cx + 0.8, H - 0.4), (cx + 0.8, cH + 0.08), mark: (end: "stealth", fill: c-sel), stroke: 0.7pt + c-sel)
   lbl((ex + 2.35, H - 0.3), [chip tokens], anchor: "south-west", fill: c-sel)
-  lbl((cx + 0.8, cH + 0.45), [never the base layers,\ the LM head or the KV cache], anchor: "south", fill: c-label)
+  lbl((cx + 0.8, cH + 0.75), [never the base layers,\ the LM head or the KV cache], anchor: "south", fill: c-label)
   // result returns as text
   line((cx, cy0 + 0.6), (hx + 1.75, cy0 + 0.6), mark: (end: "stealth", fill: c-text), stroke: (paint: c-text, thickness: 0.6pt, dash: "dashed"))
   lbl(((cx + hx + 1.6) / 2, cy0 + 0.82), [result, as text], fill: c-text)
@@ -290,7 +290,7 @@
     lbl((X(t) + 0.1, y - 0.3), [#t ms], anchor: "west", fill: c-ok)
   }
   rect((xo, top + 0.05), (xo + 0.3, top + 0.2), fill: c-label.transparentize(40%), stroke: none)
-  lbl((xo + 0.4, top + 0.12), [author's PyTorch stack], anchor: "west")
+  lbl((xo + 0.4, top + 0.12), [qwenputer PyTorch stack], anchor: "west")
   rect((xo + 4.2, top + 0.05), (xo + 4.5, top + 0.2), fill: c-ok, stroke: none)
   lbl((xo + 4.6, top + 0.12), [tang chip window], anchor: "west", fill: c-ok)
 })
@@ -370,9 +370,9 @@
 #let abstract-text = [
   A coding agent remembers by pasting text into its prompt, and pays for it on every turn. Divyansh Agrawal's qwenputer showed another way: a Gated DeltaNet head with its gates pinned is exact, addressable RAM, and a filesystem can be compiled into extra layers of a model without training @agrawal2026qwenputer. We call the method Gate-Pinned State Memory (GPSM), checked every link of it on our own stack, and then measured whether it helps an agent remember.
 
-  The storage holds up. tang's kernel stores and reads one-hot rows bitwise over a 50,000-step free run, while no trained head qualifies: on GLM-5.3-Flash, none of 8,192 channels per layer holds its gate at exactly 1. On an RTX 3090 the author's model drove its store through tool calls and read files back from a small saved file in an empty conversation, with its output on prose and code within the noise floor of the base model. tang ran the compiled layers bitwise in its reference math, emitted all 168 of their tensors bitwise from its own compiler, and served them from a CUDA window inside the engine at about 0.9 ms per token. The author's compiled CPU also reproduced: 39 of 40 large multiplications against 22 for the base model.
+  The storage holds up. tang's kernel stores and reads one-hot rows bitwise over a 50,000-step free run, while no trained head qualifies: on GLM-5.3-Flash, none of 8,192 channels per layer holds its gate at exactly 1. On an RTX 3090 Agrawal's model drove its store through tool calls and read files back from a small saved file in an empty conversation, with its output on prose and code close to the noise floor of the base model. tang ran the compiled layers bitwise in its reference math, emitted all 168 of their tensors bitwise from its own compiler, and served them from a CUDA window inside the engine at about 0.9 ms per token. Agrawal's compiled CPU also reproduced: 39 of 40 large multiplications against 22 for the base model.
 
-  As memory for an agent, it does not yet work. On a cross-session benchmark (LoCoMo, 125 questions) the GPSM model scored an answer F1 of 0.05, below a model with no memory at all (0.10), while retrieval over the old transcripts scored 0.44 at a similar prompt size. On 60 exact facts it recalled 23 percent against 92 percent for retrieval. The store was not the problem: when the right file existed and the model fetched it, the exact text came back. The failures were in the model's policy: what it chose to write, a store it filled and could not reclaim, and lookups that looped until its budget ran out. Replacing the policy confirmed it: with the engine writing and searching, the same store matched retrieval on every question, and engine search alone recovered most of the gap; clean writes or a larger budget did not help while the model still looked up. GPSM is exact storage that costs no prompt tokens to hold; as memory it is only as good as the policy that drives it, and the model's own policy is not good enough yet.
+  As memory for an agent, it does not yet work. On a cross-session benchmark (LoCoMo, 125 questions) the GPSM model scored an answer F1 of 0.05, below a model with no memory at all (0.10), while retrieval over the old transcripts scored 0.44 with 1,127 prompt tokens. On 60 exact facts it recalled 23 percent against 92 percent for retrieval. The store was not the problem: when the right file existed and the model fetched it, the exact text came back. The failures were in the model's policy: what it chose to write, a store it filled and could not reclaim, and lookups that looped until its budget ran out. Replacing the policy confirmed it: with the engine writing and searching, the same store matched retrieval on every question, and engine search alone recovered most of the gap; clean writes or a larger budget did not help while the model still looked up. GPSM is exact storage that costs no prompt tokens to hold; as memory it is only as good as the policy that drives it, and the model's own policy is not good enough yet.
 ]
 #if web {
   html.elem("section", attrs: (class: "abstract", id: "abstract"), {
@@ -414,7 +414,7 @@ tang pins the GDN recurrence in a CPU specification that the CUDA kernel is veri
 - *The gates reach exactly 1.* Gate pre-activations of $a + "dt" = -30$ for the decay and $b = 40$ for the write strength round to exactly `1.0f`.
 - *A write into an empty row stores $v$ bitwise* and touches no other row of any of a Flash-Next layer's 48 value heads.
 - *An overwrite stores $"fma"(1, v - s, s)$*, which is exactly $v$ only when $v - s$ is exact. On random floats, 8,643 overwrites were exact and 15,933 were off by one rounding. Stored values must be integers below $2^24$.
-- *A 50,000-token free run*, driving the kernel as a register machine, stayed bitwise exact on the CPU and on an RTX 3090.
+- *A 50,000-step free run*, driving the kernel as a register machine, stayed bitwise exact on the CPU and on an RTX 3090.
 - *One token with $g < 1$ ends exactness for good.* It scales every row by a non-power-of-two, and the integers turn fractional.
 
 = Trained heads cannot do it
@@ -430,11 +430,11 @@ So a pretrained head can be borrowed for storage only if its gate is bitwise 1 o
     [Mid (12–26)], [0.73–0.87], [0.999999], [0.64–0.77 / ≤1.000], [0 of 8,192],
     [Late (28–44)], [0.67–0.79], [0.999997], [0.55–0.84 / 1.000], [0 of 8,192],
   ),
-  caption: [#lead[Gates of a trained hybrid model.] No channel qualifies as exact storage. Measured on GLM-5.3-Flash UD-Q4_K_XL, RTX 3090.],
+  caption: [#lead[Gates of a trained hybrid model.] No channel qualifies as exact storage. Ranges are model layer indices; 34 of the model's layers are recurrent. Measured on GLM-5.3-Flash UD-Q4_K_XL, RTX 3090.],
 )
 
 A few channels are remarkably slow. Between 1 and 8 percent per layer have a mean gate above 0.999, and the best has a mean gate of $1 - 2 times 10^(-7)$, a half-life from the gate alone of about three million tokens. #figure(fig-gates(),
-  caption: [#lead[No channel reaches 1.] Each bar is a range across the layers in its group: hollow for the median channel's minimum gate over the run, solid for the best channel's. GLM-5.3-Flash on an RTX 3090 over 427 tokens; per-layer data was not kept.],
+  caption: [#lead[No channel reaches 1.] Each bar is a range across the layers in its group: hollow for the median channel's minimum gate over the run, solid for the best channel's. GLM-5.3-Flash on an RTX 3090 over 427 tokens; per-layer distributions were not kept, only the group ranges and the best channel.],
 )
 
 But they are analog registers, and they leak. Exact storage needs dedicated pinned heads with compiled gates, which is the qwenputer design and the basis of GPSM.
@@ -472,7 +472,7 @@ Mid and late layers depend on context, not position. Fixing the error means reco
   caption: [#lead[Architecture.] Store traffic, in orange, never passes through the host model: operations run as chip tokens through the compiled layers, which read and write the pinned heads. The red line marks that separation. The store file moves only between the user's disk and a live session.],
 ) <fig:arch>
 
-We first built the store without compiled layers: a key-value file store in dedicated GDN heads of one layer, written and read through the real kernel with one-hot keys and pinned gates. The layout follows the author's: a hashed directory with linear probing, plus content rows of token ids. Values stay below $2^18$, tighter than the kernel's $2^24$, because a read passes the output norm and a division, about eight roundings.
+We first built the store without compiled layers: a key-value file store in dedicated GDN heads of one layer, written and read through the real kernel with one-hot keys and pinned gates. The layout follows Agrawal's: a hashed directory with linear probing, plus content rows of token ids. Values stay below $2^18$, tighter than the kernel's $2^24$, because a read passes the output norm and a division, about eight roundings.
 
 #figure(
   table(
@@ -485,15 +485,15 @@ We first built the store without compiled layers: a key-value file store in dedi
   caption: [#lead[Store capacity.] The store takes 4 of a layer's 16 key heads and their value heads, a quarter of one GDN layer. The heads column gives the whole layer.],
 )
 
-A 512-file fill and a 10,000-operation random workload, checked against a hash map, both pass. The store persists through the bytes tang's snapshot already carries. It also moves into a different conversation's state while leaving that conversation's own heads bitwise untouched.
+A fill of each layout to capacity, 512 and 256 files, and a 10,000-operation random workload checked against a hash map all pass. The store persists through the bytes tang's snapshot already carries. It also moves into a different conversation's state while leaving that conversation's own heads bitwise untouched.
 
 == The model drives it
 
-*Reproduction.* We ran the author's code and checkpoint on an RTX 3090. In one conversation the model issued all nine store calls itself: three puts, a list, three gets, a delete and a list. Every answer was printed by the model, and 160 printed tokens matched the author's reference with no mismatches. We saved the store the author's way, as a 14 KB file of its occupied rows, and loaded it into an empty conversation. The model listed the two surviving files and read both back exactly. KL to the base model was $6.9 times 10^(-4)$ against a noise floor of $6.7 times 10^(-4)$, and bitwise identical with files loaded or not.
+*Reproduction.* We ran Agrawal's code and checkpoint on an RTX 3090. In one conversation the model issued all nine store calls itself: three puts, a list, three gets, a delete and a list. Every answer was printed by the model, and 160 printed tokens matched Agrawal's reference with no mismatches. We saved the store Agrawal's way, as a 14,276-byte file of its occupied rows, and loaded it into an empty conversation. The model listed the two surviving files and read both back exactly. In our run, KL to the base model was $6.9 times 10^(-4)$ against a noise floor of $6.7 times 10^(-4)$, close to Agrawal's reported figure, and bitwise identical with files loaded or not.
 
-*tang runs the compiled layers.* tang's reference math ran the checkpoint's 12 compiled layers on the author's trace. All 126 tokens of a shorter put, get and list trace matched, and every store head's $128 times 128$ state was bitwise equal after each operation.
+*tang runs the compiled layers.* tang's reference math ran the checkpoint's 12 compiled layers on Agrawal's trace. All 126 tokens of a shorter put, get and list trace matched, and every store head's $128 times 128$ state was bitwise equal after each operation.
 
-*tang compiles them.* `tang-chip`, a Rust port of the author's compiler, emits the layers from the circuit graph: 3,753 dimensions, 164 heads and 47,532 units. The dimensions are live at different times, so the compiler packs them into far fewer slots of the residual stream. At Qwen3.5 4B shapes, all 168 tensors equal the checkpoint bitwise, zero padding included: 2.44 billion elements, 1.24 million of them nonzero. Retargeted to Coder-Next, whose hidden size widens from 2,048 to 3,968, the store replays the trace bitwise and no weight touches the host model's dimensions.
+*tang compiles them.* `tang-chip`, a Rust port of Agrawal's compiler, emits the layers from the circuit graph: 3,753 dimensions, 164 heads and 47,532 units. The dimensions are live at different times, so the compiler packs them into far fewer slots of the residual stream. At Qwen3.5 4B shapes, all 168 tensors equal the checkpoint bitwise, zero padding included: 2.44 billion elements, 1.24 million of them nonzero. Retargeted to Coder-Next's shapes, whose hidden size widens from 2,048 to 3,968, the store replays the trace bitwise and no weight touches the host model's dimensions.
 
 *tang serves them.* A chip window in the engine uploads the emitted layers as sparse blocks and runs store calls without touching the base layers, the LM head or the KV cache. On an RTX 3090 it ran with 0 mismatching layer steps against the CPU path. Inside a running engine, on a slot holding a prompt, store calls returned the stored ids. The slot's tokens and greedy continuation stayed identical to a twin slot that never ran them.
 
@@ -506,15 +506,15 @@ A 512-file fill and a 10,000-operation random workload, checked against a hash m
     columns: 4,
     align: (left, right, right, right),
     table.header([*Operation*], [*Tokens*], [*Per op*], [*Per token*]),
-    [Put], [56], [51 ms], [0.92 ms],
-    [Get], [43], [40 ms], [0.92 ms],
-    [List], [27], [25 ms], [0.93 ms],
+    [Put], [56], [51.4 ms], [0.92 ms],
+    [Get], [43], [39.6 ms], [0.92 ms],
+    [List], [27], [25.1 ms], [0.93 ms],
   ),
-  caption: [#lead[The chip window on an RTX 3090], with CUDA graphs. The author's PyTorch stack took 1.0–1.65 s per operation.],
+  caption: [#lead[The chip window on an RTX 3090], with CUDA graphs. Agrawal's PyTorch stack took 1.0–1.65 s per operation.],
 )
 
 #figure(fig-latency(),
-  caption: [#lead[Latency per store operation], same RTX 3090, log scale. The author's time is mostly PyTorch fallback kernels, not the store.],
+  caption: [#lead[Latency per store operation], same RTX 3090, log scale. Agrawal's time is mostly PyTorch fallback kernels, not the store.],
 )
 
 The compiled layers take 13.75 MB of sparse weights and 26 MB of state per session in tang, and about 332 million multiply-adds per token, roughly 8 percent of the 4B model's. That count understates the cost of the published artifact (§6.4).
@@ -529,17 +529,17 @@ The compiled layers take 13.75 MB of sparse weights and 26 MB of state per sessi
 
 = Does it help an agent remember?
 
-Sections 2 to 5 show that the storage is exact. This section asks the question that matters for an agent: given the store, does a model remember better across sessions? We ran the author's filesystem model against four memory arms on the same base weights, Qwen3.5 4B, on one RTX 3090 with greedy decoding. The data, prompts, model revisions and scripts are published with this post.
+Sections 2 to 5 show that the storage is exact. This section asks the question that matters for an agent: given the store, does a model remember better across sessions? We ran Agrawal's filesystem model against four memory arms on the same base weights, Qwen3.5 4B, on one RTX 3090 with greedy decoding. The data, prompts, model revisions and scripts are published with this post.
 
 == Setup
 
 - *A0, no memory.* The question alone.
-- *A1, full history.* The most recent 16,384 tokens of the earlier sessions.
+- *A1, full history.* The most recent 16,384 tokens of the earlier sessions, plus the question and template.
 - *A2, retrieval.* The earlier sessions in chunks of six turns, embedded with bge-small, top five chunks in the prompt.
 - *A3, text notes.* After each session the model writes notes of up to 400 tokens; all notes go into the prompt. This is how coding agents remember today.
-- *A4, GPSM.* After each session the filesystem model is shown the session and its store tools, with the author's system prompt, and saves what it chooses, up to 1,000 of its own tokens per session. At question time it sees only the question and may list and get files, with 300 of its own tokens to spend.
+- *A4, GPSM.* After each session the filesystem model is shown the session and its store tools, with Agrawal's system prompt, and saves what it chooses, up to 1,000 of its own tokens per session. At question time it sees only the question and may list and get files, with 300 of its own tokens to spend.
 
-Two tests. *LoCoMo* is a standard long-conversation benchmark; we used 3 of its 10 conversations (80 sessions), excluded its adversarial category, and scored 125 questions with its official F1. The *exact-facts probe* plants 60 seeded values (UUIDs, paths, ports, configuration values, function signatures and hashes) in five short sessions among filler, then asks for each one in a new session, scored by exact match. Intervals are bootstrap 95 percent.
+Two tests. *LoCoMo* is a standard long-conversation benchmark @maharana2024locomo, released under CC BY-NC 4.0; we publish our scores per question but not its conversations, questions or answers. We used 3 of its 10 conversations (80 sessions), excluded its adversarial category, and scored 125 questions with its official F1. The *exact-facts probe* plants 60 seeded values (UUIDs, paths, ports, configuration values, function signatures and hashes) in five short sessions among filler, then asks for each one in a new session, scored by exact match. Intervals are bootstrap 95 percent.
 
 == Results
 
@@ -552,9 +552,9 @@ Two tests. *LoCoMo* is a standard long-conversation benchmark; we used 3 of its 
     [A1 full history], [0.46 (0.40–0.53)], [0.18], [16,711], [4.1],
     [A2 retrieval], [0.44 (0.37–0.51)], [0.18], [1,127], [0.7],
     [A3 text notes], [0.40 (0.34–0.46)], [0.14], [6,477], [1.7],
-    [A4 GPSM], [0.05 (0.02–0.08)], [0.00], [854 (3,565 with tool output)], [76.7],
+    [A4 GPSM], [0.05 (0.02–0.08)], [0.00], [854#super[†]], [76.7],
   ),
-  caption: [#lead[Cross-session QA on LoCoMo], 125 questions from 3 conversations, Qwen3.5 4B, RTX 3090. Retrieval matches full history at a fifteenth of the prompt. GPSM scores below no memory.],
+  caption: [#lead[Cross-session QA on LoCoMo], 125 questions from 3 conversations, Qwen3.5 4B, RTX 3090. Retrieval matches full history at a fifteenth of the prompt. GPSM scores below no memory. #super[†]3,565 including tool output. Intervals reflect question sampling, not variation across conversations.],
 )
 
 #figure(
@@ -571,7 +571,7 @@ Two tests. *LoCoMo* is a standard long-conversation benchmark; we used 3 of its 
   caption: [#lead[Exact-facts probe], 60 seeded values asked in a later session. GPSM's reply contained the right value in 67 percent of cases but matched exactly in 23.],
 )
 
-GPSM came last on both tests. Retrieval over the old transcripts, the simplest arm, came within the confidence interval of full history at about a fifteenth of the prompt.
+GPSM came last on both tests. Retrieval over the old transcripts, the simplest memory arm, came close to full history at about a fifteenth of the prompt: within its interval on LoCoMo and at its edge on exact facts.
 
 == Where it fails
 
@@ -580,9 +580,9 @@ The logs separate the store from the model using it.
 - *The store returns what was written.* On the facts probe, when the right file existed and the model looked for it, it fetched the right file 95 percent of the time and the exact value came back.
 - *The model always writes and always looks.* It saved files in all 85 sessions, about 18 per LoCoMo session, and listed or fetched on every question, whether or not a relevant file existed.
 - *What it writes loses information.* Notes were saved without session dates, so "when" questions returned "last year" instead of a year. Facts were filed under names unrelated to their content: one speaker's home country was stored inside a file about a necklace.
-- *It runs out of room.* Every write consumes one of 512 chunks for good, even an overwrite. Two of the three LoCoMo conversations exhausted the store, which answered "full" 83 and 67 times. In the facts probe the model deleted all 12 of its own files during the first session, losing 30 percent of the facts before any question was asked.
+- *It runs out of room.* Every write consumes one of 512 chunks for good, even an overwrite. Two of the three LoCoMo conversations exhausted the store, which answered "full" 83 and 67 times. In the facts probe the model also deleted its own files, 26 times across five sessions, including all 12 from the first; 18 of the 60 facts, 30 percent, were missing from the store when asked.
 - *Lookups loop.* With 300 to 500 file names, the model guessed names, fetched near misses and kept going. 101 of 125 LoCoMo questions ended mid-lookup with no answer. On the 24 it did answer, F1 was 0.25.
-- *It reports success when it fails.* When the store answered "full", the model told the user the text was saved, both times we tested it.
+- *It reports success when it fails.* When the store answered "full," the model told the user the text was saved, both times we tested it.
 
 == Cost and limits of the artifact
 
@@ -597,14 +597,14 @@ The logs separate the store from the model using it.
     [KL to base, Rust / Python / prose], [–], [5.1 / 7.3 / 6.7 × 10#super[−4]],
     [KL noise floor, Rust / Python / prose], [4.1 / 6.1 / 7.2 × 10#super[−4]], [–],
   ),
-  caption: [#lead[The published filesystem model against its base.] The compiled model runs through the author's driver because it does not fit a plain load on 24 GB, so the speed rows compare two code paths as well as two models. KL is within the noise floor on code and prose; the prose here is a different 512-token text from the reproduction run in §5.2.],
+  caption: [#lead[The published filesystem model against its base.] The compiled model runs through Agrawal's driver because it does not fit a plain load on 24 GB, so the speed rows compare two code paths as well as two models. KL is close to the noise floor: 1.2 times it on code and below it on prose. The prose here is a different 512-token text from the reproduction run in §5.2.],
 )
 
-The store's limits are fixed by its compilation: 512 writes over its lifetime, 53,248 tokens, and 104 tokens per write, beyond which a write is cut without an error. Its saved file grows from 9,746 bytes empty to 604,338 bytes with 512 small files and 2,163,655 bytes with one maximum-size file. tang's own store, which runs on the same primitive, reuses deleted slots; the author's does not.
+The store's limits are fixed by its compilation: 512 writes over its lifetime, 53,248 tokens, and 104 tokens per write, beyond which a write is cut without an error. Its saved file grows from 9,746 bytes empty to 604,338 bytes with 512 small files and 2,163,655 bytes with one maximum-size file. tang's own store, which runs on the same primitive, reuses deleted slots; Agrawal's does not.
 
 == Exact computation
 
-The same compiler emitted a RISC-V CPU into the model. On the author's arithmetic benchmark, 40 problems each, the CPU model solved 39 large multiplications and 40 large divisions; base Qwen3.5 4B solved 22 and 29. Here the model only has to hand a calculation to the circuit, and the exactness carries through.
+The same compiler emitted a RISC-V CPU into the model. On Agrawal's arithmetic benchmark, 40 problems each, the CPU model solved 39 large multiplications and 40 large divisions; base Qwen3.5 4B solved 22 and 29. Here the model only has to hand a calculation to the circuit, and the exactness carries through.
 
 == Can a better policy close the gap?
 
@@ -631,7 +631,7 @@ The failure analysis points at the policy, so we replaced it piece by piece whil
 
 - *The store is exact as a backend.* All 351 engine-written entries read back byte- and token-identical. B3 gave the same prediction as plain retrieval on all 125 LoCoMo questions and all 60 facts.
 - *Engine search recovers most of the gap.* Over the model's own files, B1 gained 0.22 F1 on A4 (paired interval 0.16 to 0.28) and 45 points of exact match. It still trailed retrieval by 0.17 F1, because the model's notes held the answer among the top five for only 36 percent of questions, against 78 percent for the engine's chunks.
-- *Better writes alone change nothing.* With clean, dated entries but the model still looking up, B2 matched A4 within noise. A larger budget did not help either: at 1,000 tokens the model gave the same answers as at 300, only slower.
+- *Better writes alone change nothing.* With clean, dated entries but the model still looking up, B2 matched A4 within noise (42 LoCoMo questions, 30 facts). A larger budget did not help either: on the 9 LoCoMo questions and 15 facts we could afford at 1,000 tokens, the model gave the same answers as at 300, only slower.
 - *The binding failure is the model's lookup.* With every relevant file present, the model re-fetched files until its budget ran out on two thirds of facts questions, and on LoCoMo 44 percent of its gets named files that did not exist because it split two-word names. The store's `list` output, which truncates names to six tokens and runs long ones together, makes this worse; two of our naming schemes failed on it before a two-keyword scheme worked.
 
 Ordered this way, fixing the lookup accounts for 0.22 of the 0.39 F1 gap and fixing the writes for the remaining 0.17; fixing the writes first accounts for nothing until the lookup is fixed. Once both are done by the engine, the store is a retrieval system with an exact backend, and it performs exactly like one.
@@ -648,7 +648,7 @@ Stored files cost no prompt tokens while they sit in the state. Using them does:
 
 == Compiled, not trained
 
-The compiled layers left the model's output within the noise floor on Rust, Python and prose, and a compiled CPU fixed arithmetic the base model gets wrong. Exact capabilities can be added without training and without disturbing the base model. The cost in the published artifact is real, 0.68 times the decode speed and twice the memory, though some of that is the driver rather than the layers.
+The compiled layers moved the model's output on Rust, Python and prose only slightly, to about 1.2 times the noise floor on code and below it on prose, and a compiled CPU fixed arithmetic the base model gets wrong. Exact capabilities can be added without training and with little change to the base model. The cost in the published artifact is real, 0.68 times the decode speed, 0.23 times the prefill speed and twice the memory, though some of that is the driver rather than the layers.
 
 == The engine owns the invariant
 
@@ -676,7 +676,7 @@ GPSM does not make new context cheaper. Prefill still runs every token through t
 
 On our measurements, retrieval dominates: nearly the accuracy of full history at a fifteenth of the prompt, with no change to the model. Text notes come close behind. GPSM as published is last on accuracy, slowest by an order of magnitude per question, and the most expensive to run.
 
-We did not run learned-state approaches such as Titans @behrouz2025titans, test-time training @inplacettt2026 @lcc2026, or parametric memory; their published results come from different models and benchmarks and are not comparable to the numbers above. One study of one-step LoRA memory measured free-form recall at zero @beyondppl2026. Agent memory systems in the MemGPT, Mem0 and A-MEM line are elaborations of the text-notes arm @packer2023memgpt @chhikara2025mem0 @xu2025amem.
+We did not run learned-state approaches such as Titans @behrouz2025titans, test-time training @inplacettt2026, context distillation @lcc2026, or parametric memory; their published results come from different models and benchmarks and are not comparable to the numbers above. One study of one-step LoRA memory measured free-form recall at zero @beyondppl2026. Agent memory systems in the MemGPT, Mem0 and A-MEM line are elaborations of the text-notes arm @packer2023memgpt @chhikara2025mem0 @xu2025amem.
 
 With the engine writing and searching, the GPSM store matches retrieval exactly, because at that point it is retrieval with the text kept in the model's state. It costs the same prompt tokens and adds the compiled layers. GPSM's distinct property is exact storage that costs nothing to hold, travels as a small file and never enters the prompt until it is read. Nothing in these results shows that property improving recall; the question is whether it is worth its cost for storage and portability alone.
 
@@ -684,7 +684,7 @@ With the engine writing and searching, the GPSM store matches retrieval exactly,
 
 - *Exact storage and transfer.* Supported. Rows round-trip bitwise, the store persists in a small file, and moves between conversations without disturbing the receiving one (§5).
 - *Exact computation.* Supported on one benchmark: 39 of 40 against 22 of 40 for large multiplication (§6.5).
-- *Leaving the base model unchanged.* Supported on code and prose: KL within the noise floor (§6.4).
+- *Leaving the base model nearly unchanged.* Supported: KL about 1.2 times the noise floor on code and below it on prose (§6.4).
 - *As the backend of engine-driven retrieval.* Supported, and no better than retrieval: identical predictions on all 185 questions (§6.6).
 - *Memory driven by the model.* Not supported. GPSM scored below no memory on LoCoMo and recalled 23 percent of exact facts, against 92 percent for retrieval (§6.2); clean engine-written entries and a larger budget did not help (§6.6).
 - *Small models on small machines.* Not supported today. The published artifact doubles GPU memory and lowers decode speed, and its lookups added more context than retrieval did.
@@ -695,11 +695,11 @@ With the engine writing and searching, the GPSM store matches retrieval exactly,
 - *Is in-state storage worth its cost?* With engine search it matches retrieval exactly while adding compiled layers. Whether persistence and portability justify that is a product question these results do not settle.
 - *Does it hold at scale and on Coder-Next?* We ran one 4B model, one seed and 3 of 10 LoCoMo conversations. No build on Coder-Next's weights exists yet.
 - *How much of the overhead is the driver?* The speed comparison mixes two code paths; tang's chip window ran at about 0.9 ms per token, but not yet beside a host model at full speed.
-- *Is a lifetime write budget acceptable?* The author's store never frees space; tang's reuses slots, but that has not been run in this benchmark.
+- *Is a lifetime write budget acceptable?* Agrawal's store never frees space; tang's reuses slots, but that has not been run in this benchmark.
 
 = Conclusion
 
-A delta-rule head with its gates pinned is exact RAM. We confirmed that in tang's kernel, showed that no trained head reaches it on its own, and followed the idea from the author's checkpoint to our own compiler and a CUDA window inside our engine, each step bitwise. Then we measured what it buys an agent. Driven by the model, the store remembered less than no memory at all. Driven by the engine, it matched plain retrieval on every question, which shows both that the store is exact and that it adds no recall of its own. The storage is exact; the model's lookup is the failure. Gate-Pinned State Memory is a sound primitive and, today, a retrieval backend with unusual properties. Whether a model can learn to use it directly is the open question.
+A delta-rule head with its gates pinned is exact RAM. We confirmed that in tang's kernel, showed that no trained head reaches it on its own, and followed the idea from Agrawal's checkpoint to our own compiler and a CUDA window inside our engine, each step bitwise. Then we measured what it buys an agent. Driven by the model, the store remembered less than no memory at all on LoCoMo, and 23 percent of exact facts against 92 percent for retrieval. Driven by the engine, it matched plain retrieval on every question, which shows both that the store is exact and that it adds no recall of its own. The storage is exact; the model's lookup is the failure. Gate-Pinned State Memory is a sound primitive and, today, a retrieval backend with unusual properties. Whether a model can learn to use it directly is the open question.
 
 #heading(outlined: true, numbering: none)[References]
 #show bibliography: it => { show "?.": "?"; show "!.": "!"; it }
