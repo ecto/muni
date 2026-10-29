@@ -90,7 +90,7 @@ export function PinnedRows() {
 
     function layout(w: number, h: number) {
       const narrow = w < 640;
-      const yTop = h * 0.36;
+      const yTop = h * (narrow ? 0.66 : 0.58);
       const yBot = h * 1.02;
       halfW = w * (narrow ? 0.47 : 0.36);
       cx = w * 0.5;
@@ -146,43 +146,51 @@ export function PinnedRows() {
     let tabOn = document.visibilityState === "visible";
     let running = false;
 
-    // a callout in the solar system's style: corner reticle, leader, mono lines
-    const callout = (x: number, y: number, lines: string[], cols_: string[], big: number, side: 1 | -1, alpha = 1) => {
-      ctx.strokeStyle = cols_[1];
+    // a readout in the clear margin beside the matrix, joined to its row by a
+    // leader and a small tick at the row end (the solar cover's MSN-01 style).
+    // Each line is a list of [text, color] runs. side -1: text left of the row,
+    // right-aligned at tx; side 1: text right of the row, left-aligned at tx.
+    type Run = [string, string];
+    const FONT0 = `500 11px ${mono}`;
+    const FONT1 = `400 10px ${mono}`;
+    const width = (line: Run[], i: number) => {
+      ctx.font = i === 0 ? FONT0 : FONT1;
+      let m = 0;
+      for (const [t] of line) m += ctx.measureText(t).width;
+      return m;
+    };
+    const readout = (rx: number, ry: number, tx: number, ty: number, lines: Run[][], side: 1 | -1, lead: string, alpha = 1) => {
+      // the tick at the row end, and the leader out to the text
+      ctx.strokeStyle = lead;
       ctx.lineWidth = 1;
       ctx.globalAlpha = 0.9 * alpha;
-      for (let q = 0; q < 4; q++) {
-        const sx = q === 0 || q === 3 ? -1 : 1;
-        const sy = q < 2 ? -1 : 1;
-        ctx.beginPath();
-        ctx.moveTo(x + sx * big, y + sy * (big - 3));
-        ctx.lineTo(x + sx * big, y + sy * big);
-        ctx.lineTo(x + sx * (big - 3), y + sy * big);
-        ctx.stroke();
-      }
-      const lx = x + side * (big + 14);
-      const ly = y - big - 14;
-      ctx.globalAlpha = 0.55 * alpha;
       ctx.beginPath();
-      ctx.moveTo(x + side * (big + 2), y - big - 2);
-      ctx.lineTo(lx, ly);
-      ctx.lineTo(lx + side * 10, ly);
+      ctx.moveTo(rx, ry - 4);
+      ctx.lineTo(rx, ry + 4);
       ctx.stroke();
-      ctx.textAlign = side > 0 ? "left" : "right";
-      for (let i = 0; i < lines.length; i++) {
-        ctx.font = `${i === 0 ? 500 : 400} ${i === 0 ? 10 : 9}px ${mono}`;
-        const tx = lx + side * 14;
-        const ty = ly + 3 + i * 12;
-        // a dark plate so the readout stays legible over the field
-        const m = ctx.measureText(lines[i]).width;
-        ctx.globalAlpha = 0.72 * alpha;
-        ctx.fillStyle = C.bg;
-        ctx.fillRect(side > 0 ? tx - 3 : tx - m - 3, ty - 9, m + 6, 12);
-        ctx.fillStyle = cols_[i] ?? cols_[cols_.length - 1];
-        ctx.globalAlpha = (i === 0 ? 0.95 : 0.85) * alpha;
-        ctx.fillText(lines[i], tx, ty);
+      ctx.globalAlpha = 0.5 * alpha;
+      ctx.beginPath();
+      if (ty === ry) {
+        ctx.moveTo(rx + side * 4, ry);
+        ctx.lineTo(tx - side * 6, ry);
+      } else {
+        // slot above the matrix: straight up from the row end to under the text
+        ctx.moveTo(rx, ry - 6);
+        ctx.lineTo(rx, ty + 8 + 14 * (lines.length - 1));
       }
-      ctx.textAlign = "start";
+      ctx.stroke();
+      ctx.textAlign = "left";
+      for (let i = 0; i < lines.length; i++) {
+        const m = width(lines[i], i);
+        let x = side > 0 ? tx : tx - m;
+        const y = ty + 4 + i * 14;
+        for (const [t, col] of lines[i]) {
+          ctx.fillStyle = col;
+          ctx.globalAlpha = (i === 0 ? 0.95 : 0.85) * alpha;
+          ctx.fillText(t, x, y);
+          x += ctx.measureText(t).width;
+        }
+      }
       ctx.globalAlpha = 1;
     };
 
@@ -326,30 +334,39 @@ export function PinnedRows() {
       }
       ctx.globalAlpha = 1;
 
-      // HUD: the head being written, then the readback
+      // HUD, in the left margin: the head being written, then the readback, held for good
       const rowLabel = (r: number) => String(r).padStart(3, "0");
-      if (!done && active >= 0) {
-        const r = target[active];
-        const x = edgeX(r);
-        const y = rowY[r] + oy * rowS[r] + rowH[r] / 2;
-        const state = pinned[active] ? "WRITE" : "SEEK";
-        callout(x, y, [`HEAD 12 · g 1.000000 · β 1.000000`, `ROW ${rowLabel(r)} ${state} · ID ${IDS[active]}`], [C.text, C.sel], 7, 1);
-      } else if (done) {
-        const r = target[IDS.length - 1];
-        const x = edgeX(r);
-        const y = rowY[r] + oy * rowS[r] + rowH[r] / 2;
+      const k = done ? IDS.length - 1 : active;
+      if (k >= 0) {
+        const r = target[k];
+        const rx = edgeX(r) - 6;
+        const ry = rowY[r] + oy * rowS[r] + rowH[r] / 2;
         const ids = narrow ? `[${IDS[0]}, ${IDS[1]}, …]` : `[${IDS.join(", ")}]`;
-        callout(x, y, [`get("title") → ${ids} · EXACT`, `→ ${TITLE}`], [C.text, C.sel], 7, 1);
+        const lines: Run[][] = done
+          ? [[[`get("title") → ${ids} · `, C.text], ["EXACT", C.sel]], [[`→ ${TITLE}`, C.label]]]
+          : [[["HEAD 12 · g 1.000000 · β 1.000000", C.text]], [[`ROW ${rowLabel(r)}`, C.sel], [` ${pinned[k] ? "WRITE" : "SEEK"} · ID ${IDS[k]}`, C.label]]];
+        const m = Math.max(width(lines[0], 0), width(lines[1], 1));
+        const tx = rx - 34;
+        if (tx - m >= 14) {
+          // room beside the row
+          readout(rx, ry, tx, ry, lines, -1, C.sel);
+        } else {
+          // no side margin (phones): the slot sits just above the matrix, leader down to the row
+          const top = rowY[0] + oy * rowS[0];
+          readout(rx, ry, 16, top - 22 - 14, lines, 1, C.sel);
+        }
       }
 
-      // the unpinned head, for contrast: its value just drifts away
-      if (!narrow) {
+      // the unpinned head, on the right, for contrast: its value just drifts away
+      {
         const r = Math.round(rows * 0.44);
         const s = rowS[r];
-        const x = ox + halfW * s * 0.62;
-        const y = rowY[r] + oy * s + rowH[r] / 2;
-        const gs = g.toFixed(6);
-        callout(x, y, [`HEAD 33 · g ${gs} · ${leak > 1e-4 ? "DRIFT" : "HOLD"}`, `v ${drift.toFixed(6)}`], [C.label, C.lineHi], 6, -1, 0.75);
+        const rx = ox + halfW * s + 6;
+        const ry = rowY[r] + oy * s + rowH[r] / 2;
+        const lines: Run[][] = [[[`HEAD 33 · g ${g.toFixed(6)} · ${leak > 1e-4 ? "DRIFT" : "HOLD"}`, C.text]], [[`v ${drift.toFixed(6)}`, C.label]]];
+        const tx = rx + 34;
+        const m = Math.max(width(lines[0], 0), width(lines[1], 1));
+        if (tx + m <= w - 56) readout(rx, ry, tx, ry, lines, 1, C.label, 0.8);
       }
 
       if (!reduce && onScreen && tabOn) raf = requestAnimationFrame(draw);
