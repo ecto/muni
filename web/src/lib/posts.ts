@@ -9,6 +9,8 @@ export interface Post {
   date: string;
   author: string;
   description: string;
+  /** cover art id (see components/blog/covers); absent = the solar system */
+  cover?: string;
 }
 
 export const posts: Post[] = [...postsJson].sort((a, b) => b.date.localeCompare(a.date));

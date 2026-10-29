@@ -17,6 +17,7 @@
     "author": "Cam Pedersen",
     "description": "Gate-Pinned State Memory (GPSM) makes a Gated DeltaNet head exact RAM. We verified it bitwise from tang's kernel to a CUDA window in our engine, then measured it as agent memory: the storage is exact, but a model driving it recalled less than retrieval, or no memory at all.",
     "root": "../paper/zero-context-memory",
-    "source": "zero-context-memory.typ"
+    "source": "zero-context-memory.typ",
+    "cover": "pinned-rows"
   }
 ]

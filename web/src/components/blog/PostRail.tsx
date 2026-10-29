@@ -32,7 +32,7 @@ function readMarks(): Mark[] {
   return marks;
 }
 
-export function PostRail() {
+export function PostRail({ top = "Earth", bottom = "Sun", variant = "orbit" }: { top?: string; bottom?: string; variant?: string }) {
   const [on, setOn] = useState(false);
   const [marks, setMarks] = useState<Mark[]>([]);
   const [progress, setProgress] = useState(0);
@@ -118,8 +118,8 @@ export function PostRail() {
   if (!on) return null;
 
   return (
-    <nav className={`post-rail${awake ? " is-awake" : ""}`} aria-label="Sections">
-      <span className="post-rail-end post-rail-earth">Earth</span>
+    <nav className={`post-rail is-${variant}${awake ? " is-awake" : ""}`} aria-label="Sections">
+      <span className="post-rail-end post-rail-earth">{top}</span>
       <div className="post-rail-track" ref={railRef}>
         <div className="post-rail-trail" style={{ height: `${progress * 100}%` }} />
         {marks.map((m) => (
@@ -145,7 +145,7 @@ export function PostRail() {
           )}
         </div>
       </div>
-      <span className="post-rail-end post-rail-sun">Sun</span>
+      <span className="post-rail-end post-rail-sun">{bottom}</span>
     </nav>
   );
 }
