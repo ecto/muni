@@ -11,11 +11,11 @@
   },
   {
     "slug": "zero-context-memory",
-    "title": "Zero-context compiled memory",
-    "subtitle": "Exact, persistent memory in a model's recurrent state, served by tang",
+    "title": "Gate-Pinned State Memory",
+    "subtitle": "Exact, zero-context memory in a model's recurrent state, served by tang",
     "date": "2026-10-29",
     "author": "Cam Pedersen",
-    "description": "A model's recurrent state, with its gates pinned, is exact RAM. We verified qwenputer's compiled filesystem on our own stack, from tang's kernel to a CUDA window in our engine, and found memory that costs no context and needs no training.",
+    "description": "Gate-Pinned State Memory (GPSM): with a Gated DeltaNet head's gates pinned to exactly 1, its state is exact RAM. We verified qwenputer's compiled filesystem on our own stack, from tang's kernel to a CUDA window in our engine: memory that costs no context and needs no training.",
     "root": "../paper/zero-context-memory",
     "source": "zero-context-memory.typ"
   }

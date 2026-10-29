@@ -1,4 +1,4 @@
-// Research post: Zero-context compiled memory (tang, frog)
+// Research post: Gate-Pinned State Memory (GPSM), zero-context compiled memory in tang and frog
 // Same treatment as paper/vision/vision.typ (muon "Pilot Light", dark), trimmed to what this post uses.
 // One source, two outputs: `--features html --format html --input target=html` builds the web
 // post; without the input it builds the PDF. See web/scripts/build-posts.mjs.
@@ -57,7 +57,7 @@
   }))
 }
 
-#set document(title: "Zero-context compiled memory", author: "Cam Pedersen (Municipal Robotics)")
+#set document(title: "Gate-Pinned State Memory", author: "Cam Pedersen (Municipal Robotics)")
 
 #let hf-out() = { let m = page.margin; let l = if type(m) == dictionary { m.at("left", default: m.at("x", default: 0.75in)) } else { 0.75in }; calc.max(0in, l - 0.7in) }
 
@@ -71,7 +71,7 @@
   numbering: "1",
   header: context {
     if counter(page).get().first() > 1 {
-      pad(x: -hf-out(), grid(columns: (1fr, auto), caps[Zero-context compiled memory], caps[Municipal Robotics]))
+      pad(x: -hf-out(), grid(columns: (1fr, auto), caps[Gate-Pinned State Memory], caps[Municipal Robotics]))
     }
   },
   footer: context {
@@ -331,11 +331,11 @@
   #v(0.2in)
   #box(height: 2.0in, width: 100%, align(right + horizon, delta-grid(quiet: true, cell: 0.16, cols: 16)))
   #v(0.2in)
-  #move(dx: -0.045 * s-display, text(font: sans-sb, size: s-display, tracking: -0.02em)[Zero-context\ compiled memory])
+  #move(dx: -0.045 * s-display, text(font: sans-sb, size: s-display, tracking: -0.02em)[Gate-Pinned\ State Memory])
   #v(0.5em)
   #line(length: 22%, stroke: 2pt + c-label)
   #v(0.7em)
-  #text(size: s-lg, fill: c-label)[Exact, persistent memory in a model's recurrent state, served by tang]
+  #text(size: s-lg, fill: c-label)[Exact, zero-context memory in a model's recurrent state, served by tang]
   #v(1fr)
   #caps[Cam Pedersen · Municipal Robotics]
 ]}
@@ -345,7 +345,7 @@
 
   tang's kernel stores and reads one-hot rows bitwise, and stays exact over a 50,000-step free run. Trained heads cannot do it: on GLM-5.3-Flash, none of 8,192 channels per layer keeps its gate at exactly 1. We reproduced the author's filesystem on an RTX 3090, with the model issuing every store call itself and recalling files from a 14 KB state file in an empty conversation. tang's reference math then ran the author's compiled layers bitwise, tang's own Rust compiler emitted all 168 tensors of them bitwise, and a CUDA window in our engine ran them bitwise at about 0.9 ms per token, 25 to 40 times faster than the author's stack.
 
-  We also tested two ways to get instant prefill from the same structure, and both fail. What remains is memory that costs no context, needs no training, leaves the model's text unchanged, and can be held by the user rather than the provider.
+  We also tested two ways to get instant prefill from the same structure, and both fail. What remains we call Gate-Pinned State Memory (GPSM): memory that costs no context, needs no training, leaves the model's text unchanged, and can be held by the user rather than the provider.
 ]
 #if web {
   html.elem("section", attrs: (class: "abstract", id: "abstract"), {
@@ -376,7 +376,7 @@ With the decay $g = 1$, the write strength $beta = 1$ and a one-hot key $k = e_i
   caption: [#lead[The delta rule, drawn.] Sixteen rows stand for a 128 × 128 head state. A trained head decays every row and smears the write across all of them. A pinned head with a one-hot key replaces exactly one row and leaves the rest untouched.],
 )
 
-A one-hot query reads row $i$ back. Compile weights that produce those gates and keys, and the recurrent state is RAM. qwenputer compiled a RISC-V CPU and a 512-file store into 12 extra layers in front of Qwen 3.5 4B, without training, and reported a KL divergence to the base model of $6 times 10^(-4)$ @agrawal2026qwenputer.
+A one-hot query reads row $i$ back. Compile weights that produce those gates and keys, and the recurrent state is RAM. We call fixing the gates this way _gate pinning_, a head built this way a _pinned head_, and memory kept in pinned heads *Gate-Pinned State Memory* (GPSM). The gates are pinned, not the state: rows change when they are rewritten, and stay exactly as written until then. qwenputer compiled a RISC-V CPU and a 512-file store into 12 extra layers in front of Qwen 3.5 4B, without training, and reported a KL divergence to the base model of $6 times 10^(-4)$ @agrawal2026qwenputer.
 
 tang is our inference engine. It runs Qwen3-Coder-Next, a hybrid of 36 GDN layers and 12 attention layers, and already snapshots the fixed-size recurrent state to disk. frog, our coding agent, talks to it. So the question was concrete: what of this transfers to an engine we own?
 
@@ -410,7 +410,7 @@ A few channels are remarkably slow. Between 1 and 8 percent per layer have a mea
   caption: [#lead[No channel reaches 1.] Each bar is a range across the layers in its group: hollow for the median channel's minimum gate over the run, solid for the best channel's. GLM-5.3-Flash on an RTX 3090 over 427 tokens; per-layer data was not kept.],
 )
 
-But they are analog registers, and they leak. Exact storage needs dedicated heads with compiled gates, which is the qwenputer design.
+But they are analog registers, and they leak. Exact storage needs dedicated pinned heads with compiled gates, which is the qwenputer design and the basis of GPSM.
 
 = Two dead ends
 
@@ -437,7 +437,7 @@ The same structure suggests faster prefill. We tested both versions, and neither
 
 Mid and late layers depend on context, not position. Fixing the error means recomputing most of the depth, which is prefill again. Instant restore of _old_ context is what tang already ships: a resumed 7,000-token session prefills in about 0.1 s from the snapshot disk tier.
 
-= The store, end to end
+= GPSM, end to end
 
 == An engine-driven store
 
@@ -504,11 +504,11 @@ tang serve loads a store per session, runs operations and exports it. An ephemer
 
 = Where it sits
 
-Compiled memory occupies a corner nothing else holds: exact recall, no context, no training, and almost no change to the base model. Text memory such as MemGPT, Mem0 and A-MEM is portable and mature, but pays context every turn and recalls lossily @packer2023memgpt @chhikara2025mem0 @xu2025amem. KV reuse is exact but large @yao2024cacheblend. Learned states and test-time training cost no context but are lossy and need training @behrouz2025titans @inplacettt2026 @lcc2026. Knowledge editing and one-step LoRA memory are dominated: one study measured free-form recall at zero @beyondppl2026. Compiled transformers go back to Tracr @lindner2023tracr. What is new is that hybrid models have layers where compiled storage is exact.
+GPSM occupies a corner nothing else holds: exact recall, no context, no training, and almost no change to the base model. Text memory such as MemGPT, Mem0 and A-MEM is portable and mature, but pays context every turn and recalls lossily @packer2023memgpt @chhikara2025mem0 @xu2025amem. KV reuse is exact but large @yao2024cacheblend. Learned states and test-time training cost no context but are lossy and need training @behrouz2025titans @inplacettt2026 @lcc2026. Knowledge editing and one-step LoRA memory are dominated: one study measured free-form recall at zero @beyondppl2026. Compiled transformers go back to Tracr @lindner2023tracr. What is new is that hybrid models have layers where compiled storage is exact.
 
 = What is not done
 
-- *No cross-session benchmark.* The 90 percent recall figure is the author's own fact set. Nobody has run compiled memory on LongMemEval or LoCoMo.
+- *No cross-session benchmark.* The 90 percent recall figure is the author's own fact set. Nobody has run GPSM, or the author's store, on LongMemEval or LoCoMo.
 - *Does the model reach for it?* The 4B model used the store when asked. Whether Coder-Next uses memory at the right moments in a long coding session is unmeasured, and it is the main risk.
 - *No build on real Coder-Next weights yet.* It needs the circuit re-exported with Coder-Next's tokenizer and a machine that holds the weights.
 - *Fixed capacity.* 256 to 512 files.
