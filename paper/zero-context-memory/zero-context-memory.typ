@@ -128,6 +128,197 @@
 }
 #show cite: set text(fill: c-label)
 
+// ---- figures ----------------------------------------------------------------
+#import "@preview/cetz:0.4.2"
+// Web figures: drawn bodies become inline SVG via html.frame (as vision.typ); tables stay <table>s.
+#show figure: it => if web and it.kind != table {
+  let lab = if it.has("label") { str(it.label) } else { "" }
+  let body = html.frame(block(width: 4.8in, fill: c-bg, inset: 6pt, { set math.equation(alt: "in-frame"); it.body }))
+  let cap = if it.caption != none { html.elem("figcaption", [#html.elem("span", attrs: (class: "fig-label"))[Fig #context it.counter.display(it.numbering)] #it.caption.body]) }
+  html.elem("figure", attrs: if lab == "" { (class: "narrow") } else { (id: lab, class: "narrow") }, { body; cap })
+} else { it }
+#let lbl(pos, body, anchor: "center", fill: c-label, size: s-xs, font: mono-m) = cetz.draw.content(pos, anchor: anchor, text(font: font, size: size, fill: fill, tracking: 0.04em, body))
+
+// a 16-row miniature of a 128×128 state, with its key bar on the left
+#let delta-grid(pinned: true, quiet: false, title: none, cell: 0.21, cols: 12) = cetz.canvas(length: 1cm, {
+  import cetz.draw: *
+  let rows = 16
+  let hit = 5
+  let h = rows * cell
+  // key bar
+  for r in range(rows) {
+    let y = h - (r + 1) * cell
+    let f = if pinned { if r == hit { c-sel } else { c-surface } } else {
+      c-label.transparentize(100% - (20% + calc.rem(r * 37 + 11, 61) * 1%))
+    }
+    rect((0, y), (cell, y + cell), fill: f, stroke: 0.3pt + c-line)
+  }
+  let x0 = cell * 2.2
+  for r in range(rows) {
+    let y = h - (r + 1) * cell
+    for c in range(cols) {
+      let base = 30% + calc.rem(r * 13 + c * 7, 40) * 1%
+      let f = if pinned {
+        if r == hit { c-sel.transparentize(calc.rem(c * 29, 45) * 1%) } else { c-label.transparentize(100% - base * (if quiet { 0.5 } else { 0.7 })) }
+      } else {
+        // decayed and smeared: every row dims and shifts a little
+        let sm = calc.rem(r * 5 + c * 3, 11) * 1%
+        c-label.transparentize(100% - base * 0.45 - sm)
+      }
+      rect((x0 + c * cell, y), (x0 + (c + 1) * cell, y + cell), fill: f, stroke: 0.3pt + if quiet { c-bg } else { c-line })
+    }
+  }
+  if not quiet {
+    let w = x0 + cols * cell
+    lbl((cell / 2, h + 0.22), [k])
+    lbl((x0 + cols * cell / 2, h + 0.22), [S#sub[t]])
+    if title != none { lbl((w / 2, -0.32), title, fill: c-text) }
+    if pinned { lbl((w + 0.12, h - (hit + 0.5) * cell), [← row i = v], anchor: "west", fill: c-sel) }
+    else { lbl((w + 0.12, h / 2), [all rows ×g,\ all shift], anchor: "west") }
+  }
+})
+
+#let fig-gates() = cetz.canvas(length: 1cm, {
+  import cetz.draw: *
+  let sx = 1.12            // cm per decade of 1 − g
+  let xo = 2.15            // left gutter for row labels
+  let X(d) = xo + d * sx   // d = −log10(1 − g)
+  let L(g) = -calc.log(1 - g, base: 10)
+  let rows = (
+    ("Early", "layers 0–10", (0.04, 0.08), (0.99967, 0.999994)),
+    ("Mid", "layers 12–26", (0.06, 0.35), (0.99955, 0.999999)),
+    ("Late", "layers 28–44", (0.05, 0.15), (0.99981, 0.999997)),
+  )
+  let top = 3.0
+  // axis
+  line((X(0), 0), (X(7), 0), stroke: 0.6pt + c-line-hi)
+  for d in range(8) {
+    line((X(d), 0), (X(d), -0.08), stroke: 0.6pt + c-line-hi)
+    line((X(d), 0), (X(d), top), stroke: 0.3pt + c-line)
+    lbl((X(d), -0.3), if d == 0 [1] else [10#super[−#d]])
+  }
+  lbl((X(3.5), -0.72), [1 − g, per-channel minimum over the run (log)])
+  lbl((X(1), top + 0.25), [g = 0.9])
+  lbl((X(4), top + 0.25), [g = 0.9999])
+  // the unreachable line
+  line((X(7.25), -0.1), (X(7.25), top + 0.1), stroke: (paint: c-fault, thickness: 0.6pt, dash: "dashed"))
+  lbl((X(7.25), top + 0.55), [exact RAM needs 1 − g = 0\ (never reached)], fill: c-fault, anchor: "south")
+  for (i, (name, layers, med, best)) in rows.enumerate() {
+    let y = top - 0.55 - i * 0.95
+    lbl((0, y + 0.12), name, anchor: "west", fill: c-text)
+    lbl((0, y - 0.18), layers, anchor: "west")
+    // median channel: hollow
+    rect((X(L(med.at(0))), y - 0.07), (calc.max(X(L(med.at(1))), X(L(med.at(0))) + 0.06), y + 0.07), fill: none, stroke: 0.7pt + c-ok)
+    // best channel: solid
+    rect((X(L(best.at(0))), y - 0.07), (X(L(best.at(1))), y + 0.07), fill: c-ok, stroke: none)
+    if i == 0 {
+      lbl((X(L(med.at(1))) + 0.1, y + 0.28), [median channel], anchor: "west", fill: c-ok)
+      lbl((X(L(best.at(0))), y + 0.28), [best channel], anchor: "west", fill: c-ok)
+    }
+    if i == 1 {
+      circle((X(6), y), radius: 0.09, fill: c-bg, stroke: 1pt + c-ok)
+      lbl((X(6) - 0.15, y - 0.3), [layer 14, head 33, channel 83: 1 − g = 10#super[−6]], anchor: "north-east", fill: c-text)
+    }
+  }
+})
+
+#let fig-where() = cetz.canvas(length: 1cm, {
+  import cetz.draw: *
+  let sh = 0.07  // slab height
+  // host column: 48 slabs, attention every fourth
+  let hx = 2.0
+  for i in range(48) {
+    let y = i * sh
+    let att = calc.rem(i, 4) == 3
+    rect((hx, y), (hx + 1.6, y + sh * 0.78), fill: if att { c-label } else { c-surface }, stroke: 0.3pt + c-line-hi)
+  }
+  let H = 48 * sh
+  lbl((hx + 0.8, -0.3), [host model], fill: c-text)
+  lbl((hx + 0.8, -0.6), [Qwen3-Coder-Next, 48 layers])
+  lbl((hx - 0.15, H * 0.8), [GDN ×36\ (dark)], anchor: "east")
+  lbl((hx - 0.15, H * 0.45), [attention ×12\ (light, every 4th)], anchor: "east")
+  // chip column: 12 slabs, orange
+  let cx = 9.6
+  let csh = 0.2
+  let cy0 = 0.6
+  for i in range(12) {
+    let y = cy0 + i * csh
+    rect((cx, y), (cx + 1.6, y + csh * 0.78), fill: c-sel.transparentize(15%), stroke: none)
+  }
+  let cH = cy0 + 12 * csh
+  lbl((cx + 0.8, -0.3), [compiled store], fill: c-sel)
+  lbl((cx + 0.8, -0.6), [12 chip layers, +1,920 dims])
+  // engine box
+  let ex = 5.4
+  rect((ex, H - 0.9), (ex + 2.2, H - 0.1), fill: c-surface, stroke: 0.7pt + c-line-hi)
+  lbl((ex + 1.1, H - 0.5), [engine], fill: c-text)
+  // tool call leaves top of host
+  line((hx + 0.8, H + 0.05), (hx + 0.8, H + 0.35), (ex + 0.6, H + 0.35), (ex + 0.6, H - 0.1), mark: (end: "stealth", fill: c-text), stroke: 0.6pt + c-text)
+  lbl((hx + 0.95, H + 0.55), [tool call], anchor: "west", fill: c-text)
+  // engine → chip tokens → chip column
+  line((ex + 2.2, H - 0.4), (cx + 0.8, H - 0.4), (cx + 0.8, cH + 0.08), mark: (end: "stealth", fill: c-sel), stroke: 0.7pt + c-sel)
+  lbl((ex + 2.35, H - 0.62), [chip tokens], anchor: "west", fill: c-sel)
+  lbl((cx + 0.8, cH + 0.45), [never the base layers,\ the LM head or the KV cache], anchor: "south", fill: c-label)
+  // result returns as text
+  line((cx, cy0 + 0.6), (hx + 1.75, cy0 + 0.6), mark: (end: "stealth", fill: c-text), stroke: (paint: c-text, thickness: 0.6pt, dash: "dashed"))
+  lbl(((cx + hx + 1.6) / 2, cy0 + 0.82), [result, as text], fill: c-text)
+  // state block
+  let sx = 5.0
+  rect((sx, cy0 - 0.5), (sx + 3.0, cy0 + 0.25), fill: none, stroke: (paint: c-line-hi, thickness: 0.6pt, dash: "dotted"))
+  lbl((sx + 1.5, cy0 + 0.02), [store state, per session: 26 MB])
+  lbl((sx + 1.5, cy0 - 0.24), [user's blob file: 512 KiB])
+})
+
+#let fig-latency() = cetz.canvas(length: 1cm, {
+  import cetz.draw: *
+  let xo = 1.5
+  let sx = 2.6  // cm per decade, from 10 ms
+  let X(ms) = xo + (calc.log(ms, base: 10) - 1) * sx
+  let ops = (("put", 1650, 51), ("get", 1270, 40), ("list", 1020, 25))
+  let top = 3.4
+  for (ms, t) in ((10, [10 ms]), (100, [100 ms]), (1000, [1 s])) {
+    line((X(ms), -0.05), (X(ms), top), stroke: 0.3pt + c-line)
+    lbl((X(ms), -0.3), t)
+  }
+  line((xo, 0), (X(2500), 0), stroke: 0.6pt + c-line-hi)
+  for (i, (op, a, t)) in ops.enumerate() {
+    let y = top - 0.5 - i * 1.05
+    lbl((xo - 0.2, y - 0.17), op, anchor: "east", fill: c-text, size: s-sm)
+    rect((xo, y), (X(a), y + 0.24), fill: c-label.transparentize(40%), stroke: none)
+    lbl((X(a) + 0.1, y + 0.12), [#a ms], anchor: "west")
+    rect((xo, y - 0.42), (X(t), y - 0.18), fill: c-ok, stroke: none)
+    lbl((X(t) + 0.1, y - 0.3), [#t ms], anchor: "west", fill: c-ok)
+  }
+  rect((xo, top + 0.05), (xo + 0.3, top + 0.2), fill: c-label.transparentize(40%), stroke: none)
+  lbl((xo + 0.4, top + 0.12), [author's PyTorch stack], anchor: "west")
+  rect((xo + 4.2, top + 0.05), (xo + 4.5, top + 0.2), fill: c-ok, stroke: none)
+  lbl((xo + 4.6, top + 0.12), [tang chip window], anchor: "west", fill: c-ok)
+})
+
+#let fig-proof() = {
+  let rungs = (
+    ([Kernel one-hot write], [bitwise]),
+    ([50,000-step free run], [bitwise on CPU and 3090]),
+    ([Author's checkpoint, 3090], [160 tokens, 0 mismatches; recall from a 14 KB file]),
+    ([tang reference math], [126 tokens, states bitwise]),
+    ([tang compiler], [168 tensors bitwise]),
+    ([GPU chip window], [0 mismatching layer steps]),
+    ([In-engine isolation], [twin slot identical]),
+  )
+  let card(i, r) = block(width: 100%, height: 0.92in, inset: 5pt, fill: c-surface, stroke: 0.6pt + c-line-hi, {
+    set par(leading: 0.45em)
+    text(font: mono-m, size: s-xs, fill: c-label)[#(i + 1)]
+    h(1fr)
+    text(font: mono-sb, size: s-sm, fill: c-ok)[✓]
+    v(0.3em)
+    text(font: sans-m, size: s-sm, fill: c-text, r.at(0))
+    linebreak()
+    text(font: sans, size: s-xs, fill: c-label, r.at(1))
+  })
+  grid(columns: (1fr,) * 4, column-gutter: 5pt, row-gutter: 5pt,
+    ..rungs.enumerate().map(((i, r)) => card(i, r)))
+}
+
 // ---- title page ---------------------------------------------------------------
 #if not web {page(margin: (x: 0.75in, top: 0.7in, bottom: 0.65in))[
   #set par(leading: 0.5em)
@@ -137,7 +328,9 @@
     caps[Draft · October 2026])
   #v(1.6em)
   #image("images/muni-logo.svg", width: 0.95in)
-  #v(2.4in)
+  #v(0.2in)
+  #box(height: 2.0in, width: 100%, align(right + horizon, delta-grid(quiet: true, cell: 0.16, cols: 16)))
+  #v(0.2in)
   #move(dx: -0.045 * s-display, text(font: sans-sb, size: s-display, tracking: -0.02em)[Zero-context\ compiled memory])
   #v(0.5em)
   #line(length: 22%, stroke: 2pt + c-label)
@@ -176,7 +369,14 @@ Gated DeltaNet (GDN) updates a matrix state per head with the delta rule @yang20
 
 $ S_t = g_t S_(t-1) + beta_t k_t (v_t - S_(t-1)^top k_t)^top $
 
-With the decay $g = 1$, the write strength $beta = 1$ and a one-hot key $k = e_i$, the update replaces row $i$ of $S$ with $v$ and leaves every other row alone. A one-hot query reads row $i$ back. Compile weights that produce those gates and keys, and the recurrent state is RAM. qwenputer compiled a RISC-V CPU and a 512-file store into 12 extra layers in front of Qwen 3.5 4B, without training, and reported a KL divergence to the base model of $6 times 10^(-4)$ @agrawal2026qwenputer.
+With the decay $g = 1$, the write strength $beta = 1$ and a one-hot key $k = e_i$, the update replaces row $i$ of $S$ with $v$ and leaves every other row alone.
+
+#figure(
+  grid(columns: 2, column-gutter: 0.5in, delta-grid(pinned: false, title: [trained head: g < 1, dense k]), delta-grid(pinned: true, title: [pinned head: g = 1, β = 1, k = e#sub[i]])),
+  caption: [#lead[The delta rule, drawn.] Sixteen rows stand for a 128 × 128 head state. A trained head decays every row and smears the write across all of them. A pinned head with a one-hot key replaces exactly one row and leaves the rest untouched.],
+)
+
+A one-hot query reads row $i$ back. Compile weights that produce those gates and keys, and the recurrent state is RAM. qwenputer compiled a RISC-V CPU and a 512-file store into 12 extra layers in front of Qwen 3.5 4B, without training, and reported a KL divergence to the base model of $6 times 10^(-4)$ @agrawal2026qwenputer.
 
 tang is our inference engine. It runs Qwen3-Coder-Next, a hybrid of 36 GDN layers and 12 attention layers, and already snapshots the fixed-size recurrent state to disk. frog, our coding agent, talks to it. So the question was concrete: what of this transfers to an engine we own?
 
@@ -206,7 +406,11 @@ So a pretrained head can be borrowed for storage only if its gate is bitwise 1 o
   caption: [#lead[Gates of a trained hybrid model.] No channel qualifies as exact storage. Measured on GLM-5.3-Flash UD-Q4_K_XL, RTX 3090.],
 )
 
-A few channels are remarkably slow. Between 1 and 8 percent per layer have a mean gate above 0.999, and the best has a gate-only half-life near three million tokens. But they are analog registers, and they leak. Exact storage needs dedicated heads with compiled gates, which is the qwenputer design.
+A few channels are remarkably slow. Between 1 and 8 percent per layer have a mean gate above 0.999, and the best has a gate-only half-life near three million tokens. #figure(fig-gates(),
+  caption: [#lead[No channel reaches 1.] Each bar is a range across the layers in its group: hollow for the median channel's minimum gate over the run, solid for the best channel's. GLM-5.3-Flash on an RTX 3090 over 427 tokens; per-layer data was not kept.],
+)
+
+But they are analog registers, and they leak. Exact storage needs dedicated heads with compiled gates, which is the qwenputer design.
 
 = Two dead ends
 
@@ -262,6 +466,10 @@ A 512-file fill and a 10,000-operation random workload, checked against a hash m
 
 *tang serves them.* A chip window in the engine uploads the emitted layers as sparse blocks and runs store calls without touching the base layers, the LM head or the KV cache. On an RTX 3090 it ran with 0 mismatching layer steps against the CPU path. Inside a running engine, on a slot holding a prompt, store calls returned the stored ids. The slot's tokens and greedy continuation stayed identical to a twin slot that never ran them.
 
+#figure(fig-where(),
+  caption: [#lead[Where the store lives.] The compiled layers sit beside the host model, not inside it. Store calls run only through the chip layers; the host sees the result as text.],
+)
+
 #figure(
   table(
     columns: 4,
@@ -274,7 +482,17 @@ A 512-file fill and a 10,000-operation random workload, checked against a hash m
   caption: [#lead[The chip window on an RTX 3090], with CUDA graphs. The author's PyTorch stack took 1.0–1.65 s per operation.],
 )
 
+#figure(fig-latency(),
+  caption: [#lead[Latency per store operation], same RTX 3090, log scale. The author's time is mostly PyTorch fallback kernels, not the store.],
+)
+
 The compiled layers take 13.75 MB of sparse weights and 26 MB of state per session. They cost about 332 million multiply-adds per token, roughly 8 percent of the 4B model.
+
+Each link of the claim was checked on its own, from the kernel up to a running engine.
+
+#figure(fig-proof(),
+  caption: [#lead[The proof chain.] Seven checks, each bitwise or exact, from the kernel's one-hot write to a store call inside a running engine.],
+)
 
 == Serving
 
