@@ -343,7 +343,7 @@ export function PinnedRows() {
         const ry = rowY[r] + oy * rowS[r] + rowH[r] / 2;
         const ids = narrow ? `[${IDS[0]}, ${IDS[1]}, …]` : `[${IDS.join(", ")}]`;
         const lines: Run[][] = done
-          ? [[[`get("title") → ${ids} · `, C.text], ["EXACT", C.sel]], [[`→ ${TITLE}`, C.label]]]
+          ? [[[`get("title") → ${ids} · `, C.text], ["EXACT", C.sel]], [[`→ ${TITLE}`, C.text]]]
           : [[["HEAD 12 · g 1.000000 · β 1.000000", C.text]], [[`ROW ${rowLabel(r)}`, C.sel], [` ${pinned[k] ? "WRITE" : "SEEK"} · ID ${IDS[k]}`, C.label]]];
         const m = Math.max(width(lines[0], 0), width(lines[1], 1));
         const tx = rx - 34;
@@ -353,7 +353,9 @@ export function PinnedRows() {
         } else {
           // no side margin (phones): the slot sits just above the matrix, leader down to the row
           const top = rowY[0] + oy * rowS[0];
-          readout(rx, ry, 16, top - 22 - 14, lines, 1, C.sel);
+          // left-aligned just past the leader, kept inside the cover
+          const sx = Math.min(Math.max(rx - 8, 16), w - m - 16);
+          readout(rx, ry, sx, top - 22 - 14, lines, 1, C.sel);
         }
       }
 
