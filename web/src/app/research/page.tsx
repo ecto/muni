@@ -8,6 +8,15 @@ export const metadata: Metadata = {
   title: "Research",
   description: "Research and plans from Municipal Robotics, written in Typst and published as both web pages and PDFs.",
   alternates: { canonical: "https://muni.works/research" },
+  openGraph: {
+    title: "Research | Municipal Robotics",
+    description: "Research and plans from Municipal Robotics, written in Typst and published as both web pages and PDFs.",
+    type: "website",
+    url: "/research",
+    siteName: "Municipal Robotics",
+    images: [{ url: "/og/research.png", width: 1200, height: 630, alt: "Municipal Robotics research" }],
+  },
+  twitter: { card: "summary_large_image", images: ["/og/research.png"] },
 };
 
 export default function ResearchIndex() {

@@ -1,0 +1,20 @@
+qid,category,question,answer,pred,em,em_contains,cer,prompt_tokens,seconds,context_tokens,n_get,n_list,budget_exhausted,got_relevant
+f0,signature,What is the exact signature of the saffron search entry point?,"fn search_resolve(cfg: &mut Cfg, offset: i64) -> Result<(), Error>","The exact signature of the saffron search entry point is:
+fn search_resolve(cfg: &mut Cfg, offset: i64) -> Result<(), Error>",0.0,1.0,0.8485,836,12.0295,1219,1,1,False,True
+f1,uuid,What is the tenant ID for the basalt account?,d68c9f49-e450-44f7-b232-d1e49c04518c,,0.0,0.0,1.0,833,247.3289,8639,41,1,True,False
+f2,hash,What is the commit hash of the last good ferrous build?,acbf0dea8f,,0.0,0.0,1.0,835,187.0941,6755,41,1,True,False
+f3,path,What is the path of the lumen billing config file?,/srv/lumen/conf/billing_55.json,The path of the lumen billing config file is /srv/lumen/var/billing_32.ini.,0.0,0.0,1.7742,834,9.4104,1142,1,1,False,False
+f4,config,What config key=value setting did we use for auth in quartz? Give it as key=value.,auth.max_retries=270,,0.0,0.0,1.0,841,175.093,6392,41,1,True,False
+f5,hash,What is the commit hash of the last good basalt build?,57f579cd9b,,0.0,0.0,1.0,835,187.0328,6755,41,1,True,False
+f6,hash,What is the commit hash of the last good harbor build?,a70b3d1f79,,0.0,0.0,1.0,834,187.1353,6754,41,1,True,False
+f7,config,What config key=value setting did we use for queue in basalt? Give it as key=value.,queue.batch_size=86766,,0.0,0.0,1.0,842,217.7146,7746,41,1,True,False
+f8,config,What config key=value setting did we use for search in saffron? Give it as key=value.,search.shard_count=22391,,0.0,0.0,1.0,843,224.8167,7962,41,1,True,False
+f9,signature,What is the exact signature of the tundra router entry point?,"fn router_apply(req: &mut Req, depth: u32) -> Result<(), Error>","The exact signature of the tundra router entry point is:
+fn router_apply(req: &mut Req, depth: u32) -> Result<(), Error>",0.0,1.0,0.8571,835,10.9705,1191,1,1,False,True
+f10,port,Which port does the basalt queue service listen on?,13879,,0.0,0.0,1.0,833,165.7697,6097,41,1,True,False
+f11,config,What config key=value setting did we use for billing in lumen? Give it as key=value.,billing.batch_size=59813,,0.0,0.0,1.0,842,195.0928,7049,41,1,True,False
+f12,port,Which port does the kestrel ledger service listen on?,36799,,0.0,0.0,1.0,833,165.8218,6097,41,1,True,False
+f13,config,What config key=value setting did we use for ledger in kestrel? Give it as key=value.,ledger.timeout_ms=854,,0.0,0.0,1.0,842,174.8195,6396,41,1,True,True
+f14,signature,What is the exact signature of the orchid cache entry point?,"fn cache_flush(cfg: &mut Cfg, depth: usize) -> Result<(), Error>","The exact signature of the orchid cache entry point is:
+
+`fn cache_flush(cfg: &mut Cfg, depth: usize) -> Result<(), Error>`",0.0,1.0,0.8281,835,10.9112,1191,1,1,False,True

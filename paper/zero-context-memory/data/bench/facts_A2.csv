@@ -1,0 +1,61 @@
+qid,category,question,answer,pred,em,em_contains,cer,prompt_tokens,seconds
+f0,signature,What is the exact signature of the saffron search entry point?,"fn search_resolve(cfg: &mut Cfg, offset: i64) -> Result<(), Error>","fn search_resolve(cfg: &mut Cfg, offset: i64) -> Result<(), Error>",1.0,1.0,0.0,591,1.016
+f1,uuid,What is the tenant ID for the basalt account?,d68c9f49-e450-44f7-b232-d1e49c04518c,d68c9f49-e450-44f7-b232-d1e49c04518c,1.0,1.0,0.0,674,0.9598
+f2,hash,What is the commit hash of the last good ferrous build?,acbf0dea8f,acbf0dea8f,1.0,1.0,0.0,485,0.3149
+f3,path,What is the path of the lumen billing config file?,/srv/lumen/conf/billing_55.json,/srv/lumen/conf/billing_55.json,1.0,1.0,0.0,558,0.4506
+f4,config,What config key=value setting did we use for auth in quartz? Give it as key=value.,auth.max_retries=270,auth.max_retries=270,1.0,1.0,0.0,595,0.3859
+f5,hash,What is the commit hash of the last good basalt build?,57f579cd9b,a70b3d1f79,0.0,0.0,0.9,553,0.429
+f6,hash,What is the commit hash of the last good harbor build?,a70b3d1f79,a70b3d1f79,1.0,1.0,0.0,559,0.4258
+f7,config,What config key=value setting did we use for queue in basalt? Give it as key=value.,queue.batch_size=86766,batch_size=19606,0.0,0.0,0.4545,628,0.3809
+f8,config,What config key=value setting did we use for search in saffron? Give it as key=value.,search.shard_count=22391,search.shard_count=22391,1.0,1.0,0.0,568,0.4283
+f9,signature,What is the exact signature of the tundra router entry point?,"fn router_apply(req: &mut Req, depth: u32) -> Result<(), Error>","fn router_apply(req: &mut Req, depth: u32) -> Result<(), Error>",1.0,1.0,0.0,597,0.6471
+f10,port,Which port does the basalt queue service listen on?,13879,13879,1.0,1.0,0.0,597,0.3104
+f11,config,What config key=value setting did we use for billing in lumen? Give it as key=value.,billing.batch_size=59813,billing.batch_size=59813,1.0,1.0,0.0,611,0.4047
+f12,port,Which port does the kestrel ledger service listen on?,36799,36799,1.0,1.0,0.0,580,0.3113
+f13,config,What config key=value setting did we use for ledger in kestrel? Give it as key=value.,ledger.timeout_ms=854,ledger.timeout_ms=854,1.0,1.0,0.0,584,0.3566
+f14,signature,What is the exact signature of the orchid cache entry point?,"fn cache_flush(cfg: &mut Cfg, depth: usize) -> Result<(), Error>","fn cache_flush(cfg: &mut Cfg, depth: usize) -> Result<(), Error>",1.0,1.0,0.0,612,0.6217
+f15,path,What is the path of the nimbus render config file?,/srv/nimbus/data/render_20.yaml,/srv/nimbus/data/render_20.yaml,1.0,1.0,0.0,522,0.4257
+f16,signature,What is the exact signature of the kestrel ledger entry point?,"fn ledger_resolve(buf: &mut Buf, limit: i64) -> Result<(), Error>","fn ledger_resolve(buf: &mut Buf, limit: i64) -> Result<(), Error>",1.0,1.0,0.0,577,0.6494
+f17,port,Which port does the nimbus render service listen on?,7309,7309,1.0,1.0,0.0,544,0.2913
+f18,port,Which port does the orchid cache service listen on?,3488,3488,1.0,1.0,0.0,581,0.2944
+f19,port,Which port does the lumen billing service listen on?,50417,50417,1.0,1.0,0.0,541,0.3143
+f20,config,What config key=value setting did we use for router in tundra? Give it as key=value.,router.batch_size=769,router.batch_size=769,1.0,1.0,0.0,594,0.3572
+f21,hash,What is the commit hash of the last good saffron build?,6c945a1d98,6c945a1d98,1.0,1.0,0.0,515,0.4252
+f22,uuid,What is the tenant ID for the quartz account?,b6c94ad2-739e-47b5-84f9-bd4c14e4cc42,b6c94ad2-739e-47b5-84f9-bd4c14e4cc42,1.0,1.0,0.0,665,0.9677
+f23,config,What config key=value setting did we use for sync in harbor? Give it as key=value.,sync.pool_size=25201,Not found,0.0,0.0,0.95,553,0.2472
+f24,path,What is the path of the quartz auth config file?,/srv/quartz/conf/auth_12.toml,/srv/quartz/conf/auth_12.toml,1.0,1.0,0.0,587,0.4468
+f25,port,Which port does the quartz auth service listen on?,7375,7375,1.0,1.0,0.0,573,0.3196
+f26,hash,What is the commit hash of the last good orchid build?,106edb66e2,106edb66e2,1.0,1.0,0.0,573,0.3844
+f27,port,Which port does the ferrous ingest service listen on?,12846,12846,1.0,1.0,0.0,501,0.2819
+f28,signature,What is the exact signature of the basalt queue entry point?,"fn queue_merge(buf: &mut Buf, depth: u16) -> Result<(), Error>","fn queue_merge(buf: &mut Buf, depth: u16) -> Result<(), Error>",1.0,1.0,0.0,621,0.6498
+f29,config,What config key=value setting did we use for cache in orchid? Give it as key=value.,cache.batch_size=19606,batch_size=19606,0.0,0.0,0.2727,641,0.4022
+f30,path,What is the path of the tundra router config file?,/srv/tundra/etc/router_52.ini,/srv/tundra/etc/router_52.ini,1.0,1.0,0.0,596,0.426
+f31,hash,What is the commit hash of the last good quartz build?,6725aee605,6725aee605,1.0,1.0,0.0,558,0.4049
+f32,port,Which port does the tundra router service listen on?,50182,50182,1.0,1.0,0.0,585,0.313
+f33,path,What is the path of the kestrel ledger config file?,/srv/kestrel/data/ledger_82.ini,/srv/kestrel/data/ledger_82.ini,1.0,1.0,0.0,558,0.4721
+f34,path,What is the path of the orchid cache config file?,/srv/orchid/etc/cache_84.yaml,/srv/orchid/etc/cache_84.yaml,1.0,1.0,0.0,611,0.4459
+f35,signature,What is the exact signature of the harbor sync entry point?,"fn sync_resolve(cfg: &mut Cfg, limit: i64) -> Result<(), Error>","fn sync_resolve(cfg: &mut Cfg, limit: i64) -> Result<(), Error>",1.0,1.0,0.0,582,0.6655
+f36,uuid,What is the tenant ID for the ferrous account?,b564b33f-7d03-4dfb-9b38-ee0203c2d7b5,b564b33f-7d03-4dfb-9b38-ee0203c2d7b5,1.0,1.0,0.0,686,0.9851
+f37,uuid,What is the tenant ID for the lumen account?,6193cb37-ad07-4162-a9ce-507899153960,6193cb37-ad07-4162-a9ce-507899153960,1.0,1.0,0.0,648,0.9374
+f38,path,What is the path of the saffron search config file?,/srv/saffron/data/search_80.toml,/srv/saffron/data/search_80.toml,1.0,1.0,0.0,590,0.4766
+f39,port,Which port does the harbor sync service listen on?,23957,23957,1.0,1.0,0.0,567,0.3158
+f40,path,What is the path of the harbor sync config file?,/srv/harbor/conf/sync_68.toml,/srv/harbor/conf/sync_68.toml,1.0,1.0,0.0,597,0.4893
+f41,uuid,What is the tenant ID for the orchid account?,b0605946-8ef8-4de6-9e38-4466f8f6c236,b0605946-8ef8-4de6-9e38-4466f8f6c236,1.0,1.0,0.0,709,0.9905
+f42,hash,What is the commit hash of the last good kestrel build?,4ce3911326,37a30c3946,0.0,0.0,0.8,597,0.4279
+f43,uuid,What is the tenant ID for the tundra account?,550d132c-3b7e-4b35-a9a0-1b17caa8e58e,550d132c-3b7e-4b35-a9a0-1b17caa8e58e,1.0,1.0,0.0,692,0.963
+f44,signature,What is the exact signature of the quartz auth entry point?,"fn auth_encode(cfg: &mut Cfg, level: i64) -> Result<(), Error>","fn auth_encode(cfg: &mut Cfg, level: i64) -> Result<(), Error>",1.0,1.0,0.0,588,0.6702
+f45,config,What config key=value setting did we use for render in nimbus? Give it as key=value.,render.pool_size=52019,render.pool_size=52019,1.0,1.0,0.0,485,0.3729
+f46,hash,What is the commit hash of the last good lumen build?,37a30c3946,37a30c3946,1.0,1.0,0.0,530,0.4263
+f47,hash,What is the commit hash of the last good nimbus build?,31b469aae3,31b469aae3,1.0,1.0,0.0,541,0.43
+f48,uuid,What is the tenant ID for the saffron account?,6d5622eb-cfc3-4b2d-b711-34575b80c656,6d5622eb-cfc3-4b2d-b711-34575b80c656,1.0,1.0,0.0,700,0.9573
+f49,path,What is the path of the basalt queue config file?,/srv/basalt/conf/queue_14.toml,/srv/basalt/conf/queue_14.toml,1.0,1.0,0.0,620,0.491
+f50,signature,What is the exact signature of the lumen billing entry point?,"fn billing_merge(cfg: &mut Cfg, depth: usize) -> Result<(), Error>","fn billing_merge(cfg: &mut Cfg, depth: usize) -> Result<(), Error>",1.0,1.0,0.0,617,0.6256
+f51,uuid,What is the tenant ID for the harbor account?,39ad00af-bd41-4966-95f5-b6054546638e,39ad00af-bd41-4966-95f5-b6054546638e,1.0,1.0,0.0,701,0.9538
+f52,uuid,What is the tenant ID for the nimbus account?,1c5df61c-dfc6-49dc-bf96-c72310c7726f,1c5df61c-dfc6-49dc-bf96-c72310c7726f,1.0,1.0,0.0,697,0.8986
+f53,config,What config key=value setting did we use for ingest in ferrous? Give it as key=value.,ingest.batch_size=775,ingest.batch_size=775,1.0,1.0,0.0,583,0.388
+f54,port,Which port does the saffron search service listen on?,57864,57864,1.0,1.0,0.0,559,0.317
+f55,hash,What is the commit hash of the last good tundra build?,095b49038c,095b49038c,1.0,1.0,0.0,552,0.433
+f56,uuid,What is the tenant ID for the kestrel account?,c96f3e52-6b7e-483f-95d7-ca30b9a04a29,c96f3e52-6b7e-483f-95d7-ca30b9a04a29,1.0,1.0,0.0,671,0.9918
+f57,signature,What is the exact signature of the nimbus render entry point?,"fn render_apply(req: &mut Req, level: u32) -> Result<(), Error>","fn render_apply(req: &mut Req, level: u32) -> Result<(), Error>",1.0,1.0,0.0,564,0.6485
+f58,signature,What is the exact signature of the ferrous ingest entry point?,"fn ingest_apply(ctx: &mut Ctx, depth: u32) -> Result<(), Error>","fn ingest_apply(ctx: &mut Ctx, depth: u32) -> Result<(), Error>",1.0,1.0,0.0,564,0.6724
+f59,path,What is the path of the ferrous ingest config file?,/srv/ferrous/var/ingest_32.ini,/srv/ferrous/var/ingest_32.ini,1.0,1.0,0.0,555,0.4952

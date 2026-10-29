@@ -1,0 +1,26 @@
+{
+ "save_new": {
+  "text": "<tool_call>\n<function=put>\n<parameter=name>\ndog\n</parameter>\n<parameter=text>\nBiscuit\n</parameter>\n</function>\n</tool_call>\n<tool_response>\nfull\n</tool_response>\n<think>\n\n</think>\n\nI've saved that your dog is named Biscuit.<|im_end|>",
+  "chip_trace": [
+   "SP(267)",
+   "SP(268)",
+   "SP(269)",
+   "SP(270)",
+   "SP(271)",
+   "SP(272)",
+   "SP(273)",
+   "SP(274)",
+   "SP(275)",
+   "SP(276)",
+   "SP(277)",
+   "SP(278)",
+   "SP(279)"
+  ]
+ },
+ "update_existing": {
+  "text": "<tool_call>\n<function=put>\n<parameter=name>\nf0\n</parameter>\n<parameter=text>\nupdated note\n</parameter>\n</function>\n</tool_call>\n<tool_response>\nfull\n</tool_response>\n<think>\n\n</think>\n\nThe text of the file \"f0\" has been replaced with \"updated note\".<|im_end|>",
+  "chip_trace": [
+   "SP(864)"
+  ]
+ }
+}

@@ -20,15 +20,17 @@ export const metadata: Metadata = {
     siteName: "Municipal Robotics",
     images: [
       {
-        url: "/images/og.png",
+        url: "/og/site.png", // rendered by `npm run og`
         width: 1200,
         height: 630,
+        alt: "Municipal Robotics: Robots that build robots",
       },
     ],
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
+    images: ["/og/site.png"],
   },
 };
 

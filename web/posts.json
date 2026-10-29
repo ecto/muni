@@ -8,5 +8,16 @@
     "description": "The Municipal Robotics vision: an autonomous company, amplified by intelligence. Software first, then arms that build arms, from a desk to a swarm of collectors around a star.",
     "root": "../paper/vision",
     "source": "vision.typ"
+  },
+  {
+    "slug": "zero-context-memory",
+    "title": "Gate-Pinned State Memory",
+    "subtitle": "Exact storage in a model's recurrent state, and how far a model gets using it",
+    "date": "2026-10-29",
+    "author": "Cam Pedersen",
+    "description": "Gate-Pinned State Memory (GPSM) makes a Gated DeltaNet head exact RAM. We verified it bitwise from tang's kernel to a CUDA window in our engine, then measured it as agent memory: the storage is exact, but a model driving it recalled less than retrieval, or no memory at all.",
+    "root": "../paper/zero-context-memory",
+    "source": "zero-context-memory.typ",
+    "cover": "pinned-rows"
   }
 ]

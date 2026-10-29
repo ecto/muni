@@ -115,6 +115,9 @@
 }
 .post p { margin: 0 0 0.56em; text-wrap: pretty; } /* PDF paragraph spacing 1.4em, less the 0.84em leading */
 .post a { color: var(--p-text); font-weight: inherit; text-underline-offset: 3px; }
+/* links out of the post read as links: a quiet underline that brightens on hover */
+.post a[href^="http"] { text-decoration: underline; text-decoration-thickness: 1px; text-decoration-color: var(--p-label); transition: text-decoration-color 0.15s; }
+.post a[href^="http"]:hover { text-decoration-color: var(--p-text); }
 .post strong { font-weight: 600; }
 .post sup { font-size: 0.68em; line-height: 0; }
 .post a[role="doc-biblioref"] { color: var(--p-label); text-decoration: none; }
@@ -419,6 +422,19 @@ html.post-rail-on::-webkit-scrollbar { display: none; }
 }
 .post-rail.is-awake .post-rail-now { opacity: 1; transform: translate(0, -50%); }
 .post-rail:hover .post-rail-now { opacity: 0; }
+/* the gate rail (pinned-rows cover): g = 0.9 at the top, g = 1 in fault red at the end, as in Fig 2 */
+.post-rail.is-gate .post-rail-end { text-transform: none; letter-spacing: 0.04em; white-space: nowrap; }
+.post-rail.is-gate .post-rail-earth { color: var(--p-label); }
+.post-rail.is-gate .post-rail-sun { color: #ff2052; opacity: 0.9; }
+.post-rail.is-gate .post-rail-track::before { background: linear-gradient(to bottom, var(--p-line-hi), var(--p-line-hi) 88%, rgba(255, 32, 82, 0.5)); }
+.post-rail.is-gate .post-rail-track::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: calc(50% - 0.6rem);
+  width: 1.2rem;
+  border-top: 1px dashed #ff2052;
+}
 @media (prefers-reduced-motion: reduce) {
   .post-rail-tip, .post-rail-now, .post-rail-mark::before { transition: none; }
 }

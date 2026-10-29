@@ -1,0 +1,10 @@
+qid,category,f1,em,prompt_tokens,seconds,context_tokens,n_get,n_list,budget_exhausted,got_relevant
+conv-26-1,2,0.0,0.0,849,293.4634,10097,42,1,True,False
+conv-26-136,4,0.0,0.0,855,67.9341,3075,43,1,True,False
+conv-26-51,1,0.0,0.0,847,59.6236,2809,43,1,True,False
+conv-47-101,4,0.0,0.0,861,94.2148,3987,38,1,True,False
+conv-47-131,4,0.0,0.0,857,327.3406,11273,41,1,True,True
+conv-47-39,2,0.0,0.0,851,61.0452,2891,33,1,True,False
+conv-47-76,4,0.0,0.0,851,307.7807,10616,41,1,True,True
+conv-50-107,4,0.0,0.0,860,365.9724,12391,41,1,True,True
+conv-50-156,4,0.0,0.0,853,290.3095,10045,41,1,True,False

@@ -1,0 +1,197 @@
+{
+ "inst": "facts",
+ "text": "<tool_call>\n<function=list>\n</function>\n</tool_call>\n<tool_response>\nkestrel_ledger_port\nkestrel_ledger_timeout_msorchid_cache_entry_point\nnimbus_render_config_path\nnimbus_render_port\norchid_cache_port\nlumen_billing_port\ntundra_router_batch_size\nsaffron_last_good_commitquartz_tenant_id\nharbor_sync_pool_size\nkestrel_ledger_entry_pointfriday_half_day\nuser_thinking_about_new_keyboardweather_rain_all_week\nstandup_ran_long\nuser_had_many_meetgame_last_night\nuser_had_lunch\nsession_date\nsession_number\nquartz_auth_config_file\nquartz_auth_port\norchid_last_good_build\nferrous_ingest_port\nbasalt_queue_entry_point\norchid_cache_batch_size\ntundra_router_config_file\nquartz_last_good_build\ntundra_router_port\nkestrel_ledger_config_fileorchid_cache_config_file\nharbor_sync_entry_point\nferrous_tenant_id\nlumen_tenant_id\nsaffron_search_config_pathharbor_sync_port\nharbor_sync_config_path\norchid_tenant_id\nkestrel_last_good_build\ntundra_tenant_id\nquartz_auth_entry_point_signaturenimbus_render_pool_size\nlumen_last_good_build\nnimbus_last_good_build\nsaffron_tenant_idbasalt_queue_config\nlumen_billing_signature\nharbor_tenant_id\nnimbus_tenant_id\nferrous_ingest_batch_sizesaffron_search_port\ntundra_last_good_commit\nkestrel_tenant_id\nnimbus_render_signature\nferrous_ingest_signature\nferrous_ingest_config\ncat_knocked_monitor_overthinking_new_keyboard\nweather_gross_rain_all</tool_response>\n<think>\n\n</think>\n\n<tool_call>\n<function=list>\n</function>\n</tool_call>\n<tool_response>\nkestrel_ledger_port\nkestrel_ledger_timeout_msorchid_cache_entry_point\nnimbus_render_config_path\nnimbus_render_port\norchid_cache_port\nlumen_billing_port\ntundra_router_batch_size\nsaffron_last_good_commitquartz_tenant_id\nharbor_sync_pool_size\nkestrel_ledger_entry_pointfriday_half_day\nuser_thinking_about_new_keyboardweather_rain_all_week\nstandup_ran_long\nuser_had_many_meetgame_last_night\nuser_had_lunch\nsession_date\nsession_number\nquartz_auth_config_file\nquartz_auth_port\norchid_last_good_build\nferrous_ingest_port\nbasalt_queue_entry_point\norchid_cache_batch_size\ntundra_router_config_file\nquartz_last_good_build\ntundra_router_port\nkestrel_ledger_config_fileorchid_cache_config_file\nharbor_sync_entry_point\nferrous_tenant_id\nlumen_tenant_id\nsaffron_search_config_pathharbor_sync_port\nharbor_sync_config_path\norchid_tenant_id\nkestrel_last_good_build\ntundra_tenant_id\nquartz_auth_entry_point_signaturenimbus_render_pool_size\nlumen_last_good_build\nnimbus_last_good_build\nsaffron_tenant_idbasalt_queue_config\nlumen_billing_signature\nharbor_tenant_id\nnimbus_tenant_id\nferrous_ingest_batch_sizesaffron_search_port\ntundra_last_good_commit\nkestrel_tenant_id\nnimbus_render_signature\nferrous_ingest_signature\nferrous_ingest_config\ncat_knocked_monitor_overthinking_new_keyboard\nweather_gross_rain_all</tool_response>\n<think>\n\n</think>\n\n<tool_call>\n<function=list>\n</function>\n</tool_call>\n<tool_response>\nkestrel_ledger_port\nkestrel_ledger_timeout_msorchid_cache_entry_point\nnimbus_render_config_path\nnimbus_render_port\norchid_cache_port\nlumen_billing_port\ntundra_router_batch_size\nsaffron_last_good_commitquartz_tenant_id\nharbor_sync_pool_size\nkestrel_ledger_entry_pointfriday_half_day\nuser_thinking_about_new_keyboardweather_rain_all_week\nstandup_ran_long\nuser_had_many_meetgame_last_night\nuser_had_lunch\nsession_date\nsession_number\nquartz_auth_config_file\nquartz_auth_port\norchid_last_good_build\nferrous_ingest_port\nbasalt_queue_entry_point\norchid_cache_batch_size\ntundra_router_config_file\nquartz_last_good_build\ntundra_router_port\nkestrel_ledger_config_fileorchid_cache_config_file\nharbor_sync_entry_point\nferrous_tenant_id\nlumen_tenant_id\nsaffron_search_config_pathharbor_sync_port\nharbor_sync_config_path\norchid_tenant_id\nkestrel_last_good_build\ntundra_tenant_id\nquartz_auth_entry_point_signaturenimbus_render_pool_size\nlumen_last_good_build\nnimbus_last_good_build\nsaffron_tenant_idbasalt_queue_config\nlumen_billing_signature\nharbor_tenant_id\nnimbus_tenant_id\nferrous_ingest_batch_sizesaffron_search_port\ntundra_last_good_commit\nkestrel_tenant_id\nnimbus_render_signature\nferrous_ingest_signature\nferrous_ingest_config\ncat_knocked_monitor_overthinking_new_keyboard\nweather_gross_rain_all</tool_response>\n<think>\n\n</think>\n\n<tool_call>\n<function=list>\n</function>\n</tool_call>\n<tool_response>\nkestrel_ledger_port\nkestrel_ledger_timeout_msorchid_cache_entry_point\nnimbus_render_config_path\nnimbus_render_port\norchid_cache_port\nlumen_billing_port\ntundra_router_batch_size\nsaffron_last_good_commitquartz_tenant_id\nharbor_sync_pool_size\nkestrel_ledger_entry_pointfriday_half_day\nuser_thinking_about_new_keyboardweather_rain_all_week\nstandup_ran_long\nuser_had_many_meetgame_last_night\nuser_had_lunch\nsession_date\nsession_number\nquartz_auth_config_file\nquartz_auth_port\norchid_last_good_build\nferrous_ingest_port\nbasalt_queue_entry_point\norchid_cache_batch_size\ntundra_router_config_file\nquartz_last_good_build\ntundra_router_port\nkestrel_ledger_config_fileorchid_cache_config_file\nharbor_sync_entry_point\nferrous_tenant_id\nlumen_tenant_id\nsaffron_search_config_pathharbor_sync_port\nharbor_sync_config_path\norchid_tenant_id\nkestrel_last_good_build\ntundra_tenant_id\nquartz_auth_entry_point_signaturenimbus_render_pool_size\nlumen_last_good_build\nnimbus_last_good_build\nsaffron_tenant_idbasalt_queue_config\nlumen_billing_signature\nharbor_tenant_id\nnimbus_tenant_id\nferrous_ingest_batch_sizesaffron_search_port\ntundra_last_good_commit\nkestrel_tenant_id\nnimbus_render_signature\nferrous_ingest_signature\nferrous_ingest_config\ncat_knocked_monitor_overthinking_new_keyboard\nweather_gross_rain_all</tool_response>\n<think>\n\n</think>\n\n<tool_call>\n<function=list>\n</function>\n</tool_call>\n<tool_response>\nkestrel_ledger_port\nkestrel_ledger_timeout_msorchid_cache_entry_point\nnimbus_render_config_path\nnimbus_render_port\norchid_cache_port\nlumen_billing_port\ntundra_router_batch_size\nsaffron_last_good_commitquartz_tenant_id\nharbor_sync_pool_size\nkestrel_ledger_entry_pointfriday_half_day\nuser_thinking_about_new_keyboardweather_rain_all_week\nstandup_ran_long\nuser_had_many_meetgame_last_night\nuser_had_lunch\nsession_date\nsession_number\nquartz_auth_config_file\nquartz_auth_port\norchid_last_good_build\nferrous_ingest_port\nbasalt_queue_entry_point\norchid_cache_batch_size\ntundra_router_config_file\nquartz_last_good_build\ntundra_router_port\nkestrel_ledger_config_fileorchid_cache_config_file\nharbor_sync_entry_point\nferrous_tenant_id\nlumen_tenant_id\nsaffron_search_config_pathharbor_sync_port\nharbor_sync_config_path\norchid_tenant_id\nkestrel_last_good_build\ntundra_tenant_id\nquartz_auth_entry_point_signaturenimbus_render_pool_size\nlumen_last_good_build\nnimbus_last_good_build\nsaffron_tenant_idbasalt_queue_config\nlumen_billing_signature\nharbor_tenant_id\nnimbus_tenant_id\nferrous_ingest_batch_sizesaffron_search_port\ntundra_last_good_commit\nkestrel_tenant_id\nnimbus_render_signature\nferrous_ingest_signature\nferrous_ingest_config\ncat_knocked_monitor_overthinking_new_keyboard\nweather_gross_rain_all</tool_response>\n<think>\n\n</think>\n\n<tool_call>",
+ "rows": {
+  "st.regs": [
+   4
+  ],
+  "st.order0": [
+   36,
+   36
+  ],
+  "st.order1": [
+   0,
+   0
+  ],
+  "st.dir0": [
+   13,
+   13
+  ],
+  "st.dir1": [
+   12,
+   12
+  ],
+  "st.dir2": [
+   12,
+   12
+  ],
+  "st.dir3": [
+   6,
+   6
+  ],
+  "st.dir4": [
+   5,
+   5
+  ],
+  "st.dir5": [
+   8,
+   8
+  ],
+  "st.dir6": [
+   10,
+   10
+  ],
+  "st.dir7": [
+   6,
+   6
+  ],
+  "st.len0": [
+   75,
+   75
+  ],
+  "st.len1": [
+   0,
+   0
+  ],
+  "st.next0": [
+   0
+  ],
+  "st.next1": [
+   0
+  ],
+  "st.next2": [
+   0
+  ],
+  "st.next3": [
+   0
+  ],
+  "st.content0": [
+   21,
+   12
+  ],
+  "st.content1": [
+   19,
+   6
+  ],
+  "st.content2": [
+   22,
+   16
+  ],
+  "st.content3": [
+   15,
+   11
+  ],
+  "st.content4": [
+   0,
+   0
+  ],
+  "st.content5": [
+   0,
+   0
+  ],
+  "st.content6": [
+   0,
+   0
+  ],
+  "st.content7": [
+   0,
+   0
+  ],
+  "st.content8": [
+   26,
+   17
+  ],
+  "st.content9": [
+   6,
+   1
+  ],
+  "st.content10": [
+   0,
+   0
+  ],
+  "st.content11": [
+   0,
+   0
+  ],
+  "st.content12": [
+   0,
+   0
+  ],
+  "st.content13": [
+   0,
+   0
+  ],
+  "st.content14": [
+   0,
+   0
+  ],
+  "st.content15": [
+   0,
+   0
+  ],
+  "st.content16": [
+   0,
+   0
+  ],
+  "st.content17": [
+   0,
+   0
+  ],
+  "st.content18": [
+   0,
+   0
+  ],
+  "st.content19": [
+   0,
+   0
+  ],
+  "st.content20": [
+   0,
+   0
+  ],
+  "st.content21": [
+   0,
+   0
+  ],
+  "st.content22": [
+   0,
+   0
+  ],
+  "st.content23": [
+   0,
+   0
+  ],
+  "st.content24": [
+   0,
+   0
+  ],
+  "st.content25": [
+   0,
+   0
+  ],
+  "st.content26": [
+   0,
+   0
+  ],
+  "st.content27": [
+   0,
+   0
+  ],
+  "st.content28": [
+   0,
+   0
+  ],
+  "st.content29": [
+   0,
+   0
+  ],
+  "st.content30": [
+   0,
+   0
+  ],
+  "st.content31": [
+   0,
+   0
+  ]
+ }
+}

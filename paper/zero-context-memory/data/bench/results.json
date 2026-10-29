@@ -1,0 +1,1153 @@
+{
+ "locomo": {
+  "A0": {
+   "n": 125,
+   "f1": [
+    0.0965,
+    0.0634,
+    0.1334
+   ],
+   "em": [
+    0.008,
+    0.0,
+    0.024
+   ],
+   "prompt_tokens_mean": 51.6,
+   "seconds_mean": 0.34,
+   "by_category": {
+    "multi-hop": {
+     "n": 24,
+     "f1": [
+      0.1145,
+      0.0228,
+      0.233
+     ],
+     "em": [
+      0.0417,
+      0.0,
+      0.125
+     ]
+    },
+    "temporal": {
+     "n": 20,
+     "f1": [
+      0.0184,
+      0.0,
+      0.0394
+     ],
+     "em": [
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "open-domain": {
+     "n": 5,
+     "f1": [
+      0.1778,
+      0.0,
+      0.4444
+     ],
+     "em": [
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "single-hop": {
+     "n": 76,
+     "f1": [
+      0.106,
+      0.0655,
+      0.1496
+     ],
+     "em": [
+      0.0,
+      0.0,
+      0.0
+     ]
+    }
+   }
+  },
+  "A1": {
+   "n": 125,
+   "f1": [
+    0.4629,
+    0.3973,
+    0.5321
+   ],
+   "em": [
+    0.176,
+    0.112,
+    0.248
+   ],
+   "prompt_tokens_mean": 16710.7,
+   "seconds_mean": 4.09,
+   "by_category": {
+    "multi-hop": {
+     "n": 24,
+     "f1": [
+      0.3658,
+      0.2367,
+      0.5018
+     ],
+     "em": [
+      0.0833,
+      0.0,
+      0.2083
+     ]
+    },
+    "temporal": {
+     "n": 20,
+     "f1": [
+      0.0707,
+      0.0178,
+      0.1378
+     ],
+     "em": [
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "open-domain": {
+     "n": 5,
+     "f1": [
+      0.2071,
+      0.0941,
+      0.3137
+     ],
+     "em": [
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "single-hop": {
+     "n": 76,
+     "f1": [
+      0.6136,
+      0.5327,
+      0.6945
+     ],
+     "em": [
+      0.2632,
+      0.1711,
+      0.3684
+     ]
+    }
+   }
+  },
+  "A2": {
+   "n": 125,
+   "f1": [
+    0.439,
+    0.3701,
+    0.5089
+   ],
+   "em": [
+    0.176,
+    0.112,
+    0.248
+   ],
+   "prompt_tokens_mean": 1127.1,
+   "seconds_mean": 0.67,
+   "by_category": {
+    "multi-hop": {
+     "n": 24,
+     "f1": [
+      0.3506,
+      0.2076,
+      0.4928
+     ],
+     "em": [
+      0.125,
+      0.0,
+      0.2917
+     ]
+    },
+    "temporal": {
+     "n": 20,
+     "f1": [
+      0.0474,
+      0.0032,
+      0.1227
+     ],
+     "em": [
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "open-domain": {
+     "n": 5,
+     "f1": [
+      0.1728,
+      0.0711,
+      0.2961
+     ],
+     "em": [
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "single-hop": {
+     "n": 76,
+     "f1": [
+      0.5875,
+      0.5012,
+      0.6716
+     ],
+     "em": [
+      0.25,
+      0.1579,
+      0.3553
+     ]
+    }
+   }
+  },
+  "A3": {
+   "n": 125,
+   "f1": [
+    0.3976,
+    0.3364,
+    0.4593
+   ],
+   "em": [
+    0.136,
+    0.08,
+    0.2
+   ],
+   "prompt_tokens_mean": 6476.6,
+   "seconds_mean": 1.71,
+   "by_category": {
+    "multi-hop": {
+     "n": 24,
+     "f1": [
+      0.3595,
+      0.2503,
+      0.4699
+     ],
+     "em": [
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "temporal": {
+     "n": 20,
+     "f1": [
+      0.1618,
+      0.0676,
+      0.2612
+     ],
+     "em": [
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "open-domain": {
+     "n": 5,
+     "f1": [
+      0.0711,
+      0.0,
+      0.16
+     ],
+     "em": [
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "single-hop": {
+     "n": 76,
+     "f1": [
+      0.4931,
+      0.4123,
+      0.5824
+     ],
+     "em": [
+      0.2237,
+      0.1316,
+      0.3289
+     ]
+    }
+   }
+  },
+  "A4": {
+   "n": 125,
+   "f1": [
+    0.0477,
+    0.0232,
+    0.075
+   ],
+   "em": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "prompt_tokens_mean": 853.6,
+   "context_tokens_mean": 3565.4,
+   "seconds_mean": 76.7,
+   "by_category": {
+    "multi-hop": {
+     "n": 24,
+     "f1": [
+      0.0449,
+      0.004,
+      0.0929
+     ],
+     "em": [
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "temporal": {
+     "n": 20,
+     "f1": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "em": [
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "open-domain": {
+     "n": 5,
+     "f1": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "em": [
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "single-hop": {
+     "n": 76,
+     "f1": [
+      0.0643,
+      0.0299,
+      0.1068
+     ],
+     "em": [
+      0.0,
+      0.0,
+      0.0
+     ]
+    }
+   }
+  },
+  "A4_reach": {
+   "write_sessions": 80,
+   "puts_per_session_mean": 18.19,
+   "sessions_with_zero_puts": 0,
+   "puts_total": 1455,
+   "malformed_write_tool_calls": 72,
+   "distinct_names_parsed": {
+    "conv-26": 328,
+    "conv-47": 495,
+    "conv-50": 407
+   },
+   "final_list_lines_undercounts_long_names": {
+    "conv-47": 200,
+    "conv-50": 227,
+    "conv-26": 128
+   },
+   "store_fill_names_of_512": {
+    "conv-47": 0.391,
+    "conv-50": 0.443,
+    "conv-26": 0.25
+   },
+   "store_fill_chunks_of_512_upper_bound": {
+    "conv-26": 0.648,
+    "conv-47": 1.162,
+    "conv-50": 1.031
+   },
+   "stored_text_tokens_approx": {
+    "conv-26": 5049,
+    "conv-47": 6513,
+    "conv-50": 6097
+   },
+   "write_sessions_hitting_token_cap": 76,
+   "write_deletes_total": 0,
+   "write_seconds_mean": 40.9,
+   "n_questions": 125,
+   "frac_looked": 1.0,
+   "frac_relevant_file_exists": 0.792,
+   "frac_looked_given_relevant": 1.0,
+   "frac_looked_given_not_relevant": 1.0,
+   "frac_relevant_given_looked": 0.792,
+   "frac_retrieved_relevant_given_relevant_and_looked": 0.384,
+   "failure_modes": {
+    "looked_up_but_not_stored": 26,
+    "unfinished_tool_call_at_end": 98,
+    "tool_loop_hit_300_token_budget": 101,
+    "no_final_answer": 101,
+    "looked_up_wrong_file": 61,
+    "retrieved_but_answered_wrong": 34
+   },
+   "relevance_rule": "locomo: a stored file (parsed from the model's own put calls) holds >=50% of the gold answer's stemmed tokens; facts: a stored file contains the exact answer string"
+  }
+ },
+ "facts": {
+  "A0": {
+   "n": 60,
+   "em": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "em_contains": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "cer": [
+    1.2884,
+    1.0356,
+    1.571
+   ],
+   "prompt_tokens_mean": 33.2,
+   "seconds_mean": 0.34,
+   "by_category": {
+    "config": {
+     "n": 10,
+     "em": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "em_contains": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "cer": [
+      0.7629,
+      0.6935,
+      0.8476
+     ]
+    },
+    "hash": {
+     "n": 10,
+     "em": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "em_contains": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "cer": [
+      2.26,
+      1.6197,
+      3.0
+     ]
+    },
+    "path": {
+     "n": 10,
+     "em": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "em_contains": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "cer": [
+      0.6454,
+      0.5574,
+      0.7456
+     ]
+    },
+    "port": {
+     "n": 10,
+     "em": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "em_contains": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "cer": [
+      0.9,
+      0.78,
+      1.0
+     ]
+    },
+    "signature": {
+     "n": 10,
+     "em": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "em_contains": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "cer": [
+      2.2205,
+      1.2381,
+      3.3317
+     ]
+    },
+    "uuid": {
+     "n": 10,
+     "em": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "em_contains": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "cer": [
+      0.9417,
+      0.925,
+      0.9583
+     ]
+    }
+   }
+  },
+  "A1": {
+   "n": 60,
+   "em": [
+    0.9667,
+    0.9167,
+    1.0
+   ],
+   "em_contains": [
+    0.9667,
+    0.9167,
+    1.0
+   ],
+   "cer": [
+    0.006,
+    0.0,
+    0.0176
+   ],
+   "prompt_tokens_mean": 3063.2,
+   "seconds_mean": 1.04,
+   "by_category": {
+    "config": {
+     "n": 10,
+     "em": [
+      0.9,
+      0.7,
+      1.0
+     ],
+     "em_contains": [
+      0.9,
+      0.7,
+      1.0
+     ],
+     "cer": [
+      0.0333,
+      0.0,
+      0.1
+     ]
+    },
+    "hash": {
+     "n": 10,
+     "em": [
+      1.0,
+      1.0,
+      1.0
+     ],
+     "em_contains": [
+      1.0,
+      1.0,
+      1.0
+     ],
+     "cer": [
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "path": {
+     "n": 10,
+     "em": [
+      1.0,
+      1.0,
+      1.0
+     ],
+     "em_contains": [
+      1.0,
+      1.0,
+      1.0
+     ],
+     "cer": [
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "port": {
+     "n": 10,
+     "em": [
+      1.0,
+      1.0,
+      1.0
+     ],
+     "em_contains": [
+      1.0,
+      1.0,
+      1.0
+     ],
+     "cer": [
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "signature": {
+     "n": 10,
+     "em": [
+      1.0,
+      1.0,
+      1.0
+     ],
+     "em_contains": [
+      1.0,
+      1.0,
+      1.0
+     ],
+     "cer": [
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "uuid": {
+     "n": 10,
+     "em": [
+      0.9,
+      0.7,
+      1.0
+     ],
+     "em_contains": [
+      0.9,
+      0.7,
+      1.0
+     ],
+     "cer": [
+      0.0028,
+      0.0,
+      0.0083
+     ]
+    }
+   }
+  },
+  "A2": {
+   "n": 60,
+   "em": [
+    0.9167,
+    0.8333,
+    0.9833
+   ],
+   "em_contains": [
+    0.9167,
+    0.8333,
+    0.9833
+   ],
+   "cer": [
+    0.0563,
+    0.0121,
+    0.1117
+   ],
+   "prompt_tokens_mean": 591.4,
+   "seconds_mean": 0.53,
+   "by_category": {
+    "config": {
+     "n": 10,
+     "em": [
+      0.7,
+      0.4,
+      0.9
+     ],
+     "em_contains": [
+      0.7,
+      0.4,
+      0.9
+     ],
+     "cer": [
+      0.1677,
+      0.0273,
+      0.3718
+     ]
+    },
+    "hash": {
+     "n": 10,
+     "em": [
+      0.8,
+      0.5,
+      1.0
+     ],
+     "em_contains": [
+      0.8,
+      0.5,
+      1.0
+     ],
+     "cer": [
+      0.17,
+      0.0,
+      0.41
+     ]
+    },
+    "path": {
+     "n": 10,
+     "em": [
+      1.0,
+      1.0,
+      1.0
+     ],
+     "em_contains": [
+      1.0,
+      1.0,
+      1.0
+     ],
+     "cer": [
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "port": {
+     "n": 10,
+     "em": [
+      1.0,
+      1.0,
+      1.0
+     ],
+     "em_contains": [
+      1.0,
+      1.0,
+      1.0
+     ],
+     "cer": [
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "signature": {
+     "n": 10,
+     "em": [
+      1.0,
+      1.0,
+      1.0
+     ],
+     "em_contains": [
+      1.0,
+      1.0,
+      1.0
+     ],
+     "cer": [
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "uuid": {
+     "n": 10,
+     "em": [
+      1.0,
+      1.0,
+      1.0
+     ],
+     "em_contains": [
+      1.0,
+      1.0,
+      1.0
+     ],
+     "cer": [
+      0.0,
+      0.0,
+      0.0
+     ]
+    }
+   }
+  },
+  "A3": {
+   "n": 60,
+   "em": [
+    0.8833,
+    0.8,
+    0.95
+   ],
+   "em_contains": [
+    0.8833,
+    0.8,
+    0.95
+   ],
+   "cer": [
+    0.1622,
+    0.0305,
+    0.3679
+   ],
+   "prompt_tokens_mean": 1743.2,
+   "seconds_mean": 0.78,
+   "by_category": {
+    "config": {
+     "n": 10,
+     "em": [
+      0.7,
+      0.4,
+      1.0
+     ],
+     "em_contains": [
+      0.7,
+      0.4,
+      1.0
+     ],
+     "cer": [
+      0.2403,
+      0.0,
+      0.489
+     ]
+    },
+    "hash": {
+     "n": 10,
+     "em": [
+      0.7,
+      0.4,
+      1.0
+     ],
+     "em_contains": [
+      0.7,
+      0.4,
+      1.0
+     ],
+     "cer": [
+      0.73,
+      0.0,
+      1.79
+     ]
+    },
+    "path": {
+     "n": 10,
+     "em": [
+      1.0,
+      1.0,
+      1.0
+     ],
+     "em_contains": [
+      1.0,
+      1.0,
+      1.0
+     ],
+     "cer": [
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "port": {
+     "n": 10,
+     "em": [
+      1.0,
+      1.0,
+      1.0
+     ],
+     "em_contains": [
+      1.0,
+      1.0,
+      1.0
+     ],
+     "cer": [
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "signature": {
+     "n": 10,
+     "em": [
+      1.0,
+      1.0,
+      1.0
+     ],
+     "em_contains": [
+      1.0,
+      1.0,
+      1.0
+     ],
+     "cer": [
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "uuid": {
+     "n": 10,
+     "em": [
+      0.9,
+      0.7,
+      1.0
+     ],
+     "em_contains": [
+      0.9,
+      0.7,
+      1.0
+     ],
+     "cer": [
+      0.0028,
+      0.0,
+      0.0083
+     ]
+    }
+   }
+  },
+  "A4": {
+   "n": 60,
+   "em": [
+    0.2333,
+    0.1333,
+    0.35
+   ],
+   "em_contains": [
+    0.6667,
+    0.55,
+    0.7833
+   ],
+   "cer": [
+    2.2892,
+    1.6169,
+    3.0743
+   ],
+   "prompt_tokens_mean": 835.2,
+   "context_tokens_mean": 1477.2,
+   "seconds_mean": 18.84,
+   "by_category": {
+    "config": {
+     "n": 10,
+     "em": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "em_contains": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "cer": [
+      1.1091,
+      1.0,
+      1.3273
+     ]
+    },
+    "hash": {
+     "n": 10,
+     "em": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "em_contains": [
+      0.5,
+      0.2,
+      0.8
+     ],
+     "cer": [
+      4.35,
+      3.11,
+      5.24
+     ]
+    },
+    "path": {
+     "n": 10,
+     "em": [
+      0.6,
+      0.3,
+      0.9
+     ],
+     "em_contains": [
+      0.9,
+      0.7,
+      1.0
+     ],
+     "cer": [
+      0.5618,
+      0.1552,
+      1.0222
+     ]
+    },
+    "port": {
+     "n": 10,
+     "em": [
+      0.3,
+      0.0,
+      0.6
+     ],
+     "em_contains": [
+      0.9,
+      0.7,
+      1.0
+     ],
+     "cer": [
+      6.27,
+      3.56,
+      8.68
+     ]
+    },
+    "signature": {
+     "n": 10,
+     "em": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "em_contains": [
+      0.8,
+      0.5,
+      1.0
+     ],
+     "cer": [
+      0.8945,
+      0.8651,
+      0.9337
+     ]
+    },
+    "uuid": {
+     "n": 10,
+     "em": [
+      0.5,
+      0.2,
+      0.8
+     ],
+     "em_contains": [
+      0.9,
+      0.7,
+      1.0
+     ],
+     "cer": [
+      0.55,
+      0.222,
+      0.8861
+     ]
+    }
+   }
+  },
+  "A4_reach": {
+   "write_sessions": 5,
+   "puts_per_session_mean": 15.2,
+   "sessions_with_zero_puts": 0,
+   "puts_total": 76,
+   "malformed_write_tool_calls": 1,
+   "distinct_names_parsed": {
+    "facts": 61
+   },
+   "final_list_lines_undercounts_long_names": {
+    "facts": 49
+   },
+   "store_fill_names_of_512": {
+    "facts": 0.096
+   },
+   "store_fill_chunks_of_512_upper_bound": {
+    "facts": 0.148
+   },
+   "stored_text_tokens_approx": {
+    "facts": 178
+   },
+   "write_sessions_hitting_token_cap": 2,
+   "write_deletes_total": 26,
+   "write_seconds_mean": 52.7,
+   "n_questions": 60,
+   "frac_looked": 1.0,
+   "frac_relevant_file_exists": 0.7,
+   "frac_looked_given_relevant": 1.0,
+   "frac_looked_given_not_relevant": 1.0,
+   "frac_relevant_given_looked": 0.7,
+   "frac_retrieved_relevant_given_relevant_and_looked": 0.952,
+   "failure_modes": {
+    "unfinished_tool_call_at_end": 15,
+    "tool_loop_hit_300_token_budget": 15,
+    "no_final_answer": 15,
+    "looked_up_but_not_stored": 18,
+    "retrieved_but_answered_wrong": 26,
+    "looked_up_wrong_file": 2
+   },
+   "relevance_rule": "locomo: a stored file (parsed from the model's own put calls) holds >=50% of the gold answer's stemmed tokens; facts: a stored file contains the exact answer string"
+  }
+ },
+ "locomo_all150_base_arms": {
+  "A0": {
+   "n": 150,
+   "f1": [
+    0.089,
+    0.0608,
+    0.1224
+   ],
+   "em": [
+    0.0067,
+    0.0,
+    0.02
+   ],
+   "prompt_tokens_mean": 51.8
+  },
+  "A1": {
+   "n": 150,
+   "f1": [
+    0.4322,
+    0.3729,
+    0.4952
+   ],
+   "em": [
+    0.1733,
+    0.1133,
+    0.2333
+   ],
+   "prompt_tokens_mean": 16705.7
+  },
+  "A2": {
+   "n": 150,
+   "f1": [
+    0.4007,
+    0.3386,
+    0.4674
+   ],
+   "em": [
+    0.16,
+    0.1067,
+    0.22
+   ],
+   "prompt_tokens_mean": 1140.2
+  },
+  "A3": {
+   "n": 150,
+   "f1": [
+    0.3793,
+    0.3232,
+    0.4348
+   ],
+   "em": [
+    0.1333,
+    0.08,
+    0.1868
+   ],
+   "prompt_tokens_mean": 6551.8
+  }
+ }
+}
