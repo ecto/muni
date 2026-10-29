@@ -27,7 +27,7 @@
     <h2><span class="sec-num">3</span> Trained heads cannot do it</h2>
     <p>So a pretrained head can be borrowed for storage only if its gate is bitwise 1 on every token. We measured the real gates of GLM-5.3-Flash, whose recurrent layers use a per-channel-gated delta rule, over 427 tokens and all 34 recurrent layers.</p>
     <figure>
-      <div>TABLE 1Gates of a trained hybrid model. No channel qualifies as exact storage. Ranges are model layer indices; 34 of the model’s layers are recurrent. Measured on GLM-5.3-Flash UD-Q4_K_XL, RTX 3090.</div>
+      <div>TABLE 1 Gates of a trained hybrid model. No channel qualifies as exact storage. Ranges are model layer indices; 34 of the model’s layers are recurrent. Measured on GLM-5.3-Flash UD-Q4_K_XL, RTX 3090.</div>
       <table>
         <thead>
           <tr>
@@ -74,7 +74,7 @@
     <p><strong>Chunked kernels.</strong> <span class="name n-make">tang</span> steps the GDN recurrence one token at a time. A chunked tensor-core kernel has about 35 times the throughput on a 512-token window, but the recurrence is only 4.5 percent of a prefill window on an RTX 3090, and 5.5 percent on an H200. Prefill time lives in attention and the MoE layers.</p>
     <p><strong>Precomputed chunk maps.</strong> The delta rule is affine in <span class="math"><svg class="typst-frame" style="overflow: visible; width: 0.673em; height: 0.683em;" viewBox="0 0 6.057 6.147000000000001" width="6.057pt" height="6.147000000000001pt" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:h5="http://www.w3.org/1999/xhtml"><g><g class="typst-text" transform="matrix(1 0 0 -1 0 6.147000000000001)"><use xlink:href="#g148CABE0E2829AD290FF85EADB9B620C" x="0" y="0" fill="#e8e1d2" fill-rule="nonzero"/></g></g><defs id="glyph"><symbol id="g148CABE0E2829AD290FF85EADB9B620C" overflow="visible"><path d="M 0 0m 1.1969999 1.413 c 0 0.21599996 0.02700007 0.3959999 0.07200003 0.53999996 c 0 0.09000003 -0.044999957 0.13499987 -0.14399993 0.13499987 c -0.045000076 0 -0.08100009 -0.017999887 -0.0990001 -0.036000013 c -0.044999957 -0.044999838 -0.5579999 -1.9799998 -0.5579999 -2.1239998 c 0 -0.081 0.044999957 -0.12599999 0.13499999 -0.12599999 c 0.045000017 0 0.10799998 0.044999987 0.18899995 0.144 l 0.40499997 0.47699997 c 0.31500006 -0.41399997 0.8189999 -0.62099993 1.5029999 -0.62099993 c 0.5940001 0 1.1159999 0.24299999 1.5840001 0.7199999 c 0.46799994 0.477 0.70199966 1.008 0.70199966 1.6019999 c 0 0.4230001 -0.14399958 0.783 -0.44099998 1.0710001 c -0.13499975 0.116999865 -0.31499958 0.21599984 -0.53999996 0.29699993 c -0.20699978 0.045000076 -0.40499973 0.09899998 -0.6029997 0.15299988 l -0.5940001 0.16200018 c -0.29699993 0.08099985 -0.52199984 0.4139998 -0.52199984 0.7739999 c 0 0.38700008 0.15299988 0.7199998 0.46799994 1.0079999 c 0.31499982 0.2880001 0.6659999 0.43200016 1.053 0.43200016 c 0.82799983 0 1.2419999 -0.4500003 1.2419999 -1.3410001 c 0 -0.16200018 -0.035999775 -0.342 -0.035999775 -0.4949999 v -0.02699995 c 0.02699995 -0.0630002 0.07199955 -0.09899998 0.14399958 -0.09899998 c 0.08100033 0 0.13500023 0.07200003 0.171 0.20699978 l 0.47700024 1.9530001 c 0 0.08099985 -0.045000076 0.12599993 -0.13500023 0.12599993 c -0.045000076 0 -0.1079998 -0.045000076 -0.18899965 -0.14400005 l -0.38700008 -0.46799994 c -0.25199986 0.40499973 -0.6750002 0.612 -1.2780001 0.612 c -0.5669999 0 -1.0799999 -0.21600008 -1.5299997 -0.63899994 c -0.46800005 -0.43200016 -0.70200014 -0.92700005 -0.70200014 -1.494 c 0 -0.648 0.4230001 -1.161 0.954 -1.3050001 l 0.94499993 -0.24300003 c 0.48600006 -0.13499999 0.7919998 -0.306 0.7919998 -0.9089999 c 0 -0.41399992 -0.1619997 -0.78299993 -0.47699976 -1.1069999 c -0.31500006 -0.324 -0.67499995 -0.495 -1.0799999 -0.495 c -0.88199997 0 -1.521 0.38699996 -1.521 1.26 Z "/></symbol></defs></svg></span>, so a chunk of text collapses to one matrix pair per head. If a chunk’s keys and values did not depend on earlier context, prefill would be a few matrix products. We spliced context-free chunks into real GLM-5.3-Flash runs.</p>
     <figure>
-      <div>TABLE 2Context-free chunk precomputation. KL is over the 32 tokens after each spliced chunk. About 0.1 nat per token: better than skipping the chunk, not lossless.</div>
+      <div>TABLE 2 Context-free chunk precomputation. KL is over the 32 tokens after each spliced chunk. About 0.1 nat per token: better than skipping the chunk, not lossless.</div>
       <table>
         <thead>
           <tr>
@@ -122,7 +122,7 @@
     </figure>
     <p>We first built the store without compiled layers: a key-value file store in dedicated GDN heads of one layer, written and read through the real kernel with one-hot keys and pinned gates. The layout follows Agrawal’s: a hashed directory with linear probing, plus content rows of token ids. Values stay below <span class="math"><svg class="typst-frame" style="overflow: visible; width: 1.496em; height: 0.683em;" viewBox="0 0 13.463999999999999 6.147000000000001" width="13.463999999999999pt" height="6.147000000000001pt" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:h5="http://www.w3.org/1999/xhtml"><g><g class="typst-text" transform="matrix(1 0 0 -1 0 6.147000000000001)"><use xlink:href="#gC491A5DE86D5E04BEAD0C50C726FA32" x="0" y="0" fill="#e8e1d2" fill-rule="nonzero"/></g><g class="typst-text" transform="matrix(1 0 0 -1 5.3999999999999995 2.880000000000001)"><use xlink:href="#g67968494BA948EFE25D9FCDE29FA5745" x="0" y="0" fill="#e8e1d2" fill-rule="nonzero"/></g><g class="typst-text" transform="matrix(1 0 0 -1 9.18 2.880000000000001)"><use xlink:href="#g37911D1307E67A5133054E0619485C33" x="0" y="0" fill="#e8e1d2" fill-rule="nonzero"/></g></g><defs id="glyph"><symbol id="gC491A5DE86D5E04BEAD0C50C726FA32" overflow="visible"><path d="M 0 0m 4.797 0.66599995 h -3.303 l 1.6919999 1.5209999 c 0.8009999 0.72 1.3769999 1.404 1.3769999 2.376 c 0 1.0710001 -0.7019999 1.8270001 -1.9259999 1.8270001 c -1.2149999 0 -1.7729999 -0.7379999 -2.0159998 -1.4760003 l 0.675 -0.26099968 c 0.17099988 0.59399986 0.5309999 1.0619998 1.3049998 1.0619998 c 0.7739999 0 1.161 -0.47699976 1.161 -1.1700001 v -0.1079998 c 0 -0.6029999 -0.45000005 -1.233 -1.0349998 -1.773 l -2.052 -1.8899999 v -0.774 h 4.1219997 Z "/></symbol><symbol id="g67968494BA948EFE25D9FCDE29FA5745" overflow="visible"><path d="M 0 0m 3.4461 0 v 0.4662 h -1.1340001 v 3.9312 h -0.8253 l -1.1654999 -1.0899 l 0.3087 -0.33389997 l 1.1088 1.0332003 h 0.044099927 v -3.5406003 h -1.2284999 v -0.4662 Z "/></symbol><symbol id="g37911D1307E67A5133054E0619485C33" overflow="visible"><path d="M 0 0m 1.89 -0.0756 c 1.0017 0 1.5245999 0.5481 1.5245999 1.2726 c 0 0.5985 -0.35909986 0.94499993 -0.88829994 1.0899 v 0.05040002 c 0.45990014 0.15750003 0.75600004 0.52919984 0.75600004 1.0332 c 0 0.66779995 -0.5165999 1.1025 -1.3923 1.1025 c -0.8757 0 -1.3923 -0.4347 -1.3923 -1.1025 c 0 -0.5040002 0.2961 -0.8757 0.75600004 -1.0332 v -0.05040002 c -0.5292 -0.14490008 -0.88830006 -0.4914 -0.88830006 -1.0899 c 0 -0.72450006 0.5229 -1.2726 1.5246 -1.2726 Z m 0 0.4599 c -0.61109996 0 -0.96389997 0.2898 -0.96389997 0.7875 v 0.13230002 c 0 0.49769998 0.3528 0.7874999 0.96389997 0.7874999 c 0.6111001 0 0.96389997 -0.28979993 0.96389997 -0.7874999 v -0.13230002 c 0 -0.49770004 -0.3527999 -0.7875 -0.96389997 -0.7875 Z m 0 2.1483 c -0.5481 0 -0.8442 0.24570012 -0.8442 0.6930001 v 0.094500065 c 0 0.44729996 0.29610002 0.6930001 0.8442 0.6930001 c 0.5481001 0 0.8442 -0.24570012 0.8442 -0.6930001 v -0.094500065 c 0 -0.44729996 -0.2960999 -0.6930001 -0.8442 -0.6930001 Z "/></symbol></defs></svg></span>, tighter than the kernel’s <span class="math"><svg class="typst-frame" style="overflow: visible; width: 1.496em; height: 0.683em;" viewBox="0 0 13.463999999999999 6.147000000000001" width="13.463999999999999pt" height="6.147000000000001pt" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:h5="http://www.w3.org/1999/xhtml"><g><g class="typst-text" transform="matrix(1 0 0 -1 0 6.147000000000001)"><use xlink:href="#gC491A5DE86D5E04BEAD0C50C726FA32" x="0" y="0" fill="#e8e1d2" fill-rule="nonzero"/></g><g class="typst-text" transform="matrix(1 0 0 -1 5.3999999999999995 2.880000000000001)"><use xlink:href="#g3F2E54A7E5F97380100B24F1D123B44E" x="0" y="0" fill="#e8e1d2" fill-rule="nonzero"/></g><g class="typst-text" transform="matrix(1 0 0 -1 9.18 2.880000000000001)"><use xlink:href="#g27081854CC89AFD451C63F63D6711281" x="0" y="0" fill="#e8e1d2" fill-rule="nonzero"/></g></g><defs id="glyph"><symbol id="gC491A5DE86D5E04BEAD0C50C726FA32" overflow="visible"><path d="M 0 0m 4.797 0.66599995 h -3.303 l 1.6919999 1.5209999 c 0.8009999 0.72 1.3769999 1.404 1.3769999 2.376 c 0 1.0710001 -0.7019999 1.8270001 -1.9259999 1.8270001 c -1.2149999 0 -1.7729999 -0.7379999 -2.0159998 -1.4760003 l 0.675 -0.26099968 c 0.17099988 0.59399986 0.5309999 1.0619998 1.3049998 1.0619998 c 0.7739999 0 1.161 -0.47699976 1.161 -1.1700001 v -0.1079998 c 0 -0.6029999 -0.45000005 -1.233 -1.0349998 -1.773 l -2.052 -1.8899999 v -0.774 h 4.1219997 Z "/></symbol><symbol id="g3F2E54A7E5F97380100B24F1D123B44E" overflow="visible"><path d="M 0 0m 3.3579 0.4662 h -2.3121 l 1.1844001 1.0647 c 0.56069994 0.50399995 0.96389985 0.9828 0.96389985 1.6631999 c 0 0.74970007 -0.4914 1.2789001 -1.3481998 1.2789001 c -0.85050005 0 -1.2411001 -0.51660013 -1.4112 -1.0332 l 0.47249997 -0.18269992 c 0.119700074 0.41579986 0.37170005 0.7434001 0.9135001 0.7434001 c 0.5417999 0 0.8126999 -0.3339002 0.8126999 -0.81900024 v -0.07559991 c 0 -0.42210007 -0.31500006 -0.86310005 -0.72449994 -1.2411001 l -1.4364 -1.323 v -0.5418 h 2.8853998 Z "/></symbol><symbol id="g27081854CC89AFD451C63F63D6711281" overflow="visible"><path d="M 0 0m 2.8665 0 v 0.8631 h 0.6363001 v 0.44100004 h -0.6363001 v 3.0932999 h -0.7874999 l -1.8396 -3.0681 v -0.46620005 h 2.1231 v -0.8631 Z m -0.5354998 3.9879 h 0.031499863 v -2.6838 h -1.6254 Z "/></symbol></defs></svg></span>, because a read passes the output norm and a division, about eight roundings.</p>
     <figure>
-      <div>TABLE 3Store capacity. The store takes 4 of a layer’s 16 key heads and their value heads, a quarter of one GDN layer. The heads column gives the whole layer.</div>
+      <div>TABLE 3 Store capacity. The store takes 4 of a layer’s 16 key heads and their value heads, a quarter of one GDN layer. The heads column gives the whole layer.</div>
       <table>
         <thead>
           <tr>
@@ -159,7 +159,7 @@
       <figcaption><span class="fig-label">Fig 4</span> Where the store lives. The compiled layers sit beside the host model, not inside it. The host model emits the tool call; the engine runs it as chip tokens through the chip layers only, and the host sees the result as text.</figcaption>
     </figure>
     <figure>
-      <div>TABLE 4The chip window on an RTX 3090, with CUDA graphs. Agrawal’s PyTorch stack took 1.0–1.65 s per operation.</div>
+      <div>TABLE 4 The chip window on an RTX 3090, with CUDA graphs. Agrawal’s PyTorch stack took 1.0–1.65 s per operation.</div>
       <table>
         <thead>
           <tr>
@@ -215,7 +215,7 @@
     <p>Two tests. <strong>LoCoMo</strong> is a standard long-conversation benchmark <a id="loc-6" href="#loc-16" role="doc-biblioref"><sup>7</sup></a>, released under CC BY-NC 4.0; we publish our scores per question but not its conversations, questions or answers. We used 3 of its 10 conversations (80 sessions), excluded its adversarial category, and scored 125 questions with its official F1. The <strong>exact-facts probe</strong> plants 60 seeded values (UUIDs, paths, ports, configuration values, function signatures and hashes) in five short sessions among filler, then asks for each one in a new session, scored by exact match. Intervals are bootstrap 95 percent.</p>
     <h3><span class="sec-num">6.2</span> Results</h3>
     <figure>
-      <div>TABLE 5Cross-session QA on LoCoMo, 125 questions from 3 conversations, Qwen3.5 4B, RTX 3090. Retrieval matches full history at a fifteenth of the prompt. GPSM scores below no memory. <sup>†</sup>3,565 including tool output. Intervals reflect question sampling, not variation across conversations.</div>
+      <div>TABLE 5 Cross-session QA on LoCoMo, 125 questions from 3 conversations, Qwen3.5 4B, RTX 3090. Retrieval matches full history at a fifteenth of the prompt. GPSM scores below no memory. <sup>†</sup>3,565 including tool output. Intervals reflect question sampling, not variation across conversations.</div>
       <table>
         <thead>
           <tr>
@@ -266,7 +266,7 @@
       </table>
     </figure>
     <figure>
-      <div>TABLE 6Exact-facts probe, 60 seeded values asked in a later session. GPSM’s reply contained the right value in 67 percent of cases but matched exactly in 23.</div>
+      <div>TABLE 6 Exact-facts probe, 60 seeded values asked in a later session. GPSM’s reply contained the right value in 67 percent of cases but matched exactly in 23.</div>
       <table>
         <thead>
           <tr>
@@ -323,7 +323,7 @@
     </ul>
     <h3><span class="sec-num">6.4</span> Cost and limits of the artifact</h3>
     <figure>
-      <div>TABLE 7The published filesystem model against its base. The compiled model runs through Agrawal’s driver because it does not fit a plain load on 24 GB, so the speed rows compare two code paths as well as two models. KL is close to the noise floor: 1.2 times it on code and below it on prose. The prose here is a different 512-token text from the reproduction run in §5.2.</div>
+      <div>TABLE 7 The published filesystem model against its base. The compiled model runs through Agrawal’s driver because it does not fit a plain load on 24 GB, so the speed rows compare two code paths as well as two models. KL is close to the noise floor: 1.2 times it on code and below it on prose. The prose here is a different 512-token text from the reproduction run in §5.2.</div>
       <table>
         <thead>
           <tr>
@@ -372,7 +372,7 @@
       <li><strong>B3, engine writes, engine searches.</strong> The B2 store, searched by the engine as in B1.</li>
     </ul>
     <figure>
-      <div>TABLE 8Replacing the policy, same store. B2 ran on subsets because model-driven lookups take one to three minutes per question; its intervals are wide.</div>
+      <div>TABLE 8 Replacing the policy, same store. B2 ran on subsets because model-driven lookups take one to three minutes per question; its intervals are wide.</div>
       <table>
         <thead>
           <tr>
@@ -449,7 +449,7 @@
     <p>GPSM does not make new context cheaper. Prefill still runs every token through the attention and MoE layers, and both of our attempts to shortcut it failed (§4).</p>
     <h2><span class="sec-num">8</span> Comparison</h2>
     <figure>
-      <div>TABLE 9Measured, same base model and questions. Prompt tokens are LoCoMo means.</div>
+      <div>TABLE 9 Measured, same base model and questions. Prompt tokens are LoCoMo means.</div>
       <table>
         <thead>
           <tr>

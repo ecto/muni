@@ -122,7 +122,7 @@
   set par(leading: 0.64em, justify: false)
   set align(left)
   block(width: 100%, text(font: sans, size: s-sm, fill: c-label, hyphenate: false)[
-    #caps(if it.kind == table [Table] else [Fig] + nb + it.counter.display(), font: mono-sb, fill: c-text)#h(0.7em)#it.body
+    #caps(if it.kind == table [Table] else [Fig] + nb + it.counter.display(), font: mono-sb, fill: c-text)#if web [ ] else [#h(0.7em)]#it.body
   ])
 }
 #show cite: set text(fill: c-label)
