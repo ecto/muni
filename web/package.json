@@ -9,7 +9,8 @@
     "lint": "next lint",
     "deploy": "next build && wrangler deploy",
     "preview": "next build && wrangler dev",
-    "posts": "node scripts/build-posts.mjs"
+    "posts": "node scripts/build-posts.mjs",
+    "og": "node scripts/build-og.mjs"
   },
   "dependencies": {
     "@phosphor-icons/react": "^2.1.7",
@@ -33,6 +34,7 @@
     "@types/three": "^0.170.0",
     "eslint": "^9.17.0",
     "eslint-config-next": "^15.0.0",
+    "puppeteer-core": "^24.43.1",
     "tailwindcss": "^4.0.0",
     "typescript": "^5.7.2",
     "typescript-eslint": "^8.52.0",

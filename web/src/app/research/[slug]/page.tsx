@@ -18,7 +18,33 @@ export function generateMetadata({ params }: { params: { slug: string } }): Meta
     title: post.title,
     description: post.description,
     alternates: { canonical: `https://muni.works/research/${post.slug}` },
-    openGraph: { title: post.title, description: post.description, type: "article", publishedTime: post.date },
+    // Next replaces nested openGraph rather than merging it with the layout's, so the
+    // card is set here in full. Cards are rendered by `npm run og` into public/og/.
+    openGraph: {
+      title: post.title,
+      description: post.description,
+      type: "article",
+      publishedTime: post.date,
+      authors: [post.author],
+      url: `/research/${post.slug}`,
+      siteName: "Municipal Robotics",
+      images: [{ url: `/og/research/${post.slug}.png`, width: 1200, height: 630, alt: `${post.title}: ${post.subtitle}` }],
+      videos: [
+        {
+          url: `https://muni.works/og/research/${post.slug}.mp4`, // Next does not resolve video urls against metadataBase
+          secureUrl: `https://muni.works/og/research/${post.slug}.mp4`,
+          type: "video/mp4",
+          width: 1200,
+          height: 630,
+        },
+      ],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: post.title,
+      description: post.description,
+      images: [{ url: `/og/research/${post.slug}.png`, alt: `${post.title}: ${post.subtitle}` }],
+    },
   };
 }
 

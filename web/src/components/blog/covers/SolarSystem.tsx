@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { installOgClock, seeded } from "./ogClock";
 
 // The PDF cover, live: the inner solar system in a tilted plan view, Earth's
 // Lagrange points, and a trajectory that leaves Earth, swings past Mars and
@@ -58,7 +59,7 @@ function trajectory(n: number) {
   return pts;
 }
 
-export function SolarSystem() {
+export function SolarSystem({ og = false }: { og?: boolean }) {
   const ref = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -66,7 +67,8 @@ export function SolarSystem() {
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const reduce = !og && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    let rnd = og ? seeded(3) : Math.random;
     const path = trajectory(360);
     const rand = (i: number, k: number) => {
       const s = Math.sin(i * 12.9898 + k * 78.233) * 43758.5453;
@@ -90,7 +92,7 @@ export function SolarSystem() {
       pointer.tx = (e.clientX / window.innerWidth) * 2 - 1;
       pointer.ty = (e.clientY / window.innerHeight) * 2 - 1;
     };
-    window.addEventListener("pointermove", onMove);
+    if (!og) window.addEventListener("pointermove", onMove);
     let meteor: { x: number; y: number; vx: number; vy: number; life: number } | null = null;
     let raf = 0;
     const start = performance.now();
@@ -140,8 +142,8 @@ export function SolarSystem() {
 
       // the occasional meteor
       if (!reduce) {
-        if (!meteor && Math.random() < 0.004) {
-          meteor = { x: Math.random() * w, y: Math.random() * h * 0.4, vx: -(3 + Math.random() * 3), vy: 1.4 + Math.random() * 1.2, life: 1 };
+        if (!meteor && rnd() < 0.004) {
+          meteor = { x: rnd() * w, y: rnd() * h * 0.4, vx: -(3 + rnd() * 3), vy: 1.4 + rnd() * 1.2, life: 1 };
         }
         if (meteor) {
           const g = ctx.createLinearGradient(meteor.x, meteor.y, meteor.x - meteor.vx * 22, meteor.y - meteor.vy * 22);
@@ -449,14 +451,25 @@ export function SolarSystem() {
         callout(Q([px, py]), [`MSN-${String(stage + 1).padStart(2, "0")}`, `T+${tau.toFixed(1).padStart(4, "0")} S`, `R ${(Math.hypot(px, py) / AU).toFixed(2)} AU`, `V ${speed.toFixed(1)} KM/S`], C.sel, 9);
       }
 
-      if (!reduce) raf = requestAnimationFrame(draw);
+      if (!og && !reduce) raf = requestAnimationFrame(draw);
     }
-    raf = requestAnimationFrame(draw);
+    // og mode: no clock of its own; the capture script steps it frame by frame
+    const uninstall = og
+      ? installOgClock(
+          () => {
+            meteor = null;
+            rnd = seeded(3);
+          },
+          (ms) => draw(start + ms),
+        )
+      : null;
+    if (!og) raf = requestAnimationFrame(draw);
     return () => {
+      uninstall?.();
       cancelAnimationFrame(raf);
       window.removeEventListener("pointermove", onMove);
     };
-  }, []);
+  }, [og]);
 
   return <canvas ref={ref} className="post-cover-canvas" aria-hidden="true" />;
 }

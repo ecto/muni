@@ -5,7 +5,7 @@ import { SolarSystem } from "./SolarSystem";
 // Cover art per post, chosen by `cover` in posts.json. The rail's two end labels
 // travel with the art so the scrollbar reads in the cover's own terms.
 export interface Cover {
-  Art: ComponentType;
+  Art: ComponentType<{ og?: boolean }>;
   rail: { top: string; bottom: string; variant: string };
 }
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { installOgClock, seeded } from "./ogClock";
 
 // The zero-context-memory cover, live: one Gated DeltaNet head's state matrix in
 // a tilted plan view (Fig 1's delta grid, set in perspective). The field is a
@@ -56,7 +57,7 @@ function smooth(t: number) {
   return k * k * (3 - 2 * k);
 }
 
-export function PinnedRows() {
+export function PinnedRows({ og = false }: { og?: boolean }) {
   const ref = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -64,7 +65,8 @@ export function PinnedRows() {
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const reduce = !og && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    let rnd = og ? seeded(7) : Math.random;
     const mono = "'IBM Plex Mono', ui-monospace, monospace";
 
     // geometry and state, rebuilt only on resize
@@ -90,7 +92,7 @@ export function PinnedRows() {
 
     function layout(w: number, h: number) {
       const narrow = w < 640;
-      const yTop = h * (narrow ? 0.66 : 0.58);
+      const yTop = h * (narrow ? 0.66 : og ? 0.64 : 0.58); // the card sets the title higher, so the matrix sits a little lower
       const yBot = h * 1.02;
       halfW = w * (narrow ? 0.47 : 0.36);
       cx = w * 0.5;
@@ -129,15 +131,17 @@ export function PinnedRows() {
       pointer.tx = (e.clientX / window.innerWidth) * 2 - 1;
       pointer.ty = (e.clientY / window.innerHeight) * 2 - 1;
     };
-    window.addEventListener("pointermove", onMove);
+    if (!og) window.addEventListener("pointermove", onMove);
 
     // scrolling the cover raises g toward 1; at the bottom the field stops fading
     let gate = 0;
     const onScroll = () => {
       gate = smooth(window.scrollY / Math.max(1, canvas.clientHeight * 0.85));
     };
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
+    if (!og) {
+      onScroll();
+      window.addEventListener("scroll", onScroll, { passive: true });
+    }
 
     let raf = 0;
     let last = performance.now();
@@ -223,17 +227,17 @@ export function PinnedRows() {
         const keep = Math.exp(-leak * 16 * dt);
         for (let i = 0; i < vals.length; i++) vals[i] *= keep;
         // re-excitation: random writes the head didn't pin, each smeared into its neighbours
-        const n = Math.floor(vals.length * 0.0035 * (leak / 0.1) + Math.random());
+        const n = Math.floor(vals.length * 0.0035 * (leak / 0.1) + rnd());
         for (let k = 0; k < n; k++) {
-          const i = Math.floor(Math.random() * vals.length);
-          const v = 0.35 + Math.random() * 0.65;
+          const i = Math.floor(rnd() * vals.length);
+          const v = 0.35 + rnd() * 0.65;
           if (vals[i] < v) vals[i] = v;
           const c = i % cols;
           if (c + 1 < cols && vals[i + 1] < v * 0.55) vals[i + 1] = v * 0.55;
           if (c > 0 && vals[i - 1] < v * 0.3) vals[i - 1] = v * 0.3;
         }
         drift = drift * keep;
-        if (leak > 0 && Math.random() < dt * 0.35) drift = 0.4 + Math.random() * 0.5;
+        if (leak > 0 && rnd() < dt * 0.35) drift = 0.4 + rnd() * 0.5;
       }
 
       // writes: the key walks to row target[k], arrives at tw, the row pins
@@ -371,11 +375,11 @@ export function PinnedRows() {
         if (tx + m <= w - 56) readout(rx, ry, tx, ry, lines, 1, C.label, 0.8);
       }
 
-      if (!reduce && onScreen && tabOn) raf = requestAnimationFrame(draw);
+      if (!og && !reduce && onScreen && tabOn) raf = requestAnimationFrame(draw);
       else running = false;
     }
     const resume = () => {
-      if (reduce || running || !onScreen || !tabOn) return;
+      if (og || reduce || running || !onScreen || !tabOn) return;
       running = true;
       last = performance.now();
       raf = requestAnimationFrame(draw);
@@ -395,9 +399,24 @@ export function PinnedRows() {
     const onResize = () => reduce && requestAnimationFrame(draw);
     window.addEventListener("resize", onResize);
 
-    running = true;
-    raf = requestAnimationFrame(draw);
+    // og mode: no clock of its own; the capture script steps it frame by frame
+    const uninstall = og
+      ? installOgClock(
+          () => {
+            rows = 0; // relayout and reseed the field on the next draw
+            drift = 0.62;
+            rnd = seeded(7);
+            last = start;
+          },
+          (ms) => draw(start + ms),
+        )
+      : null;
+    if (!og) {
+      running = true;
+      raf = requestAnimationFrame(draw);
+    }
     return () => {
+      uninstall?.();
       cancelAnimationFrame(raf);
       io.disconnect();
       document.removeEventListener("visibilitychange", onVis);
@@ -405,7 +424,7 @@ export function PinnedRows() {
       window.removeEventListener("scroll", onScroll);
       window.removeEventListener("resize", onResize);
     };
-  }, []);
+  }, [og]);
 
   return <canvas ref={ref} className="post-cover-canvas" aria-hidden="true" />;
 }
