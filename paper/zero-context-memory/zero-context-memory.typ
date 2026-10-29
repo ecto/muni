@@ -195,7 +195,7 @@
   for d in range(8) {
     line((X(d), 0), (X(d), -0.08), stroke: 0.6pt + c-line-hi)
     line((X(d), 0), (X(d), top), stroke: 0.3pt + c-line)
-    lbl((X(d), -0.3), if d == 0 [1] else [10#super[−#d]])
+    lbl((X(d), -0.3), if d == 0 [1] else [10#super[#("−" + str(d))]])
   }
   lbl((X(3.5), -0.72), [1 − g, per-channel minimum over the run (log)])
   lbl((X(1), top + 0.25), [g = 0.9])
@@ -257,7 +257,7 @@
   lbl((hx + 0.95, H + 0.55), [tool call], anchor: "west", fill: c-text)
   // engine → chip tokens → chip column
   line((ex + 2.2, H - 0.4), (cx + 0.8, H - 0.4), (cx + 0.8, cH + 0.08), mark: (end: "stealth", fill: c-sel), stroke: 0.7pt + c-sel)
-  lbl((ex + 2.35, H - 0.62), [chip tokens], anchor: "west", fill: c-sel)
+  lbl((ex + 2.35, H - 0.3), [chip tokens], anchor: "south-west", fill: c-sel)
   lbl((cx + 0.8, cH + 0.45), [never the base layers,\ the LM head or the KV cache], anchor: "south", fill: c-label)
   // result returns as text
   line((cx, cy0 + 0.6), (hx + 1.75, cy0 + 0.6), mark: (end: "stealth", fill: c-text), stroke: (paint: c-text, thickness: 0.6pt, dash: "dashed"))
@@ -295,29 +295,56 @@
   lbl((xo + 4.6, top + 0.12), [tang chip window], anchor: "west", fill: c-ok)
 })
 
-#let fig-proof() = {
-  let rungs = (
-    ([Kernel one-hot write], [bitwise]),
-    ([50,000-step free run], [bitwise on CPU and 3090]),
-    ([Author's checkpoint], [0 mismatches; recall from 14 KB]),
-    ([tang reference math], [126 tokens, states bitwise]),
-    ([tang compiler], [168 tensors bitwise]),
-    ([GPU chip window], [0 mismatching layer steps]),
-    ([In-engine isolation], [twin slot identical]),
-  )
-  let card(i, r) = block(width: 100%, height: 0.92in, inset: 5pt, fill: c-surface, stroke: 0.6pt + c-line-hi, {
-    set par(leading: 0.45em)
-    text(font: mono-m, size: s-xs, fill: c-label)[#(i + 1)]
-    h(1fr)
-    text(font: mono-sb, size: s-sm, fill: c-ok)[✓]
-    v(0.3em)
-    text(font: sans-m, size: s-sm, fill: c-text, r.at(0))
-    linebreak()
-    text(font: sans, size: s-xs, fill: c-label, r.at(1))
-  })
-  grid(columns: (1fr,) * 4, column-gutter: 5pt, row-gutter: 5pt,
-    ..rungs.enumerate().map(((i, r)) => card(i, r)))
-}
+#let fig-arch() = cetz.canvas(length: 1cm, {
+  import cetz.draw: *
+  let W = 3.25
+  let xs = (0.0, 4.47, 8.94)
+  let top = 5.0
+  let bot = 0.0
+  let mid(k) = (xs.at(k) + W + xs.at(k + 1)) / 2
+  let tier(x, title, sub) = {
+    rect((x, bot), (x + W, top), fill: none, stroke: 0.6pt + c-line-hi)
+    lbl((x + W / 2, top - 0.32), title, fill: c-text, size: s-sm, font: mono-sb)
+    lbl((x + W / 2, top - 0.62), sub)
+  }
+  let part(x, y, h, title, sub, hot: false) = {
+    rect((x + 0.2, y), (x + W - 0.2, y + h), fill: if hot { c-sel.transparentize(82%) } else { c-surface }, stroke: 0.6pt + if hot { c-sel } else { c-line-hi })
+    lbl((x + W / 2, y + h - 0.3), title, fill: if hot { c-sel } else { c-text })
+    if sub != none { lbl((x + W / 2, y + h - 0.6), sub) }
+  }
+  tier(xs.at(0), [frog], [the client])
+  tier(xs.at(1), [tang serve], [the session])
+  tier(xs.at(2), [tang engine], [the model])
+  part(xs.at(0), 2.6, 1.2, [agent], [Memory tool])
+  part(xs.at(0), 0.3, 1.5, [store file], [512 KiB], hot: true)
+  lbl((xs.at(0) + W / 2, 0.65), [per project])
+  part(xs.at(1), 2.6, 1.2, [/v1/memory], [load · op · end])
+  part(xs.at(1), 0.3, 1.5, [session], [per cache key])
+  lbl((xs.at(1) + W / 2, 0.65), [zeroed at end])
+  part(xs.at(2), 3.0, 0.85, [host model], [layers, KV cache])
+  part(xs.at(2), 1.65, 0.85, [chip window], [12 compiled layers], hot: true)
+  part(xs.at(2), 0.3, 0.85, [pinned heads], [store state, 26 MB], hot: true)
+  let solid(c) = (mark: (end: "stealth", fill: c), stroke: 0.6pt + c)
+  let dashed(c) = (mark: (end: "stealth", fill: c), stroke: (paint: c, thickness: 0.6pt, dash: "dashed"))
+  // frog <-> serve: op and result
+  line((xs.at(0) + W - 0.2, 3.4), (xs.at(1) + 0.2, 3.4), ..solid(c-text))
+  lbl((mid(0), 3.62), [op])
+  line((xs.at(1) + 0.2, 2.95), (xs.at(0) + W - 0.2, 2.95), ..dashed(c-text))
+  lbl((mid(0), 2.72), [result])
+  // frog <-> serve: the store file
+  line((xs.at(0) + W - 0.2, 1.3), (xs.at(1) + 0.2, 1.3), ..solid(c-sel))
+  lbl((mid(0), 1.52), [load], fill: c-sel)
+  line((xs.at(1) + 0.2, 0.85), (xs.at(0) + W - 0.2, 0.85), ..dashed(c-sel))
+  lbl((mid(0), 0.62), [export], fill: c-sel)
+  // serve -> engine: ops become chip tokens; the store goes to the pinned heads
+  line((xs.at(1) + W - 0.2, 3.2), (xs.at(2) + 0.2, 2.07), ..solid(c-text))
+  lbl((mid(1), 3.25), [chip\ tokens], anchor: "south")
+  line((xs.at(1) + W - 0.2, 1.05), (xs.at(2) + 0.2, 0.72), ..solid(c-sel))
+  // the chip window reads and writes the pinned heads
+  line((xs.at(2) + W / 2, 1.65), (xs.at(2) + W / 2, 1.15), mark: (start: "stealth", end: "stealth", fill: c-sel), stroke: 0.6pt + c-sel)
+  // the separation between store traffic and the host model
+  line((xs.at(2) + 0.2, 2.8), (xs.at(2) + W - 0.2, 2.8), stroke: (paint: c-fault, thickness: 0.7pt, dash: "dashed"))
+})
 
 // ---- title page ---------------------------------------------------------------
 #if not web {page(margin: (x: 0.75in, top: 0.7in, bottom: 0.65in))[
@@ -343,9 +370,9 @@
 #let abstract-text = [
   A coding agent remembers by pasting text into its prompt, and pays for it on every turn. Divyansh Agrawal's qwenputer showed another way: a Gated DeltaNet head with its gates pinned is exact, addressable RAM, and a filesystem can be compiled into extra layers of a model without training @agrawal2026qwenputer. We call the method Gate-Pinned State Memory (GPSM), and checked every link of it on our own stack.
 
-  tang's kernel stores and reads one-hot rows bitwise and stays exact over a 50,000-step free run, while no trained head qualifies: on GLM-5.3-Flash, none of 8,192 channels per layer holds its gate at exactly 1. On an RTX 3090 the author's model issued every store call itself and read its files back from a 14 KB state file in an empty conversation, with its text unchanged to within the noise floor. tang then ran the compiled layers bitwise in its reference math, emitted all 168 of their tensors bitwise from its own Rust compiler, and served them from a CUDA window inside the engine at about 0.9 ms per token, 25 to 40 times faster than the author's stack, without disturbing the model's own state. Two hoped-for shortcuts to instant prefill failed.
+  tang's kernel stores and reads one-hot rows bitwise and stays exact over a 50,000-step free run, while no trained head qualifies: on GLM-5.3-Flash, none of 8,192 channels per layer holds its gate at exactly 1. On an RTX 3090 the author's model issued every store call itself and read its files back from a 14 KB store file in an empty conversation, with its text unchanged to within the noise floor. tang then ran the compiled layers bitwise in its reference math, emitted all 168 of their tensors bitwise from its own Rust compiler, and served them from a CUDA window inside the engine at about 0.9 ms per token, 30 to 40 times faster than the author's stack, without disturbing the model's own state. Two hoped-for shortcuts to instant prefill failed.
 
-  GPSM is the only approach we know of that recalls exactly, costs no context and needs no training at once. It moves an agent's working memory out of the prompt, turns exact capabilities into compiled modules rather than training runs, and lets a user hold their memory as a file instead of leaving it with a provider. Its limits are a fixed capacity of hundreds of files, a store tied to one model, and the open question of whether a model reaches for it at the right moments.
+  Of the approaches we surveyed, GPSM is the only one that recalls exactly, costs no context and needs no training at once. It moves an agent's working memory out of the prompt, turns exact capabilities into compiled modules rather than training runs, and lets a user hold their memory as a file instead of leaving it with a provider. Its limits are a fixed capacity of hundreds of files, a store tied to one model, and the open question of whether a model reaches for it at the right moments.
 ]
 #if web {
   html.elem("section", attrs: (class: "abstract", id: "abstract"), {
@@ -372,20 +399,20 @@ $ S_t = g_t S_(t-1) + beta_t k_t (v_t - S_(t-1)^top k_t)^top $
 With the decay $g = 1$, the write strength $beta = 1$ and a one-hot key $k = e_i$, the update replaces row $i$ of $S$ with $v$ and leaves every other row alone.
 
 #figure(
-  grid(columns: 2, column-gutter: 0.5in, delta-grid(pinned: false, title: [trained head: g < 1, dense k]), delta-grid(pinned: true, title: [pinned head: g = 1, β = 1, k = e#sub[i]])),
+  grid(columns: 2, column-gutter: 0.5in, delta-grid(pinned: false, title: [trained head: g < 1, dense k]), delta-grid(pinned: true, title: [pinned head: g = 1, β = 1, one-hot k])),
   caption: [#lead[The delta rule, drawn.] Sixteen rows stand for a 128 × 128 head state. A trained head decays every row and smears the write across all of them. A pinned head with a one-hot key replaces exactly one row and leaves the rest untouched.],
 )
 
-A one-hot query reads row $i$ back. Compile weights that produce those gates and keys, and the recurrent state is RAM. We call fixing the gates this way _gate pinning_, a head built this way a _pinned head_, and memory kept in pinned heads *Gate-Pinned State Memory* (GPSM). The gates are pinned, not the state: rows change when they are rewritten, and stay exactly as written until then. qwenputer compiled a RISC-V CPU and a 512-file store into 12 extra layers in front of Qwen 3.5 4B, without training, and reported a KL divergence to the base model of $6 times 10^(-4)$ @agrawal2026qwenputer.
+A one-hot query reads row $i$ back. Compile weights that produce those gates and keys, and the recurrent state is RAM. We call fixing the gates this way _gate pinning_, a head built this way a _pinned head_, and memory kept in pinned heads *Gate-Pinned State Memory* (GPSM). The gates are pinned, not the state: rows change when they are rewritten, and stay exactly as written until then. qwenputer @agrawal2026qwenputer compiled a RISC-V CPU and a 512-file store into 12 extra layers in front of Qwen3.5 4B, without training. It reported a KL divergence to the base model of $6 times 10^(-4)$, and recall of facts across chats 90 percent of the time, against 30 percent when the old chats were pasted back in.
 
-tang is our inference engine. It runs Qwen3-Coder-Next, a hybrid of 36 GDN layers and 12 attention layers, and already snapshots the fixed-size recurrent state to disk. frog, our coding agent, talks to it. So the question was concrete: what of this transfers to an engine we own?
+tang is our inference engine. It runs Qwen3-Coder-Next, a mixture of experts with about 3B parameters active per token and a hybrid of 36 GDN layers and 12 attention layers, and already snapshots the fixed-size recurrent state to disk. Its GDN kernel is specified for the shapes of Flash-Next, another Qwen hybrid tang serves, with 16 key and 48 value heads per layer; Coder-Next and Qwen3.5 4B have 32 value heads. frog, our coding agent, talks to it. So the question was concrete: what of this transfers to an engine we own?
 
 = Exact RAM in tang's kernel
 
 tang pins the GDN recurrence in a CPU specification that the CUDA kernel is verified against bitwise. We tested the claim there.
 
-- *The gates reach exactly 1.* Projections of $a + "dt" = -30$ and $b = 40$ round to exactly `1.0f`.
-- *A write into an empty row stores $v$ bitwise* and touches no other row of any of the 48 heads.
+- *The gates reach exactly 1.* Gate pre-activations of $a + "dt" = -30$ for the decay and $b = 40$ for the write strength round to exactly `1.0f`.
+- *A write into an empty row stores $v$ bitwise* and touches no other row of any of a Flash-Next layer's 48 value heads.
 - *An overwrite stores $"fma"(1, v - s, s)$*, which is exactly $v$ only when $v - s$ is exact. On random floats, 8,643 overwrites were exact and 15,933 were off by one rounding. Stored values must be integers below $2^24$.
 - *A 50,000-token free run*, driving the kernel as a register machine, stayed bitwise exact on the CPU and on an RTX 3090.
 - *One token with $g < 1$ ends exactness for good.* It scales every row by a non-power-of-two, and the integers turn fractional.
@@ -398,7 +425,7 @@ So a pretrained head can be borrowed for storage only if its gate is bitwise 1 o
   table(
     columns: 5,
     align: (left, right, right, right, right),
-    table.header([*Layers*], [*Mean g*], [*Best channel min g*], [*β mean / max*], [*At 1.0 every token*]),
+    table.header([*Layers*], [*Mean g*], [*Best channel min g*], [*Mean / max beta*], [*At 1.0 every token*]),
     [Early (0–10)], [0.51–0.68], [0.999994], [0.54–0.71 / ≤0.997], [0 of 8,192],
     [Mid (12–26)], [0.73–0.87], [0.999999], [0.64–0.77 / ≤1.000], [0 of 8,192],
     [Late (28–44)], [0.67–0.79], [0.999997], [0.55–0.84 / 1.000], [0 of 8,192],
@@ -406,7 +433,7 @@ So a pretrained head can be borrowed for storage only if its gate is bitwise 1 o
   caption: [#lead[Gates of a trained hybrid model.] No channel qualifies as exact storage. Measured on GLM-5.3-Flash UD-Q4_K_XL, RTX 3090.],
 )
 
-A few channels are remarkably slow. Between 1 and 8 percent per layer have a mean gate above 0.999, and the best has a gate-only half-life near three million tokens. #figure(fig-gates(),
+A few channels are remarkably slow. Between 1 and 8 percent per layer have a mean gate above 0.999, and the best has a mean gate of $1 - 2 times 10^(-7)$, a half-life from the gate alone of about three million tokens. #figure(fig-gates(),
   caption: [#lead[No channel reaches 1.] Each bar is a range across the layers in its group: hollow for the median channel's minimum gate over the run, solid for the best channel's. GLM-5.3-Flash on an RTX 3090 over 427 tokens; per-layer data was not kept.],
 )
 
@@ -414,9 +441,7 @@ But they are analog registers, and they leak. Exact storage needs dedicated pinn
 
 = Two dead ends
 
-The same structure suggests faster prefill. We tested both versions, and neither works.
-
-*Poking state.* A trained head can only read the state its own prefill would have produced. An integer written into a row means nothing to it, so poking context into state turns back into prefill.
+The same structure suggests faster prefill. Writing context straight into state cannot work: a trained head can only read the state its own prefill would have produced, so an integer written into a row means nothing to it. We tested the two ideas that could work, and neither does.
 
 *Chunked kernels.* tang steps the GDN recurrence one token at a time. A chunked tensor-core kernel has about 35 times the throughput on a 512-token window, but the recurrence is only 4.5 percent of a prefill window on an RTX 3090, and 5.5 percent on an H200. Prefill time lives in attention and the MoE layers.
 
@@ -441,7 +466,13 @@ Mid and late layers depend on context, not position. Fixing the error means reco
 
 == An engine-driven store
 
-We first built the store without compiled layers: a key-value file store in dedicated GDN heads of one layer, written and read through the real kernel with one-hot keys and pinned gates. The layout follows the author's: a hashed directory with linear probing, plus content rows of token ids. Reads pass the output norm and a division, so values stay below $2^18$.
+@fig:arch shows the whole path. frog keeps the store as a file on the user's disk and gives the model a `Memory` tool. tang serve loads the file into a session's pinned heads at the start and exports it after every write. Inside the engine, store operations run as their own windows through the compiled layers, apart from the host model's layers and KV cache.
+
+#figure(fig-arch(),
+  caption: [#lead[Architecture.] Store traffic, in orange, never passes through the host model: operations run as chip tokens through the compiled layers, which read and write the pinned heads. The red line marks that separation. The store file moves only between the user's disk and a live session.],
+) <fig:arch>
+
+We first built the store without compiled layers: a key-value file store in dedicated GDN heads of one layer, written and read through the real kernel with one-hot keys and pinned gates. The layout follows the author's: a hashed directory with linear probing, plus content rows of token ids. Values stay below $2^18$, tighter than the kernel's $2^24$, because a read passes the output norm and a division, about eight roundings.
 
 #figure(
   table(
@@ -449,25 +480,25 @@ We first built the store without compiled layers: a key-value file store in dedi
     align: (left, left, right, right),
     table.header([*Model shape*], [*Heads, k / v*], [*Directory*], [*Content*]),
     [Flash-Next], [16 / 48, tiled], [1,024 slots, 512 files], [65,024 tokens · 768 KiB],
-    [Coder-Next, Qwen 3.5 4B], [16 / 32, grouped], [512 slots, 256 files], [65,024 tokens · 512 KiB],
+    [Coder-Next, Qwen3.5 4B], [16 / 32, grouped], [512 slots, 256 files], [65,024 tokens · 512 KiB],
   ),
-  caption: [#lead[Store capacity] in a quarter of one GDN layer.],
+  caption: [#lead[Store capacity.] The store takes 4 of a layer's 16 key heads and their value heads, a quarter of one GDN layer. The heads column gives the whole layer.],
 )
 
 A 512-file fill and a 10,000-operation random workload, checked against a hash map, both pass. The store persists through the bytes tang's snapshot already carries. It also moves into a different conversation's state while leaving that conversation's own heads bitwise untouched.
 
 == The model drives it
 
-*Reproduction.* We ran the author's code and checkpoint on an RTX 3090. In one conversation the model issued all nine store calls itself: three puts, a list, three gets, a delete and a list. Every answer was printed by the model, and 160 printed tokens matched the author's reference with no mismatches. We saved the state to a 14 KB file and loaded it into an empty conversation. The model listed the two surviving files and read both back exactly. KL to the base model was $6.9 times 10^(-4)$ against a noise floor of $6.7 times 10^(-4)$, and bitwise identical with files loaded or not.
+*Reproduction.* We ran the author's code and checkpoint on an RTX 3090. In one conversation the model issued all nine store calls itself: three puts, a list, three gets, a delete and a list. Every answer was printed by the model, and 160 printed tokens matched the author's reference with no mismatches. We saved the store the author's way, as a 14 KB file of its occupied rows, and loaded it into an empty conversation. The model listed the two surviving files and read both back exactly. KL to the base model was $6.9 times 10^(-4)$ against a noise floor of $6.7 times 10^(-4)$, and bitwise identical with files loaded or not.
 
-*tang runs the compiled layers.* tang's reference math ran the checkpoint's 12 compiled layers on the author's trace. All 126 tokens matched, and every store head's $128 times 128$ state was bitwise equal after each operation.
+*tang runs the compiled layers.* tang's reference math ran the checkpoint's 12 compiled layers on the author's trace. All 126 tokens of a shorter put, get and list trace matched, and every store head's $128 times 128$ state was bitwise equal after each operation.
 
-*tang compiles them.* `tang-chip`, a Rust port of the author's compiler, emits the layers from the circuit graph: 3,753 dimensions, 164 heads and 47,532 units. At Qwen 3.5 4B shapes, all 168 tensors equal the checkpoint bitwise, zero padding included: 2.44 billion elements, 1.24 million of them nonzero. Retargeted to Coder-Next, whose hidden size widens from 2,048 to 3,968, the store replays the trace bitwise and no weight touches the host model's dimensions.
+*tang compiles them.* `tang-chip`, a Rust port of the author's compiler, emits the layers from the circuit graph: 3,753 dimensions, 164 heads and 47,532 units. The dimensions are live at different times, so the compiler packs them into far fewer slots of the residual stream. At Qwen3.5 4B shapes, all 168 tensors equal the checkpoint bitwise, zero padding included: 2.44 billion elements, 1.24 million of them nonzero. Retargeted to Coder-Next, whose hidden size widens from 2,048 to 3,968, the store replays the trace bitwise and no weight touches the host model's dimensions.
 
 *tang serves them.* A chip window in the engine uploads the emitted layers as sparse blocks and runs store calls without touching the base layers, the LM head or the KV cache. On an RTX 3090 it ran with 0 mismatching layer steps against the CPU path. Inside a running engine, on a slot holding a prompt, store calls returned the stored ids. The slot's tokens and greedy continuation stayed identical to a twin slot that never ran them.
 
 #figure(fig-where(),
-  caption: [#lead[Where the store lives.] The compiled layers sit beside the host model, not inside it. Store calls run only through the chip layers; the host sees the result as text.],
+  caption: [#lead[Where the store lives.] The compiled layers sit beside the host model, not inside it. The host model emits the tool call; the engine runs it as chip tokens through the chip layers only, and the host sees the result as text.],
 )
 
 #figure(
@@ -488,29 +519,23 @@ A 512-file fill and a 10,000-operation random workload, checked against a hash m
 
 The compiled layers take 13.75 MB of sparse weights and 26 MB of state per session. They cost about 332 million multiply-adds per token, roughly 8 percent of the 4B model.
 
-Each link of the claim was checked on its own, from the kernel up to a running engine.
-
-#figure(fig-proof(),
-  caption: [#lead[The proof chain.] Seven checks, each bitwise or exact, from the kernel's one-hot write to a store call inside a running engine.],
-)
-
 == Serving
 
-tang serve loads a store per session, runs operations and exports it. An ephemeral mode zeroes the store when a session ends and never writes it to disk. frog loads the user's file at session start, saves after every write, and gives the model a `Memory` tool. `frog memory dump` prints exactly what is stored.
+`tang serve` loads a store per session, runs operations and exports it. An ephemeral mode zeroes the store when a session ends and never writes it to disk. frog loads the user's file at session start, saves after every write, and gives the model a `Memory` tool. `frog memory dump` prints exactly what is stored.
 
 #aside[Privacy][
-  The part of memory that persists becomes a file on the user's disk, about half a megabyte. In a hosted session the provider sees it in plaintext while the session runs, and with the ephemeral mode keeps nothing afterwards. This is not encryption: the layout is known, so anyone holding the file can read it. The model can still repeat what it reads, so egress controls matter as before. What changes is where memory piles up: in a file you can read and delete, not with us.
+  The part of memory that persists becomes a file on the user's disk, 512 to 768 KiB. In a hosted session the provider sees it in plaintext while the session runs, and with the ephemeral mode keeps nothing afterwards. This is not encryption: the layout is known, so anyone holding the file can read it. The model can still repeat what it reads, so egress controls matter as before. What changes is where memory piles up: in a file you can read and delete, not with us.
 ]
 
 = Implications
 
 == Memory stops competing with code
 
-Every fact a text memory recalls is a prompt token, prefilled on every turn and paid for in latency and in room for code. GPSM moves that working set out of the prompt. A store of 256 to 512 files, about 65,000 tokens of content, sits in half a megabyte of state and costs nothing until the model asks for a file. A lookup costs a few decoded tokens, not a context's worth. On a laptop running a 4B model, where context is the scarce resource, that is the difference between remembering a project's conventions and having room for the file being edited.
+Every fact a text memory recalls is a prompt token, prefilled on every turn and paid for in latency and in room for code. GPSM moves that working set out of the prompt. A store of 256 files on Coder-Next, or 512 on Flash-Next, about 65,000 tokens of content, sits in 512 to 768 KiB of state and costs nothing until the model asks for a file. A lookup costs a few decoded tokens, not a context's worth. On a laptop running a 4B model, where context is the scarce resource, that is the difference between remembering a project's conventions and having room for the file being edited.
 
 == Compiled, not trained
 
-Nothing in GPSM is learned. The base weights are untouched, the store layers are emitted by a compiler from a program, and the model's text behaviour is unchanged to within the noise floor. That rules out the failure modes of parametric memory: no catastrophic forgetting, no optimizer state, no drift as memories accumulate @beyondppl2026. It also makes memory a module: the same compiler that emits a file store emitted a RISC-V CPU, and on the author's benchmarks that CPU took Qwen 3.5 4B from 55 to 97.5 percent on large multiplication without any tool call @agrawal2026qwenputer. Capabilities that need exactness can ship as compiled layers rather than as training runs.
+Nothing in GPSM is learned. The base weights are untouched, the store layers are emitted by a compiler from a program, and the model's text behaviour is unchanged to within the noise floor. That rules out the failure modes of parametric memory: no catastrophic forgetting, no optimizer state, no drift as memories accumulate @beyondppl2026. It also makes memory a module: the same compiler that emits a file store emitted a RISC-V CPU, and on the author's benchmarks that CPU took Qwen3.5 4B from 55 to 97.5 percent on large multiplication without any tool call @agrawal2026qwenputer. Capabilities that need exactness can ship as compiled layers rather than as training runs.
 
 == The engine owns the invariant
 
@@ -518,7 +543,7 @@ Exactness holds only while every gate in a pinned head stays bitwise at 1. A sin
 
 == The primitive is spreading
 
-Hybrid models with delta-rule layers are no longer a niche. Qwen3-Next and Qwen 3.5 use Gated DeltaNet in three of every four layers @yang2024gdn, and GLM-5.3-Flash uses a per-channel variant. Every such model has layers where gate pinning gives exact storage, so the technique is available wherever these models run. What does not transfer is the store itself: it is compiled for one model's shapes and tokenizer, and a new model needs a new build.
+Hybrid models with delta-rule layers are no longer a niche. Qwen3-Next and Qwen3.5 use Gated DeltaNet in three of every four layers @yang2024gdn, and GLM-5.3-Flash uses a per-channel variant. Every such model has layers where gate pinning gives exact storage, so the technique is available wherever these models run. What does not transfer is the store itself: it is compiled for one model's shapes and tokenizer, and a new model needs a new build.
 
 == What it does not change
 
@@ -547,13 +572,13 @@ None of these is measured yet beyond the store itself; they are where we expect 
     [Prefix KV reuse], [Exact for the cached prefix], [The whole prefix stays in attention], [None], [Unchanged], [KV blocks, one model, large],
     [Learned state: GDN, Titans], [Lossy, decays], [None], [Pretraining], [New architecture], [Fixed-size state, one model],
     [Test-time training], [Lossy], [None], [Gradient steps at inference], [Weights change], [Fast weights, one model],
-    [Knowledge editing, LoRA memory], [Facts only; free-form recall near zero], [None], [Edits or gradient steps], [Weights change], [Edited weights],
-    [GPSM], [Exact], [None], [None, compiled], [Unchanged (KL at noise floor)], [A store file of 0.5–0.75 MB, one model],
+    [Knowledge editing, LoRA memory], [Facts only; free-form recall at zero], [None], [Edits or gradient steps], [Weights change], [Edited weights],
+    [GPSM], [Exact], [None], [None, compiled], [Unchanged (KL at noise floor)], [A store file of 512–768 KiB, one model],
   ),
   caption: [#lead[Memory beyond the context window.] GPSM is the only approach with exact recall that costs no context and no training. Sources: @packer2023memgpt @chhikara2025mem0 @yao2024cacheblend @yang2024gdn @behrouz2025titans @inplacettt2026 @beyondppl2026.],
 )
 
-*Where GPSM wins.* It is the only approach that is exact, costs no context and needs no training at once. Text memory pays context on every turn and recalls through retrieval and paraphrase @packer2023memgpt @chhikara2025mem0 @xu2025amem. KV reuse is exact, but the cached text still occupies attention, and its blocks grow with every token. Learned states and test-time training cost no context but forget or drift @stuffedmamba2024 @behrouz2025titans @inplacettt2026 @lcc2026. Knowledge editing and one-step LoRA memory are dominated for agent recall: one study measured free-form recall at zero @beyondppl2026.
+*Where GPSM wins.* It is the only approach that is exact, costs no context and needs no training at once. Text memory pays context on every turn and recalls through retrieval and paraphrase @packer2023memgpt @chhikara2025mem0 @xu2025amem. KV reuse is exact, but the cached text still occupies attention, and its blocks grow with every token. Learned states and test-time training cost no context but forget or drift @stuffedmamba2024 @behrouz2025titans @inplacettt2026 @lcc2026. Knowledge editing and one-step LoRA memory perform poorly at agent recall: one study measured free-form recall at zero @beyondppl2026.
 
 *Where it loses.* Capacity is fixed at 256 to 512 files; text memory scales to a corpus. A store is tied to one model and tokenizer; plaintext notes move anywhere. Text memory is legible without tools; a store needs `frog memory dump`. And GPSM is days old, while text memory ships in products.
 
@@ -563,7 +588,7 @@ The compiled-weights lineage runs back to Tracr, which compiled programs into tr
 
 = Open questions
 
-- *No cross-session benchmark.* The 90 percent recall figure is the author's own fact set. Nobody has run GPSM, or the author's store, on LongMemEval or LoCoMo.
+- *No cross-session benchmark.* The 90 percent recall figure (§1) is the author's own fact set. Nobody has run GPSM, or the author's store, on LongMemEval or LoCoMo.
 - *Does the model reach for it?* The 4B model used the store when asked. Whether Coder-Next uses memory at the right moments in a long coding session is unmeasured, and it is the main risk.
 - *No build on real Coder-Next weights yet.* It needs the circuit re-exported with Coder-Next's tokenizer and a machine that holds the weights.
 - *Fixed capacity.* 256 to 512 files, and frog stores text one byte per id today, about four times the slots real tokens would use.
