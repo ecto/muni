@@ -341,11 +341,11 @@
 ]}
 
 #let abstract-text = [
-  A coding agent remembers by pasting text into its prompt, and pays for it on every turn. Divyansh Agrawal's qwenputer showed another way: a Gated DeltaNet layer with its gates pinned is exact, addressable RAM, and a filesystem can be compiled into extra layers of a model without training @agrawal2026qwenputer. We checked every link of that claim on our own stack.
+  A coding agent remembers by pasting text into its prompt, and pays for it on every turn. Divyansh Agrawal's qwenputer showed another way: a Gated DeltaNet head with its gates pinned is exact, addressable RAM, and a filesystem can be compiled into extra layers of a model without training @agrawal2026qwenputer. We call the method Gate-Pinned State Memory (GPSM), and checked every link of it on our own stack.
 
-  tang's kernel stores and reads one-hot rows bitwise, and stays exact over a 50,000-step free run. Trained heads cannot do it: on GLM-5.3-Flash, none of 8,192 channels per layer keeps its gate at exactly 1. We reproduced the author's filesystem on an RTX 3090, with the model issuing every store call itself and recalling files from a 14 KB state file in an empty conversation. tang's reference math then ran the author's compiled layers bitwise, tang's own Rust compiler emitted all 168 tensors of them bitwise, and a CUDA window in our engine ran them bitwise at about 0.9 ms per token, 25 to 40 times faster than the author's stack.
+  tang's kernel stores and reads one-hot rows bitwise and stays exact over a 50,000-step free run, while no trained head qualifies: on GLM-5.3-Flash, none of 8,192 channels per layer holds its gate at exactly 1. On an RTX 3090 the author's model issued every store call itself and read its files back from a 14 KB state file in an empty conversation, with its text unchanged to within the noise floor. tang then ran the compiled layers bitwise in its reference math, emitted all 168 of their tensors bitwise from its own Rust compiler, and served them from a CUDA window inside the engine at about 0.9 ms per token, 25 to 40 times faster than the author's stack, without disturbing the model's own state. Two hoped-for shortcuts to instant prefill failed.
 
-  We also tested two ways to get instant prefill from the same structure, and both fail. What remains we call Gate-Pinned State Memory (GPSM): memory that costs no context, needs no training, leaves the model's text unchanged, and can be held by the user rather than the provider.
+  GPSM is the only approach we know of that recalls exactly, costs no context and needs no training at once. It moves an agent's working memory out of the prompt, turns exact capabilities into compiled modules rather than training runs, and lets a user hold their memory as a file instead of leaving it with a provider. Its limits are a fixed capacity of hundreds of files, a store tied to one model, and the open question of whether a model reaches for it at the right moments.
 ]
 #if web {
   html.elem("section", attrs: (class: "abstract", id: "abstract"), {
@@ -502,17 +502,76 @@ tang serve loads a store per session, runs operations and exports it. An ephemer
   The part of memory that persists becomes a file on the user's disk, about half a megabyte. In a hosted session the provider sees it in plaintext while the session runs, and with the ephemeral mode keeps nothing afterwards. This is not encryption: the layout is known, so anyone holding the file can read it. The model can still repeat what it reads, so egress controls matter as before. What changes is where memory piles up: in a file you can read and delete, not with us.
 ]
 
-= Where it sits
+= Implications
 
-GPSM occupies a corner nothing else holds: exact recall, no context, no training, and almost no change to the base model. Text memory such as MemGPT, Mem0 and A-MEM is portable and mature, but pays context every turn and recalls lossily @packer2023memgpt @chhikara2025mem0 @xu2025amem. KV reuse is exact but large @yao2024cacheblend. Learned states and test-time training cost no context but are lossy and need training @behrouz2025titans @inplacettt2026 @lcc2026. Knowledge editing and one-step LoRA memory are dominated: one study measured free-form recall at zero @beyondppl2026. Compiled transformers go back to Tracr @lindner2023tracr. What is new is that hybrid models have layers where compiled storage is exact.
+== Memory stops competing with code
 
-= What is not done
+Every fact a text memory recalls is a prompt token, prefilled on every turn and paid for in latency and in room for code. GPSM moves that working set out of the prompt. A store of 256 to 512 files, about 65,000 tokens of content, sits in half a megabyte of state and costs nothing until the model asks for a file. A lookup costs a few decoded tokens, not a context's worth. On a laptop running a 4B model, where context is the scarce resource, that is the difference between remembering a project's conventions and having room for the file being edited.
+
+== Compiled, not trained
+
+Nothing in GPSM is learned. The base weights are untouched, the store layers are emitted by a compiler from a program, and the model's text behaviour is unchanged to within the noise floor. That rules out the failure modes of parametric memory: no catastrophic forgetting, no optimizer state, no drift as memories accumulate @beyondppl2026. It also makes memory a module: the same compiler that emits a file store emitted a RISC-V CPU, and on the author's benchmarks that CPU took Qwen 3.5 4B from 55 to 97.5 percent on large multiplication without any tool call @agrawal2026qwenputer. Capabilities that need exactness can ship as compiled layers rather than as training runs.
+
+== The engine owns the invariant
+
+Exactness holds only while every gate in a pinned head stays bitwise at 1. A single ordinary token through a store head ends it. So GPSM is not something a model does alone; it is a contract between compiled weights and an engine that routes store traffic separately and audits the store before export. That favours owning the forward pass. tang can keep store tokens out of the base layers and the KV cache because it decides what runs where. A general-purpose serving stack would need the same routing added.
+
+== The primitive is spreading
+
+Hybrid models with delta-rule layers are no longer a niche. Qwen3-Next and Qwen 3.5 use Gated DeltaNet in three of every four layers @yang2024gdn, and GLM-5.3-Flash uses a per-channel variant. Every such model has layers where gate pinning gives exact storage, so the technique is available wherever these models run. What does not transfer is the store itself: it is compiled for one model's shapes and tokenizer, and a new model needs a new build.
+
+== What it does not change
+
+GPSM does not make new context cheaper. Prefill still runs every token through the attention and MoE layers, and both of our attempts to shortcut it failed (§4). It does not replace the KV cache of the attention layers. It is a place to keep a small, exact working set across sessions, not a faster way to read a large one.
+
+= Use cases
+
+None of these is measured yet beyond the store itself; they are where we expect GPSM to matter.
+
+- *A coding agent's long-term memory.* Build commands, conventions, decisions and the user's preferences, kept per project and recalled exactly in the next session. This is what frog's `Memory` tool is for.
+- *Exact facts where paraphrase is a bug.* Identifiers, configuration values, API signatures and file paths. Text memory recalls these through retrieval and generation; GPSM returns the stored token ids.
+- *Small models on small machines.* A 4B model with a short context gains a store that costs no context. The less context a device can afford, the more this matters.
+- *Hosted agents that don't keep your history.* The store travels as a file the user holds. A provider loads it for a session and, in the ephemeral mode, keeps nothing afterwards.
+- *Handoff between sessions and agents.* A store file can be passed from one session or subagent to another and read back exactly, a shared scratchpad that never enters either prompt.
+- *Exact computation.* The author's compiled CPU does arithmetic and runs MicroPython inside the forward pass. The same path could carry other exact routines a model gets wrong when it reasons in text.
+- *Robots that remember their site.* Speculative for us today: a robot's language model keeping site-specific facts, such as where things are and what the last shift left unfinished, across sessions without growing its context.
+
+= Comparison
+
+#figure(
+  table(
+    columns: (1.25fr, 1fr, 1fr, 0.95fr, 0.95fr, 1.05fr),
+    align: (left, left, left, left, left, left),
+    table.header([*Approach*], [*Recall*], [*Context per turn*], [*Training*], [*Base model*], [*What persists*]),
+    [Text memory: RAG, MemGPT, Mem0], [Lossy, retrieval-bound], [Retrieved text, every turn], [None], [Unchanged], [Plaintext notes, any model],
+    [Prefix KV reuse], [Exact for the cached prefix], [The whole prefix stays in attention], [None], [Unchanged], [KV blocks, one model, large],
+    [Learned state: GDN, Titans], [Lossy, decays], [None], [Pretraining], [New architecture], [Fixed-size state, one model],
+    [Test-time training], [Lossy], [None], [Gradient steps at inference], [Weights change], [Fast weights, one model],
+    [Knowledge editing, LoRA memory], [Facts only; free-form recall near zero], [None], [Edits or gradient steps], [Weights change], [Edited weights],
+    [GPSM], [Exact], [None], [None, compiled], [Unchanged (KL at noise floor)], [A store file of 0.5–0.75 MB, one model],
+  ),
+  caption: [#lead[Memory beyond the context window.] GPSM is the only approach with exact recall that costs no context and no training. Sources: @packer2023memgpt @chhikara2025mem0 @yao2024cacheblend @yang2024gdn @behrouz2025titans @inplacettt2026 @beyondppl2026.],
+)
+
+*Where GPSM wins.* It is the only approach that is exact, costs no context and needs no training at once. Text memory pays context on every turn and recalls through retrieval and paraphrase @packer2023memgpt @chhikara2025mem0 @xu2025amem. KV reuse is exact, but the cached text still occupies attention, and its blocks grow with every token. Learned states and test-time training cost no context but forget or drift @stuffedmamba2024 @behrouz2025titans @inplacettt2026 @lcc2026. Knowledge editing and one-step LoRA memory are dominated for agent recall: one study measured free-form recall at zero @beyondppl2026.
+
+*Where it loses.* Capacity is fixed at 256 to 512 files; text memory scales to a corpus. A store is tied to one model and tokenizer; plaintext notes move anywhere. Text memory is legible without tools; a store needs `frog memory dump`. And GPSM is days old, while text memory ships in products.
+
+*They combine.* The two are complements, not rivals. Text retrieval suits a large, loosely needed corpus such as documentation. GPSM suits a small working set that must come back exactly and is needed often. An agent can use both, and the comparison is the experiment we have not run yet.
+
+The compiled-weights lineage runs back to Tracr, which compiled programs into transformers to study them @lindner2023tracr. What is new is that hybrid models have layers where compiled storage is exact.
+
+= Open questions
 
 - *No cross-session benchmark.* The 90 percent recall figure is the author's own fact set. Nobody has run GPSM, or the author's store, on LongMemEval or LoCoMo.
 - *Does the model reach for it?* The 4B model used the store when asked. Whether Coder-Next uses memory at the right moments in a long coding session is unmeasured, and it is the main risk.
 - *No build on real Coder-Next weights yet.* It needs the circuit re-exported with Coder-Next's tokenizer and a machine that holds the weights.
-- *Fixed capacity.* 256 to 512 files.
+- *Fixed capacity.* 256 to 512 files, and frog stores text one byte per id today, about four times the slots real tokens would use.
 - *Compute on every token.* About 8 percent at 4B, less on a 3B-active mixture of experts.
+
+= Conclusion
+
+A delta-rule head with its gates pinned is exact RAM. We confirmed that in tang's kernel, showed that no trained head reaches it on its own, and followed the idea from the author's checkpoint to our own compiler and a CUDA window inside our engine, each step bitwise. Two hopes did not survive: the same structure gives no shortcut through prefill, and trained heads cannot be borrowed for storage. What survives is Gate-Pinned State Memory: a small, exact store that lives beside a model's own state, costs no context, needs no training, leaves the model's text unchanged, and persists as a file its user holds. Whether models use it well over long sessions is the next thing to measure.
 
 #heading(outlined: true, numbering: none)[References]
 #show bibliography: it => { show "?.": "?"; show "!.": "!"; it }
