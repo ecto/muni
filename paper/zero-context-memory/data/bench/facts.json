@@ -1,0 +1,1304 @@
+{
+ "seed": 20261028,
+ "facts": [
+  {
+   "kind": "signature",
+   "answer": "fn search_resolve(cfg: &mut Cfg, offset: i64) -> Result<(), Error>",
+   "say": "the saffron search entry point has the signature fn search_resolve(cfg: &mut Cfg, offset: i64) -> Result<(), Error>",
+   "ask": "What is the exact signature of the saffron search entry point?",
+   "session": 1,
+   "id": 0
+  },
+  {
+   "kind": "uuid",
+   "answer": "d68c9f49-e450-44f7-b232-d1e49c04518c",
+   "say": "the tenant ID for the basalt account is d68c9f49-e450-44f7-b232-d1e49c04518c",
+   "ask": "What is the tenant ID for the basalt account?",
+   "session": 1,
+   "id": 1
+  },
+  {
+   "kind": "hash",
+   "answer": "acbf0dea8f",
+   "say": "the last good ferrous build was commit acbf0dea8f",
+   "ask": "What is the commit hash of the last good ferrous build?",
+   "session": 1,
+   "id": 2
+  },
+  {
+   "kind": "path",
+   "answer": "/srv/lumen/conf/billing_55.json",
+   "say": "the lumen billing config file lives at /srv/lumen/conf/billing_55.json",
+   "ask": "What is the path of the lumen billing config file?",
+   "session": 1,
+   "id": 3
+  },
+  {
+   "kind": "config",
+   "answer": "auth.max_retries=270",
+   "say": "in quartz we set auth.max_retries=270",
+   "ask": "What config key=value setting did we use for auth in quartz? Give it as key=value.",
+   "session": 1,
+   "id": 4
+  },
+  {
+   "kind": "hash",
+   "answer": "57f579cd9b",
+   "say": "the last good basalt build was commit 57f579cd9b",
+   "ask": "What is the commit hash of the last good basalt build?",
+   "session": 1,
+   "id": 5
+  },
+  {
+   "kind": "hash",
+   "answer": "a70b3d1f79",
+   "say": "the last good harbor build was commit a70b3d1f79",
+   "ask": "What is the commit hash of the last good harbor build?",
+   "session": 1,
+   "id": 6
+  },
+  {
+   "kind": "config",
+   "answer": "queue.batch_size=86766",
+   "say": "in basalt we set queue.batch_size=86766",
+   "ask": "What config key=value setting did we use for queue in basalt? Give it as key=value.",
+   "session": 1,
+   "id": 7
+  },
+  {
+   "kind": "config",
+   "answer": "search.shard_count=22391",
+   "say": "in saffron we set search.shard_count=22391",
+   "ask": "What config key=value setting did we use for search in saffron? Give it as key=value.",
+   "session": 1,
+   "id": 8
+  },
+  {
+   "kind": "signature",
+   "answer": "fn router_apply(req: &mut Req, depth: u32) -> Result<(), Error>",
+   "say": "the tundra router entry point has the signature fn router_apply(req: &mut Req, depth: u32) -> Result<(), Error>",
+   "ask": "What is the exact signature of the tundra router entry point?",
+   "session": 1,
+   "id": 9
+  },
+  {
+   "kind": "port",
+   "answer": "13879",
+   "say": "the basalt queue service listens on port 13879",
+   "ask": "Which port does the basalt queue service listen on?",
+   "session": 1,
+   "id": 10
+  },
+  {
+   "kind": "config",
+   "answer": "billing.batch_size=59813",
+   "say": "in lumen we set billing.batch_size=59813",
+   "ask": "What config key=value setting did we use for billing in lumen? Give it as key=value.",
+   "session": 1,
+   "id": 11
+  },
+  {
+   "kind": "port",
+   "answer": "36799",
+   "say": "the kestrel ledger service listens on port 36799",
+   "ask": "Which port does the kestrel ledger service listen on?",
+   "session": 2,
+   "id": 12
+  },
+  {
+   "kind": "config",
+   "answer": "ledger.timeout_ms=854",
+   "say": "in kestrel we set ledger.timeout_ms=854",
+   "ask": "What config key=value setting did we use for ledger in kestrel? Give it as key=value.",
+   "session": 2,
+   "id": 13
+  },
+  {
+   "kind": "signature",
+   "answer": "fn cache_flush(cfg: &mut Cfg, depth: usize) -> Result<(), Error>",
+   "say": "the orchid cache entry point has the signature fn cache_flush(cfg: &mut Cfg, depth: usize) -> Result<(), Error>",
+   "ask": "What is the exact signature of the orchid cache entry point?",
+   "session": 2,
+   "id": 14
+  },
+  {
+   "kind": "path",
+   "answer": "/srv/nimbus/data/render_20.yaml",
+   "say": "the nimbus render config file lives at /srv/nimbus/data/render_20.yaml",
+   "ask": "What is the path of the nimbus render config file?",
+   "session": 2,
+   "id": 15
+  },
+  {
+   "kind": "signature",
+   "answer": "fn ledger_resolve(buf: &mut Buf, limit: i64) -> Result<(), Error>",
+   "say": "the kestrel ledger entry point has the signature fn ledger_resolve(buf: &mut Buf, limit: i64) -> Result<(), Error>",
+   "ask": "What is the exact signature of the kestrel ledger entry point?",
+   "session": 2,
+   "id": 16
+  },
+  {
+   "kind": "port",
+   "answer": "7309",
+   "say": "the nimbus render service listens on port 7309",
+   "ask": "Which port does the nimbus render service listen on?",
+   "session": 2,
+   "id": 17
+  },
+  {
+   "kind": "port",
+   "answer": "3488",
+   "say": "the orchid cache service listens on port 3488",
+   "ask": "Which port does the orchid cache service listen on?",
+   "session": 2,
+   "id": 18
+  },
+  {
+   "kind": "port",
+   "answer": "50417",
+   "say": "the lumen billing service listens on port 50417",
+   "ask": "Which port does the lumen billing service listen on?",
+   "session": 2,
+   "id": 19
+  },
+  {
+   "kind": "config",
+   "answer": "router.batch_size=769",
+   "say": "in tundra we set router.batch_size=769",
+   "ask": "What config key=value setting did we use for router in tundra? Give it as key=value.",
+   "session": 2,
+   "id": 20
+  },
+  {
+   "kind": "hash",
+   "answer": "6c945a1d98",
+   "say": "the last good saffron build was commit 6c945a1d98",
+   "ask": "What is the commit hash of the last good saffron build?",
+   "session": 2,
+   "id": 21
+  },
+  {
+   "kind": "uuid",
+   "answer": "b6c94ad2-739e-47b5-84f9-bd4c14e4cc42",
+   "say": "the tenant ID for the quartz account is b6c94ad2-739e-47b5-84f9-bd4c14e4cc42",
+   "ask": "What is the tenant ID for the quartz account?",
+   "session": 2,
+   "id": 22
+  },
+  {
+   "kind": "config",
+   "answer": "sync.pool_size=25201",
+   "say": "in harbor we set sync.pool_size=25201",
+   "ask": "What config key=value setting did we use for sync in harbor? Give it as key=value.",
+   "session": 2,
+   "id": 23
+  },
+  {
+   "kind": "path",
+   "answer": "/srv/quartz/conf/auth_12.toml",
+   "say": "the quartz auth config file lives at /srv/quartz/conf/auth_12.toml",
+   "ask": "What is the path of the quartz auth config file?",
+   "session": 3,
+   "id": 24
+  },
+  {
+   "kind": "port",
+   "answer": "7375",
+   "say": "the quartz auth service listens on port 7375",
+   "ask": "Which port does the quartz auth service listen on?",
+   "session": 3,
+   "id": 25
+  },
+  {
+   "kind": "hash",
+   "answer": "106edb66e2",
+   "say": "the last good orchid build was commit 106edb66e2",
+   "ask": "What is the commit hash of the last good orchid build?",
+   "session": 3,
+   "id": 26
+  },
+  {
+   "kind": "port",
+   "answer": "12846",
+   "say": "the ferrous ingest service listens on port 12846",
+   "ask": "Which port does the ferrous ingest service listen on?",
+   "session": 3,
+   "id": 27
+  },
+  {
+   "kind": "signature",
+   "answer": "fn queue_merge(buf: &mut Buf, depth: u16) -> Result<(), Error>",
+   "say": "the basalt queue entry point has the signature fn queue_merge(buf: &mut Buf, depth: u16) -> Result<(), Error>",
+   "ask": "What is the exact signature of the basalt queue entry point?",
+   "session": 3,
+   "id": 28
+  },
+  {
+   "kind": "config",
+   "answer": "cache.batch_size=19606",
+   "say": "in orchid we set cache.batch_size=19606",
+   "ask": "What config key=value setting did we use for cache in orchid? Give it as key=value.",
+   "session": 3,
+   "id": 29
+  },
+  {
+   "kind": "path",
+   "answer": "/srv/tundra/etc/router_52.ini",
+   "say": "the tundra router config file lives at /srv/tundra/etc/router_52.ini",
+   "ask": "What is the path of the tundra router config file?",
+   "session": 3,
+   "id": 30
+  },
+  {
+   "kind": "hash",
+   "answer": "6725aee605",
+   "say": "the last good quartz build was commit 6725aee605",
+   "ask": "What is the commit hash of the last good quartz build?",
+   "session": 3,
+   "id": 31
+  },
+  {
+   "kind": "port",
+   "answer": "50182",
+   "say": "the tundra router service listens on port 50182",
+   "ask": "Which port does the tundra router service listen on?",
+   "session": 3,
+   "id": 32
+  },
+  {
+   "kind": "path",
+   "answer": "/srv/kestrel/data/ledger_82.ini",
+   "say": "the kestrel ledger config file lives at /srv/kestrel/data/ledger_82.ini",
+   "ask": "What is the path of the kestrel ledger config file?",
+   "session": 3,
+   "id": 33
+  },
+  {
+   "kind": "path",
+   "answer": "/srv/orchid/etc/cache_84.yaml",
+   "say": "the orchid cache config file lives at /srv/orchid/etc/cache_84.yaml",
+   "ask": "What is the path of the orchid cache config file?",
+   "session": 3,
+   "id": 34
+  },
+  {
+   "kind": "signature",
+   "answer": "fn sync_resolve(cfg: &mut Cfg, limit: i64) -> Result<(), Error>",
+   "say": "the harbor sync entry point has the signature fn sync_resolve(cfg: &mut Cfg, limit: i64) -> Result<(), Error>",
+   "ask": "What is the exact signature of the harbor sync entry point?",
+   "session": 3,
+   "id": 35
+  },
+  {
+   "kind": "uuid",
+   "answer": "b564b33f-7d03-4dfb-9b38-ee0203c2d7b5",
+   "say": "the tenant ID for the ferrous account is b564b33f-7d03-4dfb-9b38-ee0203c2d7b5",
+   "ask": "What is the tenant ID for the ferrous account?",
+   "session": 4,
+   "id": 36
+  },
+  {
+   "kind": "uuid",
+   "answer": "6193cb37-ad07-4162-a9ce-507899153960",
+   "say": "the tenant ID for the lumen account is 6193cb37-ad07-4162-a9ce-507899153960",
+   "ask": "What is the tenant ID for the lumen account?",
+   "session": 4,
+   "id": 37
+  },
+  {
+   "kind": "path",
+   "answer": "/srv/saffron/data/search_80.toml",
+   "say": "the saffron search config file lives at /srv/saffron/data/search_80.toml",
+   "ask": "What is the path of the saffron search config file?",
+   "session": 4,
+   "id": 38
+  },
+  {
+   "kind": "port",
+   "answer": "23957",
+   "say": "the harbor sync service listens on port 23957",
+   "ask": "Which port does the harbor sync service listen on?",
+   "session": 4,
+   "id": 39
+  },
+  {
+   "kind": "path",
+   "answer": "/srv/harbor/conf/sync_68.toml",
+   "say": "the harbor sync config file lives at /srv/harbor/conf/sync_68.toml",
+   "ask": "What is the path of the harbor sync config file?",
+   "session": 4,
+   "id": 40
+  },
+  {
+   "kind": "uuid",
+   "answer": "b0605946-8ef8-4de6-9e38-4466f8f6c236",
+   "say": "the tenant ID for the orchid account is b0605946-8ef8-4de6-9e38-4466f8f6c236",
+   "ask": "What is the tenant ID for the orchid account?",
+   "session": 4,
+   "id": 41
+  },
+  {
+   "kind": "hash",
+   "answer": "4ce3911326",
+   "say": "the last good kestrel build was commit 4ce3911326",
+   "ask": "What is the commit hash of the last good kestrel build?",
+   "session": 4,
+   "id": 42
+  },
+  {
+   "kind": "uuid",
+   "answer": "550d132c-3b7e-4b35-a9a0-1b17caa8e58e",
+   "say": "the tenant ID for the tundra account is 550d132c-3b7e-4b35-a9a0-1b17caa8e58e",
+   "ask": "What is the tenant ID for the tundra account?",
+   "session": 4,
+   "id": 43
+  },
+  {
+   "kind": "signature",
+   "answer": "fn auth_encode(cfg: &mut Cfg, level: i64) -> Result<(), Error>",
+   "say": "the quartz auth entry point has the signature fn auth_encode(cfg: &mut Cfg, level: i64) -> Result<(), Error>",
+   "ask": "What is the exact signature of the quartz auth entry point?",
+   "session": 4,
+   "id": 44
+  },
+  {
+   "kind": "config",
+   "answer": "render.pool_size=52019",
+   "say": "in nimbus we set render.pool_size=52019",
+   "ask": "What config key=value setting did we use for render in nimbus? Give it as key=value.",
+   "session": 4,
+   "id": 45
+  },
+  {
+   "kind": "hash",
+   "answer": "37a30c3946",
+   "say": "the last good lumen build was commit 37a30c3946",
+   "ask": "What is the commit hash of the last good lumen build?",
+   "session": 4,
+   "id": 46
+  },
+  {
+   "kind": "hash",
+   "answer": "31b469aae3",
+   "say": "the last good nimbus build was commit 31b469aae3",
+   "ask": "What is the commit hash of the last good nimbus build?",
+   "session": 4,
+   "id": 47
+  },
+  {
+   "kind": "uuid",
+   "answer": "6d5622eb-cfc3-4b2d-b711-34575b80c656",
+   "say": "the tenant ID for the saffron account is 6d5622eb-cfc3-4b2d-b711-34575b80c656",
+   "ask": "What is the tenant ID for the saffron account?",
+   "session": 5,
+   "id": 48
+  },
+  {
+   "kind": "path",
+   "answer": "/srv/basalt/conf/queue_14.toml",
+   "say": "the basalt queue config file lives at /srv/basalt/conf/queue_14.toml",
+   "ask": "What is the path of the basalt queue config file?",
+   "session": 5,
+   "id": 49
+  },
+  {
+   "kind": "signature",
+   "answer": "fn billing_merge(cfg: &mut Cfg, depth: usize) -> Result<(), Error>",
+   "say": "the lumen billing entry point has the signature fn billing_merge(cfg: &mut Cfg, depth: usize) -> Result<(), Error>",
+   "ask": "What is the exact signature of the lumen billing entry point?",
+   "session": 5,
+   "id": 50
+  },
+  {
+   "kind": "uuid",
+   "answer": "39ad00af-bd41-4966-95f5-b6054546638e",
+   "say": "the tenant ID for the harbor account is 39ad00af-bd41-4966-95f5-b6054546638e",
+   "ask": "What is the tenant ID for the harbor account?",
+   "session": 5,
+   "id": 51
+  },
+  {
+   "kind": "uuid",
+   "answer": "1c5df61c-dfc6-49dc-bf96-c72310c7726f",
+   "say": "the tenant ID for the nimbus account is 1c5df61c-dfc6-49dc-bf96-c72310c7726f",
+   "ask": "What is the tenant ID for the nimbus account?",
+   "session": 5,
+   "id": 52
+  },
+  {
+   "kind": "config",
+   "answer": "ingest.batch_size=775",
+   "say": "in ferrous we set ingest.batch_size=775",
+   "ask": "What config key=value setting did we use for ingest in ferrous? Give it as key=value.",
+   "session": 5,
+   "id": 53
+  },
+  {
+   "kind": "port",
+   "answer": "57864",
+   "say": "the saffron search service listens on port 57864",
+   "ask": "Which port does the saffron search service listen on?",
+   "session": 5,
+   "id": 54
+  },
+  {
+   "kind": "hash",
+   "answer": "095b49038c",
+   "say": "the last good tundra build was commit 095b49038c",
+   "ask": "What is the commit hash of the last good tundra build?",
+   "session": 5,
+   "id": 55
+  },
+  {
+   "kind": "uuid",
+   "answer": "c96f3e52-6b7e-483f-95d7-ca30b9a04a29",
+   "say": "the tenant ID for the kestrel account is c96f3e52-6b7e-483f-95d7-ca30b9a04a29",
+   "ask": "What is the tenant ID for the kestrel account?",
+   "session": 5,
+   "id": 56
+  },
+  {
+   "kind": "signature",
+   "answer": "fn render_apply(req: &mut Req, level: u32) -> Result<(), Error>",
+   "say": "the nimbus render entry point has the signature fn render_apply(req: &mut Req, level: u32) -> Result<(), Error>",
+   "ask": "What is the exact signature of the nimbus render entry point?",
+   "session": 5,
+   "id": 57
+  },
+  {
+   "kind": "signature",
+   "answer": "fn ingest_apply(ctx: &mut Ctx, depth: u32) -> Result<(), Error>",
+   "say": "the ferrous ingest entry point has the signature fn ingest_apply(ctx: &mut Ctx, depth: u32) -> Result<(), Error>",
+   "ask": "What is the exact signature of the ferrous ingest entry point?",
+   "session": 5,
+   "id": 58
+  },
+  {
+   "kind": "path",
+   "answer": "/srv/ferrous/var/ingest_32.ini",
+   "say": "the ferrous ingest config file lives at /srv/ferrous/var/ingest_32.ini",
+   "ask": "What is the path of the ferrous ingest config file?",
+   "session": 5,
+   "id": 59
+  }
+ ],
+ "sessions": [
+  {
+   "date": "2 March 2026",
+   "turns": [
+    [
+     "User",
+     "I'm heading out for lunch soon."
+    ],
+    [
+     "Assistant",
+     "Fair enough."
+    ],
+    [
+     "User",
+     "Quick note for later: the saffron search entry point has the signature fn search_resolve(cfg: &mut Cfg, offset: i64) -> Result<(), Error>."
+    ],
+    [
+     "Assistant",
+     "Noted."
+    ],
+    [
+     "User",
+     "Quick note for later: the tenant ID for the basalt account is d68c9f49-e450-44f7-b232-d1e49c04518c."
+    ],
+    [
+     "Assistant",
+     "Noted."
+    ],
+    [
+     "User",
+     "Morning! Coffee machine is broken again."
+    ],
+    [
+     "Assistant",
+     "Haha, classic."
+    ],
+    [
+     "User",
+     "Quick note for later: the last good ferrous build was commit acbf0dea8f."
+    ],
+    [
+     "Assistant",
+     "Noted."
+    ],
+    [
+     "User",
+     "Did you see the game last night?"
+    ],
+    [
+     "Assistant",
+     "Oh no!"
+    ],
+    [
+     "User",
+     "Quick note for later: the lumen billing config file lives at /srv/lumen/conf/billing_55.json."
+    ],
+    [
+     "Assistant",
+     "Noted."
+    ],
+    [
+     "User",
+     "Quick note for later: in quartz we set auth.max_retries=270."
+    ],
+    [
+     "Assistant",
+     "Noted."
+    ],
+    [
+     "User",
+     "Quick note for later: the last good basalt build was commit 57f579cd9b."
+    ],
+    [
+     "Assistant",
+     "Noted."
+    ],
+    [
+     "User",
+     "Weather is gross, rain all week."
+    ],
+    [
+     "Assistant",
+     "Haha, classic."
+    ],
+    [
+     "User",
+     "Quick note for later: the last good harbor build was commit a70b3d1f79."
+    ],
+    [
+     "Assistant",
+     "Noted."
+    ],
+    [
+     "User",
+     "Quick note for later: in basalt we set queue.batch_size=86766."
+    ],
+    [
+     "Assistant",
+     "Noted."
+    ],
+    [
+     "User",
+     "I'm heading out for lunch soon."
+    ],
+    [
+     "Assistant",
+     "Ha, that's rough."
+    ],
+    [
+     "User",
+     "Quick note for later: in saffron we set search.shard_count=22391."
+    ],
+    [
+     "Assistant",
+     "Noted."
+    ],
+    [
+     "User",
+     "Quick note for later: the tundra router entry point has the signature fn router_apply(req: &mut Req, depth: u32) -> Result<(), Error>."
+    ],
+    [
+     "Assistant",
+     "Noted."
+    ],
+    [
+     "User",
+     "I'm heading out for lunch soon."
+    ],
+    [
+     "Assistant",
+     "Sounds good."
+    ],
+    [
+     "User",
+     "Quick note for later: the basalt queue service listens on port 13879."
+    ],
+    [
+     "Assistant",
+     "Noted."
+    ],
+    [
+     "User",
+     "Quick note for later: in lumen we set billing.batch_size=59813."
+    ],
+    [
+     "Assistant",
+     "Noted."
+    ],
+    [
+     "User",
+     "Ok, that's it for today, thanks!"
+    ],
+    [
+     "Assistant",
+     "Anytime, see you."
+    ]
+   ]
+  },
+  {
+   "date": "9 March 2026",
+   "turns": [
+    [
+     "User",
+     "Quick note for later: the kestrel ledger service listens on port 36799."
+    ],
+    [
+     "Assistant",
+     "Noted."
+    ],
+    [
+     "User",
+     "Quick note for later: in kestrel we set ledger.timeout_ms=854."
+    ],
+    [
+     "Assistant",
+     "Noted."
+    ],
+    [
+     "User",
+     "I'm heading out for lunch soon."
+    ],
+    [
+     "Assistant",
+     "Sounds good."
+    ],
+    [
+     "User",
+     "Quick note for later: the orchid cache entry point has the signature fn cache_flush(cfg: &mut Cfg, depth: usize) -> Result<(), Error>."
+    ],
+    [
+     "Assistant",
+     "Noted."
+    ],
+    [
+     "User",
+     "I'm heading out for lunch soon."
+    ],
+    [
+     "Assistant",
+     "Haha, classic."
+    ],
+    [
+     "User",
+     "Quick note for later: the nimbus render config file lives at /srv/nimbus/data/render_20.yaml."
+    ],
+    [
+     "Assistant",
+     "Noted."
+    ],
+    [
+     "User",
+     "The standup ran long today."
+    ],
+    [
+     "Assistant",
+     "Nice."
+    ],
+    [
+     "User",
+     "Quick note for later: the kestrel ledger entry point has the signature fn ledger_resolve(buf: &mut Buf, limit: i64) -> Result<(), Error>."
+    ],
+    [
+     "Assistant",
+     "Noted."
+    ],
+    [
+     "User",
+     "Did you see the game last night?"
+    ],
+    [
+     "Assistant",
+     "Ha, that's rough."
+    ],
+    [
+     "User",
+     "Quick note for later: the nimbus render service listens on port 7309."
+    ],
+    [
+     "Assistant",
+     "Noted."
+    ],
+    [
+     "User",
+     "Weather is gross, rain all week."
+    ],
+    [
+     "Assistant",
+     "Nice."
+    ],
+    [
+     "User",
+     "Quick note for later: the orchid cache service listens on port 3488."
+    ],
+    [
+     "Assistant",
+     "Noted."
+    ],
+    [
+     "User",
+     "Quick note for later: the lumen billing service listens on port 50417."
+    ],
+    [
+     "Assistant",
+     "Noted."
+    ],
+    [
+     "User",
+     "Thinking about getting a new keyboard."
+    ],
+    [
+     "Assistant",
+     "Nice."
+    ],
+    [
+     "User",
+     "Quick note for later: in tundra we set router.batch_size=769."
+    ],
+    [
+     "Assistant",
+     "Noted."
+    ],
+    [
+     "User",
+     "Thinking about getting a new keyboard."
+    ],
+    [
+     "Assistant",
+     "Oh no!"
+    ],
+    [
+     "User",
+     "Quick note for later: the last good saffron build was commit 6c945a1d98."
+    ],
+    [
+     "Assistant",
+     "Noted."
+    ],
+    [
+     "User",
+     "Reminder that Friday is a half day."
+    ],
+    [
+     "Assistant",
+     "Fair enough."
+    ],
+    [
+     "User",
+     "Quick note for later: the tenant ID for the quartz account is b6c94ad2-739e-47b5-84f9-bd4c14e4cc42."
+    ],
+    [
+     "Assistant",
+     "Noted."
+    ],
+    [
+     "User",
+     "Ugh, so many meetings today."
+    ],
+    [
+     "Assistant",
+     "Nice."
+    ],
+    [
+     "User",
+     "Quick note for later: in harbor we set sync.pool_size=25201."
+    ],
+    [
+     "Assistant",
+     "Noted."
+    ],
+    [
+     "User",
+     "Ok, that's it for today, thanks!"
+    ],
+    [
+     "Assistant",
+     "Anytime, see you."
+    ]
+   ]
+  },
+  {
+   "date": "17 March 2026",
+   "turns": [
+    [
+     "User",
+     "Quick note for later: the quartz auth config file lives at /srv/quartz/conf/auth_12.toml."
+    ],
+    [
+     "Assistant",
+     "Noted."
+    ],
+    [
+     "User",
+     "Thinking about getting a new keyboard."
+    ],
+    [
+     "Assistant",
+     "Haha, classic."
+    ],
+    [
+     "User",
+     "Quick note for later: the quartz auth service listens on port 7375."
+    ],
+    [
+     "Assistant",
+     "Noted."
+    ],
+    [
+     "User",
+     "Quick note for later: the last good orchid build was commit 106edb66e2."
+    ],
+    [
+     "Assistant",
+     "Noted."
+    ],
+    [
+     "User",
+     "My cat knocked my monitor over this morning."
+    ],
+    [
+     "Assistant",
+     "Haha, classic."
+    ],
+    [
+     "User",
+     "Quick note for later: the ferrous ingest service listens on port 12846."
+    ],
+    [
+     "Assistant",
+     "Noted."
+    ],
+    [
+     "User",
+     "Quick note for later: the basalt queue entry point has the signature fn queue_merge(buf: &mut Buf, depth: u16) -> Result<(), Error>."
+    ],
+    [
+     "Assistant",
+     "Noted."
+    ],
+    [
+     "User",
+     "Quick note for later: in orchid we set cache.batch_size=19606."
+    ],
+    [
+     "Assistant",
+     "Noted."
+    ],
+    [
+     "User",
+     "Quick note for later: the tundra router config file lives at /srv/tundra/etc/router_52.ini."
+    ],
+    [
+     "Assistant",
+     "Noted."
+    ],
+    [
+     "User",
+     "Quick note for later: the last good quartz build was commit 6725aee605."
+    ],
+    [
+     "Assistant",
+     "Noted."
+    ],
+    [
+     "User",
+     "Ugh, so many meetings today."
+    ],
+    [
+     "Assistant",
+     "Haha, classic."
+    ],
+    [
+     "User",
+     "Quick note for later: the tundra router service listens on port 50182."
+    ],
+    [
+     "Assistant",
+     "Noted."
+    ],
+    [
+     "User",
+     "Quick note for later: the kestrel ledger config file lives at /srv/kestrel/data/ledger_82.ini."
+    ],
+    [
+     "Assistant",
+     "Noted."
+    ],
+    [
+     "User",
+     "Quick note for later: the orchid cache config file lives at /srv/orchid/etc/cache_84.yaml."
+    ],
+    [
+     "Assistant",
+     "Noted."
+    ],
+    [
+     "User",
+     "Quick note for later: the harbor sync entry point has the signature fn sync_resolve(cfg: &mut Cfg, limit: i64) -> Result<(), Error>."
+    ],
+    [
+     "Assistant",
+     "Noted."
+    ],
+    [
+     "User",
+     "Ok, that's it for today, thanks!"
+    ],
+    [
+     "Assistant",
+     "Anytime, see you."
+    ]
+   ]
+  },
+  {
+   "date": "24 March 2026",
+   "turns": [
+    [
+     "User",
+     "Thinking about getting a new keyboard."
+    ],
+    [
+     "Assistant",
+     "Haha, classic."
+    ],
+    [
+     "User",
+     "Quick note for later: the tenant ID for the ferrous account is b564b33f-7d03-4dfb-9b38-ee0203c2d7b5."
+    ],
+    [
+     "Assistant",
+     "Noted."
+    ],
+    [
+     "User",
+     "Quick note for later: the tenant ID for the lumen account is 6193cb37-ad07-4162-a9ce-507899153960."
+    ],
+    [
+     "Assistant",
+     "Noted."
+    ],
+    [
+     "User",
+     "Morning! Coffee machine is broken again."
+    ],
+    [
+     "Assistant",
+     "Nice."
+    ],
+    [
+     "User",
+     "Quick note for later: the saffron search config file lives at /srv/saffron/data/search_80.toml."
+    ],
+    [
+     "Assistant",
+     "Noted."
+    ],
+    [
+     "User",
+     "Thinking about getting a new keyboard."
+    ],
+    [
+     "Assistant",
+     "Oh no!"
+    ],
+    [
+     "User",
+     "Quick note for later: the harbor sync service listens on port 23957."
+    ],
+    [
+     "Assistant",
+     "Noted."
+    ],
+    [
+     "User",
+     "Morning! Coffee machine is broken again."
+    ],
+    [
+     "Assistant",
+     "Oh no!"
+    ],
+    [
+     "User",
+     "Quick note for later: the harbor sync config file lives at /srv/harbor/conf/sync_68.toml."
+    ],
+    [
+     "Assistant",
+     "Noted."
+    ],
+    [
+     "User",
+     "Did you see the game last night?"
+    ],
+    [
+     "Assistant",
+     "Haha, classic."
+    ],
+    [
+     "User",
+     "Quick note for later: the tenant ID for the orchid account is b0605946-8ef8-4de6-9e38-4466f8f6c236."
+    ],
+    [
+     "Assistant",
+     "Noted."
+    ],
+    [
+     "User",
+     "Quick note for later: the last good kestrel build was commit 4ce3911326."
+    ],
+    [
+     "Assistant",
+     "Noted."
+    ],
+    [
+     "User",
+     "Quick note for later: the tenant ID for the tundra account is 550d132c-3b7e-4b35-a9a0-1b17caa8e58e."
+    ],
+    [
+     "Assistant",
+     "Noted."
+    ],
+    [
+     "User",
+     "Morning! Coffee machine is broken again."
+    ],
+    [
+     "Assistant",
+     "Sounds good."
+    ],
+    [
+     "User",
+     "Quick note for later: the quartz auth entry point has the signature fn auth_encode(cfg: &mut Cfg, level: i64) -> Result<(), Error>."
+    ],
+    [
+     "Assistant",
+     "Noted."
+    ],
+    [
+     "User",
+     "Ugh, so many meetings today."
+    ],
+    [
+     "Assistant",
+     "Nice."
+    ],
+    [
+     "User",
+     "Quick note for later: in nimbus we set render.pool_size=52019."
+    ],
+    [
+     "Assistant",
+     "Noted."
+    ],
+    [
+     "User",
+     "Thinking about getting a new keyboard."
+    ],
+    [
+     "Assistant",
+     "Got it."
+    ],
+    [
+     "User",
+     "Quick note for later: the last good lumen build was commit 37a30c3946."
+    ],
+    [
+     "Assistant",
+     "Noted."
+    ],
+    [
+     "User",
+     "Ugh, so many meetings today."
+    ],
+    [
+     "Assistant",
+     "Ha, that's rough."
+    ],
+    [
+     "User",
+     "Quick note for later: the last good nimbus build was commit 31b469aae3."
+    ],
+    [
+     "Assistant",
+     "Noted."
+    ],
+    [
+     "User",
+     "Ok, that's it for today, thanks!"
+    ],
+    [
+     "Assistant",
+     "Anytime, see you."
+    ]
+   ]
+  },
+  {
+   "date": "1 April 2026",
+   "turns": [
+    [
+     "User",
+     "Weather is gross, rain all week."
+    ],
+    [
+     "Assistant",
+     "Fair enough."
+    ],
+    [
+     "User",
+     "Quick note for later: the tenant ID for the saffron account is 6d5622eb-cfc3-4b2d-b711-34575b80c656."
+    ],
+    [
+     "Assistant",
+     "Noted."
+    ],
+    [
+     "User",
+     "Quick note for later: the basalt queue config file lives at /srv/basalt/conf/queue_14.toml."
+    ],
+    [
+     "Assistant",
+     "Noted."
+    ],
+    [
+     "User",
+     "Quick note for later: the lumen billing entry point has the signature fn billing_merge(cfg: &mut Cfg, depth: usize) -> Result<(), Error>."
+    ],
+    [
+     "Assistant",
+     "Noted."
+    ],
+    [
+     "User",
+     "Quick note for later: the tenant ID for the harbor account is 39ad00af-bd41-4966-95f5-b6054546638e."
+    ],
+    [
+     "Assistant",
+     "Noted."
+    ],
+    [
+     "User",
+     "Reminder that Friday is a half day."
+    ],
+    [
+     "Assistant",
+     "Oh no!"
+    ],
+    [
+     "User",
+     "Quick note for later: the tenant ID for the nimbus account is 1c5df61c-dfc6-49dc-bf96-c72310c7726f."
+    ],
+    [
+     "Assistant",
+     "Noted."
+    ],
+    [
+     "User",
+     "Weather is gross, rain all week."
+    ],
+    [
+     "Assistant",
+     "Got it."
+    ],
+    [
+     "User",
+     "Quick note for later: in ferrous we set ingest.batch_size=775."
+    ],
+    [
+     "Assistant",
+     "Noted."
+    ],
+    [
+     "User",
+     "Quick note for later: the saffron search service listens on port 57864."
+    ],
+    [
+     "Assistant",
+     "Noted."
+    ],
+    [
+     "User",
+     "Quick note for later: the last good tundra build was commit 095b49038c."
+    ],
+    [
+     "Assistant",
+     "Noted."
+    ],
+    [
+     "User",
+     "Weather is gross, rain all week."
+    ],
+    [
+     "Assistant",
+     "Fair enough."
+    ],
+    [
+     "User",
+     "Quick note for later: the tenant ID for the kestrel account is c96f3e52-6b7e-483f-95d7-ca30b9a04a29."
+    ],
+    [
+     "Assistant",
+     "Noted."
+    ],
+    [
+     "User",
+     "My cat knocked my monitor over this morning."
+    ],
+    [
+     "Assistant",
+     "Haha, classic."
+    ],
+    [
+     "User",
+     "Quick note for later: the nimbus render entry point has the signature fn render_apply(req: &mut Req, level: u32) -> Result<(), Error>."
+    ],
+    [
+     "Assistant",
+     "Noted."
+    ],
+    [
+     "User",
+     "The standup ran long today."
+    ],
+    [
+     "Assistant",
+     "Oh no!"
+    ],
+    [
+     "User",
+     "Quick note for later: the ferrous ingest entry point has the signature fn ingest_apply(ctx: &mut Ctx, depth: u32) -> Result<(), Error>."
+    ],
+    [
+     "Assistant",
+     "Noted."
+    ],
+    [
+     "User",
+     "Thinking about getting a new keyboard."
+    ],
+    [
+     "Assistant",
+     "Got it."
+    ],
+    [
+     "User",
+     "Quick note for later: the ferrous ingest config file lives at /srv/ferrous/var/ingest_32.ini."
+    ],
+    [
+     "Assistant",
+     "Noted."
+    ],
+    [
+     "User",
+     "Ok, that's it for today, thanks!"
+    ],
+    [
+     "Assistant",
+     "Anytime, see you."
+    ]
+   ]
+  }
+ ]
+}

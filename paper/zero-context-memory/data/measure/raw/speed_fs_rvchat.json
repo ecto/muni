@@ -1,0 +1,45 @@
+{
+ "mode": "fs_rvchat",
+ "prompt_tokens": 512,
+ "gen_tokens": 256,
+ "runs": 3,
+ "gpu": "NVIDIA GeForce RTX 3090",
+ "torch": "2.10.0+cu128",
+ "transformers": "5.20.2",
+ "weights_bytes_gpu": 17969146252,
+ "mem_after_load": 18470625280,
+ "layer_types_count": {
+  "full_attention": 8,
+  "linear_attention": 36
+ },
+ "state_after_768_tokens_qwen_cache": {
+  "recurrent_bytes": 71827456,
+  "conv_bytes": 2244608,
+  "kv_bytes": 25165824
+ },
+ "state_chip_cache": {
+  "recurrent_bytes": 21495808,
+  "conv_bytes": 671744,
+  "kv_bytes": 0
+ },
+ "circuit_fired": 0,
+ "store_heads_value_heads": 93,
+ "store_heads_dense_fp32_bytes": 6094848,
+ "sample": " household.\n\nThe town's reputation for cheese was not just a marketing tool. It was a social contract. If a family wanted to sell their milk, they had to join the cooperative, and if",
+ "prefill_tok_s": [
+  949.8004620996876,
+  1012.5656454017618,
+  1013.6520251246011
+ ],
+ "decode_tok_s": [
+  30.86607233561891,
+  31.073683869343387,
+  31.18529579815927
+ ],
+ "prefill_mean": 992.0060442086834,
+ "prefill_std": 36.555142266101846,
+ "decode_mean": 31.041684001040522,
+ "decode_std": 0.1619996865355449,
+ "peak_mem_allocated": 18860999168,
+ "peak_mem_reserved": 18937282560
+}

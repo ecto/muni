@@ -1,0 +1,32 @@
+{
+ "file": "code/py_textwrap.py",
+ "n_tokens": 512,
+ "positions_compared": 511,
+ "noise_floor_sdpa_vs_eager": 0.0006120510515756905,
+ "noise_floor_excl_pos0": 0.0006132511771284044,
+ "noise_top1_agree": 0.9941291809082031,
+ "empty_store": {
+  "kl_mean": 0.0007308985805138946,
+  "kl_max": 0.026865750551223755,
+  "kl_median": 0.00020397680054884404,
+  "kl_mean_excl_pos0": 0.0007308413623832166,
+  "top1_agree": 0.9921721816062927,
+  "circuit_fired": 0
+ },
+ "store_3files_memory_npz": {
+  "kl_mean": 0.0007308985805138946,
+  "kl_max": 0.026865750551223755,
+  "kl_median": 0.00020397680054884404,
+  "kl_mean_excl_pos0": 0.0007308413623832166,
+  "top1_agree": 0.9921721816062927,
+  "circuit_fired": 0
+ },
+ "store_full_512_files": {
+  "kl_mean": 0.0007308985805138946,
+  "kl_max": 0.026865750551223755,
+  "kl_median": 0.00020397680054884404,
+  "kl_mean_excl_pos0": 0.0007308413623832166,
+  "top1_agree": 0.9921721816062927,
+  "circuit_fired": 0
+ }
+}

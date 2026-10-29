@@ -1,0 +1,39 @@
+{
+ "facts": [
+  {
+   "n": 1,
+   "date": "2 March 2026",
+   "notes": "- **2 March 2026**\n- **Saffron**: `fn search_resolve(cfg: &mut Cfg, offset: i64) -> Result<(), Error>`; `search.shard_count=22391`\n- **Basalt**: Tenant ID `d68c9f49-e450-44f7-b232-d1e49c04518c`; Last good build `acbf0dea8f`; Last good build `57f579cd9b`; Queue batch size `86766`; Queue port `13879`\n- **Lumen**: Billing config `/srv/lumen/conf/billing_55.json`; `billing.batch_size=59813`\n- **Quartz**: `auth.max_retries=270`\n- **Tundra**: `fn router_apply(req: &mut Req, depth: u32) -> Result<(), Error>`",
+   "prompt_tokens": 653,
+   "seconds": 5.409596920013428
+  },
+  {
+   "n": 2,
+   "date": "9 March 2026",
+   "notes": "- **Kestrel Ledger**: Port 36799; `ledger.timeout_ms=854`; entry point `fn ledger_resolve(buf: &mut Buf, limit: i64) -> Result<(), Error>`.\n- **Orchid Cache**: Port 3488; entry point `fn cache_flush(cfg: &mut Cfg, depth: usize) -> Result<(), Error>`.\n- **Nimbus Render**: Port 7309; config at `/srv/nimbus/data/render_20.yaml`.\n- **Lumen Billing**: Port 50417.\n- **Tundra**: `router.batch_size=769`.\n- **Harbor**: `sync.pool_size=25201`.\n- **Saffron Build**: Last good commit `6c945a1d98`.\n- **Quartz Account**: Tenant ID `b6c94ad2-739e-47b5-84f9-bd4c14e4cc42`.\n- **Schedule**: Friday is a half day.\n- **Date**: Session 2, 9 March 2026.",
+   "prompt_tokens": 682,
+   "seconds": 6.10500955581665
+  },
+  {
+   "n": 3,
+   "date": "17 March 2026",
+   "notes": "- **17 March 2026**: Quartz auth config at `/srv/quartz/conf/auth_12.toml`.\n- **17 March 2026**: Quartz auth service port: **7375**.\n- **17 March 2026**: Last good Orchid build: commit **106edb66e2**.\n- **17 March 2026**: Ferrous ingest service port: **12846**.\n- **17 March 2026**: Basalt queue entry point: `fn queue_merge(buf: &mut Buf, depth: u16) -> Result<(), Error>`.\n- **17 March 2026**: Orchid `cache.batch_size`: **19606**.\n- **17 March 2026**: Tundra router config at `/srv/tundra/etc/router_52.ini`.\n- **17 March 2026**: Last good Quartz build: commit **6725aee605**.\n- **17 March 2026**: Tundra router service port: **50182**.\n- **17 March 2026**: Kestrel ledger config at `/srv/kestrel/data/ledger_82.ini`.\n- **17 March 2026**: Orchid cache config at `/srv/orchid/etc/cache_84.yaml`.\n- **17 March 2026**: Harbor sync entry point: `fn sync_resolve(cfg: &mut Cfg, limit: i64) -> Result<(), Error>`.",
+   "prompt_tokens": 584,
+   "seconds": 8.292146444320679
+  },
+  {
+   "n": 4,
+   "date": "24 March 2026",
+   "notes": "- **24 March 2026**: Tenant IDs: Ferrous (b564b33f-7d03-4dfb-9b38-ee0203c2d7b5), Lumen (6193cb37-ad07-4162-a9ce-507899153960), Orchid (b0605946-8ef8-4de6-9e38-4466f8f6c236), Tundra (550d132c-3b7e-4b35-a9a0-1b17caa8e58e).\n- **24 March 2026**: Config paths: Saffron (/srv/saffron/data/search_80.toml), Harbor sync (/srv/harbor/conf/sync_68.toml).\n- **24 March 2026**: Harbor sync port: 23957.\n- **24 March 2026**: Builds: Kestrel (4ce3911326), Lumen (37a30c3946), Nimbus (31b469aae3).\n- **24 March 2026**: Nimbus config: render.pool_size=52019.\n- **24 March 2026**: Quartz auth signature: fn auth_encode(cfg: &mut Cfg, level: i64) -> Result<(), Error>.\n- **24 March 2026**: Issues: Coffee machine broken (repeated); many meetings.\n- **24 March 2026**: Topic: New keyboard consideration.",
+   "prompt_tokens": 784,
+   "seconds": 9.148600339889526
+  },
+  {
+   "n": 5,
+   "date": "1 April 2026",
+   "notes": "- **Date:** 1 April 2026\n- **Tenant IDs:**\n  - Saffron: `6d5622eb-cfc3-4b2d-b711-34575b80c656`\n  - Harbor: `39ad00af-bd41-4966-95f5-b654546638e`\n  - Nimbus: `1c5df61c-dfc6-49dc-bf96-c72310c7726f`\n  - Kestrel: `c96f3e52-6b7e-483f-95d7-ca30b9a04a29`\n- **Config Files:**\n  - Basalt queue: `/srv/basalt/conf/queue_14.toml`\n  - Ferrous ingest: `/srv/ferrous/var/ingest_32.ini`\n- **Function Signatures:**\n  - Lumen billing: `fn billing_merge(cfg: &mut Cfg, depth: usize) -> Result<(), Error>`\n  - Nimbus render: `fn render_apply(req: &mut Req, level: u32) -> Result<(), Error>`\n  - Ferrous ingest: `fn ingest_apply(ctx: &mut Ctx, depth: u32) -> Result<(), Error>`\n- **Settings:**\n  - Ferrous `ingest.batch_size`: `775`\n  - Saffron search port: `57864`\n- **Builds:**\n  - Last good Tundra commit: `095b49038c`\n- **Events:**\n  - Friday is a half day.\n  - Standup ran long",
+   "prompt_tokens": 765,
+   "seconds": 9.372509002685547
+  }
+ ]
+}

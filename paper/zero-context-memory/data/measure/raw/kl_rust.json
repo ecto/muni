@@ -1,0 +1,32 @@
+{
+ "file": "code/rust_itoa_lib.rs",
+ "n_tokens": 512,
+ "positions_compared": 511,
+ "noise_floor_sdpa_vs_eager": 0.0004096223274245858,
+ "noise_floor_excl_pos0": 0.00041042553493753076,
+ "noise_top1_agree": 0.9941291809082031,
+ "empty_store": {
+  "kl_mean": 0.0005107400356791914,
+  "kl_max": 0.013151459395885468,
+  "kl_median": 7.458787877112627e-05,
+  "kl_mean_excl_pos0": 0.0005105602904222906,
+  "top1_agree": 0.9980430603027344,
+  "circuit_fired": 0
+ },
+ "store_3files_memory_npz": {
+  "kl_mean": 0.0005107400356791914,
+  "kl_max": 0.013151459395885468,
+  "kl_median": 7.458787877112627e-05,
+  "kl_mean_excl_pos0": 0.0005105602904222906,
+  "top1_agree": 0.9980430603027344,
+  "circuit_fired": 0
+ },
+ "store_full_512_files": {
+  "kl_mean": 0.0005107400356791914,
+  "kl_max": 0.013151459395885468,
+  "kl_median": 7.458787877112627e-05,
+  "kl_mean_excl_pos0": 0.0005105602904222906,
+  "top1_agree": 0.9980430603027344,
+  "circuit_fired": 0
+ }
+}
