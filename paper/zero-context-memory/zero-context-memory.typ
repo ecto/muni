@@ -64,7 +64,6 @@
 #set page(
   paper: "us-letter",
   fill: c-bg,
-  foreground: place(center + horizon, rotate(-32deg, text(font: mono-sb, size: 128pt, tracking: 0.12em, fill: c-sel.transparentize(93%), "DRAFT"))),
   margin: (x: 1.85in, top: 1.1in, bottom: 1.05in),
   header-ascent: 0.45in,
   footer-descent: 0.45in,
@@ -77,7 +76,7 @@
   footer: context {
     if counter(page).get().first() > 1 {
       pad(x: -hf-out(), grid(columns: (1fr, auto, 1fr),
-        caps[Draft · October 2026],
+        caps[October 2026],
         text(font: mono-m, size: s-xs, fill: c-label, number-width: "tabular")[#{ let n = counter(page).get().first(); if n < 10 { "0" + str(n) } else { str(n) } } / #counter(page).final().first()],
         align(right, caps[Research])))
     }
@@ -352,7 +351,7 @@
   #grid(columns: (auto, 1fr, auto), column-gutter: 0.8em, align: horizon,
     caps(fill: c-text)[Municipal Robotics · Research],
     line(length: 100%, stroke: 0.5pt + c-line-hi),
-    caps[Draft · October 2026])
+    caps[October 2026])
   #v(1.6em)
   #image("images/muni-logo.svg", width: 0.95in)
   #v(0.2in)
