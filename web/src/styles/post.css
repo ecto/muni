@@ -115,6 +115,9 @@
 }
 .post p { margin: 0 0 0.56em; text-wrap: pretty; } /* PDF paragraph spacing 1.4em, less the 0.84em leading */
 .post a { color: var(--p-text); font-weight: inherit; text-underline-offset: 3px; }
+/* links out of the post read as links: a quiet underline that brightens on hover */
+.post a[href^="http"] { text-decoration: underline; text-decoration-thickness: 1px; text-decoration-color: var(--p-label); transition: text-decoration-color 0.15s; }
+.post a[href^="http"]:hover { text-decoration-color: var(--p-text); }
 .post strong { font-weight: 600; }
 .post sup { font-size: 0.68em; line-height: 0; }
 .post a[role="doc-biblioref"] { color: var(--p-label); text-decoration: none; }

@@ -89,6 +89,8 @@
 #set heading(numbering: web-num("1.1"))
 #show strong: set text(font: sans-sb)
 #show link: set text(fill: c-text)
+// URL links get a quiet underline in the PDF; on the web the stylesheet styles them
+#show link: it => if web or type(it.dest) != str { it } else { underline(stroke: 0.5pt + c-label, offset: 2pt, it) }
 #show heading: set text(font: sans, weight: 400, fill: c-text, hyphenate: false)
 #let numlabel(it) = text(font: mono-m, size: s-xs, fill: c-label, tracking: track, counter(heading).display(it.numbering))
 #show heading.where(level: 1): it => if web { it } else { block(above: 2.2em, below: 1.1em, sticky: true, width: 100%, {
@@ -367,7 +369,7 @@
 ]}
 
 #let abstract-text = [
-  A coding agent remembers by pasting text into its prompt, and pays for it on every turn. Divyansh Agrawal's qwenputer showed another way: a Gated DeltaNet head with its gates pinned is exact, addressable RAM, and a filesystem can be compiled into extra layers of a model without training @agrawal2026qwenputer. We call the method Gate-Pinned State Memory (GPSM), checked every link of it on our own stack, and then measured whether it helps an agent remember.
+  A coding agent remembers by pasting text into its prompt, and pays for it on every turn. #link("https://divagr.com/blog/qwenputer")[Divyansh Agrawal's qwenputer] showed another way: a Gated DeltaNet head with its gates pinned is exact, addressable RAM, and a filesystem can be compiled into extra layers of a model without training @agrawal2026qwenputer. We call the method Gate-Pinned State Memory (GPSM), checked every link of it on our own stack, and then measured whether it helps an agent remember.
 
   The storage holds up. tang's kernel stores and reads one-hot rows bitwise over a 50,000-step free run, while no trained head qualifies: on GLM-5.3-Flash, none of 8,192 channels per layer holds its gate at exactly 1. On an RTX 3090 Agrawal's model drove its store through tool calls and read files back from a small saved file in an empty conversation, with its output on prose and code close to the noise floor of the base model. tang ran the compiled layers bitwise in its reference math, emitted all 168 of their tensors bitwise from its own compiler, and served them from a CUDA window inside the engine at about 0.9 ms per token. Agrawal's compiled CPU also reproduced: 39 of 40 large multiplications against 22 for the base model.
 
@@ -402,9 +404,9 @@ With the decay $g = 1$, the write strength $beta = 1$ and a one-hot key $k = e_i
   caption: [#lead[The delta rule, drawn.] Sixteen rows stand for a 128 × 128 head state. A trained head decays every row and smears the write across all of them. A pinned head with a one-hot key replaces exactly one row and leaves the rest untouched.],
 )
 
-A one-hot query reads row $i$ back. Compile weights that produce those gates and keys, and the recurrent state is RAM. We call fixing the gates this way _gate pinning_, a head built this way a _pinned head_, and memory kept in pinned heads *Gate-Pinned State Memory* (GPSM). The gates are pinned, not the state: rows change when they are rewritten, and stay exactly as written until then. qwenputer @agrawal2026qwenputer compiled a RISC-V CPU and a 512-file store into 12 extra layers in front of Qwen3.5 4B, without training. It reported a KL divergence to the base model of $6 times 10^(-4)$, and recall of facts across chats 90 percent of the time, against 30 percent when the old chats were pasted back in.
+A one-hot query reads row $i$ back. Compile weights that produce those gates and keys, and the recurrent state is RAM. We call fixing the gates this way _gate pinning_, a head built this way a _pinned head_, and memory kept in pinned heads *Gate-Pinned State Memory* (GPSM). The gates are pinned, not the state: rows change when they are rewritten, and stay exactly as written until then. #link("https://github.com/divagr18/qwenputer")[qwenputer] @agrawal2026qwenputer compiled a RISC-V CPU and a 512-file store into 12 extra layers in front of Qwen3.5 4B, without training. It reported a KL divergence to the base model of $6 times 10^(-4)$, and recall of facts across chats 90 percent of the time, against 30 percent when the old chats were pasted back in.
 
-tang is our inference engine. It runs Qwen3-Coder-Next, a mixture of experts with about 3B parameters active per token and a hybrid of 36 GDN layers and 12 attention layers, and already snapshots the fixed-size recurrent state to disk. Its GDN kernel is specified for the shapes of Flash-Next, another Qwen hybrid tang serves, with 16 key and 48 value heads per layer; Coder-Next and Qwen3.5 4B have 32 value heads. frog, our coding agent, talks to it. So the question was concrete: what of this transfers to an engine we own?
+#link("https://tang.toys")[tang] is our inference engine. It runs #link("https://huggingface.co/Qwen/Qwen3-Coder-Next")[Qwen3-Coder-Next], a mixture of experts with about 3B parameters active per token and a hybrid of 36 GDN layers and 12 attention layers, and already snapshots the fixed-size recurrent state to disk. Its GDN kernel is specified for the shapes of Flash-Next, another Qwen hybrid tang serves, with 16 key and 48 value heads per layer; Coder-Next and Qwen3.5 4B have 32 value heads. #link("https://frog.toys")[frog], our coding agent, talks to it. So the question was concrete: what of this transfers to an engine we own?
 
 = Exact RAM in tang's kernel
 
@@ -418,7 +420,7 @@ tang pins the GDN recurrence in a CPU specification that the CUDA kernel is veri
 
 = Trained heads cannot do it
 
-So a pretrained head can be borrowed for storage only if its gate is bitwise 1 on every token. We measured the real gates of GLM-5.3-Flash, whose recurrent layers use a per-channel-gated delta rule, over 427 tokens and all 34 recurrent layers.
+So a pretrained head can be borrowed for storage only if its gate is bitwise 1 on every token. We measured the real gates of #link("https://huggingface.co/zai-org/GLM-5.3-Flash")[GLM-5.3-Flash], whose recurrent layers use a per-channel-gated delta rule, over 427 tokens and all 34 recurrent layers.
 
 #figure(
   table(
@@ -488,7 +490,7 @@ A fill of each layout to capacity, 512 and 256 files, and a 10,000-operation ran
 
 == The model drives it
 
-*Reproduction.* We ran Agrawal's code and checkpoint on an RTX 3090. In one conversation the model issued all nine store calls itself: three puts, a list, three gets, a delete and a list. Every answer was printed by the model, and 160 printed tokens matched Agrawal's reference with no mismatches. We saved the store Agrawal's way, as a 14,276-byte file of its occupied rows, and loaded it into an empty conversation. The model listed the two surviving files and read both back exactly. In our run, KL to the base model was $6.9 times 10^(-4)$ against a noise floor of $6.7 times 10^(-4)$, close to Agrawal's reported figure, and bitwise identical with files loaded or not.
+*Reproduction.* We ran Agrawal's code and #link("https://huggingface.co/divagr1925/Qwen3.5-4B-Qwenputer-Filesystem")[checkpoint] on an RTX 3090. In one conversation the model issued all nine store calls itself: three puts, a list, three gets, a delete and a list. Every answer was printed by the model, and 160 printed tokens matched Agrawal's reference with no mismatches. We saved the store Agrawal's way, as a 14,276-byte file of its occupied rows, and loaded it into an empty conversation. The model listed the two surviving files and read both back exactly. In our run, KL to the base model was $6.9 times 10^(-4)$ against a noise floor of $6.7 times 10^(-4)$, close to Agrawal's reported figure, and bitwise identical with files loaded or not.
 
 *tang runs the compiled layers.* tang's reference math ran the checkpoint's 12 compiled layers on Agrawal's trace. All 126 tokens of a shorter put, get and list trace matched, and every store head's $128 times 128$ state was bitwise equal after each operation.
 
@@ -528,17 +530,17 @@ The compiled layers take 13.75 MB of sparse weights and 26 MB of state per sessi
 
 = Does it help an agent remember?
 
-Sections 2 to 5 show that the storage is exact. This section asks the question that matters for an agent: given the store, does a model remember better across sessions? We ran Agrawal's filesystem model against four memory arms on the same base weights, Qwen3.5 4B, on one RTX 3090 with greedy decoding. The data, prompts, model revisions and scripts are published with this post.
+Sections 2 to 5 show that the storage is exact. This section asks the question that matters for an agent: given the store, does a model remember better across sessions? We ran Agrawal's filesystem model against four memory arms on the same base weights, #link("https://huggingface.co/Qwen/Qwen3.5-4B")[Qwen3.5 4B], on one RTX 3090 with greedy decoding. The data, prompts, model revisions and scripts are #link("https://github.com/muni-works/muni/tree/main/paper/zero-context-memory/data")[published with this post].
 
 == Setup
 
 - *A0, no memory.* The question alone.
 - *A1, full history.* The most recent 16,384 tokens of the earlier sessions, plus the question and template.
-- *A2, retrieval.* The earlier sessions in chunks of six turns, embedded with bge-small, top five chunks in the prompt.
+- *A2, retrieval.* The earlier sessions in chunks of six turns, embedded with #link("https://huggingface.co/BAAI/bge-small-en-v1.5")[bge-small], top five chunks in the prompt.
 - *A3, text notes.* After each session the model writes notes of up to 400 tokens; all notes go into the prompt. This is how coding agents remember today.
-- *A4, GPSM.* After each session the filesystem model is shown the session and its store tools, with Agrawal's system prompt, and saves what it chooses, up to 1,000 of its own tokens per session. At question time it sees only the question and may list and get files, with 300 of its own tokens to spend.
+- *A4, GPSM.* After each session the #link("https://huggingface.co/divagr1925/Qwen3.5-4B-Qwenputer-Filesystem")[filesystem model] is shown the session and its store tools, with Agrawal's system prompt, and saves what it chooses, up to 1,000 of its own tokens per session. At question time it sees only the question and may list and get files, with 300 of its own tokens to spend.
 
-Two tests. *LoCoMo* is a standard long-conversation benchmark @maharana2024locomo, released under CC BY-NC 4.0; we publish our scores per question but not its conversations, questions or answers. We used 3 of its 10 conversations (80 sessions), excluded its adversarial category, and scored 125 questions with its official F1. The *exact-facts probe* plants 60 seeded values (UUIDs, paths, ports, configuration values, function signatures and hashes) in five short sessions among filler, then asks for each one in a new session, scored by exact match. Intervals are bootstrap 95 percent.
+Two tests. *#link("https://github.com/snap-research/locomo")[LoCoMo]* is a standard long-conversation benchmark @maharana2024locomo, released under CC BY-NC 4.0; we publish our scores per question but not its conversations, questions or answers. We used 3 of its 10 conversations (80 sessions), excluded its adversarial category, and scored 125 questions with its official F1. The *exact-facts probe* plants 60 seeded values (UUIDs, paths, ports, configuration values, function signatures and hashes) in five short sessions among filler, then asks for each one in a new session, scored by exact match. Intervals are bootstrap 95 percent.
 
 == Results
 
@@ -603,7 +605,7 @@ The store's limits are fixed by its compilation: 512 writes over its lifetime, 5
 
 == Exact computation
 
-The same compiler emitted a RISC-V CPU into the model. On Agrawal's arithmetic benchmark, 40 problems each, the CPU model solved 39 large multiplications and 40 large divisions; base Qwen3.5 4B solved 22 and 29. Here the model only has to hand a calculation to the circuit, and the exactness carries through.
+The same compiler emitted a RISC-V CPU into the model. On Agrawal's arithmetic benchmark, drawn from #link("https://github.com/deepmind/mathematics_dataset")[DeepMind's mathematics dataset], 40 problems each, the #link("https://huggingface.co/divagr1925/Qwen3.5-4B-Qwenputer")[CPU model] solved 39 large multiplications and 40 large divisions; base Qwen3.5 4B solved 22 and 29. Here the model only has to hand a calculation to the circuit, and the exactness carries through.
 
 == Can a better policy close the gap?
 
